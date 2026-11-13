@@ -43,6 +43,8 @@ export default function CompanyStatus() {
     Promise.all([api.getCompany(token, companyId), buckets])
       .then(([company, results]) => {
         if (mine !== seq.current) return;
+        // 200 ama başka/boş gövde (ör. aradaki vekil): şirket doğrulanamazsa sayılar gösterilmez.
+        if ((company as { id?: unknown } | null)?.id !== companyId) throw new Error("company mismatch");
         const pages = { ...EMPTY_PAGES };
         SUMMARY_BUCKETS.forEach((b, i) => { pages[b] = results[i]; });
         setLoad({ status: "ready", name: companyName(company), agents: toAgentRows(company), pages });
@@ -67,7 +69,7 @@ export default function CompanyStatus() {
     if (!c || c.count === null) return unknown;
     return c.partial ? ct("atLeast", { count: c.count }) : String(c.count);
   };
-  const costText = !summary ? unknown : summary.costUsd === null ? unknown : displayFormat.usd(summary.costUsd);
+  const costText = !summary || summary.costUsd === null ? unknown : summary.costPartial ? ct("atLeast", { count: displayFormat.usd(summary.costUsd) }) : displayFormat.usd(summary.costUsd);
   const stuck = summary?.counts.stuck.count ?? null;
   const approvals = summary?.counts.needs_approval.count ?? null;
 
@@ -79,7 +81,7 @@ export default function CompanyStatus() {
       </header>
 
       <p role="status" aria-live="polite" className="sr-only" data-testid="company-live">
-        {load.status === "ready" && summary ? ct("live", { approvals: approvals ?? 0, stuck: stuck ?? 0 }) : ""}
+        {load.status === "ready" && summary ? ct("live", { approvals: approvals === null ? unknown : String(approvals), stuck: stuck === null ? unknown : String(stuck) }) : ""}
       </p>
 
       {load.status === "error" && (

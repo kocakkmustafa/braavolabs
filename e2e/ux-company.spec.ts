@@ -137,6 +137,9 @@ test.describe("bayrak AÇIK: bilinmeyen kova, kısmi sayfa, hata", () => {
     const line = page.getByTestId("company-summary-line");
     await expect(line).toContainText("Çalışan en az 2 · Takılan Bilinmiyor · Onay bekleyen 1");
     await expect(page.getByTestId("company-agents-empty")).toBeVisible();
+    // Kısmi sayfa/okunamayan kova varken maliyet de "en az"; ekran okuyucu özeti okunamayan kovayı 0 okumaz.
+    await expect(line).toContainText(/Maliyet en az /);
+    await expect(page.getByTestId("company-live")).toHaveText("1 onay bekliyor, Bilinmiyor takıldı");
     if (SHOTS) await snap(page, join(SHOTS, "02-bilinmiyor-kismi-mobil-390-dark.png"));
     expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
   });

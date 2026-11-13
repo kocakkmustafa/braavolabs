@@ -47,6 +47,10 @@ describe("summarizeCompany", () => {
     const zero = summarizeCompany("c1", pages({ working: page([run("a", "c1", "0.000000")]) }));
     expect(zero.costUsd).toBe(0);
   });
+  it("hiç iş yoksa maliyet 0 (bilinmiyor DEĞİL); kova okunamadıysa bilinmiyor", () => {
+    expect(summarizeCompany("c1", pages()).costUsd).toBe(0);
+    expect(summarizeCompany("c1", pages({ done: null })).costUsd).toBeNull();
+  });
   it("ondalık toplam kayan nokta hatası üretmez (0.1+0.2)", () => {
     const s = summarizeCompany("c1", pages({ working: page([run("a", "c1", "0.1"), run("b", "c1", "0.2")]) }));
     expect(s.costUsd).toBe(0.3);

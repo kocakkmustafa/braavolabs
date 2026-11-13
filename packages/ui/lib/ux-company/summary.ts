@@ -48,7 +48,10 @@ export function summarizeCompany(companyId: string, pages: BucketPages): Company
       else { micro += Math.round(c * 1e6); known += 1; }
     }
   }
-  return { counts, costUsd: known > 0 ? micro / 1e6 : null, costUnknownRuns: unknownCost, costPartial: partial };
+  // Şirketin hiç işi yoksa (tüm kovalar okundu, eşleşen iş yok) maliyet bilinmiyor değil 0'dır.
+  const readable = SUMMARY_BUCKETS.every((b) => pages[b] !== null);
+  const noJobs = readable && known === 0 && unknownCost === 0;
+  return { counts, costUsd: known > 0 ? micro / 1e6 : noJobs ? 0 : null, costUnknownRuns: unknownCost, costPartial: partial };
 }
 
 export interface AgentRow { id: string; name: string; role: string | null }
