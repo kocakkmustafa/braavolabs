@@ -1581,6 +1581,51 @@
           "body": "Slack, GitHub und weitere Werkzeuge."
         }
       }
+    },
+    "companyStatus": {
+      "title": "Unternehmensstatus",
+      "subtitle": "Eine Zeile dazu, was läuft, hängt, auf Freigabe wartet und was es gekostet hat.",
+      "live": "{approvals} warten auf Freigabe, {stuck} hängen",
+      "loading": "Unternehmensstatus wird geladen …",
+      "errorTitle": "Unternehmen konnte nicht geladen werden",
+      "errorBody": "Der Unternehmensstatus konnte nicht gelesen werden. Versuchen Sie es erneut.",
+      "retry": "Erneut versuchen",
+      "summaryLabel": "Unternehmensübersicht",
+      "working": "Läuft",
+      "stuck": "Hängt",
+      "approvals": "Wartet auf Freigabe",
+      "done": "Fertig",
+      "cost": "Kosten",
+      "unknown": "Unbekannt",
+      "atLeast": "mindestens {count}",
+      "note": "Die Zahlen stammen von der ersten Seite jedes Status in Ihrer Auftragsliste (25 Aufträge je Status); „mindestens“ heißt, es gibt mehr. Die Kosten summieren nur diese Aufträge.",
+      "costUnknownRuns": "Bei {count} Auftrag/Aufträgen sind die Kosten nicht lesbar; sie fehlen in der Summe.",
+      "agents": "Agenten",
+      "agentsEmpty": "In diesem Unternehmen gibt es noch keine Agenten.",
+      "role": "Rolle",
+      "linksTitle": "Links",
+      "links": {
+        "jobs": {
+          "title": "Aufträge",
+          "body": "Alles, was läuft, hängt oder fertig ist."
+        },
+        "approvals": {
+          "title": "Freigaben",
+          "body": "Prüfen Sie, was auf Sie wartet."
+        },
+        "risks": {
+          "title": "Risiken",
+          "body": "Offene Risikostopps."
+        },
+        "integrations": {
+          "title": "Integrationen",
+          "body": "Verbundene Werkzeuge."
+        },
+        "classic": {
+          "title": "Klassische Unternehmensseite",
+          "body": "Alle Details, Agenten-Composer und Einstellungen."
+        }
+      }
     }
   },
   "static": {

@@ -1581,6 +1581,51 @@
           "body": "Slack、GitHub 等工具。"
         }
       }
+    },
+    "companyStatus": {
+      "title": "公司状态",
+      "subtitle": "一行显示正在运行、卡住、等待审批的任务以及费用。",
+      "live": "{approvals} 个等待审批，{stuck} 个卡住",
+      "loading": "正在加载公司状态…",
+      "errorTitle": "无法加载公司",
+      "errorBody": "无法读取公司状态。请重试。",
+      "retry": "重试",
+      "summaryLabel": "公司概览",
+      "working": "运行中",
+      "stuck": "卡住",
+      "approvals": "等待审批",
+      "done": "已完成",
+      "cost": "费用",
+      "unknown": "未知",
+      "atLeast": "至少 {count}",
+      "note": "数字来自任务列表中每个状态的第一页(每个状态 25 个任务);“至少”表示还有更多。费用仅汇总这些任务。",
+      "costUnknownRuns": "{count} 个任务的费用无法读取，未计入合计。",
+      "agents": "代理",
+      "agentsEmpty": "此公司还没有代理。",
+      "role": "角色",
+      "linksTitle": "链接",
+      "links": {
+        "jobs": {
+          "title": "任务",
+          "body": "所有运行中、卡住或已完成的内容。"
+        },
+        "approvals": {
+          "title": "审批",
+          "body": "查看等待你处理的事项。"
+        },
+        "risks": {
+          "title": "风险",
+          "body": "未解决的风险停止。"
+        },
+        "integrations": {
+          "title": "集成",
+          "body": "已连接的工具。"
+        },
+        "classic": {
+          "title": "经典公司页面",
+          "body": "完整详情、创建器和设置。"
+        }
+      }
     }
   },
   "static": {

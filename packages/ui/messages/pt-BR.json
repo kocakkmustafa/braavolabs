@@ -1581,6 +1581,51 @@
           "body": "Slack, GitHub e outras ferramentas."
         }
       }
+    },
+    "companyStatus": {
+      "title": "Status da empresa",
+      "subtitle": "Em uma linha: o que está rodando, travado, aguardando aprovação e quanto custou.",
+      "live": "{approvals} aguardando aprovação, {stuck} travados",
+      "loading": "Carregando o status da empresa…",
+      "errorTitle": "Não foi possível carregar a empresa",
+      "errorBody": "Não foi possível ler o status da empresa. Tente novamente.",
+      "retry": "Tentar novamente",
+      "summaryLabel": "Resumo da empresa",
+      "working": "Em andamento",
+      "stuck": "Travados",
+      "approvals": "Aguardando aprovação",
+      "done": "Concluídos",
+      "cost": "Custo",
+      "unknown": "Desconhecido",
+      "atLeast": "pelo menos {count}",
+      "note": "Os números vêm da primeira página de cada status na sua lista de trabalhos (25 por status); “pelo menos” indica que há mais. O custo soma apenas esses trabalhos.",
+      "costUnknownRuns": "{count} trabalho(s) sem custo legível não foram incluídos.",
+      "agents": "Agentes",
+      "agentsEmpty": "Ainda não há agentes nesta empresa.",
+      "role": "Função",
+      "linksTitle": "Links",
+      "links": {
+        "jobs": {
+          "title": "Trabalhos",
+          "body": "Tudo que está em andamento, travado ou concluído."
+        },
+        "approvals": {
+          "title": "Aprovações",
+          "body": "Revise o que está esperando você."
+        },
+        "risks": {
+          "title": "Riscos",
+          "body": "Paradas de risco abertas."
+        },
+        "integrations": {
+          "title": "Integrações",
+          "body": "Ferramentas conectadas."
+        },
+        "classic": {
+          "title": "Página clássica da empresa",
+          "body": "Todos os detalhes, o compositor e as configurações."
+        }
+      }
     }
   },
   "static": {

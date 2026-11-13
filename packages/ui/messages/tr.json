@@ -1581,6 +1581,51 @@
           "body": "Slack, GitHub ve diğer araçlar."
         }
       }
+    },
+    "companyStatus": {
+      "title": "Şirket durumu",
+      "subtitle": "Neyin çalıştığı, takıldığı, onay beklediği ve ne tuttuğu tek satırda.",
+      "live": "{approvals} onay bekliyor, {stuck} takıldı",
+      "loading": "Şirket durumu yükleniyor…",
+      "errorTitle": "Şirket yüklenemedi",
+      "errorBody": "Şirket durumu okunamadı. Yeniden deneyin.",
+      "retry": "Yeniden dene",
+      "summaryLabel": "Şirket özeti",
+      "working": "Çalışan",
+      "stuck": "Takılan",
+      "approvals": "Onay bekleyen",
+      "done": "Biten",
+      "cost": "Maliyet",
+      "unknown": "Bilinmiyor",
+      "atLeast": "en az {count}",
+      "note": "Sayılar iş listenizdeki her durumun ilk sayfasından gelir (durum başına 25 iş); «en az» daha fazlası olduğunu gösterir. Maliyet yalnız bu işleri toplar.",
+      "costUnknownRuns": "{count} işin maliyeti okunamadı ve toplama katılmadı.",
+      "agents": "Ajanlar",
+      "agentsEmpty": "Bu şirkette henüz ajan yok.",
+      "role": "Rol",
+      "linksTitle": "Bağlantılar",
+      "links": {
+        "jobs": {
+          "title": "İşler",
+          "body": "Çalışan, takılan ve biten her şey."
+        },
+        "approvals": {
+          "title": "Onaylar",
+          "body": "Sizi bekleyenleri inceleyin."
+        },
+        "risks": {
+          "title": "Riskler",
+          "body": "Açık risk durdurmaları."
+        },
+        "integrations": {
+          "title": "Entegrasyonlar",
+          "body": "Bağlı araçlar."
+        },
+        "classic": {
+          "title": "Klasik şirket sayfası",
+          "body": "Tüm ayrıntılar, ajan oluşturucu ve ayarlar."
+        }
+      }
     }
   },
   "static": {

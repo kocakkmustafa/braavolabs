@@ -1581,6 +1581,51 @@
           "body": "Slack, GitHub et autres outils."
         }
       }
+    },
+    "companyStatus": {
+      "title": "État de l'entreprise",
+      "subtitle": "En une ligne : ce qui tourne, ce qui est bloqué, ce qui attend une approbation et ce que cela a coûté.",
+      "live": "{approvals} en attente d'approbation, {stuck} bloquée(s)",
+      "loading": "Chargement de l'état de l'entreprise…",
+      "errorTitle": "Impossible de charger l'entreprise",
+      "errorBody": "L'état de l'entreprise n'a pas pu être lu. Réessayez.",
+      "retry": "Réessayer",
+      "summaryLabel": "Résumé de l'entreprise",
+      "working": "En cours",
+      "stuck": "Bloquées",
+      "approvals": "En attente d'approbation",
+      "done": "Terminées",
+      "cost": "Coût",
+      "unknown": "Inconnu",
+      "atLeast": "au moins {count}",
+      "note": "Les chiffres viennent de la première page de chaque statut de votre liste de tâches (25 par statut) ; « au moins » signale qu'il y en a davantage. Le coût n'additionne que ces tâches.",
+      "costUnknownRuns": "{count} tâche(s) sans coût lisible, non incluses.",
+      "agents": "Agents",
+      "agentsEmpty": "Aucun agent dans cette entreprise pour l'instant.",
+      "role": "Rôle",
+      "linksTitle": "Liens",
+      "links": {
+        "jobs": {
+          "title": "Tâches",
+          "body": "Tout ce qui tourne, est bloqué ou terminé."
+        },
+        "approvals": {
+          "title": "Approbations",
+          "body": "Examinez ce qui vous attend."
+        },
+        "risks": {
+          "title": "Risques",
+          "body": "Arrêts de risque ouverts."
+        },
+        "integrations": {
+          "title": "Intégrations",
+          "body": "Outils connectés."
+        },
+        "classic": {
+          "title": "Page d'entreprise classique",
+          "body": "Tous les détails, le compositeur et les réglages."
+        }
+      }
     }
   },
   "static": {

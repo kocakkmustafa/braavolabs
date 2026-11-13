@@ -1581,6 +1581,51 @@
           "body": "Slack, GitHub i inne narzędzia."
         }
       }
+    },
+    "companyStatus": {
+      "title": "Stan firmy",
+      "subtitle": "W jednym wierszu: co działa, co utknęło, co czeka na zatwierdzenie i ile kosztowało.",
+      "live": "Do zatwierdzenia: {approvals}, utknęło: {stuck}",
+      "loading": "Wczytywanie stanu firmy…",
+      "errorTitle": "Nie udało się wczytać firmy",
+      "errorBody": "Nie udało się odczytać stanu firmy. Spróbuj ponownie.",
+      "retry": "Spróbuj ponownie",
+      "summaryLabel": "Podsumowanie firmy",
+      "working": "W toku",
+      "stuck": "Utknęło",
+      "approvals": "Czeka na zatwierdzenie",
+      "done": "Zakończone",
+      "cost": "Koszt",
+      "unknown": "Nieznane",
+      "atLeast": "co najmniej {count}",
+      "note": "Liczby pochodzą z pierwszej strony każdego statusu na liście zadań (25 zadań na status); „co najmniej” oznacza, że jest ich więcej. Koszt sumuje tylko te zadania.",
+      "costUnknownRuns": "Zadania bez czytelnego kosztu ({count}) nie są wliczone.",
+      "agents": "Agenci",
+      "agentsEmpty": "W tej firmie nie ma jeszcze agentów.",
+      "role": "Rola",
+      "linksTitle": "Linki",
+      "links": {
+        "jobs": {
+          "title": "Zadania",
+          "body": "Wszystko, co trwa, utknęło lub się zakończyło."
+        },
+        "approvals": {
+          "title": "Zatwierdzenia",
+          "body": "Sprawdź, co na ciebie czeka."
+        },
+        "risks": {
+          "title": "Ryzyka",
+          "body": "Otwarte blokady ryzyka."
+        },
+        "integrations": {
+          "title": "Integracje",
+          "body": "Połączone narzędzia."
+        },
+        "classic": {
+          "title": "Klasyczna strona firmy",
+          "body": "Wszystkie szczegóły, kreator agentów i ustawienia."
+        }
+      }
     }
   },
   "static": {
