@@ -223,4 +223,21 @@ describe("i18n: app.codeChange tüm dillerde", () => {
     expect(flat(m).sort()).toEqual(flat(en).sort());
     for (const k of flat(m)) { expect(get(m, k)).toMatch(/\S/); expect(ph(get(m, k)), `${f}:${k}`).toBe(ph(get(en, k))); }
   });
+  // ICU sözdizimi: yalnız yer tutucu adı eşliği bozuk çoğul/seçim bloğunu yakalamaz; her mesaj gerçekten biçimlendirilir (15 dil).
+  for (const f of files) it(`${f}: her app.codeChange mesajı ICU olarak ayrıştırılır ve biçimlenir (hata yok, ham {…} kalmaz)`, () => {
+    const loc = f.replace(/\.json$/, "");
+    const errors: string[] = [];
+    const tr = createTranslator({ locale: loc, messages: messages(loc), onError: (e) => { errors.push(String(e.message)); } });
+    const m = messages(loc).app.codeChange;
+    for (const k of flat(m)) {
+      const names = [...new Set([...get(en, k).matchAll(/\{(\w+)/g)].map((x) => x[1]))];
+      for (const sample of [0, 1, 2, 5, 11, 100]) {
+        const values = Object.fromEntries(names.map((n) => [n, n === "title" ? "Fix" : sample]));
+        const out = (tr as any)(`app.codeChange.${k}`, values) as string;
+        expect(typeof out, `${f}:${k}`).toBe("string");
+        expect(out, `${f}:${k}(${sample})`).not.toMatch(/\{\w+/);
+      }
+    }
+    expect(errors, `${f} ICU hataları`).toEqual([]);
+  });
 });
