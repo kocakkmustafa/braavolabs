@@ -28,6 +28,22 @@ const PARTIAL = {
   tests: { passed: 38, failed: 3, skipped: 2, total: null, ok: false, runs: 3 },
 };
 
+/**
+ * Kartın "yükleniyor" ara durumu DOM'a HİÇ eklendi mi? Her mutasyon kaydının EKLENEN düğümlerine bakar (son DOM'a değil): aynı çerçevede
+ * gelip giden yükleniyor durumu da yakalanır. Pozitif kontrol: "hata → Yeniden dene" testi görünür çekimde `true` bekler.
+ */
+async function watchLoading(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const w = window as unknown as { __sawLoading: boolean };
+    w.__sawLoading = false;
+    const has = (n: Node) => (n.textContent ?? "").includes("Kod değişikliği yükleniyor");
+    new MutationObserver((records) => {
+      for (const r of records) if ([...r.addedNodes].some(has) || (r.type === "characterData" && has(r.target))) w.__sawLoading = true;
+    }).observe(document.body, { subtree: true, childList: true, characterData: true });
+  });
+}
+const sawLoading = (page: Page) => page.evaluate(() => (window as unknown as { __sawLoading: boolean }).__sawLoading);
+
 type Calls = { method: string; path: string }[];
 interface MockOpts { summary?: { status: number; body?: unknown }; run?: Record<string, unknown> }
 
@@ -154,9 +170,12 @@ test.describe("bayrak AÇIK: kısmi, hata, kayıt yok, onay bekliyor", () => {
     const card = page.getByTestId("code-change");
     await expect(card.getByRole("alert")).toContainText("Kod değişikliği yüklenemedi");
     opts.summary = { status: 200, body: { runId: "r1", diff: null, tests: null, generatedAt: T0 } };
+    await watchLoading(page);
     await card.getByRole("button", { name: "Yeniden dene" }).click();
     await expect(page.getByTestId("code-none")).toHaveText("Bu işte kod değişikliği kaydı yok.");
     expect(calls.filter((c) => c.path.includes("code-summary")).length).toBe(2);
+    // Pozitif kontrol: görünür çekimde "yükleniyor" ara durumu gözlemciye GÖRÜNÜR (gözlemci çalışıyor).
+    expect(await sawLoading(page)).toBe(true);
     if (SHOTS) await snap(page, join(SHOTS, "03-kayit-yok-mobil-390-dark.png"));
   });
 
@@ -227,18 +246,14 @@ test.describe("sessiz yenileme", () => {
     const card = page.getByTestId("code-change");
     await expect(card.getByTestId("code-tests")).toContainText("41 geçti");
     expect(calls.filter((c) => c.path.includes("code-summary")).length).toBe(1);
-    await page.evaluate(() => {
-      (window as any).__sawLoading = false;
-      new MutationObserver(() => { if (document.querySelector("[data-testid=code-change]")?.textContent?.includes("yükleniyor")) (window as any).__sawLoading = true; })
-        .observe(document.body, { subtree: true, childList: true, characterData: true });
-    });
+    await watchLoading(page);
     // İş güncellendi (yeni updatedAt + bitti) ve özet değişti.
     opts.run = { status: "COMPLETED", state: "COMPLETED", resultStatus: "VERIFIED", bucket: "done", updatedAt: "2026-11-13T09:30:00.000Z" };
     opts.summary = { status: 200, body: { ...FULL, tests: { ...FULL.tests, passed: 42, total: 42 } } };
     await page.clock.fastForward(10_500);
     await expect(card.getByTestId("code-tests")).toContainText("42 geçti");
     expect(calls.filter((c) => c.path.includes("code-summary")).length).toBe(2);
-    expect(await page.evaluate(() => (window as any).__sawLoading)).toBe(false);
+    expect(await sawLoading(page)).toBe(false);
   });
 
   test("sessiz yenileme hatası eski veriyi korur", async ({ page }) => {
