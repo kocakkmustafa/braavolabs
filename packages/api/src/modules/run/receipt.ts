@@ -105,7 +105,7 @@ const asRecord = (v: unknown): Record<string, unknown> | null =>
   typeof v === "object" && v !== null && !Array.isArray(v) ? (v as Record<string, unknown>) : null;
 
 /** Test aracı çıktısı AÇIKÇA geçtiğini söylüyorsa true; belirsizse/başarısızsa false (veto). */
-function testPassed(output: unknown): boolean {
+export function testPassed(output: unknown): boolean {
   const o = asRecord(output);
   if (!o) return false;
   const noFailures = !(Number(o.failed) > 0) && !(Number(o.failures) > 0);

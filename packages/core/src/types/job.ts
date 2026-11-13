@@ -59,7 +59,49 @@ export interface JobReceipt {
   createdAt: string;
 }
 
-export const INBOX_BUCKETS = ["working", "needs_approval", "done", "stuck"] as const;
+/** BRA-UX-API-06 — diff özetindeki tek dosya. Sayı bilinmiyorsa `null` (0 uydurulmaz). */
+export interface JobCodeSummaryFile {
+  path: string;
+  additions: number | null;
+  deletions: number | null;
+}
+
+/** BRA-UX-API-06 — koşunun diff aracı çıktılarından türeyen dosya + satır özeti. */
+export interface JobCodeSummaryDiff {
+  files: JobCodeSummaryFile[];
+  /** Tekil dosya sayısı (liste kırpıldıysa `files.length`'den büyük olabilir). */
+  fileCount: number;
+  /** Bilinen sayıların toplamı; hiçbir dosyada sayı yoksa `null`. */
+  additions: number | null;
+  deletions: number | null;
+  /** `true` ⇒ her dosyanın sayısı biliniyor ve liste kırpılmadı; `false` ⇒ toplamlar "en az". */
+  complete: boolean;
+}
+
+/** BRA-UX-API-06 — koşunun SON test aracı çağrısının sayıları (bilinmeyen alan `null`). */
+export interface JobCodeSummaryTests {
+  passed: number | null;
+  failed: number | null;
+  skipped: number | null;
+  total: number | null;
+  /** Son test çağrısı AÇIKÇA geçti mi (makbuzdaki `test.ok` ile aynı kural). */
+  ok: boolean;
+  /** Koşuda kaç test aracı çağrısı yapıldı. */
+  runs: number;
+}
+
+/** `GET /runs/:id/code-summary` yanıtı (salt-okur; makbuz sözleşmesi değişmez). */
+export interface JobCodeSummary {
+  runId: string;
+  /** Diff aracı çıktısı yoksa `null`. */
+  diff: JobCodeSummaryDiff | null;
+  /** Test aracı çağrısı yoksa `null`. */
+  tests: JobCodeSummaryTests | null;
+  /** ISO 8601 */
+  generatedAt: string;
+}
+
+export const INBOX_BUCKETS =["working", "needs_approval", "done", "stuck"] as const;
 export type InboxBucket = (typeof INBOX_BUCKETS)[number];
 
 export interface JobBucketInput {
