@@ -1516,6 +1516,71 @@
         "tooShort": "智能体描述至少需要 10 个字符：请多说明一下它要做什么。",
         "maybeSaved": "如果连接中断，智能体可能已经保存：重试前请先查看智能体列表。"
       }
+    },
+    "models": {
+      "title": "模型与连接",
+      "subtitle": "查看公司使用的模型、谁可以访问以及本月费用。只读。",
+      "company": "公司",
+      "live": "已列出 {count} 个模型",
+      "errorTitle": "无法加载模型",
+      "errorBody": "无法读取模型列表。请重试。",
+      "retry": "重试",
+      "noCompanyTitle": "还没有公司",
+      "noCompanyBody": "创建公司后，可在此查看其模型。",
+      "loading": "正在加载模型…",
+      "autoLabel": "自动选择模型",
+      "autoOn": "开启",
+      "autoOff": "关闭",
+      "unknown": "未知",
+      "emptyTitle": "尚无使用中的模型",
+      "emptyBody": "该公司的代理设置模型后会显示在这里。",
+      "provider": "提供商",
+      "access": "访问权限",
+      "cost": "本月费用",
+      "runs": "本月运行次数",
+      "runCount": "本月运行次数：{count}",
+      "costNote": "费用计入每个代理当前的模型，因此更换模型之前的运行会计入新模型。每月从 1 日 00:00 UTC 开始计算。",
+      "costSince": "自 {from} 起。",
+      "updatedAt": "更新于 {time}。",
+      "linksTitle": "管理",
+      "source": {
+        "label": "来源",
+        "byok": "自己的 API 密钥",
+        "local": "本地模型",
+        "platform": "平台",
+        "unknown": "未知"
+      },
+      "scope": {
+        "company": "此公司",
+        "workspace": "此工作区",
+        "agent": "单个代理"
+      },
+      "mode": {
+        "read": "只读",
+        "read_write": "读写"
+      },
+      "links": {
+        "own": {
+          "title": "自己的 API 密钥",
+          "body": "在 设置 → AI 提供商 中添加或更改密钥。"
+        },
+        "local": {
+          "title": "本地模型",
+          "body": "在 设置 → AI 提供商 中连接自托管端点。"
+        },
+        "compare": {
+          "title": "比较模型",
+          "body": "在多个模型上并排运行同一任务。"
+        },
+        "connections": {
+          "title": "自动化连接",
+          "body": "n8n、Make 和 Zapier 的运行。"
+        },
+        "integrations": {
+          "title": "集成",
+          "body": "Slack、GitHub 等工具。"
+        }
+      }
     }
   },
   "static": {

@@ -1,4 +1,4 @@
-import type { InboxBucket, JobReceipt } from "@ai-company-os/core";
+import type { InboxBucket, JobReceipt, ModelsOverview } from "@ai-company-os/core";
 import { parseRunsPage, parseApprovalGroupsPage } from "./inboxParse";
 import { parseCompareOptions, parseCompareSession, type CompareRequest } from "./compare";
 import { parseApprovalDecision } from "./approvalDecision";
@@ -388,6 +388,10 @@ export const api = {
     apiFetch<any>(`/companies/build/${sessionId}/answer`, { method: "POST", body: JSON.stringify({ answer }), token }),
   buildConfirm: (token: string, sessionId: string) =>
     apiFetch<any>(`/companies/build/${sessionId}/confirm`, { method: "POST", token }),
+
+  // BRA-UX-API-02: salt-okur model + yetki + bu ay maliyet dökümü (kaynak olmayan alan null).
+  getModelsOverview: (token: string, companyId: string) =>
+    apiFetch<ModelsOverview>(`/companies/${encodeURIComponent(companyId)}/models`, { token }),
 
   // Approvals
   listApprovals: (token: string, status = "PENDING") =>

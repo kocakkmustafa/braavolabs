@@ -1516,6 +1516,71 @@
         "tooShort": "Describe the agent in at least 10 characters: say a bit more about what it should do.",
         "maybeSaved": "If the connection dropped, the agent may already be saved: check the agent list before retrying."
       }
+    },
+    "models": {
+      "title": "Models and connections",
+      "subtitle": "Which models your company uses, who can access them and what they cost this month. Read-only.",
+      "company": "Company",
+      "live": "{count} models listed",
+      "errorTitle": "Could not load models",
+      "errorBody": "The model list could not be read. Try again.",
+      "retry": "Try again",
+      "noCompanyTitle": "No company yet",
+      "noCompanyBody": "Create a company to see its models here.",
+      "loading": "Loading models…",
+      "autoLabel": "Automatic model selection",
+      "autoOn": "On",
+      "autoOff": "Off",
+      "unknown": "Unknown",
+      "emptyTitle": "No models in use yet",
+      "emptyBody": "Models appear here once an agent in this company has one.",
+      "provider": "Provider",
+      "access": "Access",
+      "cost": "Cost this month",
+      "runs": "Runs this month",
+      "runCount": "Runs this month: {count}",
+      "costNote": "Cost is attributed to each agent's current model, so runs made before a model change count toward the new model. The month starts at UTC midnight on the 1st.",
+      "costSince": "Since {from}.",
+      "updatedAt": "Updated {time}.",
+      "linksTitle": "Manage",
+      "source": {
+        "label": "Source",
+        "byok": "Your own API key",
+        "local": "Local model",
+        "platform": "Platform",
+        "unknown": "Unknown"
+      },
+      "scope": {
+        "company": "this company",
+        "workspace": "this workspace",
+        "agent": "one agent"
+      },
+      "mode": {
+        "read": "read",
+        "read_write": "read and write"
+      },
+      "links": {
+        "own": {
+          "title": "Your own API key",
+          "body": "Add or change keys in Settings → AI provider."
+        },
+        "local": {
+          "title": "Local model",
+          "body": "Connect a self-hosted endpoint in Settings → AI provider."
+        },
+        "compare": {
+          "title": "Compare models",
+          "body": "Run the same task on several models side by side."
+        },
+        "connections": {
+          "title": "Automation connections",
+          "body": "n8n, Make and Zapier runs."
+        },
+        "integrations": {
+          "title": "Integrations",
+          "body": "Slack, GitHub and other tools."
+        }
+      }
     }
   },
   "static": {

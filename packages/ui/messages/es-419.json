@@ -1516,6 +1516,71 @@
         "tooShort": "La descripción del agente debe tener al menos 10 caracteres: cuenta un poco más de lo que debe hacer.",
         "maybeSaved": "Si se cortó la conexión, el agente puede haberse guardado ya: revisa la lista de agentes antes de reintentar."
       }
+    },
+    "models": {
+      "title": "Modelos y conexiones",
+      "subtitle": "Qué modelos usa tu empresa, quién puede acceder a ellos y cuánto cuestan este mes. Solo lectura.",
+      "company": "Empresa",
+      "live": "{count} modelos en la lista",
+      "errorTitle": "No se pudieron cargar los modelos",
+      "errorBody": "No se pudo leer la lista de modelos. Inténtalo de nuevo.",
+      "retry": "Reintentar",
+      "noCompanyTitle": "Aún no hay empresa",
+      "noCompanyBody": "Crea una empresa para ver sus modelos aquí.",
+      "loading": "Cargando modelos…",
+      "autoLabel": "Selección automática de modelo",
+      "autoOn": "Activada",
+      "autoOff": "Desactivada",
+      "unknown": "Desconocido",
+      "emptyTitle": "Aún no hay modelos en uso",
+      "emptyBody": "Los modelos aparecen aquí cuando un agente de esta empresa tiene uno.",
+      "provider": "Proveedor",
+      "access": "Acceso",
+      "cost": "Costo este mes",
+      "runs": "Ejecuciones este mes",
+      "runCount": "Ejecuciones este mes: {count}",
+      "costNote": "El costo se asigna al modelo actual de cada agente; las ejecuciones previas a un cambio de modelo cuentan para el nuevo. El mes empieza el día 1 a las 00:00 UTC.",
+      "costSince": "Desde el {from}.",
+      "updatedAt": "Actualizado {time}.",
+      "linksTitle": "Administrar",
+      "source": {
+        "label": "Origen",
+        "byok": "Tu propia clave de API",
+        "local": "Modelo local",
+        "platform": "Plataforma",
+        "unknown": "Desconocido"
+      },
+      "scope": {
+        "company": "esta empresa",
+        "workspace": "este espacio de trabajo",
+        "agent": "un solo agente"
+      },
+      "mode": {
+        "read": "lectura",
+        "read_write": "lectura y escritura"
+      },
+      "links": {
+        "own": {
+          "title": "Tu propia clave de API",
+          "body": "Agrega o cambia claves en Configuración → Proveedor de IA."
+        },
+        "local": {
+          "title": "Modelo local",
+          "body": "Conecta un punto de acceso autoalojado en Configuración → Proveedor de IA."
+        },
+        "compare": {
+          "title": "Comparar modelos",
+          "body": "Ejecuta la misma tarea en varios modelos lado a lado."
+        },
+        "connections": {
+          "title": "Conexiones de automatización",
+          "body": "Ejecuciones de n8n, Make y Zapier."
+        },
+        "integrations": {
+          "title": "Integraciones",
+          "body": "Slack, GitHub y otras herramientas."
+        }
+      }
     }
   },
   "static": {

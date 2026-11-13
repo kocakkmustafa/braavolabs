@@ -1516,6 +1516,71 @@
         "tooShort": "La description de l'agent doit faire au moins 10 caractères : précise un peu ce qu'il doit faire.",
         "maybeSaved": "Si la connexion a coupé, l'agent est peut-être déjà enregistré : vérifie la liste des agents avant de réessayer."
       }
+    },
+    "models": {
+      "title": "Modèles et connexions",
+      "subtitle": "Les modèles utilisés par votre entreprise, qui peut y accéder et ce qu'ils coûtent ce mois-ci. Lecture seule.",
+      "company": "Entreprise",
+      "live": "{count} modèles listés",
+      "errorTitle": "Impossible de charger les modèles",
+      "errorBody": "La liste des modèles n'a pas pu être lue. Réessayez.",
+      "retry": "Réessayer",
+      "noCompanyTitle": "Aucune entreprise pour l'instant",
+      "noCompanyBody": "Créez une entreprise pour voir ses modèles ici.",
+      "loading": "Chargement des modèles…",
+      "autoLabel": "Sélection automatique du modèle",
+      "autoOn": "Activée",
+      "autoOff": "Désactivée",
+      "unknown": "Inconnu",
+      "emptyTitle": "Aucun modèle utilisé pour l'instant",
+      "emptyBody": "Les modèles apparaissent ici dès qu'un agent de cette entreprise en a un.",
+      "provider": "Fournisseur",
+      "access": "Accès",
+      "cost": "Coût ce mois-ci",
+      "runs": "Exécutions ce mois-ci",
+      "runCount": "Exécutions ce mois-ci : {count}",
+      "costNote": "Le coût est attribué au modèle actuel de chaque agent ; les exécutions antérieures à un changement de modèle comptent donc pour le nouveau. Le mois commence le 1er à 00:00 UTC.",
+      "costSince": "Depuis le {from}.",
+      "updatedAt": "Mis à jour {time}.",
+      "linksTitle": "Gérer",
+      "source": {
+        "label": "Source",
+        "byok": "Votre propre clé API",
+        "local": "Modèle local",
+        "platform": "Plateforme",
+        "unknown": "Inconnue"
+      },
+      "scope": {
+        "company": "cette entreprise",
+        "workspace": "cet espace de travail",
+        "agent": "un seul agent"
+      },
+      "mode": {
+        "read": "lecture",
+        "read_write": "lecture et écriture"
+      },
+      "links": {
+        "own": {
+          "title": "Votre propre clé API",
+          "body": "Ajoutez ou changez les clés dans Paramètres → Fournisseur d'IA."
+        },
+        "local": {
+          "title": "Modèle local",
+          "body": "Connectez un point d'accès auto-hébergé dans Paramètres → Fournisseur d'IA."
+        },
+        "compare": {
+          "title": "Comparer les modèles",
+          "body": "Lancez la même tâche sur plusieurs modèles côte à côte."
+        },
+        "connections": {
+          "title": "Connexions d'automatisation",
+          "body": "Exécutions n8n, Make et Zapier."
+        },
+        "integrations": {
+          "title": "Intégrations",
+          "body": "Slack, GitHub et autres outils."
+        }
+      }
     }
   },
   "static": {

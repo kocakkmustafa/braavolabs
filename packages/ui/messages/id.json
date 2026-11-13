@@ -1516,6 +1516,71 @@
         "tooShort": "Deskripsi agen minimal 10 karakter: jelaskan sedikit lebih banyak apa yang harus dilakukannya.",
         "maybeSaved": "Jika koneksi terputus, agen mungkin sudah tersimpan: periksa daftar agen sebelum mencoba lagi."
       }
+    },
+    "models": {
+      "title": "Model dan koneksi",
+      "subtitle": "Model apa yang dipakai perusahaan Anda, siapa yang dapat mengaksesnya, dan biayanya bulan ini. Hanya baca.",
+      "company": "Perusahaan",
+      "live": "{count} model terdaftar",
+      "errorTitle": "Model tidak dapat dimuat",
+      "errorBody": "Daftar model tidak dapat dibaca. Coba lagi.",
+      "retry": "Coba lagi",
+      "noCompanyTitle": "Belum ada perusahaan",
+      "noCompanyBody": "Buat perusahaan untuk melihat modelnya di sini.",
+      "loading": "Memuat model…",
+      "autoLabel": "Pemilihan model otomatis",
+      "autoOn": "Aktif",
+      "autoOff": "Nonaktif",
+      "unknown": "Tidak diketahui",
+      "emptyTitle": "Belum ada model yang dipakai",
+      "emptyBody": "Model muncul di sini setelah agen di perusahaan ini memilikinya.",
+      "provider": "Penyedia",
+      "access": "Akses",
+      "cost": "Biaya bulan ini",
+      "runs": "Eksekusi bulan ini",
+      "runCount": "Eksekusi bulan ini: {count}",
+      "costNote": "Biaya dihitung ke model agen saat ini, jadi eksekusi sebelum pergantian model masuk ke model baru. Bulan dimulai tanggal 1 pukul 00:00 UTC.",
+      "costSince": "Sejak {from}.",
+      "updatedAt": "Diperbarui {time}.",
+      "linksTitle": "Kelola",
+      "source": {
+        "label": "Sumber",
+        "byok": "Kunci API Anda sendiri",
+        "local": "Model lokal",
+        "platform": "Platform",
+        "unknown": "Tidak diketahui"
+      },
+      "scope": {
+        "company": "perusahaan ini",
+        "workspace": "ruang kerja ini",
+        "agent": "satu agen"
+      },
+      "mode": {
+        "read": "baca",
+        "read_write": "baca dan tulis"
+      },
+      "links": {
+        "own": {
+          "title": "Kunci API Anda sendiri",
+          "body": "Tambah atau ubah kunci di Pengaturan → Penyedia AI."
+        },
+        "local": {
+          "title": "Model lokal",
+          "body": "Hubungkan endpoint self-hosted di Pengaturan → Penyedia AI."
+        },
+        "compare": {
+          "title": "Bandingkan model",
+          "body": "Jalankan tugas yang sama di beberapa model secara berdampingan."
+        },
+        "connections": {
+          "title": "Koneksi otomasi",
+          "body": "Eksekusi n8n, Make, dan Zapier."
+        },
+        "integrations": {
+          "title": "Integrasi",
+          "body": "Slack, GitHub, dan alat lain."
+        }
+      }
     }
   },
   "static": {
