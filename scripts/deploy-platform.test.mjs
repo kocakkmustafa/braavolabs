@@ -1421,6 +1421,9 @@ test("API image bakes the release commit for /health and deploy passes github.sh
   assert.match(runner, /^ARG RELEASE_COMMIT=unknown$/m, "api: runner-stage ARG with unknown default");
   assert.match(runner, /^ENV RELEASE_COMMIT=\$RELEASE_COMMIT$/m, "api: runner-stage ENV");
   assert.doesNotMatch(api.slice(0, api.indexOf("AS runner")), /RELEASE_COMMIT/, "api: ARG must not precede cached build layers");
+  assert.ok(runner.indexOf("ARG RELEASE_COMMIT") > runner.lastIndexOf("COPY --from=build"), "api: ARG after the last runner COPY (SHA must not invalidate node_modules/dist layers)");
+  assert.ok(runner.indexOf("ARG RELEASE_COMMIT") > runner.indexOf("RUN chmod -R a+rX /app"), "api: ARG after the permission-normalising layer");
+  assert.ok(runner.indexOf("ARG RELEASE_COMMIT") < runner.indexOf("USER aicos"), "api: ARG before dropping privileges");
   const workflow = readFileSync(join(ROOT, ".github/workflows/deploy.yml"), "utf8");
   const apiStep = workflow.slice(workflow.indexOf("Build and push api image"), workflow.indexOf("Build and push ui image"));
   const uiStep = workflow.slice(workflow.indexOf("Build and push ui image"), workflow.indexOf("Record immutable service digest"));

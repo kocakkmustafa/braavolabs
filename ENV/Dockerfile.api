@@ -93,11 +93,7 @@ RUN find /app/packages/*/dist -name "*.map" -delete
 
 # Production
 FROM base AS runner
-# Declared in the final stage (after every cached build layer) so a new
-# commit SHA never invalidates the install/build cache. Surfaced by /health.
-ARG RELEASE_COMMIT=unknown
 ENV NODE_ENV=production
-ENV RELEASE_COMMIT=$RELEASE_COMMIT
 COPY --from=build /app/packages/api/dist ./packages/api/dist
 COPY --from=build /app/packages/core/dist ./packages/core/dist
 COPY --from=build /app/packages/memory/dist ./packages/memory/dist
@@ -131,6 +127,10 @@ RUN chmod -R a+rX /app
 
 # Run as non-root user
 RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 aicos
+# Declared after every COPY/RUN layer so a new commit SHA only invalidates the
+# metadata layer, never the node_modules/dist copies above. Surfaced by /health.
+ARG RELEASE_COMMIT=unknown
+ENV RELEASE_COMMIT=$RELEASE_COMMIT
 USER aicos
 
 EXPOSE 8080
