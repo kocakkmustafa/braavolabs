@@ -1,9 +1,9 @@
 /**
  * BRA-UX-05e — `GET /runs/:id/code-summary` yanıtının savunmacı ayrıştırıcısı. Sözleşme: bilinmeyen/yanlış tipli alan → null (0 UYDURULMAZ),
- * negatif/NaN/tam sayı olmayan → null, `files` dizi değilse boş, yolu dize olmayan dosya atılır. `complete`/`ok` yalnız açık `true` ile true.
+ * negatif/NaN/tam sayı olmayan → null, `files` dizi değilse boş, yolu dize olmayan dosya atılır, `fileCount` yok/geçersizse null. `complete`/`ok` yalnız açık `true` ile true.
  */
 export interface CodeFileRow { path: string; additions: number | null; deletions: number | null }
-export interface CodeDiffView { files: CodeFileRow[]; fileCount: number; additions: number | null; deletions: number | null; complete: boolean }
+export interface CodeDiffView { files: CodeFileRow[]; /** Bilinmiyorsa `null` (0 uydurulmaz). */ fileCount: number | null; additions: number | null; deletions: number | null; complete: boolean }
 export interface CodeTestsView { passed: number | null; failed: number | null; skipped: number | null; total: number | null; ok: boolean; runs: number | null }
 export interface CodeView { diff: CodeDiffView | null; tests: CodeTestsView | null }
 
@@ -23,7 +23,7 @@ function parseDiff(raw: unknown): CodeDiffView | null {
   const declared = count(raw.fileCount);
   return {
     files,
-    fileCount: Math.max(declared ?? 0, files.length),
+    fileCount: declared === null ? null : Math.max(declared, files.length),
     additions: count(raw.additions),
     deletions: count(raw.deletions),
     complete: raw.complete === true,

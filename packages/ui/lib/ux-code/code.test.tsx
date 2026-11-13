@@ -6,6 +6,7 @@ import { describe, it, expect } from "vitest";
 import CodeChangeCard, { type CodeState } from "../../components/job/CodeChangeCard";
 import { uxCodeEnabled } from "./flag";
 import { count, hasCodeChange, parseCodeSummary } from "./summary";
+import { codeSig, isAwaitingApproval, planCodeFetch } from "./refresh";
 
 const dir = join(__dirname, "..", "..", "messages");
 const messages = (loc: string) => JSON.parse(readFileSync(join(dir, `${loc}.json`), "utf8"));
@@ -13,9 +14,9 @@ const mkT = (loc: string) => {
   const tr = createTranslator({ locale: loc, messages: messages(loc) });
   return ((k: string, v?: Record<string, string | number>) => (tr as any)(k, v)) as (k: string, v?: Record<string, string | number>) => string;
 };
-const html = (state: CodeState | null, over: Partial<{ title: string; awaitingApproval: boolean; locale: string; rtl: boolean }> = {}) => {
+const html = (state: CodeState | null, over: Partial<{ title: string; awaitingApproval: boolean; locale: string; rtl: boolean; headingLevel: 2 | 3 }> = {}) => {
   const locale = over.locale ?? "en";
-  return renderToStaticMarkup(<CodeChangeCard state={state} title={over.title ?? "Fix login"} awaitingApproval={over.awaitingApproval ?? false} t={mkT(locale)} locale={locale} rtl={over.rtl ?? false} onRetry={() => {}} />);
+  return renderToStaticMarkup(<CodeChangeCard state={state} title={over.title ?? "Fix login"} awaitingApproval={over.awaitingApproval ?? false} t={mkT(locale)} locale={locale} rtl={over.rtl ?? false} headingLevel={over.headingLevel} onRetry={() => {}} />);
 };
 const ready = (raw: unknown): CodeState => ({ status: "ready", view: parseCodeSummary(raw)! });
 const FULL = {
@@ -57,6 +58,64 @@ describe("parseCodeSummary (savunmacı)", () => {
   it("tests: ok yalnız açık true; bilinmeyen alan null; runs sayı değilse null", () => {
     const v = parseCodeSummary({ tests: { passed: "41", failed: 0, skipped: -1, total: undefined, ok: "yes", runs: "2" } })!;
     expect(v.tests).toEqual({ passed: null, failed: 0, skipped: null, total: null, ok: false, runs: null });
+  });
+});
+
+describe("fileCount bilinmiyorsa", () => {
+  it("{diff:{}} → fileCount null (0 uydurulmaz), dosya yok, complete false", () => {
+    expect(parseCodeSummary({ diff: {} })!.diff).toEqual({ files: [], fileCount: null, additions: null, deletions: null, complete: false });
+    expect(parseCodeSummary({ diff: { files: [{ path: "a.ts" }], fileCount: -1 } })!.diff!.fileCount).toBeNull();
+  });
+  it("kart 'Dosyalar (Bilinmiyor)' yazar, '+K daha' yok", () => {
+    const h = html(ready({ diff: { files: [{ path: "a.ts", additions: 1, deletions: 1 }] }, tests: null }));
+    expect(h).toContain("Files (Unknown)");
+    expect(h).not.toContain("Files (0)");
+    expect(h).not.toContain("more file");
+    expect(h).not.toMatch(/Files \(\d/);
+  });
+});
+
+describe("sayı yerelleştirme ve başlık seviyesi", () => {
+  const big = { diff: { files: [{ path: "a.ts", additions: 1, deletions: 1 }], fileCount: 1001, additions: 1, deletions: 1, complete: false }, tests: { passed: 1, failed: 0, skipped: 0, total: 1, ok: true, runs: 1000 } };
+  it("'+K daha' ve 'N test koşusu' yerelleştirilir (çoğullu ve çoğulsuz dil)", () => {
+    const en = html(ready(big));
+    expect(en).toContain("+1,000 more files");
+    expect(en).toContain("1,000 test runs");
+    const tr = html(ready(big), { locale: "tr" });
+    expect(tr).toContain("+1.000 dosya daha");
+    expect(tr).toContain("1.000 test koşusu");
+    expect(html(ready({ ...big, diff: { ...big.diff, fileCount: 2 } }))).toContain("+1 more file<");
+  });
+  it("headingLevel: varsayılan h3, iş sayfasında h2", () => {
+    expect(html(ready(FULL))).toMatch(/<h3[ >]/);
+    const h = html(ready(FULL), { headingLevel: 2 });
+    expect(h).toMatch(/<h2[ >]/);
+    expect(h).not.toContain("<h3");
+  });
+});
+
+describe("kod özeti yenileme planı", () => {
+  const sig = (u: string, st = "RUNNING") => codeSig({ id: "r1", updatedAt: u, state: st as any, status: "RUNNING" });
+  it("ilk çekim, aynı imza → yok, değişen updatedAt/durum → sessiz, başka iş → çekim", () => {
+    expect(planCodeFetch(null, sig("1"), "none")).toBe("fetch");
+    expect(planCodeFetch(sig("1"), sig("1"), "ready")).toBe("none");
+    expect(planCodeFetch(sig("1"), sig("2"), "ready")).toBe("silent");
+    expect(planCodeFetch(sig("1"), sig("1", "COMPLETED"), "ready")).toBe("silent");
+    expect(planCodeFetch(sig("1"), codeSig({ id: "r2", updatedAt: "1", state: "RUNNING", status: "RUNNING" }), "ready")).toBe("fetch");
+  });
+  it("hata/yükleniyor durumunda imza değişirse görünür çekim; aynı imzada hata döngüsü yok", () => {
+    expect(planCodeFetch(sig("1"), sig("2"), "error")).toBe("fetch");
+    expect(planCodeFetch(sig("1"), sig("2"), "loading")).toBe("fetch");
+    expect(planCodeFetch(sig("1"), sig("1"), "error")).toBe("none");
+  });
+});
+
+describe("onay bağlantısı koşulu", () => {
+  it("etkin duruma bakar: state null + status WAITING_APPROVAL → onay bekliyor", () => {
+    expect(isAwaitingApproval({ state: null, status: "WAITING_APPROVAL" })).toBe(true);
+    expect(isAwaitingApproval({ state: "NEEDS_APPROVAL", status: "RUNNING" })).toBe(true);
+    expect(isAwaitingApproval({ state: null, status: "RUNNING" })).toBe(false);
+    expect(isAwaitingApproval({ state: "COMPLETED", status: "WAITING_APPROVAL" })).toBe(false);
   });
 });
 

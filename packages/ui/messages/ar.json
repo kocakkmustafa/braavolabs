@@ -1637,7 +1637,7 @@
       "filesTitle": "الملفات ({count})",
       "filesNone": "لا توجد ملفات مدرجة",
       "filesUnknown": "الملفات: غير معروف",
-      "moreFiles": "+{count} ملفات أخرى",
+      "moreFiles": "+{count, number} ملفات أخرى",
       "unknown": "غير معروف",
       "totals": "الإجمالي: {added} {removed}",
       "totalsAtLeast": "على الأقل: {added} {removed}",
@@ -1652,7 +1652,7 @@
       "testsTotal": "الإجمالي {count}",
       "testsVerified": "تم التحقق",
       "testsNotVerified": "لم يتم التحقق",
-      "testsRuns": "عدد مرات تشغيل الاختبارات: {count}",
+      "testsRuns": "عدد مرات تشغيل الاختبارات: {count, number}",
       "approvalLink": "قرّر في مركز الموافقات",
       "srSummary": "{title}. الملفات: {files}. الاختبارات: {tests}."
     }

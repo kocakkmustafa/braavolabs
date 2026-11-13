@@ -1637,7 +1637,7 @@
       "filesTitle": "Dosyalar ({count})",
       "filesNone": "Listelenen dosya yok",
       "filesUnknown": "Dosyalar: Bilinmiyor",
-      "moreFiles": "+{count} dosya daha",
+      "moreFiles": "+{count, number} dosya daha",
       "unknown": "Bilinmiyor",
       "totals": "Toplam: {added} {removed}",
       "totalsAtLeast": "En az: {added} {removed}",
@@ -1652,7 +1652,7 @@
       "testsTotal": "toplam {count}",
       "testsVerified": "Doğrulandı",
       "testsNotVerified": "Doğrulanmadı",
-      "testsRuns": "{count} test koşusu",
+      "testsRuns": "{count, number} test koşusu",
       "approvalLink": "Onay merkezinde karar ver",
       "srSummary": "{title}. Dosyalar: {files}. Testler: {tests}."
     }

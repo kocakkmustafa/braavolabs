@@ -9,6 +9,7 @@ import type { CodeView, CodeTestsView } from "../../lib/ux-code/summary";
 import { hasCodeChange } from "../../lib/ux-code/summary";
 import type { T } from "../inbox/InboxParts";
 
+export type CodeHeading = 2 | 3;
 export type CodeState = { status: "loading" } | { status: "error" } | { status: "ready"; view: CodeView };
 
 const muted: React.CSSProperties = { color: "var(--color-on-surface-variant)", fontSize: 13 };
@@ -37,11 +38,13 @@ export function testsParts(x: CodeTestsView, t: T, locale: string): string[] {
   return parts;
 }
 
-export default function CodeChangeCard({ state, title, awaitingApproval, t, locale, rtl, onRetry }: {
-  state: CodeState | null; title: string; awaitingApproval: boolean; t: T; locale: string; rtl: boolean; onRetry: () => void;
+export default function CodeChangeCard({ state, title, awaitingApproval, t, locale, rtl, onRetry, headingLevel = 3 }: {
+  headingLevel?: CodeHeading; state: CodeState | null; title: string; awaitingApproval: boolean; t: T; locale: string; rtl: boolean; onRetry: () => void;
 }) {
   if (state === null) return null;
   const heading = t("app.codeChange.title", { title });
+  const Heading = `h${headingLevel}` as "h2" | "h3";
+  const fileCountText = (n: number | null) => (n === null ? t("app.codeChange.unknown") : num(n, locale));
   let body: React.ReactNode;
   let live = "";
   if (state.status === "loading") body = <p style={muted}>{t("app.codeChange.loading")}</p>;
@@ -58,15 +61,15 @@ export default function CodeChangeCard({ state, title, awaitingApproval, t, loca
     const tp = tests ? testsParts(tests, t, locale) : null;
     const testsText = tp ? tp.join(" · ") : t("app.codeChange.unknown");
     const filesText = diff
-      ? [t("app.codeChange.filesTitle", { count: num(diff.fileCount, locale) }), `${fmt(diff.additions, locale, "+", t)} ${fmt(diff.deletions, locale, "−", t)}`].join(", ")
+      ? [t("app.codeChange.filesTitle", { count: fileCountText(diff.fileCount) }), `${fmt(diff.additions, locale, "+", t)} ${fmt(diff.deletions, locale, "−", t)}`].join(", ")
       : t("app.codeChange.filesUnknown");
     live = t("app.codeChange.srSummary", { title: heading, files: filesText, tests: tp ? tp.join(", ") : testsText });
-    const rest = diff ? Math.max(0, diff.fileCount - diff.files.length) : 0;
+    const rest = diff && diff.fileCount !== null ? Math.max(0, diff.fileCount - diff.files.length) : 0;
     body = (
       <div style={{ display: "grid", gap: 10 }}>
         {diff ? (
           <details open data-testid="code-files">
-            <summary style={{ minHeight: 44, display: "flex", alignItems: "center", cursor: "pointer", fontWeight: 700 }}>{t("app.codeChange.filesTitle", { count: num(diff.fileCount, locale) })}</summary>
+            <summary style={{ minHeight: 44, display: "flex", alignItems: "center", cursor: "pointer", fontWeight: 700 }}>{t("app.codeChange.filesTitle", { count: fileCountText(diff.fileCount) })}</summary>
             {diff.files.length === 0 ? <p style={muted}>{t("app.codeChange.filesNone")}</p> : (
               <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "grid", gap: 4 }}>
                 {diff.files.map((f, i) => (
@@ -101,7 +104,7 @@ export default function CodeChangeCard({ state, title, awaitingApproval, t, loca
   return (
     <section data-testid="code-change" aria-label={heading} dir={rtl ? "rtl" : undefined}
       style={{ marginTop: 10, padding: 12, borderRadius: 10, background: "var(--color-surface-container-low)", display: "grid", gap: 8, minWidth: 0 }}>
-      <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, overflowWrap: "anywhere" }}>{heading}</h3>
+      <Heading style={{ margin: 0, fontSize: 15, fontWeight: 700, overflowWrap: "anywhere" }}>{heading}</Heading>
       <span role="status" aria-live="polite" data-testid="code-live" style={srOnly}>{live}</span>
       {body}
       {awaitingApproval && state.status === "ready" && (

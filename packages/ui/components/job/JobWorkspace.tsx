@@ -117,7 +117,7 @@ export default function JobWorkspace({ codeChange = false }: { codeChange?: bool
             <h1 ref={headingRef} tabIndex={-1} className="bv-headline" style={{ margin: 0, overflowWrap: "anywhere", color: "var(--color-on-surface)" }}>{title}</h1>
             <p style={muted}>{run.pipeline?.company?.name ?? "—"} · {t(stateKey(run))}</p>
           </header>
-          <JobModes codeChange={codeChange} run={run} token={token} t={t} locale={locale} rtl={rtl} busy={busy} message={message} onAction={(a) => void act(a)} onSteer={steer}
+          <JobModes codeChange={codeChange} codeHeadingLevel={2} run={run} token={token} t={t} locale={locale} rtl={rtl} busy={busy} message={message} onAction={(a) => void act(a)} onSteer={steer}
             extraLinks={<Link href={`/runs/${encodeURIComponent(run.id)}?view=classic`} style={{ ...muted, alignSelf: "center", textDecoration: "underline" }}>{t("app.workspace.classic")}</Link>} />
         </article>
       )}

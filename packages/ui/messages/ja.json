@@ -1637,7 +1637,7 @@
       "filesTitle": "ファイル ({count})",
       "filesNone": "一覧にファイルがありません",
       "filesUnknown": "ファイル: 不明",
-      "moreFiles": "ほか {count} ファイル",
+      "moreFiles": "ほか {count, number} ファイル",
       "unknown": "不明",
       "totals": "合計: {added} {removed}",
       "totalsAtLeast": "少なくとも: {added} {removed}",
@@ -1652,7 +1652,7 @@
       "testsTotal": "合計 {count} 件",
       "testsVerified": "検証済み",
       "testsNotVerified": "未検証",
-      "testsRuns": "テスト実行 {count} 回",
+      "testsRuns": "テスト実行 {count, number} 回",
       "approvalLink": "承認センターで判断する",
       "srSummary": "{title}。ファイル: {files}。テスト: {tests}。"
     }

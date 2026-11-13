@@ -1637,7 +1637,7 @@
       "filesTitle": "Pliki ({count})",
       "filesNone": "Brak wymienionych plików",
       "filesUnknown": "Pliki: Nieznane",
-      "moreFiles": "jeszcze plików: {count}",
+      "moreFiles": "jeszcze plików: {count, number}",
       "unknown": "Nieznane",
       "totals": "Razem: {added} {removed}",
       "totalsAtLeast": "Co najmniej: {added} {removed}",
@@ -1652,7 +1652,7 @@
       "testsTotal": "łącznie: {count}",
       "testsVerified": "Zweryfikowano",
       "testsNotVerified": "Niezweryfikowano",
-      "testsRuns": "uruchomień testów: {count}",
+      "testsRuns": "uruchomień testów: {count, number}",
       "approvalLink": "Zdecyduj w centrum zatwierdzeń",
       "srSummary": "{title}. Pliki: {files}. Testy: {tests}."
     }

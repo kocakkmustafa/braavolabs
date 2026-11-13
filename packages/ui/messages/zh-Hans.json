@@ -1637,7 +1637,7 @@
       "filesTitle": "文件（{count}）",
       "filesNone": "未列出文件",
       "filesUnknown": "文件：未知",
-      "moreFiles": "另有 {count} 个文件",
+      "moreFiles": "另有 {count, number} 个文件",
       "unknown": "未知",
       "totals": "合计：{added} {removed}",
       "totalsAtLeast": "至少：{added} {removed}",
@@ -1652,7 +1652,7 @@
       "testsTotal": "共 {count} 个",
       "testsVerified": "已验证",
       "testsNotVerified": "未验证",
-      "testsRuns": "{count} 次测试运行",
+      "testsRuns": "{count, number} 次测试运行",
       "approvalLink": "在审批中心决定",
       "srSummary": "{title}。文件：{files}。测试：{tests}。"
     }

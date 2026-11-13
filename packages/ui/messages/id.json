@@ -1637,7 +1637,7 @@
       "filesTitle": "File ({count})",
       "filesNone": "Tidak ada file yang tercantum",
       "filesUnknown": "File: Tidak diketahui",
-      "moreFiles": "+{count} file lagi",
+      "moreFiles": "+{count, number} file lagi",
       "unknown": "Tidak diketahui",
       "totals": "Total: {added} {removed}",
       "totalsAtLeast": "Setidaknya: {added} {removed}",
@@ -1652,7 +1652,7 @@
       "testsTotal": "{count} total",
       "testsVerified": "Terverifikasi",
       "testsNotVerified": "Belum terverifikasi",
-      "testsRuns": "{count} kali menjalankan tes",
+      "testsRuns": "{count, number} kali menjalankan tes",
       "approvalLink": "Putuskan di pusat persetujuan",
       "srSummary": "{title}. File: {files}. Tes: {tests}."
     }

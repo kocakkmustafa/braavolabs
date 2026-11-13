@@ -41,6 +41,7 @@ async function mockApi(page: Page, opts: MockOpts = {}): Promise<Calls> {
     const path = url.pathname.replace(/^\/api\/v1/, "");
     calls.push({ method: req.method(), path: path + url.search });
     const json = (status: number, data: unknown) => route.fulfill({ status, headers: { ...cors, "content-type": "application/json" }, body: JSON.stringify(data) });
+    if (path === "/runs" && req.method() === "GET") return json(200, { runs: url.searchParams.get("bucket") === "working" ? [{ ...RUN, ...(opts.run ?? {}) }] : [], nextCursor: null });
     if (/^\/runs\/[^/]+\/code-summary$/.test(path)) return json(opts.summary?.status ?? 200, opts.summary?.body ?? FULL);
     if (/^\/runs\/[^/]+\/receipt$/.test(path)) return json(200, { runId: "r1", resultStatus: "VERIFIED", outcome: "COMPLETED", costUsd: 0.42, evidence: [{ kind: "tool", ref: "slack.post", ok: true }] });
     if (/^\/runs\/[^/]+$/.test(path) && req.method() === "GET") return json(200, { ...RUN, ...(opts.run ?? {}) });
@@ -102,7 +103,7 @@ for (const { vp, size, scheme } of COMBOS) {
       const calls = await mockApi(page);
       await openOutput(page, UI_LAB);
       const card = page.getByTestId("code-change");
-      await expect(card.getByRole("heading", { level: 3, name: "Değişiklik: Login hatası düzeltmesi" })).toBeVisible();
+      await expect(card.getByRole("heading", { level: 2, name: "Değişiklik: Login hatası düzeltmesi" })).toBeVisible();
       await expect(card.getByTestId("code-file")).toHaveCount(3);
       await expect(card.getByTestId("code-file").first()).toContainText("src/auth.ts");
       await expect(card.getByTestId("code-file").first()).toContainText("+12");
@@ -168,5 +169,91 @@ test.describe("bayrak AÇIK: kısmi, hata, kayıt yok, onay bekliyor", () => {
     await expect(link).toHaveText("Onay merkezinde karar ver");
     await expect(page.getByTestId("code-change").getByRole("button")).toHaveCount(0);
     if (SHOTS) await snap(page, join(SHOTS, "04-onay-bekliyor-mobil-390-light.png"));
+  });
+});
+
+const drawerOutput = async (page: Page, base: string) => {
+  await page.goto(`${base}/inbox`);
+  const row = page.getByTestId("job-row").first();
+  await expect(row).toContainText("Login hatası düzeltmesi");
+  await row.getByRole("button", { name: /Login hatası/ }).click();
+  const drawer = page.getByTestId("job-drawer");
+  await expect(drawer).toBeVisible();
+  await drawer.getByRole("tab", { name: "Çıktı" }).click();
+  return drawer;
+};
+
+test.describe("İşler çekmecesi yolu", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+  const RUNNING = { status: "RUNNING", state: "RUNNING", resultStatus: null, bucket: "working" };
+
+  test("bayrak KAPALI sunucuda çekmecede kart ve /code-summary isteği yok", async ({ page }) => {
+    await prepare(page, "dark");
+    const calls = await mockApi(page, { run: RUNNING });
+    const drawer = await drawerOutput(page, UI_WS);
+    await expect(drawer.getByRole("tabpanel")).toContainText("slack.post");
+    await page.waitForTimeout(800);
+    expect(await page.getByTestId("code-change").count()).toBe(0);
+    expect(calls.filter((c) => c.path.includes("code-summary"))).toEqual([]);
+  });
+
+  test("bayrak AÇIK sunucuda çekmecede kart var (h3), istek 1 kez", async ({ page }) => {
+    await prepare(page, "dark");
+    const calls = await mockApi(page, { run: RUNNING });
+    const drawer = await drawerOutput(page, UI_LAB);
+    const card = drawer.getByTestId("code-change");
+    await expect(card.getByRole("heading", { level: 3, name: "Değişiklik: Login hatası düzeltmesi" })).toBeVisible();
+    await expect(card.getByTestId("code-tests")).toContainText("41 geçti");
+    expect(calls.filter((c) => c.path.includes("code-summary")).length).toBe(1);
+  });
+
+  test("çekmecede onay bekleyen koşu (state null, status WAITING_APPROVAL): onay merkezi bağlantısı", async ({ page }) => {
+    await prepare(page, "dark");
+    await mockApi(page, { run: { status: "WAITING_APPROVAL", state: null, resultStatus: null, bucket: "working" } });
+    const drawer = await drawerOutput(page, UI_LAB);
+    await expect(drawer.getByTestId("code-approvals-link")).toHaveAttribute("href", "/approvals");
+  });
+});
+
+test.describe("sessiz yenileme", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("Çıktı açıkken iş güncellenince özet yeniden çekilir; önceki veri yerinde kalır (yükleniyor yok)", async ({ page }) => {
+    await prepare(page, "dark");
+    await page.clock.install({ time: new Date("2026-11-13T12:00:00.000Z") });
+    const opts: MockOpts = { run: { status: "RUNNING", state: "RUNNING", resultStatus: null, bucket: "working" } };
+    const calls = await mockApi(page, opts);
+    await openOutput(page, UI_LAB);
+    const card = page.getByTestId("code-change");
+    await expect(card.getByTestId("code-tests")).toContainText("41 geçti");
+    expect(calls.filter((c) => c.path.includes("code-summary")).length).toBe(1);
+    await page.evaluate(() => {
+      (window as any).__sawLoading = false;
+      new MutationObserver(() => { if (document.querySelector("[data-testid=code-change]")?.textContent?.includes("yükleniyor")) (window as any).__sawLoading = true; })
+        .observe(document.body, { subtree: true, childList: true, characterData: true });
+    });
+    // İş güncellendi (yeni updatedAt + bitti) ve özet değişti.
+    opts.run = { status: "COMPLETED", state: "COMPLETED", resultStatus: "VERIFIED", bucket: "done", updatedAt: "2026-11-13T09:30:00.000Z" };
+    opts.summary = { status: 200, body: { ...FULL, tests: { ...FULL.tests, passed: 42, total: 42 } } };
+    await page.clock.fastForward(10_500);
+    await expect(card.getByTestId("code-tests")).toContainText("42 geçti");
+    expect(calls.filter((c) => c.path.includes("code-summary")).length).toBe(2);
+    expect(await page.evaluate(() => (window as any).__sawLoading)).toBe(false);
+  });
+
+  test("sessiz yenileme hatası eski veriyi korur", async ({ page }) => {
+    await prepare(page, "dark");
+    await page.clock.install({ time: new Date("2026-11-13T12:00:00.000Z") });
+    const opts: MockOpts = { run: { status: "RUNNING", state: "RUNNING", resultStatus: null, bucket: "working" } };
+    const calls = await mockApi(page, opts);
+    await openOutput(page, UI_LAB);
+    const card = page.getByTestId("code-change");
+    await expect(card.getByTestId("code-tests")).toContainText("41 geçti");
+    opts.run = { status: "RUNNING", state: "RUNNING", resultStatus: null, bucket: "working", updatedAt: "2026-11-13T09:45:00.000Z" };
+    opts.summary = { status: 500 };
+    await page.clock.fastForward(10_500);
+    await expect.poll(() => calls.filter((c) => c.path.includes("code-summary")).length).toBe(2);
+    await expect(card.getByTestId("code-tests")).toContainText("41 geçti");
+    await expect(card.getByRole("alert")).toHaveCount(0);
   });
 });

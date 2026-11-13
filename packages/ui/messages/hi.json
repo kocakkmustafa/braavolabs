@@ -1637,7 +1637,7 @@
       "filesTitle": "फ़ाइलें ({count})",
       "filesNone": "कोई फ़ाइल सूचीबद्ध नहीं",
       "filesUnknown": "फ़ाइलें: अज्ञात",
-      "moreFiles": "+{count} और फ़ाइलें",
+      "moreFiles": "+{count, number} और फ़ाइलें",
       "unknown": "अज्ञात",
       "totals": "कुल: {added} {removed}",
       "totalsAtLeast": "कम से कम: {added} {removed}",
@@ -1652,7 +1652,7 @@
       "testsTotal": "कुल {count}",
       "testsVerified": "सत्यापित",
       "testsNotVerified": "सत्यापित नहीं",
-      "testsRuns": "{count} टेस्ट रन",
+      "testsRuns": "{count, number} टेस्ट रन",
       "approvalLink": "अनुमोदन केंद्र में फ़ैसला करें",
       "srSummary": "{title}। फ़ाइलें: {files}। टेस्ट: {tests}।"
     }
