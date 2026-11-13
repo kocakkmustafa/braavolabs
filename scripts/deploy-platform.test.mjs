@@ -1749,3 +1749,125 @@ for (const [name, mutate, overrides = {}] of [
   assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
   assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
 }));
+
+// Job lifecycle + approval exact-action (owner deploy decision 2026-11-13). The
+// previous release is not pinned (only 40-hex is checked); safety is the exact
+// two-file delta plus the exact 55-file candidate migration tree.
+const JOBUX_CANDIDATE = "e184e3d32a11ca863b9df11a8520ed9be074580b";
+const JOBUX_CANDIDATE_MIGRATIONS = 55;
+const JOBUX_PATHS = [
+  "packages/db/prisma/migrations/20261108000000_job_lifecycle/migration.sql",
+  "packages/db/prisma/migrations/20261108010000_approval_exact_action/migration.sql",
+];
+const JOBUX_PREVIOUS = "f3f7532".padEnd(40, "0");
+const jobuxManifest = (input, paths = JOBUX_PATHS) => paths.map((path) => `${sha256File(join(input, path))}  ${path}\n`).join("");
+function sealJobuxDelta(input, { previous = JOBUX_PREVIOUS, candidate = RELEASE, api = API, ui = UI } = {}) {
+  writeFileSync(join(input, "migration-delta.meta"), [
+    `previousRelease=${previous}`, `candidateRelease=${candidate}`, `api=${api}`, `ui=${ui}`,
+    `discoverySha256=${sha256File(join(input, "migration-delta.name-status"))}`,
+    `deltaSha256=${sha256File(join(input, "migration-delta.sha256"))}`, "",
+  ].join("\n"));
+}
+function writeJobuxDelta(input, paths = JOBUX_PATHS) {
+  writeFileSync(join(input, "migration-delta.name-status"), paths.map((path) => `A\t${path}\n`).join(""));
+  writeFileSync(join(input, "migration-delta.sha256"), jobuxManifest(input, paths));
+  sealJobuxDelta(input);
+}
+function buildJobuxInput(h) {
+  const input = join(h.root, "jobux-input");
+  useReviewedMigrationSnapshot(h, JOBUX_CANDIDATE, JOBUX_CANDIDATE_MIGRATIONS);
+  mkdirSync(join(input, "packages/db/prisma"), { recursive: true });
+  cpSync(join(h.sourceRoot, "packages/db/prisma/migrations"),
+    join(input, "packages/db/prisma/migrations"), { recursive: true });
+  delete h.sourceRoot;
+  writeJobuxDelta(input);
+  return input;
+}
+function runJobuxGuard(h, input, { remote = false, previous = JOBUX_PREVIOUS, ...overrides } = {}) {
+  const source = readFileSync(SCRIPT, "utf8");
+  const entrypoint = source.lastIndexOf('\nif test "${1:-}" = --remote;');
+  assert.ok(entrypoint > 0, "isolate definitions without invoking a deployment entrypoint");
+  const context = remote ? {
+    delta_previous_release: previous, release_commit: RELEASE, api_ref: API, ui_ref: UI,
+  } : { PREVIOUS_RELEASE_COMMIT: previous };
+  const result = spawnSync("bash", ["-c", `${source.slice(0, entrypoint)}\n` +
+    'migration_is_eligible "$JOBUX_INPUT" "$JOBUX_INPUT/migration-delta.sha256"'], {
+    cwd: ROOT, encoding: "utf8", timeout: 10_000,
+    env: remoteEnvironment(h, { ...context, JOBUX_INPUT: input, RELEASE_COMMIT: RELEASE, API_IMAGE_REF: API, UI_IMAGE_REF: UI, ...overrides }),
+  });
+  assertNoExternalNetwork(h);
+  return result;
+}
+
+test("job-ux SQL is the reviewed bytes and tree the deploy script pins", () => {
+  const script = readFileSync(SCRIPT, "utf8");
+  for (const path of JOBUX_PATHS) {
+    assert.ok(script.includes(`${sha256File(join(ROOT, path))}'`), `${path} hash pinned`);
+  }
+});
+for (const remote of [false, true]) {
+  test(`job-ux exact reviewed tuple passes ${remote ? "remote" : "local"} admission`, () =>
+    withHarness((h) => {
+      const result = runJobuxGuard(h, buildJobuxInput(h), { remote });
+      assert.equal(result.status, 0, result.stderr);
+    }));
+}
+test("job-ux accepts any 40-hex previous release but rejects malformed ones", () => withHarness((h) => {
+  const input = buildJobuxInput(h);
+  sealJobuxDelta(input, { previous: "9".repeat(40) });
+  assert.equal(runJobuxGuard(h, input, { previous: "9".repeat(40) }).status, 0);
+  sealJobuxDelta(input, { previous: "xyz" });
+  assert.equal(runJobuxGuard(h, input, { previous: "xyz" }).status, 1);
+}));
+for (const [name, mutate, overrides = {}] of [
+  ["candidate tuple mismatch", (input) => sealJobuxDelta(input, { candidate: "2".repeat(40) })],
+  ["api digest mismatch", (input) => sealJobuxDelta(input, { api: UI })],
+  ["ui digest mismatch", (input) => sealJobuxDelta(input, { ui: API })],
+  ["previous release meta mismatch", (input) => sealJobuxDelta(input, { previous: "2".repeat(40) })],
+  ["single appended byte in reviewed SQL", (input) => writeFileSync(join(input, JOBUX_PATHS[0]),
+    readFileSync(join(input, JOBUX_PATHS[0]), "utf8") + "\n")],
+  ["resealed replacement SQL", (input) => {
+    writeFileSync(join(input, JOBUX_PATHS[1]), 'ALTER TABLE "approvals" ADD COLUMN "nonce" TEXT;\n');
+    writeJobuxDelta(input);
+  }],
+  ["additional unmanifested SQL", (input) => {
+    mkdirSync(join(input, "packages/db/prisma/migrations/20991231000000_extra"));
+    writeFileSync(join(input, "packages/db/prisma/migrations/20991231000000_extra/migration.sql"),
+      "ALTER TABLE tenants ADD COLUMN extra TEXT;\n");
+  }],
+  ["additional manifested SQL (older live release)", (input) => {
+    const extra = "packages/db/prisma/migrations/20991231000000_extra/migration.sql";
+    mkdirSync(dirname(join(input, extra)));
+    writeFileSync(join(input, extra), "ALTER TABLE tenants ADD COLUMN extra TEXT;\n");
+    writeJobuxDelta(input, [...JOBUX_PATHS, extra]);
+  }],
+  ["missing reviewed SQL", (input) => rmSync(join(input, JOBUX_PATHS[0]))],
+  ["delta with only one reviewed path", (input) => writeJobuxDelta(input, JOBUX_PATHS.slice(1))],
+  ["swapped manifest order", (input) => {
+    writeJobuxDelta(input, [JOBUX_PATHS[1], JOBUX_PATHS[0]]);
+  }],
+  ["swapped discovery order", (input) => {
+    writeFileSync(join(input, "migration-delta.name-status"), [JOBUX_PATHS[1], JOBUX_PATHS[0]].map((p) => `A\t${p}\n`).join(""));
+    sealJobuxDelta(input);
+  }],
+  ["modified discovery status", (input) => {
+    writeFileSync(join(input, "migration-delta.name-status"), JOBUX_PATHS.map((p) => `M\t${p}\n`).join("")); sealJobuxDelta(input);
+  }],
+  ["mixed with F02 reviewed package", (input) => writeJobuxDelta(input, [...F02_PATHS, ...JOBUX_PATHS])],
+  ["mixed with lineage reviewed file", (input) => writeJobuxDelta(input, [
+    "packages/db/prisma/migrations/20261003000000_google_verified_lineage/migration.sql", ...JOBUX_PATHS])],
+  ["historical SQL drift", (input) => writeFileSync(join(input, REVIEWED_ENUM_MIGRATION),
+    readFileSync(join(input, REVIEWED_ENUM_MIGRATION), "utf8") + "\n")],
+  ["SQL symlink", (input) => {
+    rmSync(join(input, JOBUX_PATHS[0])); symlinkSync(join(ROOT, JOBUX_PATHS[0]), join(input, JOBUX_PATHS[0]));
+  }],
+  ["stale metadata seal", (input) => {
+    const file = join(input, "migration-delta.meta"); writeFileSync(file, readFileSync(file, "utf8").replace("deltaSha256=", "deltaSha256=0"));
+  }],
+]) test(`job-ux denies ${name} without generic policy fallback`, () => withHarness((h) => {
+  const input = buildJobuxInput(h); mutate(input);
+  const result = runJobuxGuard(h, input, overrides);
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+  assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
+}));
