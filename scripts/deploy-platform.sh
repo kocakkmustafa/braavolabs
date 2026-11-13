@@ -34,6 +34,17 @@ readonly REVIEWED_F02_TOMBSTONE_SHA256='3c9af7e65644ce2ea1c403718a1892cd44829277
 readonly REVIEWED_F02_DEVICE_NAME_PATH='packages/db/prisma/migrations/20261027000000_device_name_erasure/migration.sql'
 readonly REVIEWED_F02_DEVICE_NAME_SHA256='34ce4611409caba5317fa3637f135efae14555ac46400bb92efbfb6b0e665b17'
 readonly REVIEWED_F02_MIGRATION_TREE_SHA256='079a5f93b2807976518450549588df08e50ea3d807d64633ba6ea14274dadc01'
+# Job lifecycle + approval exact-action (additive only; owner deploy decision
+# 2026-11-13, flags off). The previous release is deliberately NOT pinned: the
+# live previous-good is only known on the server. Safety comes from the delta
+# being exactly these two files and the candidate migration tree being exactly
+# the reviewed 55-file tree (an older live release yields extra delta files and
+# is rejected). Only the 40-hex shape of the previous release is validated.
+readonly REVIEWED_JOBUX_LIFECYCLE_PATH='packages/db/prisma/migrations/20261108000000_job_lifecycle/migration.sql'
+readonly REVIEWED_JOBUX_LIFECYCLE_SHA256='b5b8697847763d9a7859c7a80d1dd6040d6c866b68c1852f1964a18c75ce0c84'
+readonly REVIEWED_JOBUX_APPROVAL_PATH='packages/db/prisma/migrations/20261108010000_approval_exact_action/migration.sql'
+readonly REVIEWED_JOBUX_APPROVAL_SHA256='ae6a932a2687a86ff3790aad9935d8a82ace08d8842754fcce996764342122f3'
+readonly REVIEWED_JOBUX_MIGRATION_TREE_SHA256='7120cc9cf47909a344e945592f5bf4618862c00cd36cd76c0823092c454df1f6'
 
 die() { local code="$1"; shift; printf 'deploy-platform: %s\n' "$*" >&2; exit "$code"; }
 require_value() { test -n "${!1:-}" || die "$EXIT_INPUT" "missing required input: $1"; }
@@ -411,6 +422,40 @@ reviewed_f02_retention_delta() {
   test "$tree_hash" = "$REVIEWED_F02_MIGRATION_TREE_SHA256"
 }
 
+reviewed_job_ux_delta() {
+  local staged="$1" delta_manifest="$2" path tree_hash
+  local discovery="$staged/migration-delta.name-status" meta="$staged/migration-delta.meta"
+  local reviewed_previous="${delta_previous_release:-${PREVIOUS_RELEASE_COMMIT:-}}"
+  local reviewed_candidate="${release_commit:-${RELEASE_COMMIT:-}}"
+  local reviewed_api="${api_ref:-${API_IMAGE_REF:-}}" reviewed_ui="${ui_ref:-${UI_IMAGE_REF:-}}"
+  [[ "$reviewed_previous" =~ ^[0-9a-f]{40}$ ]] || return 1
+  [[ "$reviewed_candidate" =~ ^[0-9a-f]{40}$ ]] || return 1
+  [[ "$reviewed_api" =~ ^ghcr[.]io/kocakkmustafa/braavolabs/api@sha256:[0-9a-f]{64}$ ]] || return 1
+  [[ "$reviewed_ui" =~ ^ghcr[.]io/kocakkmustafa/braavolabs/ui@sha256:[0-9a-f]{64}$ ]] || return 1
+  for path in "$delta_manifest" "$discovery" "$meta" "$staged/$REVIEWED_JOBUX_LIFECYCLE_PATH" \
+    "$staged/$REVIEWED_JOBUX_APPROVAL_PATH"; do
+    test -f "$path" && test ! -L "$path" || return 1
+  done
+  for path in packages packages/db packages/db/prisma packages/db/prisma/migrations; do
+    test -d "$staged/$path" && test ! -L "$staged/$path" || return 1
+  done
+  test -z "$(find "$staged/packages/db/prisma/migrations" -type l -print -quit)" || return 1
+  # Exactly the two reviewed files, in discovery and manifest order, byte for byte.
+  cmp -s "$delta_manifest" <(printf '%s  %s\n%s  %s\n' \
+    "$REVIEWED_JOBUX_LIFECYCLE_SHA256" "$REVIEWED_JOBUX_LIFECYCLE_PATH" \
+    "$REVIEWED_JOBUX_APPROVAL_SHA256" "$REVIEWED_JOBUX_APPROVAL_PATH") || return 1
+  cmp -s "$discovery" <(printf 'A\t%s\nA\t%s\n' \
+    "$REVIEWED_JOBUX_LIFECYCLE_PATH" "$REVIEWED_JOBUX_APPROVAL_PATH") || return 1
+  cmp -s "$meta" <(printf 'previousRelease=%s\ncandidateRelease=%s\napi=%s\nui=%s\ndiscoverySha256=%s\ndeltaSha256=%s\n' \
+    "$reviewed_previous" "$reviewed_candidate" "$reviewed_api" "$reviewed_ui" \
+    "$(sha256sum "$discovery" | awk '{print $1}')" \
+    "$(sha256sum "$delta_manifest" | awk '{print $1}')") || return 1
+  tree_hash="$(cd "$staged" &&
+    find packages/db/prisma/migrations -type f -name migration.sql -print0 |
+      LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')" || return 1
+  test "$tree_hash" = "$REVIEWED_JOBUX_MIGRATION_TREE_SHA256"
+}
+
 delta_discovery_matches_manifest() {
   local discovery="$1" manifest="$2" discovered manifested status
   discovered="$(mktemp)"; manifested="$(mktemp)"
@@ -435,6 +480,13 @@ migration_is_eligible() {
   test -f "$delta_manifest" || return 1
   if reviewed_subscription_plan_bundle "$staged" "$delta_manifest"; then
     return 0
+  fi
+  # The job-lifecycle/approval pair is admitted only as exactly itself; if either
+  # path shows up, nothing else (reviewed or generic) may apply.
+  if grep -Fq -e "$REVIEWED_JOBUX_LIFECYCLE_PATH" -e "$REVIEWED_JOBUX_APPROVAL_PATH" "$delta_manifest" ||
+     grep -Fq -e "$REVIEWED_JOBUX_LIFECYCLE_PATH" -e "$REVIEWED_JOBUX_APPROVAL_PATH" "$staged/migration-delta.name-status"; then
+    reviewed_job_ux_delta "$staged" "$delta_manifest"
+    return "$?"
   fi
   # The verified baseline admits exactly its reviewed lineage delta. A changed
   # lineage file/base must never fall through to the generic nullable-ADD rule.

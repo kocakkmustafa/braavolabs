@@ -118,6 +118,21 @@ After the second CI gate and production authorization:
    `MIGRATE_DATABASE_URL` **before** API/UI cutover. The command still runs when
    the discovered delta is empty. Application deployment approval alone is not
    permission to mutate the database.
+   **Reviewed exception: job lifecycle + approval exact-action.** The delta
+   `20261108000000_job_lifecycle` + `20261108010000_approval_exact_action` is
+   admitted only when the delta manifest and discovery are exactly those two
+   files (this order, pinned sha256, `A` status), the metadata seal matches the
+   candidate/API/UI tuple, no symlinks exist, and the candidate's whole
+   `migration.sql` tree hashes to the pinned value (55 files at `e184e3d`).
+   The previous release is not pinned (the live previous-good is only on the
+   server); it must be 40-hex, and an older live release yields extra delta
+   files and is rejected. Neither migration is destructive: additive nullable
+   or constant-default `ADD COLUMN`, `CREATE TYPE`, `CREATE TABLE` + RLS policy,
+   plain indexes, a `UNIQUE` index on the new nullable `approvals.nonce`, and
+   two `UPDATE` backfills of the new NULL tenant columns only. No `DROP`,
+   `ALTER ... TYPE`, `DELETE` or `TRUNCATE`. Rollback is the previous image
+   digest; the DB migration is not rolled back (the old API tolerates the extra
+   columns/tables). Any change to either file or the tree needs a new review.
 3. The script recreates API/UI from the digest override without rebuilding on
    the host, ensures the backup service is running, and verifies health and
    running-image identity.
