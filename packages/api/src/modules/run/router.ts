@@ -24,6 +24,7 @@ import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfte
 import { decideResume, toLegacyStatus, type JobState } from "./job-state";
 import { evaluateRetryBudget, retryLimit } from "./retry";
 import { toJobReceiptDto } from "./receipt";
+import { buildCodeSummary, CODE_SUMMARY_TOOL_NAMES, MAX_SUMMARY_CALLS } from "./code-summary";
 import { env } from "../../config/env";
 import { toPublicCompany } from "../company/redact";
 import { jobBucket, type InboxBucket, type RunEvent } from "@ai-company-os/core";
@@ -1189,5 +1190,33 @@ runRouter.get("/:id/receipt", async (req, res, next) => {
       return;
     }
     res.json(toJobReceiptDto(receipt));
+  } catch (err) { next(err); }
+});
+
+// ── BRA-UX-API-06: kod işi özeti (diff dosya +/−, test sayıları) — salt-okur, migration yok ──
+// GET /api/v1/runs/:id/code-summary — kiracı kapsamlı; yalnız izinli diff/test araçlarının
+// `tool_calls` satırlarından okuma anında türetilir. Yanıtta yalnız dosya yolu + sayı vardır
+// (diff gövdesi, test çıktısı, dosya içeriği, araç girdisi dönmez). Veri yoksa alan `null`.
+runRouter.get("/:id/code-summary", async (req, res, next) => {
+  try {
+    const tenantId = req.auth!.tenantId;
+    const run = await prisma.run.findFirst({
+      where: { id: req.params.id, pipeline: { company: { tenantId } } },
+      select: { id: true },
+    });
+    if (!run) throw new AppError(404, "Run not found");
+    // En YENİ çağrılar okunur (nihai durum sondadır); sınır aşılırsa en eskiler atılır ve diff `complete:false` olur.
+    const rows = await prisma.toolCall.findMany({
+      where: {
+        runStep: { runId: run.id, run: { pipeline: { company: { tenantId } } } },
+        OR: CODE_SUMMARY_TOOL_NAMES.map((n) => ({ toolName: { equals: n, mode: "insensitive" as const } })),
+      },
+      orderBy: [{ runStep: { stepIndex: "desc" } }, { createdAt: "desc" }, { id: "desc" }], // `id`: aynı createdAt'te belirleyici sıra
+      take: MAX_SUMMARY_CALLS + 1,
+      select: { toolName: true, status: true, input: true, output: true },
+    });
+    const truncated = rows.length > MAX_SUMMARY_CALLS;
+    const calls = rows.slice(0, MAX_SUMMARY_CALLS).reverse();
+    res.json(buildCodeSummary(run.id, calls, new Date(), truncated));
   } catch (err) { next(err); }
 });
