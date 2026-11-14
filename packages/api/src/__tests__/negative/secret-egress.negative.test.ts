@@ -112,12 +112,22 @@ describe("secret egress — KNOWN GAP SEC-BRA-06b (tripwire, see PR)", () => {
   // payload therefore reaches the agent context (exfiltration primitive under
   // prompt injection). Production code is out of scope for BRA-P0-07; `it.fails`
   // flips red the day a redaction is added, forcing this test to be promoted.
-  it.fails("a successful upstream result that echoes the credential is scrubbed before the agent sees it", async () => {
+  async function echoingCall() {
     callTool.mockResolvedValue({ content: [{ type: "text", text: `debug: key=${SECRET}` }] });
-    const res = await executeTool("mcp_acme_lookup", {}, { ...ctx, extraTools: await connectorTool() });
-    // precondition: the call really succeeded and really carried the secret (so a red is the redaction, not a broken setup)
+    return executeTool("mcp_acme_lookup", {}, { ...ctx, extraTools: await connectorTool() });
+  }
+
+  // Precondition as its OWN normal test: if the setup breaks (or the echo is
+  // redacted at the source) this goes red on its own, and cannot hide inside
+  // the `it.fails` below. When SEC-BRA-06b lands, replace both with one test.
+  it("PRECONDITION: the call succeeds and the echoed credential does reach the result today", async () => {
+    const res = await echoingCall();
     expect(res.status).toBe("COMPLETED");
     expect(JSON.stringify(res.output)).toContain(SECRET);
+  });
+
+  it.fails("a successful upstream result that echoes the credential is scrubbed before the agent sees it", async () => {
+    const res = await echoingCall();
     // today: ["result", "audit(tool_calls)"] (logs are clean). Fixed => [].
     expect(leakedLayers(res)).toEqual([]);
   });

@@ -143,6 +143,8 @@ describe("SEC-BRA-06: tenant-scoped registry tools always run against the ACTING
     ["Prisma operator object", { not: "x" }],
     ["array", ["co-a", "co-of-tenant-b"]],
     ["null", null],
+    ["empty string", ""],
+    ["blank string", "   "],
   ];
 
   /** every `companyId` value that reached a Prisma query, at any depth */
@@ -186,6 +188,23 @@ describe("SEC-BRA-06: tenant-scoped registry tools always run against the ACTING
       expect(contactFindMany).not.toHaveBeenCalled();
     });
   });
+
+  // Same tenant, DIFFERENT company: the tenant-level lookup finds it, but it is
+  // not the acting company, so it must be refused (covers `scoped.id !== context.companyId`).
+  const SIBLING = { id: "co-b", tenantId: "tenant-a" };
+  it.each([["id", "co-b"], ["name", "Beta Co"], ["slug", "beta-co"]])(
+    "a sibling company of the SAME tenant referenced by %s is refused for registry tools",
+    async (_how, ref) => {
+      companyFindFirst.mockReset().mockResolvedValue(SIBLING);
+      for (const [name, extra] of [["crm_search_contacts", { query: "a" }], ["fetch_metrics", { metric: "runs" }]] as const) {
+        const res = await executeTool(name, { ...extra, companyId: ref }, ctx);
+        expect(res).toMatchObject({ status: "FAILED", error: DENIED });
+        expect(JSON.stringify(res)).not.toMatch(/co-b|Beta|beta-co/);
+      }
+      expect(contactFindMany).not.toHaveBeenCalled();
+      expect(runCountFn).not.toHaveBeenCalled();
+    },
+  );
 
   it("a connector tool's own companyId argument is not rewritten (belongs to the remote server)", async () => {
     const { handler, extraTools } = probe("mcp_x_remote");

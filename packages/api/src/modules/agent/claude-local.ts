@@ -10,6 +10,7 @@
 import { spawn } from "node:child_process";
 import { logger } from "../../lib/logger";
 import { getTool } from "./registry";
+import { requiresGovernedTenantScope } from "./tool-executor";
 import type { AgentTurnResult, AgentLoopResult } from "./claude";
 
 interface ToolSchema {
@@ -208,8 +209,7 @@ async function executeLocalTurn(
           error: `Tool "${call.name}" requires spend approval and cannot run outside a governed pipeline run`,
         };
       }
-      const callInputObj = (call.input ?? {}) as Record<string, unknown>;
-      if ("companyId" in callInputObj) {
+      if (requiresGovernedTenantScope(registeredTool, call.input)) {
         return {
           id: `local_${Date.now()}_${index}`,
           name: call.name,

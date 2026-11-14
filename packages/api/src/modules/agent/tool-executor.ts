@@ -36,6 +36,38 @@ export interface ToolExecResult {
 }
 
 /**
+ * SEC-BRA-06 shared guards (governed executor AND the ungoverned loops in
+ * claude.ts / claude-local.ts — one definition, no copies).
+ * `toolTakesCompanyId`: the tool's input schema declares a companyId.
+ * `inputHasCompanyId`: the call carries a companyId key (any type); safe for
+ * non-object input (string/null/array never throws).
+ */
+export function toolTakesCompanyId(tool: Pick<ToolDefinition, "inputSchema"> | undefined): boolean {
+  const props = (tool?.inputSchema as { properties?: unknown } | undefined)?.properties;
+  return !!props && typeof props === "object" && Object.prototype.hasOwnProperty.call(props, "companyId");
+}
+
+export function inputHasCompanyId(input: unknown): boolean {
+  return (
+    !!input &&
+    typeof input === "object" &&
+    !Array.isArray(input) &&
+    (input as Record<string, unknown>).companyId !== undefined
+  );
+}
+
+/**
+ * Ungoverned callers have NO acting company to inject or compare against, so a
+ * tool that takes a companyId (by schema or by input) must not run there.
+ */
+export function requiresGovernedTenantScope(
+  tool: Pick<ToolDefinition, "inputSchema"> | undefined,
+  input: unknown,
+): boolean {
+  return toolTakesCompanyId(tool) || inputHasCompanyId(input);
+}
+
+/**
  * If the tool input references a companyId (by ID, name or slug), validate
  * it belongs to the tenant. Returns the canonical company row or null if
  * no companyId was supplied. Throws if a companyId was supplied but does
@@ -248,17 +280,17 @@ export async function executeTool(
     // injected; non-string (object/array/null — Prisma operator objects) or a
     // different company → refused. Connector tools are excluded: their args
     // belong to the remote server, not to our Prisma queries.
-    const takesCompanyId =
-      !dynamicTool &&
-      !!(tool.inputSchema as { properties?: Record<string, unknown> } | undefined)?.properties &&
-      "companyId" in ((tool.inputSchema as { properties: Record<string, unknown> }).properties);
+    const takesCompanyId = !dynamicTool && toolTakesCompanyId(tool);
     const inputObj = input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : null;
-    const hasCompanyKey = !!inputObj && inputObj.companyId !== undefined;
+    const hasCompanyKey = inputHasCompanyId(input);
     if (!dynamicTool && (takesCompanyId || hasCompanyKey)) {
-      if (hasCompanyKey && typeof inputObj!.companyId !== "string") {
-        throw new Error("Tenant isolation violation: companyId must be a string");
-      }
-      if (!hasCompanyKey && takesCompanyId) {
+      if (hasCompanyKey) {
+        const v = inputObj?.companyId;
+        // non-string (object/array/null) or empty/blank: never reaches a Prisma where
+        if (typeof v !== "string" || v.trim() === "") {
+          throw new Error("Tenant isolation violation: companyId is invalid");
+        }
+      } else if (takesCompanyId) {
         scopedInput = { ...(inputObj ?? {}), companyId: context.companyId };
       }
     }
