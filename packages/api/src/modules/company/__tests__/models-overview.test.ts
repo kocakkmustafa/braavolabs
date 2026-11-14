@@ -137,16 +137,27 @@ describe("kiracı / çalışma alanı kapsamı", () => {
 
   it("gerçek ayrım: B kiracısı ajan/adım/sağlayıcı satırları A yanıtına girmez", async () => {
     db.agents = [ag("a1", "gpt-4o"), ag("aB", "claude-sonnet-5-5", "co-B"), ag("aB2", "gpt-4o", "co-B")];
-    db.steps = [step("a1", "r1", "1.5"), step("aB", "rB", "99"), step("aB2", "rB2", "77")];
-    db.configs = [{ tenantId: "t-B", provider: "OPENAI", model: "gpt-4o", isDefault: true, encryptedApiKey: "enc:B" }];
+    // Benzersiz işaretçiler: B kiracısının maliyet/anahtar değerleri; rastgele id/zaman damgasıyla çakışamaz.
+    const B_COST_1 = "913370.424242";
+    const B_COST_2 = "771550.737373";
+    const B_KEY = "enc:tenant-b-secret-marker-5f3a9c";
+    db.steps = [step("a1", "r1", "1.5"), step("aB", "rB", B_COST_1), step("aB2", "rB2", B_COST_2)];
+    db.configs = [{ tenantId: "t-B", provider: "OPENAI", model: "gpt-4o", isDefault: true, encryptedApiKey: B_KEY }];
     const { res } = await invoke("co-1", "t-1");
     expect(res.body.models).toHaveLength(1);
     expect(res.body.models[0]).toMatchObject({ id: "gpt-4o", costThisMonthUsd: "1.500000", runCountThisMonth: 1, source: null });
-    expect(JSON.stringify(res.body)).not.toMatch(/99|77|claude-sonnet/);
+    const aJson = JSON.stringify(res.body);
+    // Pozitif kontrol: A kendi işaretçisini (1.500000) görür; arama gerçekten çalışıyor
+    expect(aJson).toContain("1.500000");
+    // B işaretçilerinin hiçbiri A yanıtında yok
+    for (const marker of [B_COST_1, B_COST_2, "913370", "771550", B_KEY, "tenant-b-secret-marker", "claude-sonnet"]) {
+      expect(aJson).not.toContain(marker);
+    }
     // Kiracı B kendi yanıtında kendi verisini görür
     const b = await invoke("co-B", "t-B");
+    expect(JSON.stringify(b.res.body)).toContain("771550.737373");
     expect(b.res.body.models.map((m: any) => m.id).sort()).toEqual(["claude-sonnet-5-5", "gpt-4o"]);
-    expect(b.res.body.models.find((m: any) => m.id === "gpt-4o")).toMatchObject({ costThisMonthUsd: "77.000000", source: "byok" });
+    expect(b.res.body.models.find((m: any) => m.id === "gpt-4o")).toMatchObject({ costThisMonthUsd: "771550.737373", source: "byok" });
   });
 
   it("buildModelsOverview doğrudan: başka kiracı (t-B, co-1) -> boş; ajan where ve SQL parametreleri tenant'ı bağımsız taşır", async () => {
