@@ -184,7 +184,11 @@ export function ReceiptPanel({ state, t, locale }: { state: ReceiptState; t: T; 
           <ul style={{ margin: 0, paddingInlineStart: 18, ...muted }}>
             {ev.map((e, i) => (
               <li key={`${e.kind}-${e.ref}-${i}`} style={{ overflowWrap: "anywhere" }}>
-                <strong>{e.kind}</strong> {e.ref}{e.ok === true ? ` · ${t("app.inbox.receipt.passed")}` : e.ok === false ? ` · ${t("app.inbox.receipt.failed")}` : ""}
+                {e.kind === "step" ? (
+                  <strong>{[e.provider, e.model].filter(Boolean).join(" / ") || e.ref}</strong>
+                ) : (
+                  <><strong>{e.kind}</strong> {e.ref}</>
+                )}{e.ok === true ? ` · ${t("app.inbox.receipt.passed")}` : e.ok === false ? ` · ${t("app.inbox.receipt.failed")}` : ""}
               </li>
             ))}
           </ul>

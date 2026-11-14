@@ -290,41 +290,96 @@ describe("transitionRun → savepoint, Run.resultStatus, retry", () => {
 });
 
 describe("BRA-P0-06c — adım başına sağlayıcı/model", () => {
-  const stepRun = (steps: ReceiptRunInput["steps"], outcome: ReceiptRunInput["outcome"] = "COMPLETED"): ReceiptRunInput => ({
-    id: "run_1", tenantId: "t1", outcome, costUsd: "0.5", input: {}, steps, approvals: [],
+  const stepRun = (stepModels: ReceiptRunInput["stepModels"], steps: ReceiptRunInput["steps"] = [], outcome: ReceiptRunInput["outcome"] = "COMPLETED"): ReceiptRunInput => ({
+    id: "run_1", tenantId: "t1", outcome, costUsd: "0.5", input: {}, steps, stepModels, approvals: [],
   });
   it("her adım için step öğesi: ref step:<stepIndex>, provider ve model", () => {
     const r = buildReceipt(stepRun([
-      { stepIndex: 0, output: { content: "x", provider: "anthropic", model: "claude-sonnet-4" } },
-      { stepIndex: 2, output: { provider: "openai", model: "gpt-x" } },
+      { stepIndex: 0, status: "COMPLETED", provider: "anthropic", model: "claude-sonnet-4" },
+      { stepIndex: 2, status: "COMPLETED", provider: "openai", model: "gpt-x" },
     ]));
     expect(r.evidence).toEqual([
       { kind: "step", ref: "step:0", provider: "anthropic", model: "claude-sonnet-4" },
       { kind: "step", ref: "step:2", provider: "openai", model: "gpt-x" },
     ]);
   });
-  it("provider/model yoksa öğe üretilmez; ham çıktı makbuza girmez", () => {
-    const r = buildReceipt(stepRun([{ stepIndex: 0, output: { content: "SECRET RAW" } }, { stepIndex: 1 }]));
-    expect(r.evidence).toEqual([]);
-    expect(JSON.stringify(deriveStepModels([{ output: { content: "SECRET", provider: "a" } }]))).not.toContain("SECRET");
+  it("provider/model yoksa öğe üretilmez; stepModels verilmediyse evidence boş", () => {
+    expect(buildReceipt(stepRun([{ stepIndex: 0 }, { stepIndex: 1, provider: null, model: null }])).evidence).toEqual([]);
+    expect(buildReceipt(stepRun(undefined)).evidence).toEqual([]);
   });
   it("sağlayıcı/model dışı tür ve aşırı uzun değer atılır", () => {
-    expect(deriveStepModels([{ stepIndex: 0, output: { provider: 5, model: "m".repeat(101) } }])).toEqual([]);
-    expect(deriveStepModels([{ stepIndex: 0, output: { provider: " p ", model: 7 } }])).toEqual([{ kind: "step", ref: "step:0", provider: "p" }]);
+    expect(deriveStepModels([{ stepIndex: 0, provider: 5, model: "m".repeat(101) }])).toEqual([]);
+    expect(deriveStepModels([{ stepIndex: 0, provider: " p ", model: 7 }])).toEqual([{ kind: "step", ref: "step:0", provider: "p" }]);
+  });
+  it("aynı stepIndex için tek öğe: FAILED satırı başarılıyı ezmez, sonraki başarılı kazanır", () => {
+    expect(deriveStepModels([
+      { stepIndex: 1, status: "COMPLETED", provider: "a", model: "ok" },
+      { stepIndex: 1, status: "FAILED", provider: "b", model: "bad" },
+    ])).toEqual([{ kind: "step", ref: "step:1", provider: "a", model: "ok" }]);
+    expect(deriveStepModels([
+      { stepIndex: 1, status: "FAILED", provider: "b", model: "bad" },
+      { stepIndex: 1, status: "COMPLETED", provider: "a", model: "ok" },
+    ])).toEqual([{ kind: "step", ref: "step:1", provider: "a", model: "ok" }]);
+    expect(deriveStepModels([
+      { stepIndex: 1, status: "COMPLETED", provider: "a", model: "m1" },
+      { stepIndex: 1, status: "COMPLETED", provider: "c", model: "m2" },
+    ])).toEqual([{ kind: "step", ref: "step:1", provider: "c", model: "m2" }]);
+    expect(deriveStepModels([
+      { stepIndex: 1, status: "FAILED", provider: "b", model: "x" },
+      { stepIndex: 1, status: "FAILED", provider: "d", model: "y" },
+    ])).toEqual([{ kind: "step", ref: "step:1", provider: "d", model: "y" }]);
+  });
+  it("60+ adım: step öğeleri 50'de kesilir; toplam evidence ≤ 100 ve kanıt örneklemesi bozulmaz", () => {
+    const stepModels = Array.from({ length: 70 }, (_, i) => ({ stepIndex: i, status: "COMPLETED", provider: "p", model: "m" }));
+    const calls = [...Array.from({ length: 60 }, (_, i) => tc(`d${i}`, "git_commit")), TEST_OK, PR];
+    const r = buildReceipt({ ...stepRun(stepModels, [{ toolCalls: calls }]), input: { goal: "fix" } });
+    expect(r.evidence.filter((e) => e.kind === "step")).toHaveLength(50);
+    expect(r.evidence.filter((e) => e.kind !== "step").length).toBeLessThanOrEqual(50);
+    expect(r.evidence.length).toBeLessThanOrEqual(100);
+    expect(r.resultStatus).toBe("VERIFIED");
   });
   it("step öğeleri VERIFIED'ı etkilemez: kanıtsız iş UNVERIFIED kalır, kanıtlı iş VERIFIED kalır", () => {
-    const meta = { stepIndex: 0, output: { provider: "anthropic", model: "m" } };
-    expect(buildReceipt(stepRun([meta])).resultStatus).toBe("UNVERIFIED");
-    const withEvidence = buildReceipt({ ...stepRun([{ ...meta, toolCalls: [DIFF, TEST_OK, PR] }]), input: { goal: "fix" } });
+    const meta = [{ stepIndex: 0, status: "COMPLETED", provider: "anthropic", model: "m" }];
+    expect(buildReceipt(stepRun(meta)).resultStatus).toBe("UNVERIFIED");
+    const withEvidence = buildReceipt({ ...stepRun(meta, [{ toolCalls: [DIFF, TEST_OK, PR] }]), input: { goal: "fix" } });
     expect(withEvidence.resultStatus).toBe("VERIFIED");
     expect(withEvidence.evidence.filter((e) => e.kind === "step")).toHaveLength(1);
   });
   it("step öğesi contentHash'e girer ve aynı girdide kararlıdır", () => {
-    const a = buildReceipt(stepRun([{ stepIndex: 0, output: { provider: "p", model: "m1" } }]));
-    const b = buildReceipt(stepRun([{ stepIndex: 0, output: { provider: "p", model: "m1" } }]));
-    const c = buildReceipt(stepRun([{ stepIndex: 0, output: { provider: "p", model: "m2" } }]));
-    expect(a.contentHash).toBe(b.contentHash);
-    expect(a.contentHash).not.toBe(c.contentHash);
+    const mk = (model: string) => buildReceipt(stepRun([{ stepIndex: 0, status: "COMPLETED", provider: "p", model }]));
+    expect(mk("m1").contentHash).toBe(mk("m1").contentHash);
+    expect(mk("m1").contentHash).not.toBe(mk("m2").contentHash);
+  });
+  it("writeReceipt: adım çıktısı TAM çekilmez; yalnız provider/model SQL ile, tenant+run kapsamlı", async () => {
+    const { writeReceipt } = await import("../receipt");
+    const findFirst = vi.fn().mockResolvedValue({ costUsd: null, input: {}, retryCount: 0, approvals: [], steps: [] });
+    const create = vi.fn().mockResolvedValue({ id: "rc1" });
+    const $queryRaw = vi.fn().mockResolvedValue([{ stepIndex: 0, status: "COMPLETED", provider: "anthropic", model: "m" }]);
+    const r = await writeReceipt({ run: { findFirst }, $queryRaw, jobReceipt: { findFirst: vi.fn().mockResolvedValue(null), create } }, "run_9", "COMPLETED", "t7");
+    expect(r.written).toBe(true);
+    const sel = findFirst.mock.calls[0][0].select.steps.select;
+    expect(sel.output).toBeUndefined();
+    const [strings, ...vals] = $queryRaw.mock.calls[0];
+    const sql = strings.join("?");
+    expect(sql).toContain("output->>'provider'");
+    expect(sql).toContain("c.tenant_id");
+    expect(sql).toContain("ORDER BY rs.step_index ASC, rs.created_at ASC");
+    expect(sql).not.toMatch(/finalContent|rs\.output\s*(,|AS|FROM)/);
+    expect(vals).toContain("run_9");
+    expect(vals).toContain("t7");
+    expect(create.mock.calls[0][0].data.evidence).toEqual([{ kind: "step", ref: "step:0", provider: "anthropic", model: "m" }]);
+  });
+  it("writeReceipt: $queryRaw yoksa ya da düşerse makbuz yine yazılır (step öğesiz)", async () => {
+    const { writeReceipt } = await import("../receipt");
+    const mk = (extra: object) => {
+      const create = vi.fn().mockResolvedValue({ id: "rc" });
+      return { create, client: { run: { findFirst: vi.fn().mockResolvedValue({ costUsd: null, input: {}, retryCount: 0, approvals: [], steps: [] }) }, jobReceipt: { findFirst: vi.fn().mockResolvedValue(null), create }, ...extra } };
+    };
+    const a = mk({});
+    expect((await writeReceipt(a.client, "r", "COMPLETED", "t")).written).toBe(true);
+    const b = mk({ $queryRaw: vi.fn().mockRejectedValue(new Error("boom")) });
+    expect((await writeReceipt(b.client, "r", "COMPLETED", "t")).written).toBe(true);
+    expect(b.create.mock.calls[0][0].data.evidence).toEqual([]);
   });
   it("geri uyum: step öğesi içermeyen eski makbuz satırı aynen okunur", () => {
     const row = {

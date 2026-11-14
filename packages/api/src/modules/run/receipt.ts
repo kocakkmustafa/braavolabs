@@ -56,7 +56,9 @@ export interface ReceiptRunInput {
   retryCount?: number | null;
   /** Koşu girdisi: yalnız "kod işi mi" boolean'ı için okunur, makbuza girmez. */
   input?: unknown;
-  steps: ReadonlyArray<{ stepIndex?: number; output?: unknown; toolCalls?: ReadonlyArray<ReceiptToolCall> }>;
+  steps: ReadonlyArray<{ toolCalls?: ReadonlyArray<ReceiptToolCall> }>;
+  /** BRA-P0-06c: adım başına sağlayıcı/model satırları (`loadStepModels`). */
+  stepModels?: ReadonlyArray<StepModelRow>;
   approvals?: ReadonlyArray<{ id: string }>;
 }
 
@@ -210,29 +212,50 @@ export function deriveEvidence(
 }
 
 const MAX_STEP_FIELD = 100;
+/** Saklanan `step` öğesi üst sınırı. Toplam `evidence` ≤ MAX_EVIDENCE (kanıt) + MAX_STEP_ITEMS = 100. */
+export const MAX_STEP_ITEMS = 50;
 const cleanField = (v: unknown): string | null => {
   if (typeof v !== "string") return null;
   const t = v.trim();
   return t.length > 0 && t.length <= MAX_STEP_FIELD ? t : null;
 };
 
+/** `run_steps` satırından yalnız sağlayıcı/model ( `output->>'provider'`, `output->>'model'`). */
+export interface StepModelRow {
+  stepIndex: number;
+  status?: string | null;
+  provider?: unknown;
+  model?: unknown;
+}
+
 /**
  * BRA-P0-06c — adım başına sağlayıcı/model (`kind: "step"`, ref `step:<stepIndex>`).
- * Kaynak: `RunStep.output.{provider,model}` (executor yazar). Yalnız bu iki kısa dize
- * okunur; çıktı içeriği makbuza girmez. İkisi de yoksa öğe üretilmez (eski adımlar).
+ * Satırlar `(stepIndex, createdAt)` sırasıyla gelir. Aynı `stepIndex` için TEK öğe:
+ * verisi olan satırlar arasında son COMPLETED kazanır; COMPLETED yoksa sonuncusu.
+ * FAILED/yeniden deneme satırı başarılıyı ezmez. İkisi de yoksa öğe üretilmez.
  * Kanıt DEĞİLDİR: karar (`deriveResultStatus`) bu öğeleri görmez.
  */
-export function deriveStepModels(steps: ReceiptRunInput["steps"]): JobReceiptEvidence[] {
-  const out: JobReceiptEvidence[] = [];
-  steps.forEach((step, i) => {
-    const o = asRecord(step.output);
-    const provider = cleanField(o?.provider);
-    const model = cleanField(o?.model);
-    if (!provider && !model) return;
-    const idx = Number.isInteger(step.stepIndex) ? (step.stepIndex as number) : i;
-    out.push({ kind: "step", ref: `step:${idx}`, ...(provider ? { provider } : {}), ...(model ? { model } : {}) });
-  });
-  return out.slice(0, MAX_EVIDENCE);
+export function deriveStepModels(rows: ReadonlyArray<StepModelRow>): JobReceiptEvidence[] {
+  const byIndex = new Map<number, { provider: string | null; model: string | null; done: boolean }>();
+  for (const row of rows) {
+    if (!Number.isInteger(row.stepIndex)) continue;
+    const provider = cleanField(row.provider);
+    const model = cleanField(row.model);
+    if (!provider && !model) continue;
+    const done = row.status === "COMPLETED";
+    const prev = byIndex.get(row.stepIndex);
+    if (prev?.done && !done) continue;
+    byIndex.set(row.stepIndex, { provider, model, done });
+  }
+  return [...byIndex.entries()]
+    .sort((x, y) => x[0] - y[0])
+    .slice(0, MAX_STEP_ITEMS)
+    .map(([idx, v]) => ({
+      kind: "step" as const,
+      ref: `step:${idx}`,
+      ...(v.provider ? { provider: v.provider } : {}),
+      ...(v.model ? { model: v.model } : {}),
+    }));
 }
 
 function stableHash(payload: unknown): string {
@@ -243,7 +266,7 @@ export function buildReceipt(run: ReceiptRunInput): ReceiptDraft {
   const inputText = inputToText(run.input);
   const { all, stored, codeToolUsed } = deriveEvidence(run.steps, inputText.toLowerCase());
   // `step` öğeleri karardan SONRA eklenir: `all`/resultStatus onlardan etkilenmez.
-  const evidence = [...stored, ...deriveStepModels(run.steps)];
+  const evidence = [...stored, ...deriveStepModels(run.stepModels ?? [])];
   const requiredKinds = looksLikeCodeJob(inputText, codeToolUsed) ? CODE_JOB_REQUIRED_KINDS : [];
   // deriveResultStatus ana kabul: COMPLETED dışında null; kanıt yoksa UNVERIFIED (fail-closed).
   // Karar TÜM kanıttan verilir (50. sonrası başarısız test de veto eder).
@@ -270,12 +293,42 @@ export interface ReceiptClient {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     findFirst(args: any): PromiseLike<any>;
   };
+  /** Yalnız `loadStepModels` için (prisma/transaction sunar; sahteler vermeyebilir). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $queryRaw?: (strings: TemplateStringsArray, ...values: any[]) => PromiseLike<any>;
   jobReceipt?: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     findFirst(args: any): PromiseLike<any>;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     create(args: any): PromiseLike<any>;
   };
+}
+
+const STEP_MODEL_ROW_LIMIT = 500;
+
+/**
+ * Adım başına sağlayıcı/model: yalnız `output->>'provider'|'model'` seçilir (tam
+ * `finalContent` belleğe çekilmez). Tenant kapsamı run→pipeline→company join'inde.
+ * `$queryRaw` yoksa ya da sorgu düşerse boş döner (makbuz yazımı bunun için bozulmaz).
+ */
+export async function loadStepModels(client: ReceiptClient, runId: string, tenantId: string): Promise<StepModelRow[]> {
+  if (!client.$queryRaw) return [];
+  try {
+    const rows = (await client.$queryRaw`
+      SELECT rs.step_index AS "stepIndex", rs.status::text AS "status",
+             rs.output->>'provider' AS "provider", rs.output->>'model' AS "model"
+      FROM run_steps rs
+      JOIN runs r ON r.id = rs.run_id
+      JOIN pipelines p ON p.id = r.pipeline_id
+      JOIN companies c ON c.id = p.company_id
+      WHERE rs.run_id = ${runId} AND c.tenant_id = ${tenantId}
+        AND (rs.output->>'provider' IS NOT NULL OR rs.output->>'model' IS NOT NULL)
+      ORDER BY rs.step_index ASC, rs.created_at ASC
+      LIMIT ${STEP_MODEL_ROW_LIMIT}`) as StepModelRow[];
+    return Array.isArray(rows) ? rows : [];
+  } catch {
+    return [];
+  }
 }
 
 export type WriteReceiptResult =
@@ -303,11 +356,7 @@ export async function writeReceipt(
       approvals: { select: { id: true } },
       // Yalnız izinli kanıt araçlarının satırları (ağır `output` taraması dar tutulur).
       steps: {
-        orderBy: { stepIndex: "asc" },
         select: {
-          stepIndex: true,
-          // BRA-P0-06c: yalnız `provider`/`model` anahtarları okunur, gerisi atılır.
-          output: true,
           toolCalls: {
             // Büyük/küçük harf duyarsız: `Run_Tests` kanıttan/vetodan düşmesin.
             where: { OR: EVIDENCE_TOOL_NAMES.map((n) => ({ toolName: { equals: n, mode: "insensitive" } })) },
@@ -327,6 +376,7 @@ export async function writeReceipt(
     retryCount: run.retryCount,
     input: run.input,
     steps: run.steps ?? [],
+    stepModels: await loadStepModels(client, runId, tenantId),
     approvals: run.approvals ?? [],
   });
   const existing = await store.findFirst({
