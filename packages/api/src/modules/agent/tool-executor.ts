@@ -17,7 +17,7 @@ import {
 } from "./registry";
 import { notifyTenantUsers } from "../../services/push";
 import { publishRunEvent } from "../../lib/runEvents";
-import { disabledFeatureForTool, outboundFeatureDisabledError } from "../../lib/outbound-gates";
+import { disabledFeatureForTool, isDeployMergeCall, outboundFeatureDisabledError, type ToolCallGateOpts } from "../../lib/outbound-gates";
 import {
   buildApprovalStamp,
   computeActionHash,
@@ -301,7 +301,7 @@ export async function executeTool(
   // They are per-tenant and MUST NOT be resolvable by any other request.
   const dynamicTool = context.extraTools?.get(toolName);
   const tool = dynamicTool ?? getTool(toolName);
-  const meta = dynamicTool ? dynamicTool.meta : getToolMeta(toolName);
+  let meta = dynamicTool ? dynamicTool.meta : getToolMeta(toolName);
 
   if (!tool) {
     return {
@@ -315,8 +315,56 @@ export async function executeTool(
   // B-06: outbound-contact tools (outreach enrollment, voice dialing) are
   // refused while their feature flag is off — before any approval row is
   // created, so nothing approvable reaches the approvals queue.
-  const disabledFeature = dynamicTool ? null : disabledFeatureForTool(toolName);
+  // BRA-P1-03c: this single choke point also refuses deploy / merge style
+  // tools (static or connector) until the founder-approved flag is on.
+  // Classification uses the tool's own name + untruncated description, never
+  // the connector-name prefix.
+  const remote = dynamicTool?.remote;
+  const gateOpts: ToolCallGateOpts = dynamicTool
+    ? remote
+      ? {
+          dynamic: true,
+          remoteName: remote.name,
+          remoteDescription: remote.description,
+          connectorSlug: remote.connectorSlug,
+          connectorName: remote.connectorName,
+        }
+      : { dynamic: true, remoteDescription: dynamicTool.description }
+    : {};
+  // Classified ONCE; the gate and the forced-approval meta below share it.
+  const isDeployMerge = isDeployMergeCall(toolName, gateOpts);
+  const disabledFeature = disabledFeatureForTool(toolName, { ...gateOpts, deployMerge: isDeployMerge });
+  // Founder-approval requirement: a deploy/merge tool needs a human approval
+  // row even when the flag is ON and the agent is AUTONOMOUS. moneyTouching
+  // defaults to false so the approval row does not look like a SPEND.
+  if (isDeployMerge) {
+    meta = {
+      ...(meta ?? {}),
+      riskLevel: "high",
+      requiresApproval: true,
+      alwaysRequiresApproval: true,
+      moneyTouching: meta?.moneyTouching ?? false,
+    };
+  }
   if (disabledFeature) {
+    if (disabledFeature === "deploy_merge" && context.runStepId) {
+      // Refusal row for audit; no input/output (never log args or tokens).
+      try {
+        await prisma.toolCall.create({
+          data: {
+            runStepId: context.runStepId,
+            toolName,
+            input: {} as any,
+            output: {} as any,
+            status: "FAILED",
+            durationMs: Date.now() - start,
+            error: "DEPLOY_MERGE_TOOLS_DISABLED",
+          },
+        });
+      } catch (logErr) {
+        logger.warn({ toolName }, "Could not record refused deploy/merge tool call");
+      }
+    }
     const disabled = outboundFeatureDisabledError(disabledFeature);
     return {
       output: null,
