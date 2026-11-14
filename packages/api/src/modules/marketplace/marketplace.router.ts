@@ -33,7 +33,7 @@ import { assertSafeExternalUrl, SsrfError } from "../../lib/ssrf";
 import { listTools, type McpTool } from "../../lib/mcp";
 import { connectorManifestSchema } from "@ai-company-os/connector-sdk";
 import { signManifest, verifyManifest, isSignedManifest } from "./manifest-signature";
-import { refreshInstall, revokeInstall, audienceOf } from "./connector-lifecycle";
+import { refreshInstall, revokeInstall, audienceOf, toInstalledView } from "./connector-lifecycle";
 import { claimQuota } from "../billing/metering";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { PLAN_LIMITS } from "@ai-company-os/core";
@@ -133,7 +133,7 @@ tenantRouter.get("/installed", async (req, res, next) => {
       },
       orderBy: { createdAt: "desc" },
     });
-    res.json(installs);
+    res.json(installs.map(toInstalledView));
   } catch (err) { next(err); }
 });
 
