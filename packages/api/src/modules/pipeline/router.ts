@@ -769,6 +769,58 @@ pipelineRouter.post("/:id/revisions/restore", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /api/v1/pipelines/:id/schedule/pause|resume — BRA-P1-04b.
+// Pause = enabled:false + tear the BullMQ scheduler down; resume = enabled:true
+// + re-register it. Both are idempotent (repeat → 200, same state). Only a
+// SCHEDULED pipeline with a valid cron has a schedule to pause/resume (else
+// 409). Tenant isolation mirrors the other :id routes (foreign → 404).
+async function setScheduleEnabled(
+  req: import("express").Request,
+  res: import("express").Response,
+  next: import("express").NextFunction,
+  enable: boolean,
+) {
+  try {
+    const pipeline = await prisma.pipeline.findUnique({
+      where: { id: req.params.id as string },
+      include: { company: true },
+    });
+    if (!pipeline || !pipeline.company || pipeline.company.tenantId !== req.auth!.tenantId) {
+      throw new AppError(404, "Pipeline not found");
+    }
+    if (pipeline.trigger !== "SCHEDULED" || !pipeline.schedule || !cron.validate(pipeline.schedule)) {
+      throw new AppError(409, "Pipeline has no registered schedule");
+    }
+
+    const updated = await prisma.pipeline.update({
+      where: { id: pipeline.id },
+      data: { enabled: enable },
+    });
+
+    if (enable) {
+      await registerSchedule(updated);
+    } else {
+      await removeSchedule(updated.id);
+    }
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: enable ? "pipeline.schedule.resume" : "pipeline.schedule.pause",
+        resource: "pipeline",
+        resourceId: pipeline.id,
+        details: { wasEnabled: pipeline.enabled },
+      },
+    });
+
+    res.json({ id: updated.id, enabled: updated.enabled, schedule: updated.schedule });
+  } catch (err) { next(err); }
+}
+
+pipelineRouter.post("/:id/schedule/pause", (req, res, next) => setScheduleEnabled(req, res, next, false));
+pipelineRouter.post("/:id/schedule/resume", (req, res, next) => setScheduleEnabled(req, res, next, true));
+
 // DELETE /api/v1/pipelines/:id — delete pipeline
 pipelineRouter.delete("/:id", async (req, res, next) => {
   try {
