@@ -209,7 +209,9 @@ jobsRouter.post("/start", startLimiter, async (req, res, next) => {
     try {
       await enqueueRun(started.runId);
     } catch (err) {
-      await prisma.run.update({ where: { id: started.runId }, data: { status: "FAILED", error: "enqueue_failed" } }).catch(() => undefined);
+      await prisma.run
+        .update({ where: { id: started.runId }, data: { status: "FAILED", error: "enqueue_failed" } })
+        .catch((markErr) => logger.error({ err: markErr, runId: started.runId }, "jobs/start: marking run FAILED after enqueue failure failed"));
       await releaseQuota(tenantId, "runs");
       throw err;
     }

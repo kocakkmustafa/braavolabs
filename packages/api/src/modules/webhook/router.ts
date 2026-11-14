@@ -225,6 +225,7 @@ webhookRouter.post(
         // can't slowly drain the tenant's monthly run quota with no runs to
         // show for it. Skip the failed pipeline and keep processing the rest
         // rather than aborting the whole delivery.
+        let createdRunId: string | undefined;
         try {
           const run = await prisma.run.create({
             data: {
@@ -238,6 +239,7 @@ webhookRouter.post(
             },
           });
 
+          createdRunId = run.id;
           await enqueueRun(run.id);
           runs.push(run.id);
 
@@ -246,6 +248,13 @@ webhookRouter.post(
             "Webhook triggered pipeline run",
           );
         } catch (enqErr) {
+          // BRA-P0-03e-b: enqueue patladıysa satır PENDING kalmasın; yoksa pending-sweeper >24 sa sonra
+          // aynı koşu için ikinci kez kota iadesi yapar (çift iade). PENDING→FAILED CAS (jobs/start kalıbı).
+          if (createdRunId) {
+            await prisma.run
+              .updateMany({ where: { id: createdRunId, status: "PENDING" }, data: { status: "FAILED", error: "enqueue_failed" } })
+              .catch((markErr) => logger.error({ err: markErr, runId: createdRunId }, "Webhook: marking run FAILED after enqueue failure failed"));
+          }
           await releaseQuota(company.tenantId, "runs");
           logger.error(
             { err: enqErr, pipelineId: pipeline.id, tenantId: company.tenantId },

@@ -21,11 +21,12 @@ const companyFindMany = vi.hoisted(() => vi.fn());
 const pipelineFindMany = vi.hoisted(() => vi.fn());
 const runCreate = vi.hoisted(() => vi.fn());
 const activityLogCreate = vi.hoisted(() => vi.fn());
+const runUpdateMany = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/db", () => ({
   prisma: {
     company: { findMany: (...a: unknown[]) => companyFindMany(...a) },
     pipeline: { findMany: (...a: unknown[]) => pipelineFindMany(...a) },
-    run: { create: (...a: unknown[]) => runCreate(...a) },
+    run: { create: (...a: unknown[]) => runCreate(...a), updateMany: (...a: unknown[]) => runUpdateMany(...a) },
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
   },
 }));
@@ -120,6 +121,7 @@ describe("POST /hooks/:companySlug/:event", () => {
     claimQuotaMock.mockResolvedValue({ claimed: true, value: 1, limit: 100 });
     releaseQuotaMock.mockResolvedValue(undefined);
     enqueueRunMock.mockResolvedValue(undefined);
+    runUpdateMany.mockResolvedValue({ count: 1 });
   });
 
   function validReq(overrides: Record<string, unknown> = {}) {
@@ -300,6 +302,38 @@ describe("POST /hooks/:companySlug/:event", () => {
     expect(res.statusCode).toBe(200);
     expect(res.body.triggeredRuns).toEqual([]);
     expect(releaseQuotaMock).toHaveBeenCalledWith("tenant-1", "runs");
+  });
+
+  it("BRA-P0-03e-b: enqueue hatası → koşu PENDING→FAILED (CAS) kapanır + TEK iade (sweeper çift iade yapamaz)", async () => {
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+    runCreate.mockResolvedValue({ id: "run-1" });
+    enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
+
+    await invoke(handler, validReq());
+
+    expect(runUpdateMany).toHaveBeenCalledTimes(1);
+    expect(runUpdateMany).toHaveBeenCalledWith({ where: { id: "run-1", status: "PENDING" }, data: { status: "FAILED", error: "enqueue_failed" } });
+    expect(releaseQuotaMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("BRA-P0-03e-b: FAILED işaretleme hatası yutulmaz-ama-teslimatı bozmaz; iade yine yapılır", async () => {
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+    runCreate.mockResolvedValue({ id: "run-1" });
+    enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
+    runUpdateMany.mockRejectedValue(new Error("db down"));
+
+    const { res } = await invoke(handler, validReq());
+
+    expect(res.statusCode).toBe(200);
+    expect(releaseQuotaMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("run.create hatası: işaretlenecek koşu yok (updateMany çağrılmaz), iade yapılır", async () => {
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+    runCreate.mockRejectedValue(new Error("db"));
+    await invoke(handler, validReq());
+    expect(runUpdateMany).not.toHaveBeenCalled();
+    expect(releaseQuotaMock).toHaveBeenCalledTimes(1);
   });
 
   it("multiple matching pipelines each claim quota independently and all appear in triggeredRuns", async () => {

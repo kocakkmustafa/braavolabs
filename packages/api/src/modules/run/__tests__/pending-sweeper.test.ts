@@ -2,7 +2,9 @@
  * BRA-P0-03e — PENDING koşu süpürücüsü: enqueue öncesi süreç ölümünde kuyruksuz kalan PENDING koşu
  * yeniden kuyruğa alınır (≤24 sa) ya da FAILED yapılır (>24 sa); zaten kuyruktaki koşuya dokunulmaz;
  * ikinci süpürme etkisiz; başka kiracının koşusu görünmez; bayrak kapalıyken `state` adlandırılmaz.
- * NOT covered: gerçek Redis/BullMQ (sentetik kuyruk), gerçek veritabanı (sentetik run deposu), zamanlayıcı saati.
+ * NOT covered: gerçek Redis/BullMQ (sentetik kuyruk), gerçek veritabanı (sentetik run deposu), zamanlayıcı saati;
+ * `releaseQuota` (gerçek sayaç/ay sınırı; hatayı yutar, süpürücü iade başarısızlığını bilmez), `tryWriteReceipt`
+ * (gerçek makbuz yazımı) ve `enqueueRun` (gerçek BullMQ ekleme) mock'tur.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
