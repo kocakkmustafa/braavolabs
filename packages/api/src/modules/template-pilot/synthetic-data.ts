@@ -8,6 +8,9 @@
  */
 
 export const SYNTHETIC_MAX_COUNT = 1000;
+/** Seeds are unsigned 32-bit integers (the PRNG state is 32 bits wide). */
+export const SYNTHETIC_MAX_SEED = 2 ** 32 - 1;
+const MAX_SEED = SYNTHETIC_MAX_SEED;
 
 export type SyntheticKind = "task" | "customer" | "mixed";
 export type SyntheticStatus = "yeni" | "devam" | "beklemede" | "tamamlandi" | "iptal";
@@ -18,8 +21,9 @@ export interface SyntheticRecord {
   name: string;
   company: string;
   status: SyntheticStatus;
-  /** TRY, two decimals, at most 5 integer digits. */
+  /** Amount in `currency`; rounded to 2 decimals (JS number), < 100000. */
   amount: number;
+  currency: "TRY";
   /** ISO date (YYYY-MM-DD), derived from a fixed base + seed offset. */
   date: string;
 }
@@ -31,10 +35,26 @@ export interface GenerateSyntheticDataInput {
 }
 
 const FAKE_BRANDS = [
-  "Kurgu Atölye", "Mavi Pusula", "Deneme Yapı", "Örnek Lojistik", "Taslak Gıda",
-  "Sahte Tekstil", "Maket Yazılım", "Bulut Zanaat", "Yapay Mobilya", "Kum Saati Ltd",
-  "Gölge Otomasyon", "Pamuk Dijital", "Test Dokuma", "Hayali Enerji", "Prova Medya",
-  "Kâğıt Gemi", "Sentetik Tarım", "Demo Seramik", "Uydurma Danışmanlık", "Sanal Kırtasiye",
+  "Sahte Kurgu Atölye",
+  "Sahte Mavi Pusula",
+  "Sahte Deneme Yapı",
+  "Sahte Örnek Lojistik",
+  "Sahte Taslak Gıda",
+  "Sahte Tekstil Atölyesi",
+  "Sahte Maket Yazılım",
+  "Sahte Bulut Zanaat",
+  "Sahte Yapay Mobilya",
+  "Sahte Kum Saati Ltd",
+  "Sahte Gölge Otomasyon",
+  "Sahte Pamuk Dijital",
+  "Sahte Test Dokuma",
+  "Sahte Hayali Enerji",
+  "Sahte Prova Medya",
+  "Sahte Kâğıt Gemi",
+  "Sahte Sentetik Tarım",
+  "Sahte Demo Seramik",
+  "Sahte Uydurma Danışmanlık",
+  "Sahte Sanal Kırtasiye",
 ] as const;
 
 const TASK_VERBS = [
@@ -76,8 +96,8 @@ function toIsoDate(ms: number): string {
 
 export function generateSyntheticData(input: GenerateSyntheticDataInput): SyntheticRecord[] {
   const { seed, count, kind = "mixed" } = input;
-  if (typeof seed !== "number" || !Number.isInteger(seed)) {
-    throw new RangeError("seed must be an integer");
+  if (typeof seed !== "number" || !Number.isSafeInteger(seed) || seed < 0 || seed > MAX_SEED) {
+    throw new RangeError(`seed must be an integer between 0 and ${MAX_SEED}`);
   }
   if (typeof count !== "number" || !Number.isInteger(count) || count < 0 || count > SYNTHETIC_MAX_COUNT) {
     throw new RangeError(`count must be an integer between 0 and ${SYNTHETIC_MAX_COUNT}`);
@@ -99,7 +119,7 @@ export function generateSyntheticData(input: GenerateSyntheticDataInput): Synthe
     const status = pick(rng, STATUSES);
     const amount = Math.floor(rng() * 10_000_000) / 100; // < 100000.00
     const date = toIsoDate(BASE_DATE_MS + Math.floor(rng() * 365) * DAY_MS);
-    out.push({ id: `syn-${pad3(i)}`, kind: recKind, name, company, status, amount, date });
+    out.push({ id: `syn-${pad3(i)}`, kind: recKind, name, company, status, amount, currency: "TRY", date });
   }
   return out;
 }
