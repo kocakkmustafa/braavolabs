@@ -118,6 +118,10 @@ for (const { vp, size, scheme } of COMBOS) {
       const byok = page.getByTestId("model-row-claude-sonnet-5");
       await expect(byok).toContainText("Kendi API anahtarın");
       await expect(byok).toContainText("anthropic");
+      // BRA-P0-06a: kaynak byok → BYOK rozeti; otomatik seçim bilinmiyor (null) → COMPARE rozeti yok.
+      await expect(page.getByTestId("model-badge-claude-sonnet-5-byok")).toHaveText("BYOK");
+      await expect(page.getByTestId("model-badge-claude-sonnet-5-compare")).toHaveCount(0);
+      await expect(page.getByTestId("model-badge-yerel-llama-byok")).toHaveCount(0);
       await expect(page.getByTestId("model-access-claude-sonnet-5")).toHaveText("Erişim: bu şirket · Bilinmiyor");
       await expect(page.getByTestId("model-cost-claude-sonnet-5")).toContainText(/1[.,]2345/);
       await expect(page.getByTestId("model-runs-claude-sonnet-5")).toHaveText("Bu ay koşu: 7");

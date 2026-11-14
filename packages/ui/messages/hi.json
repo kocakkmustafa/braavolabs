@@ -1553,6 +1553,11 @@
         "platform": "प्लेटफ़ॉर्म",
         "unknown": "अज्ञात"
       },
+      "badge": {
+        "byok": "BYOK",
+        "local": "लोकल",
+        "compare": "तुलना"
+      },
       "scope": {
         "company": "यह कंपनी",
         "workspace": "यह कार्यस्थान",

@@ -1553,6 +1553,11 @@
         "platform": "平台",
         "unknown": "未知"
       },
+      "badge": {
+        "byok": "BYOK",
+        "local": "本地",
+        "compare": "对比"
+      },
       "scope": {
         "company": "此公司",
         "workspace": "此工作区",

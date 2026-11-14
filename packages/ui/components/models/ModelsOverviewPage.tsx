@@ -13,7 +13,7 @@ import { useAppStore } from "../../lib/store";
 import { useDisplayFormats } from "../../lib/useDisplayFormats";
 import { formatDateTime, currentTimeZone } from "../../i18n/locales";
 import { retryFocusTarget } from "../../lib/ux-models/focus";
-import { COST_DISPLAY_FLOOR, isBelowCostPrecision, toOverviewView, type OverviewView } from "../../lib/ux-models/models";
+import { COST_DISPLAY_FLOOR, isBelowCostPrecision, modeBadges, toOverviewView, type OverviewView } from "../../lib/ux-models/models";
 
 type Company = { id: string; name: string };
 type Load = { status: "idle" | "loading" | "ready" | "error"; view: OverviewView | null };
@@ -156,6 +156,9 @@ export default function ModelsOverviewPage() {
                   <span style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                     <span style={{ fontSize: 16, fontWeight: 600, overflowWrap: "anywhere", fontFamily: r.displayName ? undefined : "var(--font-mono, monospace)" }}>{r.displayName ?? r.id}</span>
                     <span style={chip}>{mt("source.label")}{mt("labelSep")}{mt(`source.${r.source}`)}</span>
+                    {modeBadges(r.source, view.autoSelection).map((b) => (
+                      <span key={b} data-testid={`model-badge-${r.id}-${b}`} style={chip}>{mt(`badge.${b}`)}</span>
+                    ))}
                   </span>
                   <span style={muted}>{mt("provider")}{mt("labelSep")}{r.provider ?? unknown}</span>
                   <span style={muted} data-testid={`model-access-${r.id}`}>

@@ -1553,6 +1553,11 @@
         "platform": "플랫폼",
         "unknown": "알 수 없음"
       },
+      "badge": {
+        "byok": "BYOK",
+        "local": "로컬",
+        "compare": "비교"
+      },
       "scope": {
         "company": "이 회사",
         "workspace": "이 작업 공간",

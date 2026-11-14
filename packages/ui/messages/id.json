@@ -1553,6 +1553,11 @@
         "platform": "Platform",
         "unknown": "Tidak diketahui"
       },
+      "badge": {
+        "byok": "BYOK",
+        "local": "LOKAL",
+        "compare": "BANDINGKAN"
+      },
       "scope": {
         "company": "perusahaan ini",
         "workspace": "ruang kerja ini",

@@ -1553,6 +1553,11 @@
         "platform": "المنصة",
         "unknown": "غير معروف"
       },
+      "badge": {
+        "byok": "BYOK",
+        "local": "محلي",
+        "compare": "مقارنة"
+      },
       "scope": {
         "company": "هذه الشركة",
         "workspace": "مساحة العمل هذه",

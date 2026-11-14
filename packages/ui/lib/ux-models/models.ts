@@ -80,6 +80,21 @@ export function toOverviewView(o: ModelsOverview | null | undefined): OverviewVi
   };
 }
 
+export type ModeBadge = "byok" | "local" | "compare";
+
+/**
+ * BRA-P0-06a — model modu rozeti (saf eşleme). Varsayım: kaynak `byok` → BYOK, `local` → LOCAL; otomatik seçim AÇIK (`true`) → COMPARE
+ * (platform model seçip karşılaştırır). Rozetler birbirini dışlamaz: sıra sabit [byok|local, compare]. `platform`/`unknown` kaynak tek başına
+ * rozet üretmez; otomatik seçim `false`/`null` (bilinmiyor) COMPARE üretmez — hiçbir şey uydurulmaz.
+ */
+export function modeBadges(source: SourceKey, autoSelection: boolean | null): ModeBadge[] {
+  const out: ModeBadge[] = [];
+  if (source === "byok") out.push("byok");
+  else if (source === "local") out.push("local");
+  if (autoSelection === true) out.push("compare");
+  return out;
+}
+
 /** `useDisplayFormats().usd` en çok 4 ondalık gösterir: 0'dan büyük ama bu hassasiyetin altındaki maliyet "$0.00" görünüp sıfırdan ayırt edilemez olmasın. */
 export const COST_DISPLAY_FLOOR = 0.0001;
 export function isBelowCostPrecision(cost: number): boolean {

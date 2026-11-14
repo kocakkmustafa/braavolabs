@@ -1553,6 +1553,11 @@
         "platform": "Plataforma",
         "unknown": "Desconhecida"
       },
+      "badge": {
+        "byok": "BYOK",
+        "local": "LOCAL",
+        "compare": "COMPARAR"
+      },
       "scope": {
         "company": "esta empresa",
         "workspace": "este espaço de trabalho",

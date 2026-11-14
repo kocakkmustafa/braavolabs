@@ -1553,6 +1553,11 @@
         "platform": "プラットフォーム",
         "unknown": "不明"
       },
+      "badge": {
+        "byok": "BYOK",
+        "local": "ローカル",
+        "compare": "比較"
+      },
       "scope": {
         "company": "この会社",
         "workspace": "このワークスペース",
