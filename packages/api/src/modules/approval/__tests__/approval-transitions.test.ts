@@ -20,6 +20,7 @@ type Appr = { id: string; runId: string; type: string; status: string; decidedBy
 const store = vi.hoisted(() => ({
   row: { status: "WAITING_APPROVAL", state: null } as { status: string; state: string | null },
   approvals: [] as Array<{ id: string; runId: string; type: string; status: string; decidedBy?: string }>,
+  claims: [] as Array<Record<string, unknown>>,
   writes: [] as Array<{ where: Record<string, unknown>; data: Record<string, unknown> }>,
   beforeWriteAt: new Map<number, () => void>(),
   ledgerCancel: vi.fn(),
@@ -55,6 +56,7 @@ vi.mock("../../../lib/db", () => {
   };
   const approval = {
     updateMany: async (args: { where: { id: string; status: string }; data: Record<string, unknown> }) => {
+      store.claims.push(args.where);
       const a = store.approvals.find((x) => x.id === args.where.id);
       if (!a || a.status !== args.where.status) return { count: 0 };
       Object.assign(a, args.data);
@@ -152,6 +154,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   store.row = { status: "WAITING_APPROVAL", state: null };
   store.approvals = [];
+  store.claims = [];
   store.writes = [];
   store.undoLog = [];
   store.beforeWriteAt.clear();
@@ -174,6 +177,48 @@ describe("decide APPROVED (non-HANDOFF)", () => {
     expect(store.writes).toHaveLength(1);
     expect(wroteState()).toBe(false);
     expect(enqueueRunMock).toHaveBeenCalledTimes(1);
+  });
+
+  // SEC-BRA-01: concurrent triple approve. The pre-read is STALE (PENDING on all 3 calls),
+  // so only the claim CAS (`where status: PENDING` + updateMany count) can stop calls 2 and 3.
+  function serveStalePending() {
+    approvalFindUnique.mockImplementation(async ({ where }: { where: { id: string } }) => ({
+      id: where.id, runId: "run-1", type: "SPEND", status: "PENDING",
+      amountUsd: null, metadata: {}, expiresAt: null,
+      run: { pipeline: { company: { tenantId: "tenant-1" } } },
+    }));
+  }
+  it.each([false, true])("SEC-BRA-01 stale-read 3x APPROVED (flag %s): claim CAS lets 1 through = 1 enqueue, 1 log, run written once", async (on) => {
+    flag(on);
+    if (on) setRun("WAITING_APPROVAL", "NEEDS_APPROVAL");
+    addApproval({ id: "a" }); serveStalePending();
+    const r = [await decide("a", "APPROVED"), await decide("a", "APPROVED"), await decide("a", "APPROVED")];
+    expect(r[0].nextErr).toBeUndefined();
+    for (const x of r.slice(1)) {
+      expect(x.nextErr?.statusCode).toBe(409);
+      expect(x.nextErr?.message).toBe("Approval was just decided by another admin");
+    }
+    // every call really went through the CAS, conditioned on PENDING
+    expect(store.claims).toHaveLength(3);
+    for (const w of store.claims) expect(w).toEqual({ id: "a", status: "PENDING" });
+    expect(enqueueRunMock).toHaveBeenCalledTimes(1);
+    expect(activityLogCreate).toHaveBeenCalledTimes(1);
+    // run writes: legacy = 1 (RUNNING); dual-write = 2 (RESUMING, RUNNING); never more
+    expect(store.writes).toHaveLength(on ? 2 : 1);
+    expect(store.row.status).toBe("RUNNING");
+  });
+
+  it("SEC-BRA-01: losing the claim CAS is 'decided by another admin' (409) with no run write, enqueue or log", async () => {
+    flag(false);
+    addApproval({ id: "a", status: "APPROVED" }); // someone else decided after our pre-read
+    serveStalePending();
+    const { nextErr, res } = await decide("a", "APPROVED");
+    expect(nextErr?.statusCode).toBe(409);
+    expect(nextErr?.message).toBe("Approval was just decided by another admin");
+    expect(res.body).toBeUndefined();
+    expect(store.writes).toHaveLength(0);
+    expect(enqueueRunMock).not.toHaveBeenCalled();
+    expect(activityLogCreate).not.toHaveBeenCalled();
   });
 
   it("flag ON: NEEDS_APPROVAL → RESUMING → RUNNING in the same tx (ADR-0001 (e)), one enqueue", async () => {
