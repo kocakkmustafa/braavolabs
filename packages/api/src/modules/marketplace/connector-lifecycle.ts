@@ -253,3 +253,20 @@ export async function revokeInstall(tenantId: string, actor: string, slug: strin
   // Fail closed: never report success while the row is still live.
   throw new AppError(409, "Connector credentials changed concurrently; revoke not applied, retry");
 }
+
+/**
+ * Uninstall = revoke (claim + single best-effort upstream RFC 7009 call, reusing
+ * revokeInstall) THEN delete the row. Upstream failure never blocks the delete;
+ * a revoke that fails closed (409, concurrent credential change) propagates and
+ * the row is NOT deleted. No install for this tenant -> idempotent no-op.
+ */
+export async function uninstallInstall(tenantId: string, actor: string, slug: string): Promise<void> {
+  const connector = await prisma.connector.findUnique({ where: { slug } });
+  if (!connector) throw new AppError(404, "Connector not found");
+  const install = await prisma.tenantConnector.findUnique({
+    where: { tenantId_connectorId: { tenantId, connectorId: connector.id } },
+  });
+  if (!install) return;
+  await revokeInstall(tenantId, actor, slug); // throws 409 => no delete
+  await prisma.tenantConnector.deleteMany({ where: { tenantId, connectorId: connector.id } });
+}
