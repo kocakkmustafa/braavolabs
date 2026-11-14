@@ -1075,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "Configurazione iniziale",
-      "runs": "Esecuzioni"
+      "runs": "Esecuzioni",
+      "models": "Modelli"
     },
     "cost": {
       "estimateLabel": "Stima {low}–{high} per questa esecuzione",
@@ -1518,6 +1519,8 @@
       }
     },
     "models": {
+      "labelSep": ": ",
+      "pairSep": " · ",
       "title": "Modelli e connessioni",
       "subtitle": "Quali modelli usa la tua azienda, chi può accedervi e quanto costano questo mese. Sola lettura.",
       "company": "Azienda",

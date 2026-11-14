@@ -1075,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "Penyiapan awal",
-      "runs": "Eksekusi"
+      "runs": "Eksekusi",
+      "models": "Model"
     },
     "cost": {
       "estimateLabel": "Perkiraan {low}–{high} untuk eksekusi ini",
@@ -1518,6 +1519,8 @@
       }
     },
     "models": {
+      "labelSep": ": ",
+      "pairSep": " · ",
       "title": "Model dan koneksi",
       "subtitle": "Model apa yang dipakai perusahaan Anda, siapa yang dapat mengaksesnya, dan biayanya bulan ini. Hanya baca.",
       "company": "Perusahaan",

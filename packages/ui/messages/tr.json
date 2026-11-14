@@ -1075,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "Başlangıç",
-      "runs": "Çalıştırmalar"
+      "runs": "Çalıştırmalar",
+      "models": "Modeller"
     },
     "cost": {
       "estimateLabel": "Bu çalıştırma için tahmini {low}–{high}",
@@ -1518,6 +1519,8 @@
       }
     },
     "models": {
+      "labelSep": ": ",
+      "pairSep": " · ",
       "title": "Modeller ve bağlantılar",
       "subtitle": "Şirketinizin hangi modelleri kullandığı, kimin erişebildiği ve bu ay ne kadar tuttuğu. Salt okunur.",
       "company": "Şirket",

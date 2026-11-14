@@ -12,6 +12,7 @@ import { useAuthGuard } from "../../lib/useAuthGuard";
 import { useAppStore } from "../../lib/store";
 import { useDisplayFormats } from "../../lib/useDisplayFormats";
 import { formatDateTime, currentTimeZone } from "../../i18n/locales";
+import { retryFocusTarget } from "../../lib/ux-models/focus";
 import { COST_DISPLAY_FLOOR, isBelowCostPrecision, toOverviewView, type OverviewView } from "../../lib/ux-models/models";
 
 type Company = { id: string; name: string };
@@ -40,6 +41,9 @@ export default function ModelsOverviewPage() {
   const [load, setLoad] = useState<Load>({ status: "idle", view: null });
   const seq = useRef(0);
   const companiesSeq = useRef(0);
+  const resultsRef = useRef<HTMLDivElement>(null);
+  const retryRef = useRef<HTMLButtonElement>(null);
+  const retryPending = useRef(false);
 
   const loadCompanies = useCallback(() => {
     if (!hydrated || !token) return;
@@ -68,6 +72,14 @@ export default function ModelsOverviewPage() {
       .catch(() => { if (mine === seq.current) setLoad({ status: "error", view: null }); });
   }, [token, hydrated, companyId]);
   useEffect(() => { setLoad({ status: "idle", view: null }); loadModels(); }, [loadModels]);
+
+  // "Tekrar dene" sonrası odak: tıklamada sonuç alanına; sonuç/hata gelince bkz. retryFocusTarget.
+  useEffect(() => {
+    const target = retryFocusTarget(retryPending.current, load.status);
+    if (!target) return;
+    retryPending.current = false;
+    (target === "retry" ? retryRef.current : resultsRef.current)?.focus();
+  }, [load.status]);
 
   if (!hydrated || !token) {
     return (
@@ -112,7 +124,7 @@ export default function ModelsOverviewPage() {
             <p style={{ fontWeight: 700, margin: 0 }}>{mt("errorTitle")}</p>
             <p style={{ margin: 0 }}>{mt("errorBody")}</p>
           </div>
-          <button type="button" className="bv-btn bv-btn-primary bv-btn-sm" onClick={() => (companiesFailed ? loadCompanies() : loadModels())}>{mt("retry")}</button>
+          <button ref={retryRef} type="button" className="bv-btn bv-btn-primary bv-btn-sm" onClick={() => { resultsRef.current?.focus(); if (companiesFailed) loadCompanies(); else { retryPending.current = true; loadModels(); } }}>{mt("retry")}</button>
         </div>
       )}
 
@@ -123,12 +135,13 @@ export default function ModelsOverviewPage() {
         </div>
       )}
 
+      <div ref={resultsRef} tabIndex={-1} data-testid="models-results" style={{ outline: "none" }}>
       {companyId && load.status === "loading" && !view && <div role="status" className="bv-caption text-center py-12">{mt("loading")}</div>}
 
       {view && (
         <section aria-label={mt("title")}>
           <p data-testid="models-auto" style={{ ...muted, marginBottom: 12 }}>
-            <strong style={{ color: "var(--color-on-surface)" }}>{mt("autoLabel")}</strong> · {autoText}
+            <strong style={{ color: "var(--color-on-surface)" }}>{mt("autoLabel")}</strong>{mt("pairSep")}{autoText}
           </p>
 
           {view.rows.length === 0 ? (
@@ -142,20 +155,20 @@ export default function ModelsOverviewPage() {
                 <li key={r.id} data-testid={`model-row-${r.id}`} style={card}>
                   <span style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                     <span style={{ fontSize: 16, fontWeight: 600, overflowWrap: "anywhere", fontFamily: r.displayName ? undefined : "var(--font-mono, monospace)" }}>{r.displayName ?? r.id}</span>
-                    <span style={chip}>{mt("source.label")}: {mt(`source.${r.source}`)}</span>
+                    <span style={chip}>{mt("source.label")}{mt("labelSep")}{mt(`source.${r.source}`)}</span>
                   </span>
-                  <span style={muted}>{mt("provider")}: {r.provider ?? unknown}</span>
+                  <span style={muted}>{mt("provider")}{mt("labelSep")}{r.provider ?? unknown}</span>
                   <span style={muted} data-testid={`model-access-${r.id}`}>
-                    {mt("access")}: {r.scope === "unknown" ? unknown : mt(`scope.${r.scope}`)} · {r.mode === "unknown" ? unknown : mt(`mode.${r.mode}`)}
+                    {mt("access")}{mt("labelSep")}{r.scope === "unknown" ? unknown : mt(`scope.${r.scope}`)}{mt("pairSep")}{r.mode === "unknown" ? unknown : mt(`mode.${r.mode}`)}
                   </span>
                   <span style={{ display: "flex", gap: 12, flexWrap: "wrap", alignItems: "baseline", ...muted }}>
                     <span data-testid={`model-cost-${r.id}`}>
-                      {mt("cost")}:{" "}
+                      {mt("cost")}{mt("labelSep")}
                       <span className={r.cost === null ? undefined : "bv-numeric"} style={r.cost === null ? undefined : { fontSize: 18, color: "var(--bv-status-running)" }}>
                         {r.cost === null ? unknown : isBelowCostPrecision(r.cost) ? `< ${displayFormat.usd(COST_DISPLAY_FLOOR)}` : displayFormat.usd(r.cost)}
                       </span>
                     </span>
-                    <span data-testid={`model-runs-${r.id}`}>{r.runCount === null ? `${mt("runs")}: ${unknown}` : mt("runCount", { count: r.runCount })}</span>
+                    <span data-testid={`model-runs-${r.id}`}>{r.runCount === null ? `${mt("runs")}${mt("labelSep")}${unknown}` : mt("runCount", { count: r.runCount })}</span>
                   </span>
                 </li>
               ))}
@@ -168,6 +181,8 @@ export default function ModelsOverviewPage() {
           </p>
         </section>
       )}
+
+      </div>
 
       <nav aria-label={mt("linksTitle")} className="mt-8">
         <h2 className="bv-title mb-2">{mt("linksTitle")}</h2>

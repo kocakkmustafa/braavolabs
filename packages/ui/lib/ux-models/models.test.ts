@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import type { ModelsOverview } from "@ai-company-os/core";
 import { uxModelsEnabled } from "./flag";
+import { retryFocusTarget } from "./focus";
 import { COST_DISPLAY_FLOOR, isBelowCostPrecision, parseCostUsd, toModelRow, toOverviewView } from "./models";
 
 const overview = (over: Partial<ModelsOverview> = {}): ModelsOverview => ({
@@ -101,5 +102,46 @@ describe("i18n: app.models 15 dilde aynı anahtar kümesi, boş değer yok", () 
         expect(ph(m[k]), `${f}:${k}`).toBe(ph(en[k]));
       }
     }
+  });
+});
+
+describe("BRA-UX-05h-b: ayırıcılar çeviri anahtarında", () => {
+  const dir = join(__dirname, "../../messages");
+  const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
+  const get = (f: string) => JSON.parse(readFileSync(join(dir, f), "utf8")).app.models;
+  for (const f of files) it(`${f}: labelSep ve pairSep tanımlı`, () => {
+    expect(get(f).labelSep).toMatch(/[:：]/);
+    expect(get(f).pairSep).toMatch(/\S/);
+  });
+  it("ja/zh tam genişlikli iki nokta, fr boşluklu iki nokta, en ': ' ve ' · '", () => {
+    expect(get("ja.json").labelSep).toBe("：");
+    expect(get("zh-Hans.json").labelSep).toBe("：");
+    expect(get("fr.json").labelSep).toBe(" : ");
+    expect(get("en.json")).toMatchObject({ labelSep: ": ", pairSep: " · " });
+  });
+  it("bileşende sabit ayırıcı kalmadı", () => {
+    const src = readFileSync(join(__dirname, "../../components/models/ModelsOverviewPage.tsx"), "utf8");
+    expect(src).not.toMatch(/\)\}: /);
+    expect(src).not.toMatch(/\} · /);
+    expect(src).not.toContain("</strong> ·");
+    expect(src).not.toContain('mt("runs")}: ');
+    expect(src).toContain('mt("labelSep")');
+    expect(src).toContain('mt("pairSep")');
+  });
+});
+
+describe("BRA-UX-05h-b: Tekrar dene sonrası odak", () => {
+  it("retryFocusTarget", () => {
+    for (const st of ["idle", "loading", "ready", "error"] as const) expect(retryFocusTarget(false, st)).toBeNull();
+    expect(retryFocusTarget(true, "ready")).toBe("results");
+    expect(retryFocusTarget(true, "error")).toBe("retry");
+    expect(retryFocusTarget(true, "loading")).toBeNull();
+    expect(retryFocusTarget(true, "idle")).toBeNull();
+  });
+  it("bileşen: odaklanabilir sonuç kabı ve tıklamada odak", () => {
+    const src = readFileSync(join(__dirname, "../../components/models/ModelsOverviewPage.tsx"), "utf8");
+    expect(src).toContain('data-testid="models-results"');
+    expect(src).toContain("tabIndex={-1}");
+    expect(src).toContain("resultsRef.current?.focus(); if (companiesFailed) loadCompanies(); else { retryPending.current = true; loadModels(); }");
   });
 });

@@ -1075,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "初期設定",
-      "runs": "実行"
+      "runs": "実行",
+      "models": "モデル"
     },
     "cost": {
       "estimateLabel": "この実行の見積もり：{low}〜{high}",
@@ -1518,6 +1519,8 @@
       }
     },
     "models": {
+      "labelSep": "：",
+      "pairSep": "・",
       "title": "モデルと接続",
       "subtitle": "会社が使っているモデル、アクセスできる範囲、今月の費用を表示します。読み取り専用です。",
       "company": "会社",
