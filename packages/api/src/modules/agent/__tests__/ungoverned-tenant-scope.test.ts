@@ -15,8 +15,8 @@ const db = vi.hoisted(() => ({
 vi.mock("../../../lib/db", () => ({
   prisma: new Proxy(
     {
-      deal: { findFirst: db.dealFindFirst, update: db.dealUpdate },
-      contact: { findFirst: db.contactFindFirst, update: db.contactUpdate },
+      deal: { findFirst: db.dealFindFirst, updateMany: db.dealUpdate },
+      contact: { findFirst: db.contactFindFirst, updateMany: db.contactUpdate },
     },
     { get: (t: any, k: string) => t[k] ?? new Proxy({}, { get: () => vi.fn() }) },
   ),
@@ -56,8 +56,8 @@ async function runWorker(toolNames: string[], name: string, args: unknown, tenan
 
 beforeEach(() => {
   vi.clearAllMocks();
-  db.dealUpdate.mockResolvedValue({ id: "d" });
-  db.contactUpdate.mockResolvedValue({ id: "c", name: "n" });
+  db.dealUpdate.mockResolvedValue({ count: 1 });
+  db.contactUpdate.mockResolvedValue({ count: 1 });
 });
 
 describe("crm_update_deal_stage on the ungoverned path", () => {
@@ -93,7 +93,7 @@ describe("crm_update_contact on the ungoverned path", () => {
     db.contactFindFirst.mockResolvedValue({ id: "own" });
     const tc = await runWorker(["crm_update_contact"], "crm_update_contact", { contactId: "own", name: "x" });
     expect(tc.error).toBeUndefined();
-    expect(db.contactUpdate).toHaveBeenCalledWith({ where: { id: "own" }, data: { name: "x" } });
+    expect(db.contactUpdate).toHaveBeenCalledWith({ where: { id: "own", company: { tenantId: T } }, data: { name: "x" } });
   });
   it("companyId in input is refused ungoverned (and never reaches data)", async () => {
     db.contactFindFirst.mockResolvedValue({ id: "own" });
@@ -103,15 +103,45 @@ describe("crm_update_contact on the ungoverned path", () => {
   });
 });
 
-describe("handler-level mass-assignment allowlist", () => {
-  it("crm_update_contact drops companyId/tenantId/id even when called directly", async () => {
+describe("handler-level boundary (direct call)", () => {
+  it("crm_update_contact drops companyId/id/email and scopes the write by tenant", async () => {
     await getTool("crm_update_contact")!.handler({
-      contactId: "c1", name: "n", status: "LEAD", tags: ["a"], properties: { k: 1 },
-      companyId: "evil", tenantId: "evil", id: "evil", email: "e@x",
+      contactId: "c1", tenantId: T, name: "n", status: "LEAD", tags: ["a"], properties: { k: 1 },
+      companyId: "evil", id: "evil", email: "e@x",
     });
     expect(db.contactUpdate).toHaveBeenCalledWith({
-      where: { id: "c1" }, data: { name: "n", status: "LEAD", tags: ["a"], properties: { k: 1 } },
+      where: { id: "c1", company: { tenantId: T } }, data: { name: "n", status: "LEAD", tags: ["a"], properties: { k: 1 } },
     });
+  });
+  it("count 0 (row not in tenant / TOCTOU) throws; missing tenant throws", async () => {
+    db.contactUpdate.mockResolvedValue({ count: 0 }); db.dealUpdate.mockResolvedValue({ count: 0 });
+    await expect(getTool("crm_update_contact")!.handler({ contactId: "c1", tenantId: T })).rejects.toThrow(/not found for this tenant/);
+    await expect(getTool("crm_update_deal_stage")!.handler({ dealId: "d1", tenantId: T, stage: "LEAD", reason: "r" })).rejects.toThrow(/not found for this tenant/);
+    await expect(getTool("crm_update_deal_stage")!.handler({ dealId: "d1", stage: "LEAD", reason: "r" })).rejects.toThrow(/Tenant scope required/);
+  });
+  it("a model-supplied tenantId is overwritten by the acting tenant on the ungoverned path", async () => {
+    db.dealFindFirst.mockResolvedValue({ id: "own" });
+    await runWorker(["crm_update_deal_stage"], "crm_update_deal_stage", { dealId: "own", stage: "LEAD", reason: "r", tenantId: "victim-tenant" });
+    expect(db.dealUpdate).toHaveBeenCalledWith({ where: { id: "own", company: { tenantId: T } }, data: { stage: "LEAD" } });
+  });
+});
+
+describe("non-string tenant ids are refused (no Prisma operator objects)", () => {
+  it.each([{ $ne: "x" }, ["a"], 5])("dealId %j", async (bad) => {
+    const tc = await runWorker(["crm_update_deal_stage"], "crm_update_deal_stage", { dealId: bad, stage: "LEAD", reason: "r" });
+    expect(tc.error).toMatch(/must be a string/);
+    expect(db.dealUpdate).not.toHaveBeenCalled(); expect(db.dealFindFirst).not.toHaveBeenCalled();
+  });
+});
+
+describe("tenantId reaches the guard on the aiConfigOverride path (runAgentLoop)", () => {
+  it("own dealId runs; foreign is rejected", async () => {
+    const { runAgentLoop } = await import("../claude");
+    db.dealFindFirst.mockResolvedValue({ id: "own" });
+    chat.mockReset().mockResolvedValue(toolTurn("crm_update_deal_stage", { dealId: "own", stage: "LEAD", reason: "r" }));
+    const r = await runAgentLoop({ systemPrompt: "s", userMessage: "u", toolNames: ["crm_update_deal_stage"], maxTurns: 1, tenantId: T, aiConfigOverride: CFG } as any);
+    expect(r.turns[0].toolCalls[0].error).toBeUndefined();
+    expect(db.dealUpdate).toHaveBeenCalledOnce();
   });
 });
 

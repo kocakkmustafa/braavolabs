@@ -3,7 +3,7 @@ import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { getTool, type ToolDefinition } from "./registry";
-import { executeTool, guardUngovernedTenantScope, type ToolExecResult } from "./tool-executor";
+import { executeTool, guardUngovernedTenantScope, withActingTenant, type ToolExecResult } from "./tool-executor";
 import { runLocalAgentLoop } from "./claude-local";
 import { assertReasoningEffortSupported, UnsupportedReasoningEffortError, type ReasoningEffort } from "../../services/reasoning-effort";
 import {
@@ -380,7 +380,11 @@ async function executeToolCalls(
     }
 
     try {
-      const output = await registeredTool.handler(input);
+      const output = await registeredTool.handler(
+        registeredTool.meta?.injectTenantId && ungoverned?.tenantId
+          ? withActingTenant(input, ungoverned.tenantId)
+          : input,
+      );
       return {
         id: call.id,
         name: call.name,
@@ -773,6 +777,8 @@ export interface ProviderAgentLoopConfig {
   budgetUsd?: number;
   context?: MessageParam[];
   govContext?: AgentGovContext;
+  /** Acting tenant for ungoverned tool-id scoping (SEC-BRA-06c). */
+  tenantId?: string;
   /**
    * E3/T6 handoff resume (§2.5): the frozen canonical transcript the LEAVING
    * provider left off at (handoff_ledger.checkpoint.messages). When present the
@@ -881,6 +887,8 @@ export async function runProviderAgentLoop(
   const pendingLinks: ProviderChainLink[] = [...(failover?.chain ?? [])];
   let activeSource: ProviderChainSource | undefined = failover?.source;
   const cbTenant = failover?.tenantId ?? govContext?.tenantId;
+  // SEC-BRA-06c: acting tenant for ungoverned tool scoping (also on the aiConfigOverride path).
+  const toolTenant = cbTenant ?? config.tenantId;
   let effectiveMaxTurns = maxTurns;
 
   // D-005 (E5/T7): request-scoped connector tools. Their names are also
@@ -1124,7 +1132,7 @@ export async function runProviderAgentLoop(
       requestedCalls,
       govContext,
       extraTools,
-      { allowedNames: new Set(effectiveToolNames), tenantId: cbTenant },
+      { allowedNames: new Set(effectiveToolNames), tenantId: toolTenant },
     );
 
     turns.push({
@@ -1285,6 +1293,7 @@ export async function runAgentLoop(config: {
       toolNames: config.toolNames,
       maxTurns: config.maxTurns,
       budgetUsd: config.budgetUsd,
+      tenantId: config.tenantId,
     });
   }
 

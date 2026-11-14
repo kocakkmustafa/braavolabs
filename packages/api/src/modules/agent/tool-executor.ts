@@ -133,6 +133,9 @@ const SECONDARY_ID_VALIDATORS: Record<
   // external_control acts on a tenant's connected automation — the connection
   // must belong to the acting tenant (ExternalConnection is tenant-scoped
   // directly, not via company).
+  // delegate (hierarchical manager) names a worker Agent; Agent → company → tenant.
+  agentId: async (id, tenantId) =>
+    !!(await prisma.agent.findFirst({ where: { id, company: { tenantId } }, select: { id: true } })),
   connectionId: async (id, tenantId) =>
     !!(await prisma.externalConnection.findFirst({ where: { id, tenantId }, select: { id: true } })),
 };
@@ -171,13 +174,25 @@ export async function enforceTenantScopedSecondaryIds(
         `Unrecognised tenant-scoped id field "${key}" on tool "${toolName}" — refusing for tenant safety`,
       );
     }
-    if (typeof value !== "string" || value.length === 0) continue;
+    if (value === undefined || value === null) continue;
+    // Non-string (object/array/number — e.g. a Prisma operator object) must
+    // never reach a handler's `where`.
+    if (typeof value !== "string") {
+      throw new Error(`Tenant isolation violation: ${key} must be a string`);
+    }
+    if (value.length === 0) continue;
     if (!(await validator(value, tenantId))) {
       throw new Error(
         `Tenant isolation violation: ${key} "${value}" does not belong to tenant "${tenantId}"`,
       );
     }
   }
+}
+
+/** Overwrite any model-supplied tenantId with the acting tenant (meta.injectTenantId tools). */
+export function withActingTenant(input: unknown, tenantId: string): Record<string, unknown> {
+  const obj = input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
+  return { ...obj, tenantId };
 }
 
 function isTenantRowIdKey(key: string): boolean {
@@ -349,6 +364,7 @@ export async function executeTool(
     // agent prompt-injection can mutate a victim tenant's CRM/draft/seq.
     // Fails closed on unrecognised `*Id` fields (FINDINGS H2).
     await enforceTenantScopedSecondaryIds(scopedInput, context.tenantId, toolName);
+    if (!dynamicTool && tool.meta?.injectTenantId) scopedInput = withActingTenant(scopedInput, context.tenantId);
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     logger.warn({ toolName, tenantId: context.tenantId, error }, "Tool tenant isolation blocked");
