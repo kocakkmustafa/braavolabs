@@ -12,7 +12,7 @@ vi.mock("../../../lib/logger", () => ({
 }));
 
 const pipelineFindUnique = vi.hoisted(() => vi.fn());
-const pipelineUpdate = vi.hoisted(() => vi.fn());
+const pipelineUpdateMany = vi.hoisted(() => vi.fn());
 const activityLogCreate = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../lib/db", () => ({
@@ -20,7 +20,7 @@ vi.mock("../../../lib/db", () => ({
     company: { findFirst: vi.fn() },
     pipeline: {
       findUnique: (...a: unknown[]) => pipelineFindUnique(...a),
-      update: (...a: unknown[]) => pipelineUpdate(...a),
+      updateMany: (...a: unknown[]) => pipelineUpdateMany(...a),
     },
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
   },
@@ -90,7 +90,7 @@ const resume = getHandler(pipelineRouter, "/:id/schedule/resume");
 beforeEach(() => {
   vi.clearAllMocks();
   pipelineFindUnique.mockResolvedValue(base);
-  pipelineUpdate.mockImplementation(async ({ data }: any) => ({ ...base, ...data, company: undefined }));
+  pipelineUpdateMany.mockResolvedValue({ count: 1 });
   activityLogCreate.mockResolvedValue({});
   registerScheduleMock.mockResolvedValue(undefined);
   removeScheduleMock.mockResolvedValue(undefined);
@@ -101,7 +101,7 @@ describe("schedule pause", () => {
     const { res, nextErr } = await invoke(pause);
     expect(nextErr).toBeUndefined();
     expect(res.statusCode).toBe(200);
-    expect(pipelineUpdate).toHaveBeenCalledWith({ where: { id: "pipe-1" }, data: { enabled: false } });
+    expect(pipelineUpdateMany).toHaveBeenCalledWith({ where: { id: "pipe-1", company: { tenantId: "tenant-1" } }, data: { enabled: false } });
     expect(removeScheduleMock).toHaveBeenCalledWith("pipe-1");
     expect(registerScheduleMock).not.toHaveBeenCalled();
     expect(res.body).toMatchObject({ id: "pipe-1", enabled: false });
@@ -126,7 +126,10 @@ describe("schedule pause", () => {
     pipelineFindUnique.mockResolvedValue({ ...base, company: { tenantId: "tenant-2" } });
     const { nextErr } = await invoke(pause);
     expect(nextErr.status ?? nextErr.statusCode).toBe(404);
-    expect(pipelineUpdate).not.toHaveBeenCalled();
+    expect(pipelineFindUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: "pipe-1" }, include: { company: true } }),
+    );
+    expect(pipelineUpdateMany).not.toHaveBeenCalled();
     expect(removeScheduleMock).not.toHaveBeenCalled();
   });
 
@@ -143,7 +146,7 @@ describe("schedule resume", () => {
     const { res, nextErr } = await invoke(resume);
     expect(nextErr).toBeUndefined();
     expect(res.statusCode).toBe(200);
-    expect(pipelineUpdate).toHaveBeenCalledWith({ where: { id: "pipe-1" }, data: { enabled: true } });
+    expect(pipelineUpdateMany).toHaveBeenCalledWith({ where: { id: "pipe-1", company: { tenantId: "tenant-1" } }, data: { enabled: true } });
     expect(registerScheduleMock).toHaveBeenCalledWith(expect.objectContaining({ id: "pipe-1", schedule: "0 9 * * *" }));
     expect(removeScheduleMock).not.toHaveBeenCalled();
     expect(res.body).toMatchObject({ enabled: true });
@@ -169,7 +172,7 @@ describe("schedule resume", () => {
       const { nextErr } = await invoke(resume);
       expect(nextErr.status ?? nextErr.statusCode).toBe(409);
     }
-    expect(pipelineUpdate).not.toHaveBeenCalled();
+    expect(pipelineUpdateMany).not.toHaveBeenCalled();
     expect(registerScheduleMock).not.toHaveBeenCalled();
   });
 
@@ -178,6 +181,34 @@ describe("schedule resume", () => {
     const { nextErr } = await invoke(resume);
     expect(nextErr.status ?? nextErr.statusCode).toBe(404);
     expect(registerScheduleMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("failure ordering and tenant-scoped write", () => {
+  it("resume: registerSchedule throws → DB untouched, error surfaced", async () => {
+    pipelineFindUnique.mockResolvedValue({ ...base, enabled: false });
+    registerScheduleMock.mockRejectedValue(new Error("redis down"));
+    const { nextErr } = await invoke(resume);
+    expect(nextErr.message).toBe("redis down");
+    expect(pipelineUpdateMany).not.toHaveBeenCalled();
+    expect(activityLogCreate).not.toHaveBeenCalled();
+  });
+
+  it("pause: removeSchedule throws → enabled=false already written, error surfaced", async () => {
+    removeScheduleMock.mockRejectedValue(new Error("redis down"));
+    const { nextErr } = await invoke(pause);
+    expect(nextErr.message).toBe("redis down");
+    expect(pipelineUpdateMany).toHaveBeenCalledWith({
+      where: { id: "pipe-1", company: { tenantId: "tenant-1" } },
+      data: { enabled: false },
+    });
+  });
+
+  it("updateMany count 0 (tenant-scoped miss) → 404", async () => {
+    pipelineUpdateMany.mockResolvedValue({ count: 0 });
+    const { nextErr } = await invoke(pause);
+    expect(nextErr.status ?? nextErr.statusCode).toBe(404);
+    expect(removeScheduleMock).not.toHaveBeenCalled();
   });
 });
 

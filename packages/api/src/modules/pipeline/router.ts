@@ -792,15 +792,25 @@ async function setScheduleEnabled(
       throw new AppError(409, "Pipeline has no registered schedule");
     }
 
-    const updated = await prisma.pipeline.update({
-      where: { id: pipeline.id },
+    // Ordering (BRA-P1-04b review):
+    //  - resume: register FIRST; if it throws the DB is untouched (enabled keeps
+    //    its old value, so DB never claims "running" without a scheduler).
+    //  - pause: DB false FIRST, then removeSchedule. If removeSchedule throws the
+    //    response is 500 but enabled=false already holds (safe direction: the
+    //    tick re-checks enabled and no-ops) and an idempotent retry completes it.
+    if (enable) {
+      await registerSchedule({ id: pipeline.id, schedule: pipeline.schedule });
+    }
+    // Tenant-scoped write: id alone is never enough.
+    const { count } = await prisma.pipeline.updateMany({
+      where: { id: pipeline.id, company: { tenantId: req.auth!.tenantId } },
       data: { enabled: enable },
     });
-
-    if (enable) {
-      await registerSchedule(updated);
-    } else {
-      await removeSchedule(updated.id);
+    if (count === 0) {
+      throw new AppError(404, "Pipeline not found");
+    }
+    if (!enable) {
+      await removeSchedule(pipeline.id);
     }
 
     await prisma.activityLog.create({
@@ -814,7 +824,7 @@ async function setScheduleEnabled(
       },
     });
 
-    res.json({ id: updated.id, enabled: updated.enabled, schedule: updated.schedule });
+    res.json({ id: pipeline.id, enabled: enable, schedule: pipeline.schedule });
   } catch (err) { next(err); }
 }
 
