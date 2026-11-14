@@ -67,14 +67,14 @@ new code is *not* revoked for the old code (section 4, `connector_scope_audience
 | Code | Name | Meaning | Action |
 |---|---|---|---|
 | 64 | input | Missing/invalid input (e.g. previous commit not 40-hex) | Fix the variable/secret; rerun. No server change. |
-| 65 | host | SSH host identity mismatch | Stop. Do not bypass; verify the host key out of band. |
-| 66 | remote | SSH/remote failure, local cleanup failure, **or: running digests differ from the last-good record** (section 3c) | Read the log; if the host runs something other than the last-good record the script first rolls the app back to the record, then exits 66. |
+| 65 | host | Static check of the provided `known_hosts` file against `LIGHTSAIL_HOST_KEY_SHA256` failed (~840-875: format, key type, fingerprint set). It does **not** detect a changed live host key | Stop. Do not bypass; fix the secrets after verifying the key out of band. |
+| 66 | remote | SSH/remote failure, local cleanup failure, a **changed live host key** (strict host key checking makes ssh return 255, reported as `remote preflight failed`), **or the remote compose-identity check failed** (e.g. after a manual rollback, section 3c) | Read the local log; for the remote cause read the journal and `docker inspect` labels. The remote 66 is silent and does **not** roll the app back. |
 | 67 | image | Image pull/identity verification failed, or this exact release is already recorded as `COMMIT_RELEASE success` | Check GHCR digest; use a new commit/tag for a re-release. |
 | 68 | migration | Drift, delta not additive / not reviewed, commit unavailable, **or** `prisma migrate deploy` failed | Section 6. |
 | 69 | cutover | `compose up` failed; app rolled back | Read journal; fix cause. |
 | 70 | health rolled back | Candidate unhealthy; app rolled back | Read candidate container logs; fix forward. |
 | 71 | rollback | Automatic rollback FAILED **or a pre-cutover safety check failed**: last-good record unreadable/invalid (`load_previous_good` needs `result: success`, 40-hex release, digest refs, images present locally), restore of the record failed, running digest not a valid digest ref (~688-719) | Page the founder; manual rollback (section 3b). Not always an outage: it can fire before anything was changed. |
-| 72 | journal | Journal/last-good write failed | Treat like 70; app rolled back when possible. |
+| 72 | journal | Journal/last-good write failed | **Before cutover** (state transitions up to `CUTOVER pending`) there is no rollback: the script just exits 72 and nothing was cut over. **After cutover** the failure goes through `fail_after_cutover` and the app is rolled back (72, or 71 if that fails). Check which state the journal stopped at. |
 | 75 | lock | Another deploy holds the lock | Wait; never delete the lock file by hand. |
 
 Log quirks: the *local* step prints `deploy-platform: <message>` for 64-68
@@ -110,54 +110,93 @@ Digest source, in order of preference (read-only):
 ```bash
 ssh <deploy-user>@<host>
 sudo cat /opt/braavolabs/releases/previous-good.json                       # current release R1: api/ui are R1's digests
-sudo cat /opt/braavolabs/releases/<R1-sha>/previous-good.before.json       # previous release R0: api/ui are the rollback target
+sudo cat /opt/braavolabs/releases/<R1-sha>/previous-good.before.json       # previous release R0: release/api/ui are the rollback target
 sudo grep -h -o '"previousApi":"[^"]*","previousUi":"[^"]*"' /opt/braavolabs/releases/<R1-sha>/transitions/*.json | head -1   # same, from the journal
 docker image inspect <R0 api digest ref> <R0 ui digest ref> >/dev/null     # both images must still exist locally
+ls /opt/braavolabs/releases/<R0-sha>/input/ENV/compose.prod.yaml /opt/braavolabs/releases/<R0-sha>/compose.digest-override.yaml
 ```
 
-Then re-point api/ui to the R0 digests with the same project and files the script
-uses. The script's `compose` is a bash function (~89-92):
+Bring api/ui back **through R0's own release directory**: its compose file and
+its own digest override already exist from R0's deploy, name R0's digests, and
+make the containers carry R0's compose labels (which `verify_compose_identity`
+checks later, section 3c). The script's `compose` is a bash function (~89-92); the
+equivalent full commands, with R0's paths, are:
 
 ```bash
+R0=/opt/braavolabs/releases/<R0-sha>
 docker compose -p env --env-file /opt/braavolabs/app/.env \
-  -f /opt/braavolabs/releases/<R1-sha>/input/ENV/compose.prod.yaml \
-  -f <override file naming the R0 api and ui digests> up -d --no-deps api ui
-docker compose -p env ... --profile backup up -d postgres-backup
+  -f $R0/input/ENV/compose.prod.yaml -f $R0/compose.digest-override.yaml \
+  up -d --no-deps api ui
+docker compose -p env --env-file /opt/braavolabs/app/.env \
+  -f $R0/input/ENV/compose.prod.yaml -f $R0/compose.digest-override.yaml \
+  --profile backup up -d postgres-backup
 ```
 
 A plain `docker compose up` without `-p env` and both `-f` files opens the wrong
 project and can recreate or orphan containers. On production, `up` recreates the
-running api/ui; this is a live change and needs the founder's approval.
+running api/ui: a live change that needs the founder's approval. If R0's release
+directory is gone, there is no clean way back through the script's identity
+rules; stop and ask the founder.
 
 Image-by-tag fallback (only if every record is lost): resolve the last good
 `vX.Y.Z` tag with `docker buildx imagetools inspect
-ghcr.io/kocakkmustafa/braavolabs/api:<tag>` and use the `@sha256:` form. Never
-`:latest`.
+ghcr.io/kocakkmustafa/braavolabs/api:<tag>` and use the `@sha256:` form, never
+`:latest`. This is **not portable into the script's world**: containers started
+from a hand-made override carry labels the script does not recognise, so the next
+deploy stops at exit 66 until the host is reconciled (3c). Use it only to restore
+service, then reconcile.
 
-### 3c. After a manual rollback: the next deploy exits 66
+### 3c. After a manual rollback: the next deploy stops with exit 66, silently
 
-`remote_main` compares the running digests with the last-good record
-(~737-749). After a manual rollback to R0 while the record still describes R1:
+`remote_main` runs `verify_compose_identity` (~99-188, called ~720) before it
+reaches the cutover/rollback logic. After a manual rollback to R0 while the
+record still describes R1:
 
-- the running digests differ from the record and from the candidate, so the
-  script calls `rollback_application`, which **moves the host back to R1's
-  digests**, and then exits 66. A manual rollback is undone by the next deploy
-  attempt.
+- the containers carry R0 (or hand-made) compose labels and R0 digests, but the
+  record and R1's journal say R1 is running; `verify_compose_identity` fails and
+  the script exits **66 right there**. The remote step prints nothing; the host
+  is **left running R0**. `rollback_application` (~738-749) is not reached (it
+  only runs after the identity check passes). The same failure occurs if the
+  containers were recreated with hand-made override paths (labels must equal
+  `<release>/input/ENV/compose.prod.yaml,<release>/compose.digest-override.yaml`).
+- Copying R0's record over `previous-good.json` alone does **not** fix it while
+  the containers are still labelled for R1 or for hand-made files: the "clean
+  previous release" case (~178-186) needs the labels to point at the recorded
+  release's directory, that release's journal to be `COMMIT_RELEASE success`, and
+  the running digests to equal that journal. It fails with R1-labelled
+  containers.
 
-Ways out (founder decision; neither is part of a routine rollback):
+Ways out (founder decision; neither is routine):
 
-1. Undo the manual rollback: run the host back to the record's digests (R1), then
-   deploy normally with a revert commit (3a).
-2. Make the record match reality, with the script's own mechanism rather than
-   hand edits: copy the script-written R0 record over the current one (the same
-   copy `restore_previous_good_authority` performs):
-   `sudo cp -p /opt/braavolabs/releases/<R1-sha>/previous-good.before.json /opt/braavolabs/releases/previous-good.json`,
-   keep a copy of the old file first, then set `BRAAVOLABS_PREVIOUS_GOOD_COMMIT`
-   to R0's `release`. Never write a new JSON by hand: `load_previous_good`
+1. Undo the manual rollback: recreate api/ui from **R1's** directory (the 3b
+   commands with `R0=` pointing at R1's release path) so labels and digests agree
+   with the record, then deploy normally with a revert commit (3a).
+2. Make everything agree on R0: recreate api/ui from **R0's** directory (the 3b
+   commands: R0 labels and digests), then install R0's record, then set
+   `BRAAVOLABS_PREVIOUS_GOOD_COMMIT` to R0's `release`. Install the record with
+   the script's own safeguards, not a bare `cp`: hold the deploy lock
+   (`/opt/braavolabs/deploy.lock`, taken by `remote_main` ~681), write atomically
+   (temp file in the same directory, sync, rename, as `atomic_file` ~54-61 does),
+   and make sure no deploy is running or queued (Actions idle):
+
+   ```bash
+   sudo flock -n /opt/braavolabs/deploy.lock -c '
+     cp -p /opt/braavolabs/releases/previous-good.json /opt/braavolabs/releases/previous-good.json.pre-rollback &&
+     cp -p /opt/braavolabs/releases/<R1-sha>/previous-good.before.json /opt/braavolabs/releases/previous-good.json.tmp &&
+     sync /opt/braavolabs/releases/previous-good.json.tmp &&
+     mv -f /opt/braavolabs/releases/previous-good.json.tmp /opt/braavolabs/releases/previous-good.json &&
+     sync /opt/braavolabs/releases'
+   ```
+
+   `flock -n` exits non-zero if a deploy holds the lock; do not wait for it or
+   remove the lock file. Never write a new JSON by hand: `load_previous_good`
    rejects anything not shaped exactly like a script-written record.
 
+Neither way-out has been exercised; both come from reading the code. S5b
+rehearses way-out 2 before anyone relies on it on production.
+
 Re-releasing the same commit R1 later fails with exit 67 if its journal already
-says `COMMIT_RELEASE success`; use a new commit. (Read from code, not exercised.)
+says `COMMIT_RELEASE success`; use a new commit.
 
 ## 4. Migration rollback strategy
 
@@ -309,6 +348,13 @@ hostnames, but see section 8.
   assumed isolated: prove separate environment credentials and host identity
   before treating a run as non-production. If staging resolves to the production
   host, a "staging" rehearsal is a production deploy and must not be run.
+- **A staging green (or red) is valid evidence only if a separate staging host
+  with its own credentials is proven.** Even then, the three HTTPS probes
+  (`api/www/app.braavolabs.com`) check production, not the staging host; only the
+  container health checks (api/ui healthy, backup running) are about the staging
+  host. A staging "healthy" therefore means "staging containers healthy AND
+  production answers 200", and a production outage fails a staging run. Record
+  this limit next to every staging result.
 - Consequence for failure rehearsals: you cannot simulate an unhealthy release by
   blocking a "staging health URL", because there is none. Use S7 below.
 
@@ -359,13 +405,13 @@ an admin token. Record every time; paste real output next to it.
 |---|---|---|---|---|
 | S0 | Baseline | `curl -fsS https://<staging-api>/health`; `ssh <staging> sudo cat /opt/braavolabs/releases/previous-good.json` | `status:ok`; record release R0 and its api/ui digests | [ ... ] |
 | S1 | Drift check | compare R0 with the repo variable | equal | [ ... ] |
-| S2 | Deploy candidate with the newest migration | Actions -> Build & Deploy -> `environment=staging` on the release commit | green; exit 0 (or 68 if section 5 blocker unresolved: record it and stop) | [ ... ] total; migrate [ ... ]; health [ ... ] |
+| S2 | Deploy candidate with the newest migration | Actions -> Build & Deploy -> `environment=staging` on the release commit | green; exit 0 (or 68 if section 5 blocker unresolved: record it and stop). Valid as staging evidence only with a proven separate host; probes hit production (section 8) | [ ... ] total; migrate [ ... ]; health [ ... ] |
 | S3 | Journal | `ssh <staging> sudo ls /opt/braavolabs/releases/<sha>/transitions/` | `CAPTURE_PREVIOUS`, `STAGE_RELEASE`, `MIGRATE_CANDIDATE`, `CUTOVER`, `VERIFY_TARGET`, `COMMIT_RELEASE` all complete | [ ... ] |
 | S4 | Verify new release | section 7 commands (staging hostnames) | `commit` == candidate; flags as intended | [ ... ] |
 | S5 | Application rollback, normal path | revert PR merged, dispatch again (3a) | `commit` == R0; last-good record consistent | [ ... ] |
-| S5b | Application rollback, emergency path | 3b with digests from `previous-good.before.json` | `commit` == R0; then dispatch a deploy and record exit 66 + auto-restore (3c) | [ ... ] |
+| S5b | Application rollback, emergency path | 3b with digests from `previous-good.before.json`, via R0's release directory | `commit` == R0. Then, **before** reconciling, dispatch a deploy and record the expected result: remote exit 66, silent, host stays on R0, no auto-restore (3c). Then apply way-out 2 (locked, atomic record install, variable set to R0) and dispatch again: preflight should now pass. Record anything that differs from 3c | [ ... ] |
 | S6 | Schema left in place | `psql` staging: `\d tenant_connectors` | new columns present; old release serves traffic | [ ... ] |
-| S7 | Forced failure (do NOT block URLs: health probes prod, section 8) | dispatch a candidate whose api container healthcheck fails (throw-away branch, staging only) | exit 70; running digests == R0; journal `ROLLBACK_APPLICATION restored` | [ ... ] |
+| S7 | Forced failure (do NOT block URLs: health probes prod, section 8) | dispatch a candidate whose api container healthcheck fails (throw-away branch, staging only) | exit 70; running digests == R0; journal `ROLLBACK_APPLICATION restored`. Staging-only validity as in section 8 (the 3 HTTPS probes are production) | [ ... ] |
 | S8 | Drift 68 | set the staging variable to a wrong 40-hex value, dispatch, then restore | exit 68 `previous release drift`; last-good record unchanged | [ ... ] |
 | S9 | Down SQL on staging (backup taken) | the section 4 down SQL, newest first, each in a transaction; **then**, to allow re-application: `DELETE FROM _prisma_migrations WHERE migration_name IN ('20261114000000_connector_scope_audience','20261108010000_approval_exact_action','20261108000000_job_lifecycle');` for the migrations that were dropped | rows kept; columns gone; lock/duration measured | [ ... ] |
 | S10 | Forward fix | redeploy candidate (S2) | exit 0; `migrate deploy` re-applies; schema consistent | [ ... ] |
