@@ -2,7 +2,7 @@
 
 Durum: Kabul edildi (ADR-0004), PR #131. Karar: ADR-0004 (`docs/yula-execution/DECISIONS.md`). Girdiler: `01-audit.md`, `02-mental-model.md`, `03-concepts.md` (§5 "UX-03'e girdi" ve matris). Talimat: vault `40 Referanslar/📑 Dört Ürün Arayüz ve Deneyim Talimatı (2026-11-09).md` §4.2 (A–J, `:228`), §4.3 (`:361`), §4.4 (`:372`), Aşama 5 (14 teslimat).
 
-Kapsam: yalnız belge ve karar. Kod, rota, bayrak, migration yok. Kullanıcıya dönük marka: "YULA Lab" / "Braavolabs". Renk ve marka kimliği korunur; yeni renk önerilmez (token adları mevcut `globals.css` ve Tailwind kimliğinden gelir). Çalıştırılmadı; atıflar statik okumadır (bkz. §0).
+Kapsam: yalnız belge ve karar. Kod, rota, bayrak, migration yok. Kullanıcıya dönük marka: "Yula Lab" / "Braavolabs". Renk ve marka kimliği korunur; yeni renk önerilmez (token adları mevcut `globals.css` ve Tailwind kimliğinden gelir). Çalıştırılmadı; atıflar statik okumadır (bkz. §0).
 
 ## 0. Seçilen yön ve atıf notu
 
