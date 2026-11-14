@@ -140,6 +140,19 @@ After the second CI gate and production authorization:
    midway, `_prisma_migrations` keeps a failed row and the next
    `migrate deploy` stops with P3009 until it is resolved by hand. Any change to
    either file or the tree needs a new review.
+   **Reviewed exception: connector scope/audience (BRA-DEPLOY-02).** Prisma
+   writes quoted identifiers (`ALTER TABLE "tenant_connectors" ADD COLUMN ...`),
+   which the generic nullable-ADD rule rejects (exit 68). The generic rule is
+   deliberately not loosened; instead `20261114000000_connector_scope_audience`
+   is admitted only when the delta manifest and discovery are exactly that one
+   file (`A` status, pinned sha256), the metadata seal matches the
+   candidate/API/UI tuple, no symlinks exist, and the candidate's whole
+   `migration.sql` tree hashes to the pinned value (56 files at `ec4482e`). The
+   previous release is not pinned (40-hex only); an older live release yields
+   extra delta files and is rejected. The migration is additive only: three
+   `ADD COLUMN` (a `TEXT[]` defaulting to empty, two nullable). No `DROP`,
+   `ALTER ... TYPE`, `DELETE` or `TRUNCATE`. Rollback is the previous image
+   digest; the DB migration is not rolled back. Any change needs a new review.
 3. The script recreates API/UI from the digest override without rebuilding on
    the host, ensures the backup service is running, and verifies health and
    running-image identity.

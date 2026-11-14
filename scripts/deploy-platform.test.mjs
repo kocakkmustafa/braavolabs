@@ -1888,3 +1888,104 @@ for (const [name, mutate, overrides = {}] of [
   assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
   assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
 }));
+
+// Connector scope/audience (BRA-DEPLOY-02). Quoted Prisma identifiers fail the
+// generic rule; only this exact one-file delta + the exact 56-file tree is admitted.
+const CONNECTOR_CANDIDATE = "ec4482e8d22d721966bcd49105065b3c1d13edde";
+const CONNECTOR_CANDIDATE_MIGRATIONS = 56;
+const CONNECTOR_PATH = "packages/db/prisma/migrations/20261114000000_connector_scope_audience/migration.sql";
+const CONNECTOR_PREVIOUS = "9".repeat(40);
+function sealConnectorDelta(input, { previous = CONNECTOR_PREVIOUS, candidate = RELEASE, api = API, ui = UI } = {}) {
+  writeFileSync(join(input, "migration-delta.meta"), [
+    `previousRelease=${previous}`, `candidateRelease=${candidate}`, `api=${api}`, `ui=${ui}`,
+    `discoverySha256=${sha256File(join(input, "migration-delta.name-status"))}`,
+    `deltaSha256=${sha256File(join(input, "migration-delta.sha256"))}`, "",
+  ].join("\n"));
+}
+function writeConnectorDelta(input, paths = [CONNECTOR_PATH]) {
+  writeFileSync(join(input, "migration-delta.name-status"), paths.map((path) => `A\t${path}\n`).join(""));
+  writeFileSync(join(input, "migration-delta.sha256"), paths.map((path) => `${sha256File(join(input, path))}  ${path}\n`).join(""));
+  sealConnectorDelta(input);
+}
+function buildConnectorInput(h) {
+  const input = join(h.root, "connector-input");
+  useReviewedMigrationSnapshot(h, CONNECTOR_CANDIDATE, CONNECTOR_CANDIDATE_MIGRATIONS);
+  mkdirSync(join(input, "packages/db/prisma"), { recursive: true });
+  cpSync(join(h.sourceRoot, "packages/db/prisma/migrations"),
+    join(input, "packages/db/prisma/migrations"), { recursive: true });
+  delete h.sourceRoot;
+  writeConnectorDelta(input);
+  return input;
+}
+function runConnectorGuard(h, input, { remote = false, previous = CONNECTOR_PREVIOUS, ...overrides } = {}) {
+  const source = readFileSync(SCRIPT, "utf8");
+  const entrypoint = source.lastIndexOf('\nif test "${1:-}" = --remote;');
+  assert.ok(entrypoint > 0, "isolate definitions without invoking a deployment entrypoint");
+  const context = remote ? {
+    delta_previous_release: previous, release_commit: RELEASE, api_ref: API, ui_ref: UI,
+  } : { PREVIOUS_RELEASE_COMMIT: previous };
+  const result = spawnSync("bash", ["-c", `${source.slice(0, entrypoint)}\n` +
+    'migration_is_eligible "$CONNECTOR_INPUT" "$CONNECTOR_INPUT/migration-delta.sha256"'], {
+    cwd: ROOT, encoding: "utf8", timeout: 10_000,
+    env: remoteEnvironment(h, { ...context, CONNECTOR_INPUT: input, RELEASE_COMMIT: RELEASE, API_IMAGE_REF: API, UI_IMAGE_REF: UI, ...overrides }),
+  });
+  assertNoExternalNetwork(h);
+  return result;
+}
+
+test("connector SQL is the reviewed bytes the deploy script pins", () => {
+  assert.ok(readFileSync(SCRIPT, "utf8").includes(`${sha256File(join(ROOT, CONNECTOR_PATH))}'`));
+});
+for (const remote of [false, true]) {
+  test(`connector exact reviewed tuple passes ${remote ? "remote" : "local"} admission`, () =>
+    withHarness((h) => {
+      const result = runConnectorGuard(h, buildConnectorInput(h), { remote });
+      assert.equal(result.status, 0, result.stderr);
+    }));
+}
+test("connector rejects a malformed previous release", () => withHarness((h) => {
+  const input = buildConnectorInput(h);
+  sealConnectorDelta(input, { previous: "xyz" });
+  assert.equal(runConnectorGuard(h, input, { previous: "xyz" }).status, 1);
+}));
+for (const [name, mutate] of [
+  ["candidate tuple mismatch", (input) => sealConnectorDelta(input, { candidate: "2".repeat(40) })],
+  ["api digest mismatch", (input) => sealConnectorDelta(input, { api: UI })],
+  ["single appended byte in reviewed SQL", (input) => writeFileSync(join(input, CONNECTOR_PATH),
+    readFileSync(join(input, CONNECTOR_PATH), "utf8") + "\n")],
+  ["resealed replacement SQL", (input) => {
+    writeFileSync(join(input, CONNECTOR_PATH), 'ALTER TABLE "tenant_connectors" DROP COLUMN "scopes";\n');
+    writeConnectorDelta(input);
+  }],
+  ["additional unmanifested SQL", (input) => {
+    mkdirSync(join(input, "packages/db/prisma/migrations/20991231000000_extra"));
+    writeFileSync(join(input, "packages/db/prisma/migrations/20991231000000_extra/migration.sql"),
+      "ALTER TABLE tenants ADD COLUMN extra TEXT;\n");
+  }],
+  ["additional manifested SQL (older live release)", (input) => {
+    const extra = "packages/db/prisma/migrations/20991231000000_extra/migration.sql";
+    mkdirSync(dirname(join(input, extra)));
+    writeFileSync(join(input, extra), "ALTER TABLE tenants ADD COLUMN extra TEXT;\n");
+    writeConnectorDelta(input, [CONNECTOR_PATH, extra]);
+  }],
+  ["connector mixed with job-ux reviewed pair", (input) => writeConnectorDelta(input, [
+    ...JOBUX_PATHS, CONNECTOR_PATH])],
+  ["missing reviewed SQL", (input) => rmSync(join(input, CONNECTOR_PATH))],
+  ["modified discovery status", (input) => {
+    writeFileSync(join(input, "migration-delta.name-status"), `M\t${CONNECTOR_PATH}\n`); sealConnectorDelta(input);
+  }],
+  ["historical SQL drift", (input) => writeFileSync(join(input, REVIEWED_ENUM_MIGRATION),
+    readFileSync(join(input, REVIEWED_ENUM_MIGRATION), "utf8") + "\n")],
+  ["SQL symlink", (input) => {
+    rmSync(join(input, CONNECTOR_PATH)); symlinkSync(join(ROOT, CONNECTOR_PATH), join(input, CONNECTOR_PATH));
+  }],
+  ["stale metadata seal", (input) => {
+    const file = join(input, "migration-delta.meta"); writeFileSync(file, readFileSync(file, "utf8").replace("deltaSha256=", "deltaSha256=0"));
+  }],
+]) test(`connector denies ${name} without generic policy fallback`, () => withHarness((h) => {
+  const input = buildConnectorInput(h); mutate(input);
+  const result = runConnectorGuard(h, input);
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+  assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
+}));
