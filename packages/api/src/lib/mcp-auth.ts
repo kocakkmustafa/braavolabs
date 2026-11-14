@@ -4,8 +4,37 @@
  * shared by the MCP client and the dynamic-tool wrapper.
  */
 
+import { AppError } from "../middleware/error";
+import { leaksSecret } from "../modules/approval/details";
+
+/** RFC 7230 token: the only characters a header NAME may contain. */
+const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
+/**
+ * Anything outside HTAB, printable ASCII and Latin-1 (obs-text) is refused: CR/LF/NUL and other control
+ * characters make Node's http layer throw (ERR_INVALID_CHAR), and code points above 0xFF make `new Headers` throw.
+ */
+const HEADER_VALUE_FORBIDDEN = /[^\t\x20-\x7e\x80-\xff]/;
+
+/**
+ * SEC-BRA-02c: a malformed connector header (name with a space, CR/LF in the
+ * value) used to surface as a raw TypeError -> 500. Validate up front and fail
+ * with a fixed 400 that never echoes the offending name or value.
+ */
+function assertValidHeaders(headers: Record<string, string>): Record<string, string> {
+  for (const [name, value] of Object.entries(headers)) {
+    if (name === "__proto__" || !HEADER_NAME.test(name) || HEADER_VALUE_FORBIDDEN.test(value)) {
+      throw new AppError(400, "Bağlayıcı başlığı geçersiz");
+    }
+  }
+  return headers;
+}
+
 export function authHeaders(method: string, creds: Record<string, string> | undefined): Record<string, string> {
   if (!creds) return {};
+  return assertValidHeaders(buildAuthHeaders(method, creds));
+}
+
+function buildAuthHeaders(method: string, creds: Record<string, string>): Record<string, string> {
   switch (method) {
     case "NONE":
       return {};
@@ -36,7 +65,12 @@ export function authHeaders(method: string, creds: Record<string, string> | unde
         const parsed: unknown = creds.headers ? JSON.parse(creds.headers) : {};
         if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return {};
         const out: Record<string, string> = {};
-        for (const [k, v] of Object.entries(parsed)) if (typeof v === "string") out[k] = v;
+        // Numbers/booleans are sent as String(v) (and so count as identity headers that force HTTPS);
+        // null, objects and arrays carry no usable value and are dropped.
+        for (const [k, v] of Object.entries(parsed)) {
+          if (typeof v === "string") out[k] = v;
+          else if (typeof v === "number" || typeof v === "boolean") out[k] = String(v);
+        }
         return out;
       } catch {
         return {};
@@ -75,7 +109,7 @@ export function credentialSecrets(authMethod: string, creds: Record<string, stri
   }
   if (headers === null || typeof headers !== "object" || Array.isArray(headers)) headers = {};
   if (authMethod === "CUSTOM") {
-    // authHeaders drops non-string values (they are never sent); still mask them if echoed.
+    // Non-string scalars are sent as String(v) (already masked via `headers`); null/objects are never sent, still mask if echoed.
     try {
       const parsed: unknown = creds.headers ? JSON.parse(creds.headers) : {};
       if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
@@ -89,7 +123,8 @@ export function credentialSecrets(authMethod: string, creds: Record<string, stri
   }
   for (const [name, v] of Object.entries(headers)) {
     if (typeof v !== "string") continue;
-    if (NON_SECRET_HEADER.test(name)) continue;
+    // The exemption is by NAME only: a secret-looking VALUE under an exempt name is still masked (SEC-BRA-06d).
+    if (NON_SECRET_HEADER.test(name) && !leaksSecret(v)) continue;
     base.push(v);
     const m = /^(?:bearer|basic)\s+(.+)$/i.exec(v);
     if (m) base.push(m[1]);

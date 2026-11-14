@@ -81,7 +81,7 @@ const ID_LONG_HEX = /[0-9a-f]{32,}/i;
 const ID_LONG_BLOCK = /[A-Za-z0-9_-]{40,}/;
 
 /** Önek/hex/blok süzgeci: kimlik, araç adı, sağlayıcı/model ve alan adı için ortak. */
-function leaksSecret(s: string): boolean {
+export function leaksSecret(s: string): boolean {
   return (
     ID_SECRET_ANYWHERE.test(s) || ID_SECRET_EMBEDDED.test(s) || ID_JWT.test(s) || ID_VENDOR_KEY.test(s) || ID_SECRET_WORD_START.test(s) || ID_LONG_HEX.test(s) || ID_LONG_BLOCK.test(s)
   );

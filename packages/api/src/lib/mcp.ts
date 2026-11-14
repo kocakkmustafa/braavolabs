@@ -114,7 +114,14 @@ async function callMcp<T>(
     // Parser errors can quote upstream text; never forward them.
     throw new AppError(502, "MCP yanıtı geçersiz JSON");
   }
-  if (json.error) {
+  // A body of `null`, a scalar or an array is valid JSON but not a JSON-RPC response.
+  if (json === null || typeof json !== "object" || Array.isArray(json)) {
+    throw new AppError(502, "MCP yanıtı geçersiz");
+  }
+  if (json.error !== undefined && json.error !== null) {
+    if (typeof json.error !== "object" || Array.isArray(json.error)) {
+      throw new AppError(502, "MCP sunucusu hata döndürdü");
+    }
     const msg = scrubSecrets(`MCP error ${json.error.code}: ${json.error.message}`, credentialSecrets(authMethod, creds));
     throw new AppError(502, msg as string);
   }
