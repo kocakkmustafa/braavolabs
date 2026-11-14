@@ -37,7 +37,7 @@ paths:
     get:
       summary: Onay kuyruğu
       description: >
-        Parametresiz çağrı düz dizi döner (sayfalama yok). `limit`/`cursor` verilirse gövde yine dizidir
+        Parametresiz çağrı düz dizi döner ve sayfalama yoktur (sınırsız liste). Sözleşme notu: istemci sınırsız liste alabilir. `limit`/`cursor` verilirse gövde yine dizidir
         ve sonraki imleç `X-Next-Cursor` başlığındadır. `groupBy=run` gövdeyi `{groups, nextCursor}` yapar.
       parameters:
         - name: status
@@ -48,7 +48,8 @@ paths:
           schema: { type: string, enum: [run] }
         - name: limit
           in: query
-          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+          description: Verilmezse (limit/cursor/groupBy yokken) sayfalama YOK; tüm kayıtlar döner.
+          schema: { type: integer, minimum: 1, maximum: 100 }
         - name: cursor
           in: query
           schema: { type: string, maxLength: 256 }

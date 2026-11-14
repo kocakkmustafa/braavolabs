@@ -45,9 +45,10 @@ vi.mock("../../config/env", () => ({
 
 import { runRouter } from "../../modules/run/router";
 import { approvalRouter } from "../../modules/approval/router";
+import { decodeCursor } from "../../modules/run/list-cursor";
 import { AppError, errorHandler } from "../../middleware/error";
 import {
-  APPROVAL_STATUS_VALUES, ApprovalsArrayResponseSchema, ApprovalsGroupedResponseSchema, COMPONENT_SCHEMAS,
+  APPROVAL_COMPANY_KEYS, APPROVAL_ITEM_KEYS, APPROVAL_STATUS_VALUES, ApprovalsArrayResponseSchema, ApprovalsGroupedResponseSchema, COMPONENT_SCHEMAS,
   ErrorBodySchema, INBOX_BUCKET_VALUES, LIMIT_DEFAULT, LIMIT_MAX, LIMIT_MIN, NEXT_CURSOR_HEADER, RunsListResponseSchema,
 } from "./rest-contract";
 
@@ -98,9 +99,17 @@ describe("openapi-draft.yaml ↔ zod sözleşmesi", () => {
     expect(apr.status.enum).toEqual([...APPROVAL_STATUS_VALUES]);
     expect(apr.status.default).toBe("PENDING");
     expect(apr.groupBy.enum).toEqual(["run"]);
-    for (const l of [runs.limit, apr.limit]) {
-      expect([l.minimum, l.maximum, l.default]).toEqual([LIMIT_MIN, LIMIT_MAX, LIMIT_DEFAULT]);
-    }
+    expect([runs.limit.minimum, runs.limit.maximum, runs.limit.default]).toEqual([LIMIT_MIN, LIMIT_MAX, LIMIT_DEFAULT]);
+    // /approvals: limit/cursor/groupBy yokken sayfalama yok (tüm kayıtlar) → varsayılan TANIMLI OLMAMALI
+    expect([apr.limit.minimum, apr.limit.maximum, apr.limit.default]).toEqual([LIMIT_MIN, LIMIT_MAX, undefined]);
+    expect(doc.paths["/approvals"].get.parameters.find((x: any) => x.name === "limit").description).toMatch(/sayfalama YOK/);
+    // cursor sınırı list-cursor.ts ile aynı: 256 kabul, 257 reddedilir
+    for (const c of [runs.cursor, apr.cursor]) expect(c.maxLength).toBe(256);
+    const okCursor = Buffer.from(JSON.stringify({ c: at(1).toISOString(), i: "x".repeat(256 * 3 / 4 - 50) }), "utf8").toString("base64url");
+    expect(okCursor.length).toBeLessThanOrEqual(256);
+    expect(okCursor.length).toBeGreaterThan(240);
+    expect(decodeCursor(okCursor)).not.toBeNull();
+    expect(decodeCursor(okCursor + "A".repeat(257 - okCursor.length))).toBeNull();
   });
 
   it("taslak yanıtları: 200 şeması, 400 = ErrorBody, X-Next-Cursor başlığı", () => {
@@ -156,9 +165,9 @@ function runRow(i: number, over: Record<string, unknown> = {}) {
 }
 function apRow(i: number) {
   return {
-    id: `ap-${i}`, runId: `run-${i}`, type: "SPEND", status: "PENDING", description: "d", amountUsd: null, metadata: { toolName: "t", secret: "x" },
+    id: `ap-${i}`, runId: `run-${i}`, type: "SPEND", status: "PENDING", description: "d", amountUsd: null, metadata: { toolName: "t", secret: "SECRET-META" },
     decidedBy: null, decidedAt: null, expiresAt: null, createdAt: at(i),
-    run: { id: `run-${i}`, pipeline: { id: "p", name: `Pipe ${i}`, company: { id: "c", name: "Co", slug: "co", config: {} } } },
+    run: { id: `run-${i}`, pipeline: { id: "p", name: `Pipe ${i}`, company: { id: "c", name: "Co", slug: "co", config: { niche: "saas", webhookSecret: "SECRET-WEBHOOK", apiKey: "SECRET-APIKEY", extra: { token: "SECRET-NESTED" } } } } },
   };
 }
 
@@ -193,12 +202,28 @@ describe("GET /runs yanıt zarfı", () => {
 });
 
 describe("GET /approvals yanıt zarfı", () => {
-  it("parametresiz: düz dizi, başlık yok", async () => {
-    approvalFindMany.mockResolvedValue([apRow(1), apRow(2)]);
+  it("parametresiz: sayfalama YOK (take yok → tüm kayıtlar), düz dizi, başlık yok", async () => {
+    approvalFindMany.mockResolvedValue(Array.from({ length: 30 }, (_, i) => apRow(i + 1)));
     const { res, headers } = await call(approvalRouter, {});
-    expect(ApprovalsArrayResponseSchema.parse(res.body)).toHaveLength(2);
-    expect(res.body[0].metadata).toEqual({ toolName: "t" }); // ham metadata sızmaz
+    expect(res.body).toHaveLength(30); // varsayılan 25 DEĞİL
+    expect(approvalFindMany.mock.calls[0][0].take).toBeUndefined();
     expect(headers[NEXT_CURSOR_HEADER]).toBeUndefined();
+    expect(ApprovalsArrayResponseSchema.parse(res.body)).toHaveLength(30);
+  });
+
+  it("sızıntı yok: öğe/run/pipeline/company anahtar kümeleri sabit; company.config yalnız allowlist", async () => {
+    approvalFindMany.mockResolvedValue([apRow(1)]);
+    const { res } = await call(approvalRouter, {});
+    ApprovalsArrayResponseSchema.parse(res.body);
+    const item = res.body[0];
+    expect(Object.keys(item).sort()).toEqual([...APPROVAL_ITEM_KEYS].sort());
+    expect(Object.keys(item.run).sort()).toEqual(["id", "pipeline"]);
+    expect(Object.keys(item.run.pipeline).sort()).toEqual(["company", "id", "name"]);
+    expect(Object.keys(item.run.pipeline.company).sort()).toEqual([...APPROVAL_COMPANY_KEYS].sort());
+    expect(item.run.pipeline.company.config).toEqual({ niche: "saas", webhookSecretSet: true });
+    expect(item.metadata).toEqual({ toolName: "t" }); // ham metadata sızmaz
+    const wire = JSON.stringify(res.body);
+    for (const s of ["SECRET-WEBHOOK", "SECRET-APIKEY", "SECRET-NESTED", "SECRET-META"]) expect(wire).not.toContain(s);
   });
 
   it("limit: gövde dizi, imleç X-Next-Cursor başlığında", async () => {

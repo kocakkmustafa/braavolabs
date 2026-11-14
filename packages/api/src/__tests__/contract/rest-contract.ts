@@ -81,3 +81,11 @@ export const COMPONENT_SCHEMAS = {
   ApprovalItem: ApprovalItemSchema,
   ApprovalsGroupedResponse: ApprovalsGroupedResponseSchema,
 } as const;
+
+/** GET /approvals öğesinin TAM anahtar kümesi (sızıntı kapısı: yeni alan bilinçli eklenmeli). */
+export const APPROVAL_ITEM_KEYS = [
+  "id", "runId", "type", "status", "description", "amountUsd", "metadata", "decidedBy", "decidedAt",
+  "expiresAt", "createdAt", "run", "artifact", "details",
+] as const;
+/** run.pipeline.company: config yalnız allowlist (toPublicCompany) — webhookSecret asla gövdede değil. */
+export const APPROVAL_COMPANY_KEYS = ["id", "name", "slug", "config"] as const;
