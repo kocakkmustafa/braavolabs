@@ -8,6 +8,7 @@ import { runLocalAgentLoop } from "./claude-local";
 import { assertReasoningEffortSupported, UnsupportedReasoningEffortError, type ReasoningEffort } from "../../services/reasoning-effort";
 import {
   chatCompletion,
+  LOCAL_PROVIDERS,
   resolveModelForProvider,
   ToolsUnsupportedError,
   type AIClientConfig,
@@ -20,6 +21,7 @@ import {
 import {
   buildTenantProviderChain,
   classifyProviderError,
+  extractProviderErrorStatus,
   isFailoverEligible,
   isProviderTripped,
   ProviderExhaustedError,
@@ -846,6 +848,8 @@ export async function runProviderAgentLoop(
   // compatible with the resolved provider > tenant model > provider default.
   const model = resolveModelForProvider(aiConfig.provider, config.model, aiConfig.model);
   let callConfig: AIClientConfig = { ...aiConfig, model };
+  // SEC-BRA-04: chain began on a LOCAL provider (data must not leave).
+  const startedLocal = LOCAL_PROVIDERS.has(callConfig.provider);
   assertReasoningEffortSupported(callConfig, config.reasoningEffort);
   if (config.reasoningEffort !== undefined && failover) {
     throw new UnsupportedReasoningEffortError("Explicit reasoning effort requires an exact provider without failover");
@@ -1054,6 +1058,29 @@ export async function runProviderAgentLoop(
         // status). isHandoffTriggerEligible() does that filtering downstream;
         // here we just record what the classifier saw. The message mirrors the
         // cause so every `.toThrow(/…/)` consumer reads exactly as before.
+        if (pendingLinks.length === 0 && startedLocal && LOCAL_PROVIDERS.has(callConfig.provider)) {
+          const status = extractProviderErrorStatus(err);
+          logger.warn(
+            {
+              tenantId: cbTenant,
+              provider: callConfig.provider,
+              cls,
+              status,
+              message: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+            },
+            "Local provider failed (SEC-BRA-04) — no cloud failover",
+          );
+          // Plain Error (NOT ProviderExhaustedError): a local-started chain must
+          // never be handoff-eligible, or a cloud target could be offered.
+          if (cls === "TRANSIENT") {
+            throw new Error(
+              `Yerel sağlayıcı erişilemez (${callConfig.provider}). Sunucunun çalıştığını ve erişilebilir olduğunu kontrol edin; veriler bulut sağlayıcıya otomatik gönderilmez.`,
+            );
+          }
+          throw new Error(
+            `Yerel sağlayıcı hatası (${callConfig.provider}, ${cls}${status !== undefined ? `, durum ${status}` : ""}). Veriler bulut sağlayıcıya otomatik gönderilmez.`,
+          );
+        }
         if (pendingLinks.length === 0) {
           throw ProviderExhaustedError.wrap(cls, callConfig.provider, callConfig.model, err);
         }
