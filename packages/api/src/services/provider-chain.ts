@@ -297,24 +297,56 @@ function rowToLink(
   };
 }
 
+/** User-facing reason when a cloud provider is refused behind a local default. */
+export const LOCAL_DEFAULT_CLOUD_BLOCKED_MESSAGE =
+  "Yerel sağlayıcı varsayılanken bulut sağlayıcılar kullanılamaz";
+
+/**
+ * The tenant's default row — ONE definition shared by the failover chain and
+ * the candidate list (isDefault first, createdAt tiebreaker), so "is the
+ * default local?" can never differ between them (SEC-BRA-04c).
+ */
+function pickDefaultRow(rows: UserAIConfigRow[]): UserAIConfigRow | undefined {
+  return [...rows].sort((a, b) => {
+    if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  })[0];
+}
+
 /**
  * SEC-BRA-04 / 04c: a LOCAL default (Ollama / LM Studio / Custom) means the
- * tenant's data must not leave their machine. When the first link is local,
+ * tenant's data must not leave their machine. When the default row is local,
  * every cloud link is dropped (logger.warn) so failover, cascade, compare,
  * handoff and takeover can never offer a cloud provider.
  */
 function dropCloudBehindLocalDefault(
   links: ProviderChainLink[],
+  defaultRow: UserAIConfigRow | undefined,
   tenantId: string,
 ): ProviderChainLink[] {
-  if (links.length === 0 || !LOCAL_PROVIDERS.has(links[0].provider)) return links;
+  if (!defaultRow || !LOCAL_PROVIDERS.has(defaultRow.provider as AIProviderType)) return links;
   const cloud = links.filter((l) => !LOCAL_PROVIDERS.has(l.provider));
   if (cloud.length === 0) return links;
   logger.warn(
-    { tenantId, localProvider: links[0].provider, ignoredCloud: cloud.map((l) => l.provider) },
+    { tenantId, localProvider: defaultRow.provider, ignoredCloud: cloud.map((l) => l.provider) },
     "Local provider is default — cloud links ignored (SEC-BRA-04)",
   );
   return links.filter((l) => LOCAL_PROVIDERS.has(l.provider));
+}
+
+/** True when `provider` is a cloud provider that the local-default rule hides
+ * from this tenant — lets callers return the privacy message instead of a
+ * misleading "not configured". */
+export async function isCloudBlockedByLocalDefault(
+  tenantId: string,
+  provider: string,
+): Promise<boolean> {
+  if (LOCAL_PROVIDERS.has(provider as AIProviderType)) return false;
+  const rows = (await prisma.userAIConfig.findMany({
+    where: { tenantId },
+  })) as unknown as UserAIConfigRow[];
+  const def = pickDefaultRow(rows);
+  return !!def && LOCAL_PROVIDERS.has(def.provider as AIProviderType);
 }
 
 /**
@@ -349,7 +381,7 @@ export async function listTenantProviderLinks(tenantId: string): Promise<Provide
   const visible = env.OFFLINE_MODE === true
     ? links.filter((l) => LOCAL_PROVIDERS.has(l.provider))
     : links;
-  return dropCloudBehindLocalDefault(visible, tenantId);
+  return dropCloudBehindLocalDefault(visible, pickDefaultRow(rows), tenantId);
 }
 
 /**
@@ -370,11 +402,11 @@ export async function buildTenantProviderChain(tenantId: string): Promise<Provid
 
   // Default row: isDefault first, createdAt tiebreaker — identical
   // semantics to getTenantAIConfig so single-row tenants resolve the same.
+  const defaultRow = pickDefaultRow(rows);
   const sorted = [...rows].sort((a, b) => {
     if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
     return a.createdAt.getTime() - b.createdAt.getTime();
   });
-  const defaultRow = sorted[0];
 
   const links: ProviderChainLink[] = [];
   if (defaultRow) {
@@ -399,7 +431,7 @@ export async function buildTenantProviderChain(tenantId: string): Promise<Provid
     ? links.filter((l) => LOCAL_PROVIDERS.has(l.provider))
     : links;
 
-  byokLinks = dropCloudBehindLocalDefault(byokLinks, tenantId);
+  byokLinks = dropCloudBehindLocalDefault(byokLinks, defaultRow, tenantId);
 
   // BR-P0-002-D: allowSystemFallback and system-held environment keys are
   // historical inputs only. Runtime resolution returns tenant-owned BYOK or

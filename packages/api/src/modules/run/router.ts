@@ -14,7 +14,7 @@ import { chatCompletion, getTenantAIConfig, LOCAL_PROVIDERS, type AIProviderType
 // /:id/handoff route's getTenantAIConfig call is a best-effort AUDIT lookup
 // (records fromProvider on the ledger, never dials the LLM) and stays on the
 // plain getTenantAIConfig import.
-import { listTenantProviderLinks, resolveTenantCompletionLink, commitTrialCompletion, refundTrialCompletion } from "../../services/provider-chain";
+import { listTenantProviderLinks, isCloudBlockedByLocalDefault, LOCAL_DEFAULT_CLOUD_BLOCKED_MESSAGE, resolveTenantCompletionLink, commitTrialCompletion, refundTrialCompletion } from "../../services/provider-chain";
 import { assertKeylessLocalBaseUrl } from "../../services/takeover-config";
 import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun, reopenClaimedHandoff } from "./handoff.service";
 import { hasOpenApproval } from "../approval/exact-action";
@@ -75,6 +75,9 @@ async function assertValidTakeoverTarget(
   // Cloud provider: must be a link the tenant actually configured.
   const links = await listTenantProviderLinks(tenantId);
   if (!links.some((l) => l.provider === provider)) {
+    if (await isCloudBlockedByLocalDefault(tenantId, provider)) {
+      throw new AppError(400, LOCAL_DEFAULT_CLOUD_BLOCKED_MESSAGE);
+    }
     throw new AppError(
       400,
       `Provider ${provider} is not configured for this workspace. Add it in Settings → AI Provider, or hand off to a self-hosted provider with a base URL.`,

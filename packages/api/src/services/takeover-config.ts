@@ -35,7 +35,7 @@ import {
   type AIClientConfig,
   type AIProviderType,
 } from "./ai-client";
-import { listTenantProviderLinks } from "./provider-chain";
+import { listTenantProviderLinks, isCloudBlockedByLocalDefault, LOCAL_DEFAULT_CLOUD_BLOCKED_MESSAGE } from "./provider-chain";
 
 /**
  * Prod keyless-local baseUrl guard (§2.5 — B4c). The SINGLE source of truth for
@@ -109,6 +109,9 @@ export async function resolveTakeoverConfig(ledger: HandoffLedger): Promise<AICl
   const links = await listTenantProviderLinks(ledger.tenantId);
   const link = links.find((l) => l.provider === provider);
   if (!link) {
+    if (await isCloudBlockedByLocalDefault(ledger.tenantId, provider)) {
+      throw new Error(LOCAL_DEFAULT_CLOUD_BLOCKED_MESSAGE);
+    }
     logger.warn(
       { handoffId: ledger.id, tenantId: ledger.tenantId, provider },
       "resolveTakeoverConfig: claimed cloud provider is no longer a configured BYOK link",

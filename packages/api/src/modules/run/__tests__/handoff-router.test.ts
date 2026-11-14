@@ -33,6 +33,7 @@ const handoffFindMany = vi.hoisted(() => vi.fn());
 const activityLogCreate = vi.hoisted(() => vi.fn());
 const approvalFindFirst = vi.hoisted(() => vi.fn());
 const runUpdateMany = vi.hoisted(() => vi.fn());
+const aiConfigFindMany = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../lib/db", () => ({
   prisma: {
@@ -50,6 +51,7 @@ vi.mock("../../../lib/db", () => ({
       findMany: (...a: unknown[]) => handoffFindMany(...a),
     },
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
+    userAIConfig: { findMany: (...a: unknown[]) => aiConfigFindMany(...a) },
   },
   // 02c-2: lifecycle writes go through transitionRun inside tenantTx (flag off →
   // select {status} + scalar CAS updateMany). The tx reports the run as RUNNING.
@@ -290,8 +292,28 @@ describe("POST /runs/:id/continue", () => {
 
   it("cloud provider not configured for the tenant → 400", async () => {
     listTenantProviderLinksMock.mockResolvedValue([{ provider: "ANTHROPIC" }]);
+    aiConfigFindMany.mockResolvedValue([]);
     const { nextErr } = await invoke(handler, { params: { id: "run-1" }, body: { provider: "OPENAI" } });
     expect(nextErr?.statusCode).toBe(400);
+    expect(nextErr?.message).toMatch(/not configured/);
+    expect(claimHandoffMock).not.toHaveBeenCalled();
+  });
+
+  it("SEC-BRA-04c: local default + cloud target → 400 with the privacy message (real list filtering)", async () => {
+    const actual = await vi.importActual<typeof import("../../../services/provider-chain")>("../../../services/provider-chain");
+    listTenantProviderLinksMock.mockImplementation(actual.listTenantProviderLinks);
+    const row = (provider: string, over: Record<string, unknown>) => ({
+      tenantId: "t", provider, model: "m", encryptedApiKey: provider === "OLLAMA" ? null : "enc:x",
+      baseUrl: null, isDefault: false, fallbackOrder: null, allowSystemFallback: false,
+      createdAt: new Date(2026, 0, 1), ...over,
+    });
+    aiConfigFindMany.mockResolvedValue([
+      row("OLLAMA", { isDefault: true }),
+      row("OPENAI", { fallbackOrder: 1 }),
+    ]);
+    const { nextErr } = await invoke(handler, { params: { id: "run-1" }, body: { provider: "OPENAI", model: "gpt-4o" } });
+    expect(nextErr?.statusCode).toBe(400);
+    expect(nextErr?.message).toBe("Yerel sağlayıcı varsayılanken bulut sağlayıcılar kullanılamaz");
     expect(claimHandoffMock).not.toHaveBeenCalled();
   });
 

@@ -59,6 +59,7 @@ import {
   resetProviderCircuits,
   buildTenantProviderChain,
   listTenantProviderLinks,
+  isCloudBlockedByLocalDefault,
   resolveTenantCompletionLink,
   commitTrialCompletion,
   extractProviderErrorStatus,
@@ -515,6 +516,45 @@ describe("listTenantProviderLinks — configured providers as compare candidates
     const links = await listTenantProviderLinks(TENANT);
 
     expect(links.map((l) => l.provider)).toEqual(["OLLAMA", "LMSTUDIO"]);
+  });
+
+  it("scenario A: no default row — old local (fallbackOrder null) + new cloud (fallbackOrder 1): list and chain agree", async () => {
+    seedRows([
+      { provider: "OLLAMA", model: "gemma3:4b", key: null, createdAtDay: 1 },
+      { provider: "OPENAI", model: "gpt-4o", key: "sk-oai", fallbackOrder: 1, createdAtDay: 5 },
+    ]);
+
+    const list = await listTenantProviderLinks(TENANT);
+    const chain = await buildTenantProviderChain(TENANT);
+
+    expect(list.map((l) => l.provider)).toEqual(["OLLAMA"]);
+    expect(chain.map((l) => l.provider)).toEqual(["OLLAMA"]);
+  });
+
+  it("CUSTOM-led list drops cloud; single local link and empty list pass through", async () => {
+    seedRows([
+      { provider: "CUSTOM", model: "my-model", key: null, isDefault: true, baseUrl: "http://gpu:8000/v1" },
+      { provider: "ANTHROPIC", model: "claude", key: "sk-a", fallbackOrder: 1 },
+    ]);
+    expect((await listTenantProviderLinks(TENANT)).map((l) => l.provider)).toEqual(["CUSTOM"]);
+
+    seedRows([{ provider: "OLLAMA", model: "gemma3:4b", key: null, isDefault: true }]);
+    expect((await listTenantProviderLinks(TENANT)).map((l) => l.provider)).toEqual(["OLLAMA"]);
+
+    seedRows([]);
+    expect(await listTenantProviderLinks(TENANT)).toEqual([]);
+  });
+
+  it("isCloudBlockedByLocalDefault: true only for cloud providers behind a local default", async () => {
+    seedRows([
+      { provider: "OLLAMA", model: "gemma3:4b", key: null, isDefault: true },
+      { provider: "OPENAI", model: "gpt-4o", key: "sk-oai", fallbackOrder: 1 },
+    ]);
+    expect(await isCloudBlockedByLocalDefault(TENANT, "OPENAI")).toBe(true);
+    expect(await isCloudBlockedByLocalDefault(TENANT, "OLLAMA")).toBe(false);
+
+    seedRows([{ provider: "OPENAI", model: "gpt-4o", key: "sk-oai", isDefault: true }]);
+    expect(await isCloudBlockedByLocalDefault(TENANT, "ANTHROPIC")).toBe(false);
   });
 
   it("cloud default → local fallbacks and cloud candidates are both kept (no regression)", async () => {
