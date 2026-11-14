@@ -12,7 +12,7 @@ import { AppError } from "../../middleware/error";
 import { listTools } from "../../lib/mcp";
 import { logger } from "../../lib/logger";
 import { safeExternalFetch } from "../../lib/ssrf";
-import { verifyManifest, isSignedManifest } from "./manifest-signature";
+import { verifyManifest, isSignedManifest, carryDeclaredCapabilities } from "./manifest-signature";
 
 export function connectorAad(tenantId: string, connectorId: string): string {
   return `${tenantId}|tenant_connector|${connectorId}`;
@@ -105,7 +105,10 @@ export async function refreshInstall(tenantId: string, slug: string): Promise<{ 
   } catch {
     throw new AppError(500, "Failed to decrypt connector credentials");
   }
-  const tools = await listTools(connector.mcpServerUrl, connector.authMethod, creds);
+  const tools = carryDeclaredCapabilities(
+    connector.toolsManifest,
+    await listTools(connector.mcpServerUrl, connector.authMethod, creds),
+  );
 
   // Manifest HMAC verification (E5/T5): refuse a post-approval tool-set swap.
   if (isSignedManifest(connector.manifestSignature)) {

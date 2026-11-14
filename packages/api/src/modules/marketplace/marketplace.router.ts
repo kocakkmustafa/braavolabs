@@ -32,7 +32,7 @@ import { logger } from "../../lib/logger";
 import { assertSafeExternalUrl, SsrfError } from "../../lib/ssrf";
 import { listTools, type McpTool } from "../../lib/mcp";
 import { connectorManifestSchema } from "@ai-company-os/connector-sdk";
-import { signManifest, verifyManifest, isSignedManifest } from "./manifest-signature";
+import { signManifest, verifyManifest, isSignedManifest, carryDeclaredCapabilities } from "./manifest-signature";
 import { refreshInstall, revokeInstall, uninstallInstall, audienceOf, toInstalledView } from "./connector-lifecycle";
 import { claimQuota } from "../billing/metering";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
@@ -161,7 +161,10 @@ tenantRouter.post("/connectors/:slug/install", async (req, res, next) => {
     let manifest: unknown = connector.toolsManifest;
     let probedTools: McpTool[] | null = null;
     try {
-      probedTools = await listTools(connector.mcpServerUrl, connector.authMethod, body.credentials);
+      probedTools = carryDeclaredCapabilities(
+        connector.toolsManifest,
+        await listTools(connector.mcpServerUrl, connector.authMethod, body.credentials),
+      );
       manifest = probedTools as any;
     } catch (err) {
       // Cleartext-with-credentials and a malformed connector header are hard, deliberate
@@ -290,6 +293,7 @@ const publishSchema = z.object({
         description: z.string().max(1000).optional(),
         inputSchema: z.record(z.string(), z.unknown()).optional(),
         riskHint: z.enum(["low", "medium", "high", "money"]).optional(),
+        capability: z.enum(["read", "write", "deploy", "merge", "destructive"]).optional(),
       }),
     )
     .max(200)
@@ -430,6 +434,7 @@ tenantRouter.post("/publish", async (req, res, next) => {
         name: t.name,
         description: t.description ?? "",
         inputSchema: t.inputSchema ?? { type: "object", properties: {} },
+        ...(t.capability ? { capability: t.capability } : {}),
       }));
     } else {
       try {

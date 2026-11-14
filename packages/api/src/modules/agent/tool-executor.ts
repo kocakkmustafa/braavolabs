@@ -328,6 +328,7 @@ export async function executeTool(
           remoteDescription: remote.description,
           connectorSlug: remote.connectorSlug,
           connectorName: remote.connectorName,
+          declaredCapability: remote.declaredCapability,
         }
       : { dynamic: true, remoteDescription: dynamicTool.description }
     : {};

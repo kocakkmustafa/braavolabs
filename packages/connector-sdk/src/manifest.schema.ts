@@ -30,6 +30,11 @@ export type ConnectorAuthField = z.infer<typeof connectorAuthFieldSchema>;
 export const publisherRiskHintSchema = z.enum(["low", "medium", "high", "money"]);
 export type ManifestRiskHint = z.infer<typeof publisherRiskHintSchema>;
 
+/** Publisher-declared capability of a tool (BRA-P1-03d). Only ever RAISES the
+ * runtime deploy/merge classification; never lowers it. */
+export const toolCapabilitySchema = z.enum(["read", "write", "deploy", "merge", "destructive"]);
+export type ToolCapability = z.infer<typeof toolCapabilitySchema>;
+
 /** A tool the connector exposes. Mirrors the MCP `tools/list` shape plus an
  * optional publisher risk hint. */
 export const connectorManifestToolSchema = z.object({
@@ -42,6 +47,7 @@ export const connectorManifestToolSchema = z.object({
   description: z.string().max(1000).default(""),
   inputSchema: z.record(z.string(), z.unknown()).default({ type: "object", properties: {} }),
   riskHint: publisherRiskHintSchema.optional(),
+  capability: toolCapabilitySchema.optional(),
 });
 export type ConnectorManifestTool = z.infer<typeof connectorManifestToolSchema>;
 
