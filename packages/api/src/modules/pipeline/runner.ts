@@ -110,6 +110,16 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
     return;
   }
 
+  // BRA-P0-03e-b: second barrier against double execution. Only PENDING (fresh) and RUNNING
+  // (resume/approval/retry commit RUNNING BEFORE they enqueue; BullMQ redelivery) may execute.
+  // A terminal or paused run (COMPLETED/FAILED/CANCELLED/PAUSED/WAITING_APPROVAL) with a stray
+  // job must not be dragged back to RUNNING (flag off: `legacyUnchecked` would force it).
+  // Known limit: a duplicate job for a RUNNING run is indistinguishable from a legit resume job.
+  if (run.status !== "PENDING" && run.status !== "RUNNING") {
+    logger.warn({ runId, status: run.status, jobId: job.id }, "Pipeline runner: run is not PENDING/RUNNING — refusing to execute");
+    return;
+  }
+
   // NOTE: Run quota is now claimed atomically at the enqueue site (POST
   // /pipelines/:id/run, webhook trigger, scheduled cron) via claimQuota().
   // The runner used to check + increment here, but doing both at enqueue

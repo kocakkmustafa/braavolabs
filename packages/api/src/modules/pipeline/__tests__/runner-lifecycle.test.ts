@@ -166,6 +166,32 @@ describe("graph runner — flag OFF (legacy behaviour)", () => {
   });
 });
 
+describe("processRun ikinci bariyer (BRA-P0-03e-b) — PENDING/RUNNING dışı koşu yürütülmez", () => {
+  for (const flag of ["off", "on"] as const) {
+    for (const status of ["COMPLETED", "FAILED", "CANCELLED", "PAUSED", "WAITING_APPROVAL"]) {
+      it(`flag ${flag}: ${status} koşu için gelen iş reddedilir (yazım yok, adım yürütülmez)`, async () => {
+        if (flag === "on") process.env.JOB_STATE_DUAL_WRITE = "true";
+        setRow({ status, state: flag === "on" ? status : null });
+        await run();
+        expect(h.row.status).toBe(status);
+        expect(h.updateManyCalls).toHaveLength(0);
+        expect(h.executeStep).not.toHaveBeenCalled();
+        expect(h.events).not.toContain("RUN_STARTED");
+      });
+    }
+  }
+
+  it("PENDING ve RUNNING (resume/yeniden teslim) koşular yürütülmeye devam eder", async () => {
+    for (const status of ["PENDING", "RUNNING"]) {
+      h.executeStep.mockClear();
+      setRow({ status });
+      await run();
+      expect(h.executeStep).toHaveBeenCalled();
+      expect(h.row.status).toBe("COMPLETED");
+    }
+  });
+});
+
 describe("graph runner — flag ON", () => {
   beforeEach(() => {
     process.env.JOB_STATE_DUAL_WRITE = "true";

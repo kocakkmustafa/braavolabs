@@ -198,7 +198,7 @@ export async function transitionRun(
  * VAR); düz `prisma`'da (havuz, farklı bağlantılar) ya da sahte/legacy istemcide
  * mevcut davranışa düşülür: orada hata zaten tx'i abort etmez.
  */
-async function tryWriteReceipt(
+export async function tryWriteReceipt(
   tx: RunTransitionClient,
   runId: string,
   outcome: Parameters<typeof writeReceipt>[2],

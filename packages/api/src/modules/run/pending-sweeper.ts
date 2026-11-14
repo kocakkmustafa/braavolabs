@@ -11,7 +11,10 @@
  *                             kullanıcının terk ettiği bir iş sürpriz harcama yaratmasın.
  *                             Durum grafiğine bağlı değil (READY→FAILED kenarı yok): kiracı kapsamlı
  *                             okuma + `status=PENDING` skaler CAS; bayrak açıkken `state` de FAILED.
- *                             Kota iadesi YAPILMAZ (approval/expiry-cron ile aynı; ticket kapsamı dışı).
+ *                             Kota iadesi (BRA-P0-03e-b): yalnız koşu İÇİNDE BULUNULAN UTC ayında yaratıldıysa
+ *                             (`releaseQuota` hep geçerli ayın sayacını düşer; önceki aya ait koşu için
+ *                             iade yanlış ayı düşerdi, o ayın sayacı kapandı → atlanır). Bayrak açıkken
+ *                             FAILED makbuzu da yazılır (best-effort, geçişi bozmaz).
  *   yaş < GRACE             → dokunma (normal yaratım→kuyruk penceresi)
  *
  * Güvenceler:
@@ -25,8 +28,8 @@
  *    kiracıyı DB'den türetir; `transitionRun` kiracı kapsamlı).
  *  - Durum yarışı: her yazımdan önce kiracı kapsamlı taze okuma (PENDING değilse dokunulmaz), FAILED
  *    yazımı `status=PENDING` CAS'lı; kuyruk taraması dolarsa (≥5000) yeniden kuyruğa alma yapılmaz.
- *  - Bilinen sınır: `processRun` PENDING dışı koşuyu kendisi reddetmez; çift yürütmeye karşı koruma
- *    bu dosyadaki canlı-iş taraması + jobId dedupe + taze durum okumasıdır (BRA-P0-03e reviewer D1).
+ *  - İkinci bariyer (BRA-P0-03e-b): `processRun` artık PENDING/RUNNING dışı koşuyu reddeder; bu
+ *    dosyadaki canlı-iş taraması + jobId dedupe + taze durum okuması birinci bariyerdir.
  *  - Bayrak (`JOB_STATE_DUAL_WRITE`) KAPALIYKEN `state` kolonu adlandırılmaz (migration öncesi
  *    şema güvenli); AÇIKKEN yalnız `state` null/READY (DRAFT/PLANNED PENDING'ler başlatılmayı
  *    beklemez, dokunulmaz).
@@ -36,9 +39,10 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { runQueue } from "../../lib/queue";
 import { runWithoutTenant } from "../../lib/tenant-context";
+import { releaseQuota } from "../billing/metering";
 import { enqueueRun } from "../pipeline/runner";
 import type { JobState } from "./job-state";
-import { isJobStateDualWriteEnabled } from "./transition";
+import { isJobStateDualWriteEnabled, tryWriteReceipt } from "./transition";
 
 /** Yaratım→kuyruk normal penceresi: bundan genç PENDING'e dokunulmaz. */
 export const PENDING_GRACE_MS = 10 * 60_000;
@@ -93,6 +97,22 @@ async function clearFinishedSweepJob(runId: string): Promise<void> {
   if (!prev) return;
   const state = await prev.getState();
   if (state === "completed" || state === "failed") await prev.remove();
+}
+
+const sameUtcMonth = (d: Date, nowMs: number): boolean => {
+  const n = new Date(nowMs);
+  return d.getUTCFullYear() === n.getUTCFullYear() && d.getUTCMonth() === n.getUTCMonth();
+};
+
+/** Denetim satırı geçişten/kuyruktan SONRA ve best-effort: yazılamazsa koşu `errors`a düşmez. */
+async function auditBestEffort(tenantId: string, runId: string, action: string, ageMs: number): Promise<void> {
+  try {
+    await prisma.activityLog.create({
+      data: { tenantId, actor: "system", action, resource: "run", resourceId: runId, details: { ageMs } },
+    });
+  } catch (err) {
+    logger.warn({ err, runId, action }, "PENDING sweeper: activity log failed (non-fatal)");
+  }
 }
 
 export async function sweepPendingRuns(opts: PendingSweepOptions = {}): Promise<PendingSweepResult> {
@@ -150,9 +170,10 @@ export async function sweepPendingRuns(opts: PendingSweepOptions = {}): Promise<
           continue;
         }
         result.failed++;
-        await prisma.activityLog.create({
-          data: { tenantId, actor: "system", action: "run.pending_orphaned", resource: "run", resourceId: run.id, details: { ageMs: age } },
-        });
+        // Bundan sonrası CAS sonrası yan etkilerdir: biri patlarsa FAILED geçişi/diğer adımlar bozulmaz.
+        if (dual) await tryWriteReceipt(prisma, run.id, "FAILED", tenantId);
+        if (sameUtcMonth(run.createdAt, now)) await releaseQuota(tenantId, "runs");
+        await auditBestEffort(tenantId, run.id, "run.pending_orphaned", age);
         continue;
       }
 
@@ -169,9 +190,7 @@ export async function sweepPendingRuns(opts: PendingSweepOptions = {}): Promise<
       await enqueueRun(run.id, { jobId: sweepJobId(run.id) });
       live.ids.add(run.id);
       result.requeued++;
-      await prisma.activityLog.create({
-        data: { tenantId, actor: "system", action: "run.pending_requeued", resource: "run", resourceId: run.id, details: { ageMs: age } },
-      });
+      await auditBestEffort(tenantId, run.id, "run.pending_requeued", age);
     } catch (err) {
       result.errors++;
       logger.error({ err, runId: run.id }, "PENDING sweeper: run failed — continuing with the rest");
