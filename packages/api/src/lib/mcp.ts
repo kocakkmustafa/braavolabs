@@ -81,12 +81,18 @@ async function callMcp<T>(
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     logger.warn(
-      { status: res.status, body: scrubSecrets(text.slice(0, 300), credentialSecrets(authMethod, creds)) },
+      { status: res.status, body: (scrubSecrets(text, credentialSecrets(authMethod, creds)) as string).slice(0, 300) },
       "MCP HTTP error",
     );
     throw new AppError(502, `MCP server returned ${res.status}`);
   }
-  const json = (await res.json()) as JsonRpcResponse;
+  let json: JsonRpcResponse;
+  try {
+    json = (await res.json()) as JsonRpcResponse;
+  } catch {
+    // Parser errors can quote upstream text; never forward them.
+    throw new AppError(502, "MCP yanıtı geçersiz JSON");
+  }
   if (json.error) {
     const msg = scrubSecrets(`MCP error ${json.error.code}: ${json.error.message}`, credentialSecrets(authMethod, creds));
     throw new AppError(502, msg as string);
@@ -109,7 +115,8 @@ export async function listTools(
     authMethod,
     creds,
   );
-  return Array.isArray(result?.tools) ? result.tools : [];
+  const tools = Array.isArray(result?.tools) ? result.tools : [];
+  return scrubSecrets(tools, credentialSecrets(authMethod, creds)) as McpTool[];
 }
 
 export async function callTool(

@@ -29,7 +29,7 @@ vi.mock("../../lib/runEvents", () => ({ publishRunEvent: vi.fn().mockResolvedVal
 
 import { executeTool } from "../../modules/agent/tool-executor";
 import { listConnectorToolsForTenant } from "../../modules/marketplace/dynamic-tools";
-import { scrubSecrets, credentialSecrets } from "../../lib/mcp-auth";
+import { scrubSecrets, credentialSecrets, authHeaders } from "../../lib/mcp-auth";
 import { AppError } from "../../middleware/error";
 
 const connector = { id: "conn-1", slug: "acme", name: "Acme", mcpServerUrl: "https://mcp.acme.example/rpc", authMethod: "API_KEY" };
@@ -189,6 +189,46 @@ describe("secret egress — SEC-BRA-06b hardening", () => {
     expect(wire).not.toContain("hdr-secret-value-9");
     expect(wire).not.toContain("other-secret-77");
     expect(toolCallCreate).toHaveBeenCalled();
+  });
+
+  it("non-Error crash (CUSTOM header echo) is scrubbed in the crash log", async () => {
+    decrypt.mockReturnValue(JSON.stringify({ headers: JSON.stringify({ "X-Api-Token": "hdr-secret-value-9" }) }));
+    const res = await call({ ...install, connector: { ...connector, authMethod: "CUSTOM" } }, undefined, new Error("socket hang up x-api-token=hdr-secret-value-9"));
+    expect(res.output).toEqual({ error: "Connector invocation failed" });
+    expect(logs.error).toHaveBeenCalled();
+    expect(JSON.stringify(logs.error.mock.calls)).not.toContain("hdr-secret-value-9");
+  });
+
+  it("non-Error crash (BASIC base64 echo) is scrubbed in the crash log", async () => {
+    decrypt.mockReturnValue(JSON.stringify({ username: "alice-user", password: "p4ss-W0rd-long" }));
+    const token = Buffer.from("alice-user:p4ss-W0rd-long").toString("base64");
+    await call({ ...install, connector: { ...connector, authMethod: "BASIC" } }, undefined, new Error("proxy said Basic " + token));
+    expect(logs.error).toHaveBeenCalled();
+    expect(JSON.stringify(logs.error.mock.calls)).not.toContain(token);
+  });
+
+  it("crash message: the secret straddling the 200-char cut is scrubbed before truncation", async () => {
+    await call(install, undefined, new Error("x".repeat(190) + SECRET));
+    expect(JSON.stringify(logs.error.mock.calls)).not.toContain(SECRET.slice(0, 8));
+  });
+
+  it("authHeaders/credentialSecrets tolerate headers=null / array / string / non-object", () => {
+    for (const h of ["null", "[]", "\"str\"", "42", "{not json", ""]) {
+      expect(authHeaders("CUSTOM", { headers: h })).toEqual({});
+      expect(() => credentialSecrets("CUSTOM", { headers: h })).not.toThrow();
+    }
+    expect(() => credentialSecrets("CUSTOM", null as any)).not.toThrow();
+  });
+
+  it("false positives: headerName and non-secret CUSTOM header values are not masked", () => {
+    const apiKey = credentialSecrets("API_KEY", { headerName: "Authorization", apiKey: "key-abcdefgh" });
+    expect(apiKey).toContain("key-abcdefgh");
+    expect(apiKey).not.toContain("Authorization");
+    const custom = credentialSecrets("CUSTOM", {
+      headers: JSON.stringify({ "Content-Type": "application/json", Accept: "application/json", "User-Agent": "braavo-agent/1", "X-Api-Version": "2024-01-01", "X-Token": "tok-secret-123" }),
+    });
+    expect(custom).toContain("tok-secret-123");
+    for (const benign of ["application/json", "braavo-agent/1", "2024-01-01"]) expect(custom).not.toContain(benign);
   });
 
   it("credentialSecrets/scrubSecrets: short values kept; trimmed, base64 and URL-encoded forms masked; input not mutated", () => {

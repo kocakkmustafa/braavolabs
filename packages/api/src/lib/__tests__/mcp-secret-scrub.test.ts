@@ -7,7 +7,7 @@ const fetchMock = vi.hoisted(() => vi.fn());
 vi.mock("../logger", () => ({ logger: logs }));
 vi.mock("../ssrf", () => ({ safeExternalFetch: fetchMock, SsrfError: class extends Error {} }));
 
-import { callTool } from "../mcp";
+import { callTool, listTools } from "../mcp";
 
 beforeEach(() => {
   for (const m of [...Object.values(logs), fetchMock]) (m as any).mockReset();
@@ -30,5 +30,24 @@ describe("mcp client secret scrubbing", () => {
     const err: any = await callTool("https://m.example/rpc", "API_KEY", { apiKey: SECRET }, "t", {}).catch((e) => e);
     expect(err.message).not.toContain(SECRET);
     expect(err.message).toContain("[REDACTED]");
+  });
+
+  it("secret straddling the 300-char log cut is scrubbed before truncation", async () => {
+    fetchMock.mockResolvedValue({ ok: false, status: 500, text: async () => "p".repeat(290) + SECRET });
+    await callTool("https://m.example/rpc", "API_KEY", { apiKey: SECRET }, "t", {}).catch(() => undefined);
+    const logged = JSON.stringify(logs.warn.mock.calls);
+    expect(logged).not.toContain(SECRET.slice(0, 6));
+  });
+
+  it("invalid JSON body yields a fixed AppError without upstream text", async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => { throw new SyntaxError("Unexpected token " + SECRET); } });
+    const err: any = await callTool("https://m.example/rpc", "API_KEY", { apiKey: SECRET }, "t", {}).catch((e) => e);
+    expect(err.message).toBe("MCP yanıtı geçersiz JSON");
+  });
+
+  it("listTools result (descriptions) is scrubbed", async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ jsonrpc: "2.0", id: "1", result: { tools: [{ name: "a", description: "use key " + SECRET, inputSchema: {} }] } }) });
+    const tools = await listTools("https://m.example/rpc", "API_KEY", { apiKey: SECRET });
+    expect(JSON.stringify(tools)).not.toContain(SECRET);
   });
 });

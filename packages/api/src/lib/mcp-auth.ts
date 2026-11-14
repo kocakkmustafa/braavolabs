@@ -31,7 +31,10 @@ export function authHeaders(method: string, creds: Record<string, string> | unde
     case "CUSTOM":
       // Custom auth: caller pre-formats headers into `headers` JSON.
       try {
-        return creds.headers ? (JSON.parse(creds.headers) as Record<string, string>) : {};
+        const parsed: unknown = creds.headers ? JSON.parse(creds.headers) : {};
+        return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+          ? (parsed as Record<string, string>)
+          : {};
       } catch {
         return {};
       }
@@ -44,6 +47,8 @@ export function authHeaders(method: string, creds: Record<string, string> | unde
 const MIN_SCRUB_LEN = 6;
 export const REDACTED = "[REDACTED]";
 const MAX_DEPTH = 50;
+/** Headers whose values are descriptive, not credentials (avoid masking "application/json" etc). */
+const NON_SECRET_HEADER = /^(content-type|content-length|accept(-[a-z]+)?|user-agent|.*version.*)$/i;
 
 /**
  * Every string that could echo the credential: raw creds, the header values
@@ -54,15 +59,21 @@ const MAX_DEPTH = 50;
  */
 export function credentialSecrets(authMethod: string, creds: Record<string, string> | undefined): string[] {
   if (!creds) return [];
-  const base: string[] = Object.values(creds).filter((v): v is string => typeof v === "string");
-  let headers: Record<string, string> = {};
+  // Raw creds: skip `headerName` (a header NAME, not a secret) and the CUSTOM
+  // `headers` JSON blob (its non-secret entries are filtered below, per header).
+  const base: string[] = Object.entries(creds)
+    .filter(([k, v]) => typeof v === "string" && k !== "headerName" && !(authMethod === "CUSTOM" && k === "headers"))
+    .map(([, v]) => v);
+  let headers: Record<string, unknown> = {};
   try {
     headers = authHeaders(authMethod, creds);
   } catch {
     /* fall through with raw creds only */
   }
-  for (const v of Object.values(headers)) {
+  if (headers === null || typeof headers !== "object" || Array.isArray(headers)) headers = {};
+  for (const [name, v] of Object.entries(headers)) {
     if (typeof v !== "string") continue;
+    if (NON_SECRET_HEADER.test(name)) continue;
     base.push(v);
     const m = /^(?:bearer|basic)\s+(.+)$/i.exec(v);
     if (m) base.push(m[1]);

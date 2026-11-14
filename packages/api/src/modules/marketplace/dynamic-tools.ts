@@ -80,8 +80,8 @@ export async function listConnectorToolsForTenant(tenantId: string): Promise<Too
 }
 
 /** Never hand a raw Error (message/stack may embed a bearer token) to the logger. */
-function sanitizeErr(err: unknown): { message: string } {
-  const raw = err instanceof Error ? err.message : String(err);
+function sanitizeErr(err: unknown, secrets: string[]): { message: string } {
+  const raw = scrubSecrets(err instanceof Error ? err.message : String(err), secrets) as string;
   return {
     message: raw
       .replace(/(bearer\s+)[^\s"']+/gi, "$1[REDACTED]")
@@ -149,7 +149,7 @@ export async function executeMcpTool(
       logger.info({ err: safeMsg, slug: connectorSlug }, "Connector tool failed");
       return { error: safeMsg };
     }
-    logger.error({ err: sanitizeErr(err), slug: connectorSlug }, "Connector tool crashed");
+    logger.error({ err: sanitizeErr(err, secrets), slug: connectorSlug }, "Connector tool crashed");
     return { error: "Connector invocation failed" };
   }
 }
