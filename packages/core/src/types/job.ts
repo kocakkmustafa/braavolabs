@@ -36,12 +36,20 @@ export const LEGACY_RUN_STATUS_VALUES = [
 ] as const;
 export type LegacyRunStatusValue = (typeof LEGACY_RUN_STATUS_VALUES)[number];
 
-export type JobReceiptEvidenceKind = "diff" | "test" | "pr" | "artifact" | "log";
+/**
+ * `step` (BRA-P0-06c): adım başına hangi sağlayıcı/modelin çalıştığı. KANIT DEĞİLDİR —
+ * `deriveResultStatus` ve istemci türetmesi bilinmeyen türü düşürür; VERIFIED'ı etkilemez.
+ */
+export type JobReceiptEvidenceKind = "diff" | "test" | "pr" | "artifact" | "log" | "step";
 
 export interface JobReceiptEvidence {
   kind: JobReceiptEvidenceKind;
   ref: string;
   ok?: boolean;
+  /** Yalnız `kind: "step"` (ref = `step:<stepIndex>`): adımı fiilen sunan sağlayıcı. Eski makbuzlarda yok. */
+  provider?: string;
+  /** Yalnız `kind: "step"`: çalışan model. Eski makbuzlarda yok. */
+  model?: string;
 }
 
 /** `job_receipts` satırı (append-only). */

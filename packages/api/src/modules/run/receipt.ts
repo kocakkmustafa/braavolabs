@@ -56,7 +56,7 @@ export interface ReceiptRunInput {
   retryCount?: number | null;
   /** Koşu girdisi: yalnız "kod işi mi" boolean'ı için okunur, makbuza girmez. */
   input?: unknown;
-  steps: ReadonlyArray<{ toolCalls?: ReadonlyArray<ReceiptToolCall> }>;
+  steps: ReadonlyArray<{ stepIndex?: number; output?: unknown; toolCalls?: ReadonlyArray<ReceiptToolCall> }>;
   approvals?: ReadonlyArray<{ id: string }>;
 }
 
@@ -209,13 +209,41 @@ export function deriveEvidence(
   return { all, stored, codeToolUsed };
 }
 
+const MAX_STEP_FIELD = 100;
+const cleanField = (v: unknown): string | null => {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t.length > 0 && t.length <= MAX_STEP_FIELD ? t : null;
+};
+
+/**
+ * BRA-P0-06c — adım başına sağlayıcı/model (`kind: "step"`, ref `step:<stepIndex>`).
+ * Kaynak: `RunStep.output.{provider,model}` (executor yazar). Yalnız bu iki kısa dize
+ * okunur; çıktı içeriği makbuza girmez. İkisi de yoksa öğe üretilmez (eski adımlar).
+ * Kanıt DEĞİLDİR: karar (`deriveResultStatus`) bu öğeleri görmez.
+ */
+export function deriveStepModels(steps: ReceiptRunInput["steps"]): JobReceiptEvidence[] {
+  const out: JobReceiptEvidence[] = [];
+  steps.forEach((step, i) => {
+    const o = asRecord(step.output);
+    const provider = cleanField(o?.provider);
+    const model = cleanField(o?.model);
+    if (!provider && !model) return;
+    const idx = Number.isInteger(step.stepIndex) ? (step.stepIndex as number) : i;
+    out.push({ kind: "step", ref: `step:${idx}`, ...(provider ? { provider } : {}), ...(model ? { model } : {}) });
+  });
+  return out.slice(0, MAX_EVIDENCE);
+}
+
 function stableHash(payload: unknown): string {
   return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
 export function buildReceipt(run: ReceiptRunInput): ReceiptDraft {
   const inputText = inputToText(run.input);
-  const { all, stored: evidence, codeToolUsed } = deriveEvidence(run.steps, inputText.toLowerCase());
+  const { all, stored, codeToolUsed } = deriveEvidence(run.steps, inputText.toLowerCase());
+  // `step` öğeleri karardan SONRA eklenir: `all`/resultStatus onlardan etkilenmez.
+  const evidence = [...stored, ...deriveStepModels(run.steps)];
   const requiredKinds = looksLikeCodeJob(inputText, codeToolUsed) ? CODE_JOB_REQUIRED_KINDS : [];
   // deriveResultStatus ana kabul: COMPLETED dışında null; kanıt yoksa UNVERIFIED (fail-closed).
   // Karar TÜM kanıttan verilir (50. sonrası başarısız test de veto eder).
@@ -275,7 +303,11 @@ export async function writeReceipt(
       approvals: { select: { id: true } },
       // Yalnız izinli kanıt araçlarının satırları (ağır `output` taraması dar tutulur).
       steps: {
+        orderBy: { stepIndex: "asc" },
         select: {
+          stepIndex: true,
+          // BRA-P0-06c: yalnız `provider`/`model` anahtarları okunur, gerisi atılır.
+          output: true,
           toolCalls: {
             // Büyük/küçük harf duyarsız: `Run_Tests` kanıttan/vetodan düşmesin.
             where: { OR: EVIDENCE_TOOL_NAMES.map((n) => ({ toolName: { equals: n, mode: "insensitive" } })) },

@@ -8,7 +8,7 @@ vi.mock("../../../lib/logger", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-import { buildReceipt, type ReceiptRunInput, type ReceiptToolCall } from "../receipt";
+import { buildReceipt, deriveStepModels, toJobReceiptDto, type ReceiptRunInput, type ReceiptToolCall } from "../receipt";
 import { transitionRun, type RunTransitionClient } from "../transition";
 
 const tc = (id: string, toolName: string, status = "COMPLETED", output: unknown = {}): ReceiptToolCall => ({ id, toolName, status, output });
@@ -286,5 +286,64 @@ describe("transitionRun → savepoint, Run.resultStatus, retry", () => {
     await transitionRun(f.client, "run_1", "FAILED", on);
     expect(f.receipts.filter((r) => r.outcome === "FAILED")).toHaveLength(2);
     expect(f.row.resultStatus).toBeUndefined();
+  });
+});
+
+describe("BRA-P0-06c — adım başına sağlayıcı/model", () => {
+  const stepRun = (steps: ReceiptRunInput["steps"], outcome: ReceiptRunInput["outcome"] = "COMPLETED"): ReceiptRunInput => ({
+    id: "run_1", tenantId: "t1", outcome, costUsd: "0.5", input: {}, steps, approvals: [],
+  });
+  it("her adım için step öğesi: ref step:<stepIndex>, provider ve model", () => {
+    const r = buildReceipt(stepRun([
+      { stepIndex: 0, output: { content: "x", provider: "anthropic", model: "claude-sonnet-4" } },
+      { stepIndex: 2, output: { provider: "openai", model: "gpt-x" } },
+    ]));
+    expect(r.evidence).toEqual([
+      { kind: "step", ref: "step:0", provider: "anthropic", model: "claude-sonnet-4" },
+      { kind: "step", ref: "step:2", provider: "openai", model: "gpt-x" },
+    ]);
+  });
+  it("provider/model yoksa öğe üretilmez; ham çıktı makbuza girmez", () => {
+    const r = buildReceipt(stepRun([{ stepIndex: 0, output: { content: "SECRET RAW" } }, { stepIndex: 1 }]));
+    expect(r.evidence).toEqual([]);
+    expect(JSON.stringify(deriveStepModels([{ output: { content: "SECRET", provider: "a" } }]))).not.toContain("SECRET");
+  });
+  it("sağlayıcı/model dışı tür ve aşırı uzun değer atılır", () => {
+    expect(deriveStepModels([{ stepIndex: 0, output: { provider: 5, model: "m".repeat(101) } }])).toEqual([]);
+    expect(deriveStepModels([{ stepIndex: 0, output: { provider: " p ", model: 7 } }])).toEqual([{ kind: "step", ref: "step:0", provider: "p" }]);
+  });
+  it("step öğeleri VERIFIED'ı etkilemez: kanıtsız iş UNVERIFIED kalır, kanıtlı iş VERIFIED kalır", () => {
+    const meta = { stepIndex: 0, output: { provider: "anthropic", model: "m" } };
+    expect(buildReceipt(stepRun([meta])).resultStatus).toBe("UNVERIFIED");
+    const withEvidence = buildReceipt({ ...stepRun([{ ...meta, toolCalls: [DIFF, TEST_OK, PR] }]), input: { goal: "fix" } });
+    expect(withEvidence.resultStatus).toBe("VERIFIED");
+    expect(withEvidence.evidence.filter((e) => e.kind === "step")).toHaveLength(1);
+  });
+  it("step öğesi contentHash'e girer ve aynı girdide kararlıdır", () => {
+    const a = buildReceipt(stepRun([{ stepIndex: 0, output: { provider: "p", model: "m1" } }]));
+    const b = buildReceipt(stepRun([{ stepIndex: 0, output: { provider: "p", model: "m1" } }]));
+    const c = buildReceipt(stepRun([{ stepIndex: 0, output: { provider: "p", model: "m2" } }]));
+    expect(a.contentHash).toBe(b.contentHash);
+    expect(a.contentHash).not.toBe(c.contentHash);
+  });
+  it("geri uyum: step öğesi içermeyen eski makbuz satırı aynen okunur", () => {
+    const row = {
+      id: "r1", runId: "run_1", tenantId: "t1", outcome: "COMPLETED", resultStatus: "VERIFIED", costUsd: "0.5",
+      evidence: [{ kind: "diff", ref: "tool_call:c1" }, { kind: "test", ref: "tool_call:c2", ok: true }],
+      approvalIds: [], contentHash: "h", createdAt: new Date("2026-11-01T00:00:00Z"),
+    };
+    const dto = toJobReceiptDto(row);
+    expect(dto.evidence).toEqual(row.evidence);
+    expect(dto.evidence.every((e) => e.provider === undefined && e.model === undefined)).toBe(true);
+    expect(dto.resultStatus).toBe("VERIFIED");
+    expect(toJobReceiptDto({ ...row, evidence: null }).evidence).toEqual([]);
+  });
+  it("yeni makbuz satırı step öğelerini DTO'ya taşır", () => {
+    const step = { kind: "step", ref: "step:0", provider: "anthropic", model: "m" };
+    const dto = toJobReceiptDto({
+      id: "r2", runId: "run_1", tenantId: "t1", outcome: "COMPLETED", resultStatus: "UNVERIFIED", costUsd: null,
+      evidence: [step], approvalIds: [], contentHash: "h2", createdAt: new Date("2026-11-14T00:00:00Z"),
+    });
+    expect(dto.evidence).toEqual([step]);
   });
 });

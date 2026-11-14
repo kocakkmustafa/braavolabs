@@ -355,6 +355,9 @@ export async function executeStep(
           content: result.finalContent,
           turns: result.turns.length,
           ...(takeover ? { handoffLedgerId: takeover.ledgerId } : {}),
+          // BRA-P0-06c: adımı fiilen sunan sağlayıcı/model (makbuz `step` kanıtı okur).
+          ...(result.provider ? { provider: result.provider } : {}),
+          ...(result.model ? { model: result.model } : {}),
         } as any,
         costUsd: result.totalCostUsd,
         // Forge P1: real per-call token counts alongside the cost they
