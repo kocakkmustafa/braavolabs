@@ -6,6 +6,11 @@
  * is not committed). The YULALAB site publishes the same four strings from the
  * same record (src/data/company.ts, REL-03). Render it only through
  * components/LegalOperator so every page shows one identical record.
+ *
+ * BRAND-01b-2 (founder 2026-11-15, "Evet, aynı"): the legal name stays "YULA Lab".
+ * The product-copy brand spelling "Yula Lab" does NOT apply to this record, to
+ * LICENSE, or to the Apple EULA operator clause in the 15 locale terms; the
+ * exemption is pinned by scripts/public-claims.test.mjs.
  */
 export const LEGAL_OPERATOR = {
   legalName: "YULA Lab",
