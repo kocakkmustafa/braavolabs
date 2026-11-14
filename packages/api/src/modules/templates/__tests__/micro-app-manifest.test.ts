@@ -61,7 +61,9 @@ function snapshot(): CompanyTemplateSnapshot {
 describe("toMicroAppManifest", () => {
   it("projects snapshot to a valid manifest", () => {
     const m = toMicroAppManifest(snapshot(), { version: "1.0.0", syntheticDataRef: "demo-set" });
-    expect(microAppManifestSchema.parse(m)).toEqual(m);
+    expect(microAppManifestSchema.parse(JSON.parse(JSON.stringify(m)))).toEqual(m);
+    expect(m.pipelines[0].pipelineType).toBe("HIERARCHICAL");
+    expect(m.agents[0].toolNames).toEqual(["search", "mail"]);
     expect(m.agents[0].handle).toBe("agent-1");
     expect(m.pipelines[0].managerAgentHandle).toBe("agent-1");
     expect(m.connectorRequests).toEqual([{ provider: "gmail", scopes: ["read", "send"] }]);
