@@ -1,4 +1,8 @@
 /**
+ * SINIR: Prisma ilişki filtreleri ({ pipeline: { companyId, company: { tenantId } } }) burada
+ * bellek içi bir değerlendiriciyle taklit edilir; gerçek Prisma/SQL davranışıyla birebir değildir.
+ * Gerçek veritabanıyla entegrasyon testi bu dilimin kapsamı dışındadır.
+ *
  * BRA-P0-11b — GET /companies/:id/summary: fixture sayı eşleşmesi (bucketWhere bellek içi
  * değerlendirilir; kopya eşleme yok), null maliyet, kiracı yetkisi (404 / 401).
  */
@@ -75,6 +79,7 @@ vi.mock("../../../middleware/rateLimit", () => ({ rateLimit: () => (_q: unknown,
 vi.mock("../../../lib/logger", () => ({ logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
 import { companyRouter } from "../router";
+import { buildCompanySummary } from "../summary";
 import * as authMod from "../../../middleware/auth";
 
 const layer = (companyRouter as any).stack.find((l: any) => l.route?.path === "/:id/summary" && l.route.methods.get);
@@ -115,7 +120,8 @@ describe("fixture sayı eşleşmesi", () => {
     db.runs = [...mine, run("p3", "COMPLETED", "COMPLETED", { costUsd: "9" }), run("pB", "FAILED", "FAILED", { costUsd: "9" })];
     expect(mine.length).toBeGreaterThanOrEqual(25);
     db.approvals = [
-      { id: "x1", runId: mine[21].id, status: "PENDING" }, { id: "x2", runId: mine[22].id, status: "PENDING" },
+      // x1/x2: needs_approval koşularına (mine[23], mine[24]) bağlı
+      { id: "x1", runId: mine[23].id, status: "PENDING" }, { id: "x2", runId: mine[24].id, status: "PENDING" },
       { id: "x3", runId: mine[0].id, status: "APPROVED" },
       { id: "x4", runId: db.runs[db.runs.length - 2].id, status: "PENDING" }, // co-2
       { id: "x5", runId: db.runs[db.runs.length - 1].id, status: "PENDING" }, // başka kiracı
@@ -139,6 +145,21 @@ describe("fixture sayı eşleşmesi", () => {
       pendingApprovals: 0, monthCostUsd: null,
     });
     expect((await invoke("co-2")).res.body.monthCostUsd).toBeNull();
+  });
+});
+
+describe("ay penceresi (UTC)", () => {
+  it("ay başı DAHİL; ay başı-1ms ve sonraki ay başı HARİÇ", async () => {
+    db.pipelines = [{ id: "p1", companyId: "co-1" }];
+    const now = new Date(Date.UTC(2026, 10, 14, 12));
+    const start = new Date(Date.UTC(2026, 10, 1));
+    const next = new Date(Date.UTC(2026, 11, 1));
+    db.runs = [
+      run("p1", "COMPLETED", "COMPLETED", { costUsd: "1.000000", createdAt: start }),
+      run("p1", "COMPLETED", "COMPLETED", { costUsd: "10.000000", createdAt: new Date(start.getTime() - 1) }),
+      run("p1", "COMPLETED", "COMPLETED", { costUsd: "100.000000", createdAt: next }),
+    ];
+    expect((await buildCompanySummary("t-1", "co-1", now)).monthCostUsd).toBe("1.000000");
   });
 });
 
