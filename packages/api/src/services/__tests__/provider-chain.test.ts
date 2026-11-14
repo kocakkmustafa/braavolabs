@@ -502,6 +502,32 @@ describe("listTenantProviderLinks — configured providers as compare candidates
 
     expect(links.map((l) => l.provider)).toEqual(["OLLAMA"]);
   });
+
+  // SEC-BRA-04c: cascade / compare / handoff / takeover all read this list.
+  it("local default → cloud candidates are dropped (cascade/compare/handoff never offer cloud)", async () => {
+    seedRows([
+      { provider: "OLLAMA", model: "gemma3:4b", key: null, isDefault: true, createdAtDay: 3 },
+      { provider: "OPENAI", model: "gpt-4o", key: "sk-oai", fallbackOrder: 1, createdAtDay: 1 },
+      { provider: "LMSTUDIO", model: "qwen", key: null, createdAtDay: 2 },
+      { provider: "GROQ", model: "llama", key: "gsk-1", createdAtDay: 4 },
+    ]);
+
+    const links = await listTenantProviderLinks(TENANT);
+
+    expect(links.map((l) => l.provider)).toEqual(["OLLAMA", "LMSTUDIO"]);
+  });
+
+  it("cloud default → local fallbacks and cloud candidates are both kept (no regression)", async () => {
+    seedRows([
+      { provider: "DEEPSEEK", model: "deepseek-chat", key: "sk-ds", isDefault: true },
+      { provider: "OPENAI", model: "gpt-4o", key: "sk-oai", fallbackOrder: 1 },
+      { provider: "OLLAMA", model: "gemma3:4b", key: null, fallbackOrder: 2 },
+    ]);
+
+    const links = await listTenantProviderLinks(TENANT);
+
+    expect(links.map((l) => l.provider)).toEqual(["DEEPSEEK", "OPENAI", "OLLAMA"]);
+  });
 });
 
 // ─── D-013: honest single-completion resolution ───────────

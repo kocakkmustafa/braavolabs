@@ -298,6 +298,26 @@ function rowToLink(
 }
 
 /**
+ * SEC-BRA-04 / 04c: a LOCAL default (Ollama / LM Studio / Custom) means the
+ * tenant's data must not leave their machine. When the first link is local,
+ * every cloud link is dropped (logger.warn) so failover, cascade, compare,
+ * handoff and takeover can never offer a cloud provider.
+ */
+function dropCloudBehindLocalDefault(
+  links: ProviderChainLink[],
+  tenantId: string,
+): ProviderChainLink[] {
+  if (links.length === 0 || !LOCAL_PROVIDERS.has(links[0].provider)) return links;
+  const cloud = links.filter((l) => !LOCAL_PROVIDERS.has(l.provider));
+  if (cloud.length === 0) return links;
+  logger.warn(
+    { tenantId, localProvider: links[0].provider, ignoredCloud: cloud.map((l) => l.provider) },
+    "Local provider is default — cloud links ignored (SEC-BRA-04)",
+  );
+  return links.filter((l) => LOCAL_PROVIDERS.has(l.provider));
+}
+
+/**
  * Every usable BYOK link the tenant configured, in deterministic candidate
  * order: default row first, then fallbackOrder members (asc), then the
  * remaining stored keys (createdAt). Superset of the chain's BYOK section —
@@ -326,9 +346,10 @@ export async function listTenantProviderLinks(tenantId: string): Promise<Provide
     if (link) links.push(link);
   });
 
-  return env.OFFLINE_MODE === true
+  const visible = env.OFFLINE_MODE === true
     ? links.filter((l) => LOCAL_PROVIDERS.has(l.provider))
     : links;
+  return dropCloudBehindLocalDefault(visible, tenantId);
 }
 
 /**
@@ -378,20 +399,7 @@ export async function buildTenantProviderChain(tenantId: string): Promise<Provid
     ? links.filter((l) => LOCAL_PROVIDERS.has(l.provider))
     : links;
 
-  // SEC-BRA-04: a LOCAL default (Ollama / LM Studio / Custom) means the
-  // tenant's data must not leave their machine. A dead local endpoint must
-  // surface as an explicit error — never silently fail over to a cloud link,
-  // even one the tenant listed in fallbackOrder.
-  if (byokLinks.length > 0 && LOCAL_PROVIDERS.has(byokLinks[0].provider)) {
-    const cloud = byokLinks.filter((l) => !LOCAL_PROVIDERS.has(l.provider));
-    if (cloud.length > 0) {
-      logger.warn(
-        { tenantId, localProvider: byokLinks[0].provider, ignoredCloud: cloud.map((l) => l.provider) },
-        "Local provider is default — cloud fallback links ignored (SEC-BRA-04)",
-      );
-      byokLinks = byokLinks.filter((l) => LOCAL_PROVIDERS.has(l.provider));
-    }
-  }
+  byokLinks = dropCloudBehindLocalDefault(byokLinks, tenantId);
 
   // BR-P0-002-D: allowSystemFallback and system-held environment keys are
   // historical inputs only. Runtime resolution returns tenant-owned BYOK or
