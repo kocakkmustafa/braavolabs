@@ -109,7 +109,7 @@ export interface ToolDefinition {
    * remote description, so classification never sees the connector name
    * prefix or the 1000-char display truncation.
    */
-  remote?: { name: string; description?: string };
+  remote?: { name: string; description?: string; connectorSlug?: string; connectorName?: string };
 }
 
 /**

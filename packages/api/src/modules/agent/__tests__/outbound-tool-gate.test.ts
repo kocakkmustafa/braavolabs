@@ -160,15 +160,37 @@ describe("deploy / merge connector tools — BRA-P1-03c gate", () => {
       // meta deliberately LOW/no-approval: the classifier must force the gate.
       const tools = new Map([["gh__merge_pull_request", {
         name: "gh__merge_pull_request", description: "", inputSchema: { type: "object" as const, properties: {} },
-        meta: { requiresApproval: false, riskLevel: "low" as const, moneyTouching: false },
+        meta: { requiresApproval: false, riskLevel: "low" as const },
+        remote: { name: "merge_pull_request", description: "Merges a PR", connectorSlug: "gh", connectorName: "GitHub" },
         handler: (...a: unknown[]) => handler(...a),
       }]]);
       const res = await executeTool("gh__merge_pull_request", {}, { ...ctx, autonomy, extraTools: tools });
       expect(res.status).toBe("PENDING_APPROVAL");
       expect(approvalCreate).toHaveBeenCalledOnce();
+      const md = approvalCreate.mock.calls[0][0].data.metadata;
+      expect(md.riskLevel).toBe("high");
+      expect(md.moneyTouching).toBe(false);
       expect(handler).not.toHaveBeenCalled();
     },
   );
+
+  it("connector slug/name taints all its tools (fail closed); look-alike connectors do not", async () => {
+    vi.stubEnv("DEPLOY_MERGE_TOOLS_ENABLED", "false");
+    const mkC = (slug: string, cname: string) => new Map([[`mcp_${slug}_list_items`, {
+      name: `mcp_${slug}_list_items`, description: `[${cname}] Lists items`,
+      inputSchema: { type: "object" as const, properties: {} },
+      meta: { requiresApproval: false, riskLevel: "low" as const, moneyTouching: false },
+      remote: { name: "list_items", description: "Lists items", connectorSlug: slug, connectorName: cname },
+      handler: (...a: unknown[]) => handler(...a),
+    }]]);
+    const blocked = await executeTool("mcp_deployer_list_items", {}, { ...ctx, autonomy: "AUTONOMOUS", extraTools: mkC("deployer", "Deployer") });
+    expect(blocked.error).toMatch(/^DEPLOY_MERGE_TOOLS_DISABLED:/);
+    expect(handler).not.toHaveBeenCalled();
+    for (const [slug, cname] of [["mergeable-tools", "Mergeable Tools"], ["emergency-contacts", "Emergency Contacts"]]) {
+      const ok = await executeTool(`mcp_${slug}_list_items`, {}, { ...ctx, autonomy: "AUTONOMOUS", extraTools: mkC(slug, cname) });
+      expect(ok.status, slug).toBe("COMPLETED");
+    }
+  });
 
   it("classifies the remote name/description, not the connector prefix or truncated display text", async () => {
     vi.stubEnv("DEPLOY_MERGE_TOOLS_ENABLED", "false");
@@ -176,11 +198,12 @@ describe("deploy / merge connector tools — BRA-P1-03c gate", () => {
       name: "mcp_deploybot_list_items", description: "[Deploy Bot] " + "x".repeat(1000),
       inputSchema: { type: "object" as const, properties: {} },
       meta: { requiresApproval: false, riskLevel: "low" as const, moneyTouching: false },
-      remote: { name: "list_items", description: "Lists items" },
+      remote: { name: "list_items", description: "Lists items", connectorSlug: "deploybot", connectorName: "Deploy Bot" },
       handler: (...a: unknown[]) => handler(...a),
     }]]);
+    // Connector name "Deploy Bot" taints the tool (accepted fail-closed side effect).
     const ok = await executeTool("mcp_deploybot_list_items", {}, { ...ctx, autonomy: "AUTONOMOUS", extraTools: benign });
-    expect(ok.status).toBe("COMPLETED");
+    expect(ok.error).toMatch(/^DEPLOY_MERGE_TOOLS_DISABLED:/);
     const hidden = new Map([["mcp_x_run", {
       name: "mcp_x_run", description: "[X] " + "y".repeat(1000), inputSchema: { type: "object" as const, properties: {} },
       meta: { requiresApproval: true, riskLevel: "high" as const, moneyTouching: false },

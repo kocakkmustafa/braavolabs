@@ -17,7 +17,7 @@ import {
 } from "./registry";
 import { notifyTenantUsers } from "../../services/push";
 import { publishRunEvent } from "../../lib/runEvents";
-import { disabledFeatureForTool, isDeployMergeCall, outboundFeatureDisabledError } from "../../lib/outbound-gates";
+import { disabledFeatureForTool, isDeployMergeCall, outboundFeatureDisabledError, type ToolCallGateOpts } from "../../lib/outbound-gates";
 import {
   buildApprovalStamp,
   computeActionHash,
@@ -319,17 +319,32 @@ export async function executeTool(
   // tools (static or connector) until the founder-approved flag is on.
   // Classification uses the tool's own name + untruncated description, never
   // the connector-name prefix.
-  const gateOpts = {
-    dynamic: Boolean(dynamicTool),
-    remoteName: dynamicTool?.remote?.name,
-    remoteDescription: dynamicTool ? (dynamicTool.remote ? dynamicTool.remote.description : dynamicTool.description) : undefined,
-  };
-  const disabledFeature = disabledFeatureForTool(toolName, gateOpts);
-  // Founder-approval requirement: a deploy/merge tool needs a human approval
-  // row even when the flag is ON and the agent is AUTONOMOUS.
+  const remote = dynamicTool?.remote;
+  const gateOpts: ToolCallGateOpts = dynamicTool
+    ? remote
+      ? {
+          dynamic: true,
+          remoteName: remote.name,
+          remoteDescription: remote.description,
+          connectorSlug: remote.connectorSlug,
+          connectorName: remote.connectorName,
+        }
+      : { dynamic: true, remoteDescription: dynamicTool.description }
+    : {};
+  // Classified ONCE; the gate and the forced-approval meta below share it.
   const isDeployMerge = isDeployMergeCall(toolName, gateOpts);
+  const disabledFeature = disabledFeatureForTool(toolName, { ...gateOpts, deployMerge: isDeployMerge });
+  // Founder-approval requirement: a deploy/merge tool needs a human approval
+  // row even when the flag is ON and the agent is AUTONOMOUS. moneyTouching
+  // defaults to false so the approval row does not look like a SPEND.
   if (isDeployMerge) {
-    meta = { riskLevel: "high", ...(meta ?? {}), requiresApproval: true, alwaysRequiresApproval: true };
+    meta = {
+      ...(meta ?? {}),
+      riskLevel: "high",
+      requiresApproval: true,
+      alwaysRequiresApproval: true,
+      moneyTouching: meta?.moneyTouching ?? false,
+    };
   }
   if (disabledFeature) {
     if (disabledFeature === "deploy_merge" && context.runStepId) {
