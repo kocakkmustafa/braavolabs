@@ -172,8 +172,40 @@ describe("mcp client — SEC-BRA-02b transport safety", () => {
   it("refuses an https -> http redirect hop when credentials are attached", async () => {
     dns.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     const seen = mockHttps([{ status: 307, headers: { location: "http://mcp.example/next" } }]);
-    await expectRejected(listTools("https://mcp.example/rpc", "API_KEY", creds));
+    const err = await expectRejected(listTools("https://mcp.example/rpc", "API_KEY", creds));
+    expect(err.message).toMatch(/HTTPS is required/);
     expect(seen).toHaveLength(1);
+  });
+
+  it("CUSTOM headers that are null / string / array / malformed count as no headers (no 500)", async () => {
+    dns.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    http.request.mockImplementation(() => {
+      throw new Error("socket-reached");
+    });
+    for (const headers of ["null", '"str"', "[1,2]", "{bad", "42"]) {
+      const err = await listTools("http://mcp.example/rpc", "CUSTOM", { headers }).then(() => null, (e) => e);
+      expect(err).not.toBeInstanceOf(TypeError);
+      expect(String(err?.message)).not.toMatch(/HTTPS is required/); // treated as no credentials
+    }
+  });
+
+  it("CUSTOM headers object over http is refused, with an actionable message", async () => {
+    const err = await expectRejected(
+      listTools("http://mcp.example/rpc", "CUSTOM", { headers: JSON.stringify({ "X-Key": "k" }) }),
+    );
+    expect(err.message).toMatch(/HTTPS is required/);
+    expect(err.message).toMatch(/https'e çevirmeli/);
+  });
+
+  it("OAUTH2 over http is refused", async () => {
+    const err = await expectRejected(listTools("http://mcp.example/rpc", "OAUTH2", { accessToken: "tok" }));
+    expect(err.message).toMatch(/HTTPS is required/);
+  });
+
+  it("query-string URL over http is refused even without auth headers", async () => {
+    const err = await expectRejected(listTools("http://mcp.example/rpc?token=abc", "NONE", undefined));
+    expect(err.message).toMatch(/HTTPS is required/);
+    expect(dns.lookup).not.toHaveBeenCalled();
   });
 
   it("still lets a credential-less http connector pass URL validation (reaches the socket layer)", async () => {
