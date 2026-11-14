@@ -164,6 +164,10 @@ tenantRouter.post("/connectors/:slug/install", async (req, res, next) => {
       probedTools = await listTools(connector.mcpServerUrl, connector.authMethod, body.credentials);
       manifest = probedTools as any;
     } catch (err) {
+      // Cleartext-with-credentials is a hard refusal, not a probe hiccup.
+      if (err instanceof AppError && err.statusCode === 400 && /HTTPS is required/.test(err.message)) {
+        throw new AppError(400, "Bağlayıcı URL'si HTTPS olmalı: kimlik bilgisi düz metin gönderilemez. Bağlayıcı sahibi URL'yi https'e çevirmeli.");
+      }
       logger.warn(
         { err, slug: connector.slug, tenantId: req.auth!.tenantId },
         "Connector probe failed during install — caching publish-time manifest instead",
@@ -341,7 +345,15 @@ tenantRouter.post("/publish", async (req, res, next) => {
     // SSRF guard on the MCP server URL — same as every other tenant-
     // supplied URL across the platform.
     try {
-      await assertSafeExternalUrl(body.mcpServerUrl);
+      let hasQuery = false;
+      try {
+        hasQuery = new URL(body.mcpServerUrl).search !== "";
+      } catch {
+        /* assertSafeExternalUrl reports the invalid URL */
+      }
+      await assertSafeExternalUrl(body.mcpServerUrl, {
+        requireHttps: body.authMethod !== "NONE" || hasQuery,
+      });
     } catch (err) {
       if (err instanceof SsrfError) {
         throw new AppError(400, `mcpServerUrl rejected: ${err.message}`);

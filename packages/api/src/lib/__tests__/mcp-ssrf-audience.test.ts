@@ -13,6 +13,8 @@ const dns = vi.hoisted(() => ({ lookup: vi.fn() }));
 vi.mock("node:dns/promises", () => ({ lookup: dns.lookup }));
 const https = vi.hoisted(() => ({ request: vi.fn() }));
 vi.mock("node:https", () => ({ request: https.request }));
+const http = vi.hoisted(() => ({ request: vi.fn() }));
+vi.mock("node:http", () => ({ request: http.request }));
 vi.mock("../logger", () => ({ logger: { warn: vi.fn(), info: vi.fn(), error: vi.fn() } }));
 
 import { callTool, listTools } from "../mcp";
@@ -21,6 +23,7 @@ import { AppError } from "../../middleware/error";
 afterEach(() => {
   dns.lookup.mockReset();
   https.request.mockReset();
+  http.request.mockReset();
 });
 
 interface Resp { status: number; headers?: Record<string, string>; body?: string }
@@ -155,5 +158,72 @@ describe("mcp client — audience / token reflection (B8)", () => {
     const err = await callTool("https://mcp.example/rpc", "API_KEY", creds, "t", {}).then(() => null, (e) => e);
     expect(err).toBeInstanceOf(AppError);
     expect((err as Error).message).toBe("MCP server returned 401");
+  });
+});
+
+describe("mcp client — SEC-BRA-02b transport safety", () => {
+  it("refuses cleartext http when credentials would be sent, before DNS or socket", async () => {
+    await expectRejected(listTools("http://mcp.example/rpc", "API_KEY", creds));
+    await expectRejected(callTool("http://mcp.example/rpc", "BASIC", { username: "u", password: "p" }, "t", {}));
+    expect(dns.lookup).not.toHaveBeenCalled();
+    expect(https.request).not.toHaveBeenCalled();
+  });
+
+  it("refuses an https -> http redirect hop when credentials are attached", async () => {
+    dns.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    const seen = mockHttps([{ status: 307, headers: { location: "http://mcp.example/next" } }]);
+    const err = await expectRejected(listTools("https://mcp.example/rpc", "API_KEY", creds));
+    expect(err.message).toMatch(/HTTPS is required/);
+    expect(seen).toHaveLength(1);
+  });
+
+  it("CUSTOM headers that are null / string / array / malformed count as no headers (no 500)", async () => {
+    dns.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    http.request.mockImplementation(() => {
+      throw new Error("socket-reached");
+    });
+    for (const headers of ["null", '"str"', "[1,2]", "{bad", "42"]) {
+      const err = await listTools("http://mcp.example/rpc", "CUSTOM", { headers }).then(() => null, (e) => e);
+      expect(err).not.toBeInstanceOf(TypeError);
+      expect(String(err?.message)).not.toMatch(/HTTPS is required/); // treated as no credentials
+    }
+  });
+
+  it("CUSTOM headers object over http is refused, with an actionable message", async () => {
+    const err = await expectRejected(
+      listTools("http://mcp.example/rpc", "CUSTOM", { headers: JSON.stringify({ "X-Key": "k" }) }),
+    );
+    expect(err.message).toMatch(/HTTPS is required/);
+    expect(err.message).toMatch(/https'e çevirmeli/);
+  });
+
+  it("OAUTH2 over http is refused", async () => {
+    const err = await expectRejected(listTools("http://mcp.example/rpc", "OAUTH2", { accessToken: "tok" }));
+    expect(err.message).toMatch(/HTTPS is required/);
+  });
+
+  it("query-string URL over http is refused even without auth headers", async () => {
+    const err = await expectRejected(listTools("http://mcp.example/rpc?token=abc", "NONE", undefined));
+    expect(err.message).toMatch(/HTTPS is required/);
+    expect(dns.lookup).not.toHaveBeenCalled();
+  });
+
+  it("still lets a credential-less http connector pass URL validation (reaches the socket layer)", async () => {
+    dns.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    http.request.mockImplementation(() => {
+      throw new Error("socket-reached");
+    });
+    const err = await listTools("http://mcp.example/rpc", "NONE", undefined).then(() => null, (e) => e);
+    expect(http.request).toHaveBeenCalled();
+    expect(String(err?.message ?? "")).not.toMatch(/HTTPS is required/);
+  });
+
+  it("maps an over-limit upstream body to 502, not 400", async () => {
+    dns.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    mockHttps([{ status: 200, body: "x".repeat(16 * 1024 * 1024 + 1) }]);
+    const err = await listTools("https://mcp.example/rpc", "API_KEY", creds).then(() => null, (e) => e);
+    expect(err).toBeInstanceOf(AppError);
+    expect((err as AppError).statusCode).toBe(502);
+    expect((err as Error).message).not.toContain("SECRET");
   });
 });
