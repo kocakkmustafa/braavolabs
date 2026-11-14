@@ -259,7 +259,7 @@ export async function processHierarchicalRun(opts: {
   const resume = await loadDelegationResumePlan(runId, tenantId);
   if (resume.completedCount > 0) {
     logger.info(
-      { runId, restoredDelegations: resume.completedCount, seededCost: resume.seededCost, priorRunCost: resume.priorRunCost, startingCost: startingCost(resume), startStepIndex: resume.maxStepIndex },
+      { runId, restoredDelegations: resume.completedCount, seededCost: resume.seededCost, delegationCost: resume.delegationCost, priorRunCost: resume.priorRunCost, startingCost: startingCost(resume), startStepIndex: resume.maxStepIndex },
       "Retry: seeding hierarchical run from previous COMPLETED delegations (no re-execution, cost carried)",
     );
   }

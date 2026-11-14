@@ -25,9 +25,15 @@ export interface DelegationResumePlan {
   /** Önceki denemelerde tamamlanan TÜM delegasyonların maliyet toplamı. */
   seededCost: number;
   /**
+   * Önceki delegasyon satırlarının HER durumdaki (COMPLETED/FAILED/INTERRUPTED) maliyet toplamı.
+   * İlk deneme terminal yazıma varmadan biterse (çökme/dış iptal/CAS kaybı) `run.costUsd` 0 kalır;
+   * bu toplam o harcamayı tabana taşır (BRA-P0-04j-b). Atlama/tohum mantığını ETKİLEMEZ.
+   */
+  delegationCost: number;
+  /**
    * Koşunun kayıtlı `run.costUsd` değeri (önceki denemelerin yönetici + FAILED/INTERRUPTED worker
    * harcaması dahil; COMPLETED delegasyon toplamından büyük olabilir). Retry maliyet sayacının TABANI:
-   * `max(priorRunCost, seededCost)` (bkz. `startingCost`). İlk koşuda 0.
+   * `max(priorRunCost, delegationCost)` (bkz. `startingCost`). İlk koşuda 0.
    */
   priorRunCost: number;
   /** Önceki delegasyon satırlarının (her durum) en büyük stepIndex'i; yeni satırlar bunun ardından. */
@@ -50,11 +56,14 @@ export function planDelegationResume(
 ): DelegationResumePlan {
   const reusable = new Map<string, PriorDelegation[]>();
   let seededCost = 0;
+  let delegationCost = 0;
   let maxStepIndex = 0;
   let completedCount = 0;
   const sorted = [...rows].sort((a, b) => a.stepIndex - b.stepIndex || a.id.localeCompare(b.id));
   for (const r of sorted) {
     if (r.stepIndex > maxStepIndex) maxStepIndex = r.stepIndex;
+    const rowCost = Number(r.costUsd ?? 0);
+    delegationCost += Number.isFinite(rowCost) && rowCost > 0 ? rowCost : 0;
     if (r.status !== "COMPLETED") continue;
     const inp = (r.input ?? {}) as { agentId?: unknown; task?: unknown };
     const cost = Number(r.costUsd ?? 0) || 0;
@@ -66,18 +75,18 @@ export function planDelegationResume(
     q.push({ id: r.id, stepIndex: r.stepIndex, agentId: r.agentId, task: inp.task, output: r.output, costUsd: cost });
     reusable.set(key, q);
   }
-  return { reusable, seededCost, priorRunCost: 0, maxStepIndex, completedCount };
+  return { reusable, seededCost, delegationCost, priorRunCost: 0, maxStepIndex, completedCount };
 }
 
 /**
- * Retry'da kümülatif maliyet sayacının başlangıcı. Asla `run.costUsd`'nin altına düşmez:
- * yalnız COMPLETED delegasyonları tohumlamak, önceki denemenin yönetici/başarısız worker
- * harcamasını atlayıp `run.costUsd`'yi düşüğe yazdırır ve job bütçesini aşılabilir kılar.
- * Sonlu olmayan/negatif değerler 0 sayılır.
+ * Retry'da kümülatif maliyet sayacının başlangıcı. Asla `run.costUsd`'nin ve TÜM delegasyon
+ * satırları toplamının (FAILED dahil) altına düşmez: ilk deneme terminal yazıma varmadan biterse
+ * `run.costUsd` 0 kalır; yalnız COMPLETED'ı saymak FAILED worker harcamasını atlayıp job
+ * bütçesini aşılabilir kılar. Sonlu olmayan/negatif değerler 0 sayılır.
  */
-export function startingCost(plan: Pick<DelegationResumePlan, "seededCost" | "priorRunCost">): number {
+export function startingCost(plan: Pick<DelegationResumePlan, "delegationCost" | "priorRunCost">): number {
   const ok = (n: number) => (Number.isFinite(n) && n > 0 ? n : 0);
-  return Math.max(ok(plan.priorRunCost), ok(plan.seededCost));
+  return Math.max(ok(plan.priorRunCost), ok(plan.delegationCost));
 }
 
 /** Anahtara uyan ilk (en düşük stepIndex) kullanılmamış satırı tüketip döndürür; yoksa null. */

@@ -35,7 +35,7 @@ vi.mock("../hierarchical", () => ({
 }));
 
 import { processHierarchicalRun } from "../hierarchical-runner";
-import { startingCost } from "../hierarchical-resume";
+import { planDelegationResume, startingCost } from "../hierarchical-resume";
 import { getTool } from "../../agent/registry";
 
 const pipeline = (extra: Record<string, unknown> = {}) =>
@@ -126,12 +126,38 @@ describe("hiyerarşik retry — COMPLETED delegasyon atla + maliyet tohumla (BRA
     expect(lastRunUpdate()).toMatchObject({ status: "COMPLETED" });
   });
 
-  it("(b) maliyet: tohum (önceki COMPLETED) + yeni; atlanan delegasyon çift sayılmaz, FAILED önceki maliyet tohuma girmez", async () => {
+  it("(b) maliyet: tohum (önceki COMPLETED) + yeni; atlanan delegasyon çift sayılmaz, FAILED önceki maliyet atlamaya girmez ama taban olur", async () => {
     seedRow({ stepIndex: 1, status: "COMPLETED", costUsd: 0.4 });
     seedRow({ stepIndex: 2, status: "FAILED", agentId: "w-b", input: { agentId: "w-b", task: "B" }, output: null, costUsd: 0.9 });
     await runManager([{ agentId: "w-a", task: "A" }, { agentId: "w-b", task: "B" }], { workerCost: 0.3, managerCost: 0.1 });
-    // 0.4 (önceki) + 0 (atlanan) + 0.3 (yeni worker) + 0.1 (yönetici) = 0.8
-    expect(lastRunUpdate().costUsd).toBeCloseTo(0.8, 10);
+    // taban = tüm delegasyon satırları 0.4 + 0.9 = 1.3; + 0 (atlanan) + 0.3 (yeni worker) + 0.1 (yönetici) = 1.7
+    expect(lastRunUpdate().costUsd).toBeCloseTo(1.7, 10);
+  });
+
+  it("(k) çökme: run.costUsd 0, FAILED worker 0.4 + COMPLETED 0.3 → taban 0.7; hiçbir yazım 0.7'nin altına düşmez", async () => {
+    store.runCost = 0;
+    seedRow({ stepIndex: 1, status: "COMPLETED", costUsd: 0.3 });
+    seedRow({ stepIndex: 2, status: "FAILED", agentId: "w-b", input: { agentId: "w-b", task: "B" }, output: null, costUsd: 0.4 });
+    await runManager([{ agentId: "w-a", task: "A" }, { agentId: "w-b", task: "B" }], { workerCost: 0.3, managerCost: 0.1 });
+    expect(workerLoops()).toBe(1); // yalnız FAILED olan yeniden çalışır; COMPLETED atlanır
+    expect(lastRunUpdate().costUsd).toBeCloseTo(1.1, 10); // 0.7 + 0.3 + 0.1
+    expect(writtenCosts().length).toBeGreaterThan(0);
+    expect(Math.min(...writtenCosts())).toBeGreaterThanOrEqual(0.7);
+  });
+
+  it("(k2) çökme sonrası maxUsd sıfırlanmaz: run.costUsd 0 ama satırlar 0.7 > maxUsd 0.5 → yeni delegasyon reddedilir", async () => {
+    store.runCost = 0;
+    seedRow({ stepIndex: 1, status: "COMPLETED", costUsd: 0.3 });
+    seedRow({ stepIndex: 2, status: "FAILED", agentId: "w-b", input: { agentId: "w-b", task: "B" }, output: null, costUsd: 0.4 });
+    prismaMock.run.findUnique.mockResolvedValue({
+      id: "run-1", jobBudget: { maxUsd: 0.5 }, tenantId: null, workspaceId: null, retryCount: 1, startedAt: null, steps: [],
+      pipeline: { company: { id: "co-1", tenantId: "tenant-1" } },
+    });
+    const res = await runManager([{ agentId: "w-b", task: "B" }]);
+    expect(workerLoops()).toBe(0);
+    expect(res[0]).toMatchObject({ error: expect.stringMatching(/^Delegation refused/) });
+    expect(writtenCosts().length).toBeGreaterThan(0);
+    expect(Math.min(...writtenCosts())).toBeGreaterThanOrEqual(0.7);
   });
 
   it("(b2) bütçe kontrolü tohumlu toplamı kullanır: önceki harcama maxUsd'yi doldurduysa yeni delegasyon reddedilir", async () => {
@@ -148,18 +174,19 @@ describe("hiyerarşik retry — COMPLETED delegasyon atla + maliyet tohumla (BRA
 
   it("(c) retry iki kez → idempotent: ikinci denemede hepsi atlanır, çift iş/çift maliyet yok", async () => {
     seedRow({ stepIndex: 1, status: "COMPLETED", costUsd: 0.4 });
-    seedRow({ stepIndex: 2, status: "FAILED", agentId: "w-b", input: { agentId: "w-b", task: "B" }, output: null });
+    seedRow({ stepIndex: 2, status: "FAILED", agentId: "w-b", input: { agentId: "w-b", task: "B" }, output: null, costUsd: 0 });
     const dels = [{ agentId: "w-a", task: "A" }, { agentId: "w-b", task: "B" }];
     await runManager(dels, { workerCost: 0.3, managerCost: 0.1 });
     expect(workerLoops()).toBe(1);
     const cost1 = lastRunUpdate().costUsd; // 0.4 + 0.3 + 0.1
     expect(cost1).toBeCloseTo(0.8, 10);
+    store.runCost = cost1; // updateMany mock kalıcı yazmaz: gerçek akıştaki run.costUsd kalıcılığını simüle et
     runAgentLoopMock.mockReset();
     const res2 = await runManager(dels, { workerCost: 0.3, managerCost: 0.1 });
     expect(workerLoops()).toBe(0); // A önceki, B birinci retry'da COMPLETED → ikisi de atlandı
     expect(res2.every((r) => r.reused === true)).toBe(true);
-    // 0.4 + 0.3 (B, yeni COMPLETED) + 0 + yönetici 0.1; delegasyon satırı sayısı artmadı
-    expect(lastRunUpdate().costUsd).toBeCloseTo(0.8, 10);
+    // taban max(run.costUsd 0.8, satırlar 0.7) = 0.8 + atlananlar 0 + yönetici tekrar harcar 0.1 = 0.9; satır sayısı artmadı
+    expect(lastRunUpdate().costUsd).toBeCloseTo(0.9, 10);
     expect(store.rows.filter((r) => r.name.startsWith("delegate:") && r.status === "COMPLETED")).toHaveLength(2);
   });
 
@@ -200,13 +227,40 @@ describe("hiyerarşik retry — COMPLETED delegasyon atla + maliyet tohumla (BRA
     expect(lastRunUpdate()).toMatchObject({ status: "FAILED", error: expect.stringMatching(/cannot be enforced/) });
   });
 
-  it("(g) hiç COMPLETED delegasyon yok (yalnız FAILED/INTERRUPTED) → eski davranış: tohum 0, hepsi çalışır", async () => {
-    seedRow({ stepIndex: 1, status: "FAILED", output: null });
-    seedRow({ stepIndex: 2, status: "RUNNING", output: null });
+  it("(g) hiç COMPLETED delegasyon yok (yalnız FAILED/RUNNING, maliyetsiz) → atlama yok, taban 0, hepsi çalışır", async () => {
+    seedRow({ stepIndex: 1, status: "FAILED", output: null, costUsd: 0 });
+    seedRow({ stepIndex: 2, status: "RUNNING", output: null, costUsd: 0 });
     await runManager([{ agentId: "w-a", task: "A" }], { workerCost: 0.3, managerCost: 0.1 });
     expect(workerLoops()).toBe(1);
     expect(lastRunUpdate().costUsd).toBeCloseTo(0.4, 10);
     expect(prismaMock.runStep.create.mock.calls[0][0].data.stepIndex).toBe(3); // satır çakışması yok
+  });
+
+  it("(g3) RUNNING/INTERRUPTED satırın sıfır olmayan maliyeti tabana girer, atlanmaz", async () => {
+    store.runCost = 0;
+    seedRow({ stepIndex: 1, status: "RUNNING", output: null, costUsd: 0.25 });
+    seedRow({ stepIndex: 2, status: "INTERRUPTED", agentId: "w-b", input: { agentId: "w-b", task: "B" }, output: null, costUsd: 0.15 });
+    await runManager([{ agentId: "w-a", task: "A" }], { workerCost: 0.3, managerCost: 0.1 });
+    expect(workerLoops()).toBe(1); // COMPLETED yok → atlama yok
+    expect(lastRunUpdate().costUsd).toBeCloseTo(0.8, 10); // 0.4 taban + 0.3 + 0.1
+    expect(Math.min(...writtenCosts())).toBeGreaterThanOrEqual(0.4);
+  });
+
+  it("planDelegationResume: satır maliyeti null / Decimal-string / Infinity / negatif / NaN → taban toplamı bozulmaz", () => {
+    const row = (stepIndex: number, status: string, costUsd: unknown) => ({
+      id: `r${stepIndex}`, stepIndex, status, agentId: "w-a", input: { agentId: "w-a", task: `T${stepIndex}` }, output: null, costUsd,
+    });
+    const plan = planDelegationResume([
+      row(1, "FAILED", null),
+      row(2, "FAILED", "0.400000"),
+      row(3, "FAILED", Number.POSITIVE_INFINITY),
+      row(4, "FAILED", -5),
+      row(5, "FAILED", Number.NaN),
+      row(6, "COMPLETED", "0.100000"),
+    ]);
+    expect(plan.delegationCost).toBeCloseTo(0.5, 10);
+    expect(plan.seededCost).toBeCloseTo(0.1, 10);
+    expect(startingCost(plan)).toBeCloseTo(0.5, 10);
   });
 
   it("(g2) hiç önceki satır yok (ilk koşu) → birebir eski: stepIndex 1'den, tohum 0", async () => {
@@ -231,6 +285,7 @@ describe("hiyerarşik retry — run.costUsd hiçbir yolda düşmez, bütçe küm
     // Eski hata: 0.4 + 0.3 + 0.1 = 0.8 (< 1.5) yazılırdı. Şimdi taban 1.5: 1.5 + 0.3 + 0.1.
     expect(lastRunUpdate()).toMatchObject({ status: "COMPLETED" });
     expect(lastRunUpdate().costUsd).toBeCloseTo(1.9, 10);
+    expect(writtenCosts().length).toBeGreaterThan(0);
     expect(Math.min(...writtenCosts())).toBeGreaterThanOrEqual(1.5);
   });
 
@@ -245,6 +300,7 @@ describe("hiyerarşik retry — run.costUsd hiçbir yolda düşmez, bütçe küm
     expect(workerLoops()).toBe(0);
     expect(res[0]).toMatchObject({ error: expect.stringMatching(/^Delegation refused/) });
     expect(lastRunUpdate()).toMatchObject({ status: "FAILED" });
+    expect(writtenCosts().length).toBeGreaterThan(0);
     expect(Math.min(...writtenCosts())).toBeGreaterThanOrEqual(1.2);
   });
 
@@ -277,10 +333,10 @@ describe("hiyerarşik retry — run.costUsd hiçbir yolda düşmez, bütçe küm
     expect(lastRunUpdate().costUsd).toBeCloseTo(0.5, 10); // 0.4 tohum + 0.1 yönetici; başka kiracı değeri sızmadı
   });
 
-  it("startingCost: max(run.costUsd, tohum); NaN/negatif/Infinity 0 sayılır", () => {
-    expect(startingCost({ priorRunCost: 1.5, seededCost: 0.4 })).toBe(1.5);
-    expect(startingCost({ priorRunCost: 0.1, seededCost: 0.4 })).toBe(0.4);
-    expect(startingCost({ priorRunCost: Number.NaN, seededCost: -2 })).toBe(0);
-    expect(startingCost({ priorRunCost: Number.POSITIVE_INFINITY, seededCost: 0.3 })).toBe(0.3);
+  it("startingCost: max(run.costUsd, tüm delegasyon toplamı); NaN/negatif/Infinity 0 sayılır", () => {
+    expect(startingCost({ priorRunCost: 1.5, delegationCost: 0.4 })).toBe(1.5);
+    expect(startingCost({ priorRunCost: 0.1, delegationCost: 0.4 })).toBe(0.4);
+    expect(startingCost({ priorRunCost: Number.NaN, delegationCost: -2 })).toBe(0);
+    expect(startingCost({ priorRunCost: Number.POSITIVE_INFINITY, delegationCost: 0.3 })).toBe(0.3);
   });
 });
