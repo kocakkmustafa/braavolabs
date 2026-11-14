@@ -13,12 +13,13 @@ describe("sensitive basename patterns", () => {
       "Dockerfile.prod", "app.dockerfile", "Containerfile", "compose.yaml",
       "docker-compose.override.yml", "azure-pipelines.yaml", ".gitlab-ci.yaml",
       "Jenkinsfile.groovy", "sub/dir/Makefile.inc", "rules.mk", "Dockerfile", "Makefile",
+      "docker-compose-prod.yml", "compose-dev.yaml", "docker-compose.yml",
     ]) {
       expect(sens(f)).toBe(true);
     }
   });
   it("does not flag unrelated names", () => {
-    for (const f of ["README.md", "dockerfile-notes.md", "composer.json", "makefile-notes.md"]) {
+    for (const f of ["README.md", "dockerfile-notes.md", "composer.json", "compose-notes.md", "makefile-notes.md"]) {
       expect(sens(f)).toBe(false);
     }
   });

@@ -222,7 +222,7 @@ const SENSITIVE_BASENAMES: Record<string, string> = {
 // Basename patterns (lower-cased). Not exhaustive: the planner is a marker,
 // not an allowlist; the approval gate / executor must apply further checks.
 const SENSITIVE_PATTERNS: Array<[RegExp, string]> = [
-  [/^(docker-)?compose(\..*)?\.ya?ml$/, "container orchestration"],
+  [/^(docker-)?compose([._-].*)?\.ya?ml$/, "container orchestration"],
   [/^dockerfile(\..*)?$/, "container build"],
   [/\.dockerfile$/, "container build"],
   [/^containerfile(\..*)?$/, "container build"],
