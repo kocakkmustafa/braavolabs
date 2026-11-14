@@ -76,6 +76,7 @@ export async function listConnectorToolsForTenant(tenantId: string): Promise<Too
           `[${install.connector.name}] ${tool.description ?? ""}`.trim().slice(0, 1000),
         inputSchema: tool.inputSchema ?? { type: "object", properties: {} },
         meta: deriveConnectorToolMeta(tool.name, tool.description, tool.inputSchema),
+        remote: { name: tool.name, description: tool.description },
         handler: async (args) => executeMcpTool(tenantId, install.connector.slug, tool.name, args),
       });
     }

@@ -102,7 +102,8 @@ describe("B-06 outbound gates", () => {
   });
 
   it("classifies deploy / merge tools regardless of case, alias or separator", () => {
-    for (const n of ["deploy", "DEPLOY", "DeployApp", "github__merge_pull_request", "vercel.deployments-create", "mergePR", "deployprod", "rollback", "Release"]) {
+    for (const n of ["deploy", "DEPLOY", "DeployApp", "github__merge_pull_request", "vercel.deployments-create", "mergePR", "deployprod", "rollback", "Release",
+      "D3PL0Y", "dеrloy".replace("r", "p"), "automerge_pr", "PRMerge", "squashmerge", "prmerge", "fastforwardmerge", "deployment_status", "m3rg3_pr", "dеplоy", "d\u0451ploy"]) {
       expect(isDeployMergeTool(n), n).toBe(true);
     }
     for (const n of ["web_search", "get_github_pr_status", "get_pr_mergeable", "emergency_lookup", "crm_create_contact"]) {
@@ -115,7 +116,7 @@ describe("B-06 outbound gates", () => {
   it("deploy/merge gate: off by default, on only for the literal true; connector description counts", () => {
     vi.stubEnv("DEPLOY_MERGE_TOOLS_ENABLED", "");
     expect(disabledFeatureForTool("gh__MERGE_pr", { dynamic: true })).toBe("deploy_merge");
-    expect(disabledFeatureForTool("x__run", { dynamic: true, description: "Merge the branch" })).toBe("deploy_merge");
+    expect(disabledFeatureForTool("x__run", { dynamic: true, remoteDescription: "Merge the branch" })).toBe("deploy_merge");
     expect(disabledFeatureForTool("web_search")).toBeNull();
     vi.stubEnv("DEPLOY_MERGE_TOOLS_ENABLED", "true");
     expect(disabledFeatureForTool("gh__merge_pr", { dynamic: true })).toBeNull();

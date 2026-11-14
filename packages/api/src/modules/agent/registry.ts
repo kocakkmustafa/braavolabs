@@ -35,6 +35,12 @@ export interface ToolMeta {
    * bypassed.
    */
   externalControl?: boolean;
+  /**
+   * BRA-P1-03c: ALWAYS needs a human approval row, at every autonomy level
+   * (like money). Set by the executor for deploy / merge style tools even
+   * when DEPLOY_MERGE_TOOLS_ENABLED is on — founder-approval requirement.
+   */
+  alwaysRequiresApproval?: boolean;
 }
 
 export type AgentAutonomyLevel = "SUPERVISED" | "BALANCED" | "AUTONOMOUS";
@@ -73,6 +79,8 @@ export function requiresApprovalForAutonomy(
   // Rule #3: money is always gated, no matter the autonomy level.
   if (isMoneyTouching(meta)) return true;
   if (!meta) return false;
+  // BRA-P1-03c: deploy / merge tools are approval-gated even when AUTONOMOUS.
+  if (meta.alwaysRequiresApproval) return true;
 
   switch (autonomy) {
     case "AUTONOMOUS":
@@ -96,6 +104,12 @@ export interface ToolDefinition {
   inputSchema: Record<string, unknown>;
   handler: (input: unknown) => Promise<unknown>;
   meta?: ToolMeta;
+  /**
+   * Connector (MCP) tools only: the UNPREFIXED remote name and UNTRUNCATED
+   * remote description, so classification never sees the connector name
+   * prefix or the 1000-char display truncation.
+   */
+  remote?: { name: string; description?: string };
 }
 
 /**

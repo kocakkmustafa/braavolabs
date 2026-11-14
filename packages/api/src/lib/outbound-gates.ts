@@ -84,38 +84,81 @@ export const OUTBOUND_TOOL_GATES: Readonly<Record<string, readonly OutboundFeatu
 
 /**
  * BRA-P1-03c: is this a deploy / merge style tool? Matched on the tool NAME
- * (static and connector tools) and, for connector tools only, on the remote
- * DESCRIPTION too (a tool named `run` that "deploys the app"). Matching is
- * case-insensitive and camelCase / snake / kebab / dotted aware, so
- * `DeployApp`, `DEPLOY-prod`, `github__merge_pull_request` all match.
- * Fails closed: a false positive only blocks while the flag is off.
+ * (static and connector tools) and, for connector tools only, on the REMOTE
+ * description too (a tool named `run` that "deploys the app").
+ *
+ * Normalisation before matching: NFKC, a small Cyrillic/Greek look-alike map,
+ * camelCase splitting (`PRMerge`, `mergePR`) and leet folding
+ * (0->o 1->i|l 3->e 4->a 5->s 7->t $->s @->a). A NAME that still contains a
+ * non-ASCII letter after folding is treated as a match (fail closed: an
+ * un-foldable homoglyph name can hide a verb). `deploy` also matches squashed
+ * (`deployprod`); `merge` matches as a token prefix or suffix (`automerge_pr`,
+ * `squashmerge`, `mergepr`) but NOT `mergeable` / `emergency`.
+ * Fails closed by design: read-looking names such as `deployment_status` are
+ * blocked too while the flag is off; a false positive only blocks.
  */
 const NAME_EXACT = new Set(["rollout", "rollback", "release", "promote"]);
 
-function tokenize(text: string): string[] {
-  return text
+const CONFUSABLES: Record<string, string> = {
+  а: "a", е: "e", о: "o", р: "p", с: "c", у: "y", х: "x", і: "i", ѕ: "s", ј: "j", ԁ: "d", һ: "h", ӏ: "l", в: "b", к: "k", м: "m", н: "h", т: "t",
+  α: "a", ε: "e", ο: "o", ρ: "p", ν: "v", ι: "i", κ: "k", τ: "t", υ: "u", χ: "x", δ: "d", μ: "m",
+};
+const LEET: Record<string, string> = { "0": "o", "3": "e", "4": "a", "5": "s", "7": "t", $: "s", "@": "a" };
+
+function foldBase(text: string): string {
+  return text.normalize("NFKC").replace(/[^\x00-\x7f]/g, (c) => CONFUSABLES[c.toLowerCase()] ?? c);
+}
+
+/** Token lists: camelCase-split and plain, each with `1` read as i and as l. */
+function tokenVariants(folded: string): string[][] {
+  const camel = folded
     .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean)
-    .map((t) => (t.length > 3 && t.endsWith("s") ? t.slice(0, -1) : t));
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2");
+  const out: string[][] = [];
+  for (const base of [camel, folded]) {
+    const leet = base.toLowerCase().replace(/[03457$@]/g, (c) => LEET[c] ?? c);
+    for (const one of ["i", "l"]) out.push(leet.replace(/1/g, one).split(/[^a-z0-9]+/).filter(Boolean));
+  }
+  return out;
 }
 
 const isDeployToken = (t: string) => t.startsWith("deploy");
-const isMergeToken = (t: string) => /^merge(?!able|ability)/.test(t);
+const isMergeToken = (t: string) => /^merge(?!able|ability)/.test(t) || t.endsWith("merge");
 
-export function isDeployMergeTool(toolName: string, remoteDescription?: string): boolean {
-  if (tokenize(toolName).some((t) => isDeployToken(t) || isMergeToken(t) || NAME_EXACT.has(t))) return true;
-  // Squashed names (`deployprod`) have no separator to split on.
-  if (toolName.toLowerCase().replace(/[^a-z0-9]/g, "").includes("deploy")) return true;
-  if (remoteDescription && tokenize(remoteDescription).some((t) => isDeployToken(t) || isMergeToken(t))) return true;
+function textHits(folded: string, isName: boolean): boolean {
+  for (const tokens of tokenVariants(folded)) {
+    if (tokens.some((t) => isDeployToken(t) || isMergeToken(t))) return true;
+    if (isName && tokens.some((t) => NAME_EXACT.has(t))) return true;
+    // Squashed (`deployprod`, `d-e-p-l-o-y`): `deploy` only, never `merge` (emergency).
+    if (tokens.join("").includes("deploy")) return true;
+  }
   return false;
 }
 
-export function disabledFeatureForTool(
-  toolName: string,
-  opts: { dynamic?: boolean; description?: string } = {},
-): OutboundFeature | null {
+export function isDeployMergeTool(toolName: string, remoteDescription?: string): boolean {
+  const name = foldBase(toolName);
+  // A name that still holds a non-ASCII letter cannot be reasoned about: block.
+  if (/[^\x00-\x7f]/.test(name) && /\p{L}/u.test(name.replace(/[\x00-\x7f]/g, ""))) return true;
+  if (textHits(name, true)) return true;
+  return Boolean(remoteDescription) && textHits(foldBase(remoteDescription as string), false);
+}
+
+export interface ToolCallGateOpts {
+  /** Connector (MCP) tool resolved from request-scoped extraTools. */
+  dynamic?: boolean;
+  /** UNPREFIXED remote tool name (connector slug / display name excluded). */
+  remoteName?: string;
+  /** UNTRUNCATED remote description. */
+  remoteDescription?: string;
+}
+
+/** Deploy/merge classification of one call: tool name + tool description only. */
+export function isDeployMergeCall(toolName: string, opts: ToolCallGateOpts = {}): boolean {
+  if (!opts.dynamic) return isDeployMergeTool(toolName);
+  return isDeployMergeTool(opts.remoteName ?? toolName, opts.remoteDescription);
+}
+
+export function disabledFeatureForTool(toolName: string, opts: ToolCallGateOpts = {}): OutboundFeature | null {
   // Connector tools never match the static contact-tool map (their names are
   // namespaced); they are only subject to the deploy/merge classifier.
   const features = opts.dynamic ? undefined : OUTBOUND_TOOL_GATES[toolName];
@@ -123,8 +166,6 @@ export function disabledFeatureForTool(
     const hit = features.find((feature) => !isOutboundFeatureEnabled(feature));
     if (hit) return hit;
   }
-  if (!isOutboundFeatureEnabled("deploy_merge") && isDeployMergeTool(toolName, opts.dynamic ? opts.description : undefined)) {
-    return "deploy_merge";
-  }
+  if (!isOutboundFeatureEnabled("deploy_merge") && isDeployMergeCall(toolName, opts)) return "deploy_merge";
   return null;
 }
