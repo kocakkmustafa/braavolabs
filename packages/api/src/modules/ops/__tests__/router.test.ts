@@ -62,7 +62,7 @@ describe("GET /ops/flags", () => {
 
   it("403 for an authenticated non-admin", async () => {
     process.env.MARKETPLACE_ADMIN_EMAILS = "admin@example.com";
-    userFindUnique.mockResolvedValue({ email: "member@example.com" });
+    userFindUnique.mockResolvedValue({ email: "member@example.com", emailVerifiedAt: new Date() });
     const res = mockRes();
     const next = vi.fn();
     await handler({ auth: { userId: "u1", tenantId: "t1", role: "OWNER" } }, res, next);
@@ -70,12 +70,32 @@ describe("GET /ops/flags", () => {
     expect(res.body).toBeUndefined();
   });
 
-  it("403 fail-closed when no admin list is configured", async () => {
-    userFindUnique.mockResolvedValue({ email: "admin@example.com" });
+  it("403 fail-closed when no admin list is configured (even if verified)", async () => {
+    userFindUnique.mockResolvedValue({ email: "admin@example.com", emailVerifiedAt: new Date() });
     const res = mockRes();
     const next = vi.fn();
     await handler({ auth: { userId: "u1", tenantId: "t1", role: "OWNER" } }, res, next);
     expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 403 });
+  });
+
+  it("403 when the user row is missing", async () => {
+    process.env.MARKETPLACE_ADMIN_EMAILS = "admin@example.com";
+    userFindUnique.mockResolvedValue(null);
+    const res = mockRes();
+    const next = vi.fn();
+    await handler({ auth: { userId: "u1", tenantId: "t1", role: "OWNER" } }, res, next);
+    expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 403 });
+    expect(res.body).toBeUndefined();
+  });
+
+  it("403 for a verified user whose email is not in the admin list", async () => {
+    process.env.MARKETPLACE_ADMIN_EMAILS = "admin@example.com";
+    userFindUnique.mockResolvedValue({ email: "other@example.com", emailVerifiedAt: new Date() });
+    const res = mockRes();
+    const next = vi.fn();
+    await handler({ auth: { userId: "u1", tenantId: "t1", role: "OWNER" } }, res, next);
+    expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 403 });
+    expect(res.body).toBeUndefined();
   });
 
   it("403 fail-closed for an admin email whose emailVerifiedAt is null", async () => {
