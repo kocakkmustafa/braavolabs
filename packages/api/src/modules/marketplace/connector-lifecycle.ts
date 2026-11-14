@@ -132,11 +132,14 @@ export async function refreshInstall(tenantId: string, slug: string): Promise<{ 
 
 const REVOKE_TIMEOUT_MS = 5_000;
 const REVOKE_MAX_BYTES = 16 * 1024;
-/** Concurrent revokes of one install share a single upstream call. */
-const upstreamInflight = new Map<string, Promise<void>>();
+
+interface UpstreamRevoke {
+  url: string;
+  form: URLSearchParams;
+}
 
 function isHttpsUrl(url: unknown): url is string {
-  if (typeof url !== "string") return false;
+  if (typeof url !== "string" || !url) return false;
   try {
     return new URL(url).protocol === "https:";
   } catch {
@@ -145,27 +148,32 @@ function isHttpsUrl(url: unknown): url is string {
 }
 
 /**
- * BRA-P1-02b: best-effort RFC 7009 token revocation at the provider. Prefers
- * the refresh token, else the access token. Never throws and never logs token
- * material; no/HTTP revocation URL means no call (legacy installs).
+ * Resolve (in memory) what to send to the provider's RFC 7009 endpoint.
+ * Prefers the refresh token, else the access token. Returns null when there is
+ * nothing to do (legacy install, no/HTTP URL) or the blob cannot be decrypted.
  */
-async function revokeUpstream(slug: string, encryptedCredentials: string, aad: string): Promise<void> {
+function prepareUpstreamRevoke(slug: string, encryptedCredentials: string, aad: string): UpstreamRevoke | null {
   let creds: Record<string, string>;
   try {
     creds = JSON.parse(decrypt(encryptedCredentials, aad));
   } catch {
-    return;
+    logger.warn({ slug }, "revoke: credentials undecryptable; local revoke proceeds without upstream");
+    return null;
   }
-  const url = creds?.revocationUrl ?? creds?.revokeUrl;
+  const url = creds?.revocationUrl || creds?.revokeUrl;
   const token = creds?.refreshToken || creds?.accessToken;
-  if (!token || !isHttpsUrl(url)) return;
-  const isRefresh = Boolean(creds.refreshToken);
+  if (!token || !isHttpsUrl(url)) return null;
   const form = new URLSearchParams({
     token,
-    token_type_hint: isRefresh ? "refresh_token" : "access_token",
+    token_type_hint: creds.refreshToken ? "refresh_token" : "access_token",
   });
   if (creds.clientId) form.set("client_id", creds.clientId);
   if (creds.clientSecret) form.set("client_secret", creds.clientSecret);
+  return { url, form };
+}
+
+/** Best-effort provider call; never throws, never logs token material. */
+async function sendUpstreamRevoke(slug: string, { url, form }: UpstreamRevoke): Promise<void> {
   try {
     const res = await safeExternalFetch(
       url,
@@ -177,9 +185,9 @@ async function revokeUpstream(slug: string, encryptedCredentials: string, aad: s
       },
       { requireHttps: true, maxRedirects: 0, maxResponseBytes: REVOKE_MAX_BYTES },
     );
-    if (!res.ok) logger.warn({ slug, status: res.status }, "upstream revoke rejected; local revoke proceeds");
+    if (!res.ok) logger.warn({ slug, status: res.status }, "upstream revoke rejected; local revoke already done");
   } catch {
-    logger.warn({ slug }, "upstream revoke failed; local revoke proceeds");
+    logger.warn({ slug }, "upstream revoke failed; local revoke already done");
   }
 }
 
@@ -191,29 +199,18 @@ export async function revokeInstall(tenantId: string, actor: string, slug: strin
   });
   if (!install) throw new AppError(404, "Connector not installed");
   if (install.revokedAt) return { revokedAt: install.revokedAt }; // idempotent
+  const aad = connectorAad(tenantId, connector.id);
+  // (a) resolve tokens into memory first.
+  const upstream = prepareUpstreamRevoke(connector.slug, install.encryptedCredentials, aad);
+  // (b) commit the local revoke immediately: unusable from this point on.
   const revokedAt = new Date();
-  // Provider revoke first, exactly once; its outcome never blocks local destruction.
-  let pending = upstreamInflight.get(install.id);
-  if (!pending) {
-    pending = revokeUpstream(
-      connector.slug,
-      install.encryptedCredentials,
-      connectorAad(tenantId, connector.id),
-    ).finally(() => upstreamInflight.delete(install.id));
-    upstreamInflight.set(install.id, pending);
-  }
-  await pending;
-  await tenantTx(async (tx) => {
-    // Conditional claim: a concurrent second revoke gets count 0 → no audit.
+  const won = await tenantTx(async (tx) => {
+    // Conditional claim: a concurrent second revoke gets count 0 → no audit, no upstream.
     const claimed = await tx.tenantConnector.updateMany({
-      where: { id: install.id, revokedAt: null },
-      data: {
-        isEnabled: false,
-        revokedAt,
-        encryptedCredentials: encrypt("{}", connectorAad(tenantId, connector.id)),
-      },
+      where: { id: install.id, tenantId, revokedAt: null },
+      data: { isEnabled: false, revokedAt, encryptedCredentials: encrypt("{}", aad) },
     });
-    if (claimed.count === 0) return;
+    if (claimed.count === 0) return false;
     await tx.activityLog.create({
       data: {
         tenantId,
@@ -224,6 +221,16 @@ export async function revokeInstall(tenantId: string, actor: string, slug: strin
         details: { slug: connector.slug },
       },
     });
+    return true;
   });
+  if (!won) {
+    const current = await prisma.tenantConnector.findUnique({
+      where: { tenantId_connectorId: { tenantId, connectorId: connector.id } },
+      select: { revokedAt: true },
+    });
+    return { revokedAt: current?.revokedAt ?? revokedAt };
+  }
+  // (c) only the winning call talks to the provider, once.
+  if (upstream) await sendUpstreamRevoke(connector.slug, upstream);
   return { revokedAt };
 }

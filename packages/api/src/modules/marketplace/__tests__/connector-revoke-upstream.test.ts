@@ -14,8 +14,10 @@ const { row, connectorRow, activityCreate, fetchMock, logSink } = vi.hoisted(() 
 const dbMock = {
   connector: { findUnique: async () => connectorRow },
   tenantConnector: {
-    findUnique: async () => ({ ...row, connector: connectorRow }),
+    findUnique: async ({ where }: any) =>
+      where.tenantId_connectorId.tenantId === row.tenantId ? { ...row, connector: connectorRow } : null,
     updateMany: async ({ where, data }: any) => {
+      if (where.tenantId !== undefined && where.tenantId !== row.tenantId) return { count: 0 };
       if (where.revokedAt === null && row.revokedAt) return { count: 0 };
       Object.assign(row, data);
       return { count: 1 };
@@ -112,5 +114,70 @@ describe("upstream revoke", () => {
     await revokeInstall("t1", "u1", "acme");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(activityCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("local revoke is committed before the upstream call", async () => {
+    let seen: Record<string, any> = {};
+    fetchMock.mockImplementation(async () => {
+      seen = { ...row };
+      return { ok: true, status: 200 };
+    });
+    await revokeInstall("t1", "u1", "acme");
+    expect(seen.revokedAt).toBeInstanceOf(Date);
+    expect(seen.isEnabled).toBe(false);
+    expect(seen.encryptedCredentials).toBe(`enc:${AAD}:{}`);
+    expect(activityCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("a losing claim returns the DB revokedAt and never calls upstream", async () => {
+    const dbDate = new Date("2026-01-01T00:00:00Z");
+    // Row looks unrevoked on the first read, but a concurrent revoke wins the claim.
+    const orig = dbMock.tenantConnector.findUnique;
+    let reads = 0;
+    dbMock.tenantConnector.findUnique = async (a: any) => {
+      reads++;
+      const r = await orig(a);
+      return reads === 1 ? r : { ...r, revokedAt: dbDate };
+    };
+    const origUpdate = dbMock.tenantConnector.updateMany;
+    dbMock.tenantConnector.updateMany = async () => ({ count: 0 });
+    try {
+      const out = await revokeInstall("t1", "u1", "acme");
+      expect(out.revokedAt).toBe(dbDate);
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(activityCreate).not.toHaveBeenCalled();
+    } finally {
+      dbMock.tenantConnector.findUnique = orig;
+      dbMock.tenantConnector.updateMany = origUpdate;
+    }
+  });
+
+  it("tenant isolation: another tenant cannot revoke or trigger upstream", async () => {
+    await expect(revokeInstall("t2", "u1", "acme")).rejects.toMatchObject({ statusCode: 404 });
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(row.revokedAt).toBeNull();
+  });
+
+  it("undecryptable credentials: local revoke proceeds, no upstream, warn without token", async () => {
+    row.encryptedCredentials = "garbage-RT-SECRET";
+    await revokeInstall("t1", "u1", "acme");
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(row.revokedAt).toBeInstanceOf(Date);
+    expect(logSink.warn).toHaveBeenCalledTimes(1);
+    expect(JSON.stringify(logSink.warn.mock.calls)).not.toContain("RT-SECRET");
+  });
+
+  it("empty revocationUrl falls through to revokeUrl", async () => {
+    setCreds({ accessToken: "AT-SECRET", revocationUrl: "", revokeUrl: "https://idp.acme.example/r" });
+    await revokeInstall("t1", "u1", "acme");
+    expect(fetchMock.mock.calls[0]![0]).toBe("https://idp.acme.example/r");
+  });
+
+  it("sends client_id and client_secret in the body", async () => {
+    setCreds({ refreshToken: "RT-SECRET", revocationUrl: "https://idp.acme.example/r", clientId: "cid", clientSecret: "csec" });
+    await revokeInstall("t1", "u1", "acme");
+    const body = new URLSearchParams(fetchMock.mock.calls[0]![1].body);
+    expect(body.get("client_id")).toBe("cid");
+    expect(body.get("client_secret")).toBe("csec");
   });
 });
