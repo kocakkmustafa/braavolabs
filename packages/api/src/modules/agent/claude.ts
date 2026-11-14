@@ -847,6 +847,8 @@ export async function runProviderAgentLoop(
   // compatible with the resolved provider > tenant model > provider default.
   const model = resolveModelForProvider(aiConfig.provider, config.model, aiConfig.model);
   let callConfig: AIClientConfig = { ...aiConfig, model };
+  // SEC-BRA-04: chain began on a LOCAL provider (data must not leave).
+  const startedLocal = LOCAL_PROVIDERS.has(callConfig.provider);
   assertReasoningEffortSupported(callConfig, config.reasoningEffort);
   if (config.reasoningEffort !== undefined && failover) {
     throw new UnsupportedReasoningEffortError("Explicit reasoning effort requires an exact provider without failover");
@@ -1055,11 +1057,18 @@ export async function runProviderAgentLoop(
         // status). isHandoffTriggerEligible() does that filtering downstream;
         // here we just record what the classifier saw. The message mirrors the
         // cause so every `.toThrow(/…/)` consumer reads exactly as before.
-        if (pendingLinks.length === 0 && LOCAL_PROVIDERS.has(callConfig.provider)) {
-          // SEC-BRA-04: explicit local-provider error; never a cloud handoff.
-          throw new Error(
-            `Yerel sağlayıcı erişilemez (${callConfig.provider}). Sunucunun çalıştığını ve erişilebilir olduğunu kontrol edin; veriler bulut sağlayıcıya otomatik gönderilmez.`,
+        if (pendingLinks.length === 0 && startedLocal && LOCAL_PROVIDERS.has(callConfig.provider)) {
+          logger.warn(
+            { tenantId: cbTenant, provider: callConfig.provider, cls, err },
+            "Local provider failed (SEC-BRA-04) — no cloud failover",
           );
+          // Explicit local-provider error only for unreachable/timeout (TRANSIENT);
+          // auth/quota errors (e.g. CUSTOM 401) fall through to the real error path.
+          if (cls === "TRANSIENT") {
+            throw new Error(
+              `Yerel sağlayıcı erişilemez (${callConfig.provider}). Sunucunun çalıştığını ve erişilebilir olduğunu kontrol edin; veriler bulut sağlayıcıya otomatik gönderilmez.`,
+            );
+          }
         }
         if (pendingLinks.length === 0) {
           throw ProviderExhaustedError.wrap(cls, callConfig.provider, callConfig.model, err);

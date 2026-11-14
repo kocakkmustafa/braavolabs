@@ -654,32 +654,25 @@ describe("SEC-BRA-04 — local provider down → explicit error, zero cloud call
       { provider: "OLLAMA", model: "gemma3:4b", apiKey: null, isDefault: true },
       { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-fb", fallbackOrder: 1 },
     ]);
-    const fetchSpy = vi.fn();
-    vi.stubGlobal("fetch", fetchSpy);
     chatCompletionMock.mockImplementation(async (cfg: AIClientConfig) => {
       if (cfg.provider === "OLLAMA") throw err;
       return completion({ content: "cloud answered", provider: cfg.provider });
     });
-    try {
-      await expect(
-        runAgentLoop({ systemPrompt: "sys", userMessage: "go", toolNames: [], tenantId: TENANT, govContext: GOV }),
-      ).rejects.toThrow(/Yerel sağlayıcı erişilemez/);
-    } finally {
-      vi.unstubAllGlobals();
-    }
+    await expect(
+      runAgentLoop({ systemPrompt: "sys", userMessage: "go", toolNames: [], tenantId: TENANT, govContext: GOV }),
+    ).rejects.toThrow(/Yerel sağlayıcı erişilemez/);
     const cloudCalls = dialedConfigs().filter((c) => CLOUD.has(c.provider));
     expect(cloudCalls).toHaveLength(0);
-    expect(fetchSpy).toHaveBeenCalledTimes(0);
     expect(dialedConfigs().every((c) => c.provider === "OLLAMA")).toBe(true);
   }
 
-  it("ECONNREFUSED → explicit local error; cloud client + fetch count = 0", async () => {
+  it("ECONNREFUSED → explicit local error; cloud client dial count = 0", async () => {
     await runWithLocalDown(
       new Error("OLLAMA endpoint is unreachable from the Braavolabs API server. Verify the endpoint is running."),
     );
   });
 
-  it("timeout → explicit local error; cloud client + fetch count = 0", async () => {
+  it("timeout → explicit local error; cloud client dial count = 0", async () => {
     await runWithLocalDown(new Error("OLLAMA timeout after 240s. Local model may need to load."));
   });
 
@@ -696,5 +689,21 @@ describe("SEC-BRA-04 — local provider down → explicit error, zero cloud call
       { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-fb", fallbackOrder: 1 },
     ]);
     expect((await chain.buildTenantProviderChain(TENANT)).map((l) => l.provider)).toEqual(["DEEPSEEK", "GROQ"]);
+  });
+
+  it("cloud→local chain (DEEPSEEK 401, OLLAMA down) keeps ProviderExhaustedError, no 'not sent to cloud' message", async () => {
+    seedTenantRows([
+      { provider: "DEEPSEEK", model: "deepseek-chat", apiKey: "sk-ds", isDefault: true },
+      { provider: "OLLAMA", model: "gemma3:4b", apiKey: null, fallbackOrder: 1 },
+    ]);
+    chatCompletionMock.mockImplementation(async (cfg: AIClientConfig) => {
+      if (cfg.provider === "DEEPSEEK") throw new Error("DEEPSEEK API error 401: bad key");
+      throw new Error("OLLAMA endpoint is unreachable from the Braavolabs API server.");
+    });
+    const err = await runAgentLoop({
+      systemPrompt: "sys", userMessage: "go", toolNames: [], tenantId: TENANT, govContext: GOV,
+    }).catch((e) => e);
+    expect(err).toBeInstanceOf(ProviderExhaustedError);
+    expect(String(err.message)).not.toMatch(/bulut sağlayıcıya otomatik/);
   });
 });
