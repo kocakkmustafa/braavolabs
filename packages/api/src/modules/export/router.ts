@@ -15,6 +15,14 @@ import { authMiddleware } from "../../middleware/auth";
 import { prisma } from "../../lib/db";
 import { redactCompanyConfig } from "../company/redact";
 import { logger } from "../../lib/logger";
+import { AppError } from "../../middleware/error";
+import { exportCompanyToTemplate } from "../templates/templates.service";
+import { toMicroAppManifest } from "../templates/micro-app-manifest";
+import {
+  generateSyntheticData,
+  SYNTHETIC_MAX_COUNT,
+  SYNTHETIC_MAX_SEED,
+} from "../template-pilot/synthetic-data";
 
 export const exportRouter = Router();
 exportRouter.use(authMiddleware);
@@ -146,6 +154,56 @@ exportRouter.get("/:companyId/bundle", async (req, res, next) => {
     });
 
     res.json(bundle);
+  } catch (err) {
+    next(err);
+  }
+});
+
+/** Fixed default seed: the pilot dataset is never derived from a company id. */
+export const MICRO_APP_DEFAULT_SEED = 20260101;
+export const MICRO_APP_DEFAULT_COUNT = 25;
+const MICRO_APP_VERSION = "1.0.0";
+
+/** Strict non-negative decimal integer from a single query value, else 400. */
+function parseQueryInt(raw: unknown, name: string, fallback: number, max: number): number {
+  if (raw === undefined) return fallback;
+  if (typeof raw !== "string" || !/^\d{1,10}$/.test(raw)) {
+    throw new AppError(400, `${name} must be an integer between 0 and ${max}`);
+  }
+  const n = Number(raw);
+  if (!Number.isSafeInteger(n) || n > max) {
+    throw new AppError(400, `${name} must be an integer between 0 and ${max}`);
+  }
+  return n;
+}
+
+/**
+ * GET /api/v1/export/:companyId/micro-app?seed=&count=
+ * Pilot package: { manifest, syntheticData }. No tenant/company/user ids,
+ * no credentials. Same seed+count => byte-identical body.
+ */
+exportRouter.get("/:companyId/micro-app", async (req, res, next) => {
+  try {
+    const seed = parseQueryInt(req.query.seed, "seed", MICRO_APP_DEFAULT_SEED, SYNTHETIC_MAX_SEED);
+    const count = parseQueryInt(req.query.count, "count", MICRO_APP_DEFAULT_COUNT, SYNTHETIC_MAX_COUNT);
+
+    // Throws AppError(404) for missing AND other-tenant companies alike.
+    const snapshot = await exportCompanyToTemplate(req.params.companyId, req.auth!.tenantId);
+    const manifest = toMicroAppManifest(snapshot, { version: MICRO_APP_VERSION });
+    const syntheticData = generateSyntheticData({ seed, count });
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: "company.export",
+        resource: "company",
+        resourceId: req.params.companyId,
+        details: { format: "micro-app", seed, count },
+      },
+    });
+
+    res.json({ manifest, syntheticData });
   } catch (err) {
     next(err);
   }
