@@ -374,9 +374,24 @@ export async function buildTenantProviderChain(tenantId: string): Promise<Provid
     if (link) links.push(link);
   }
 
-  const byokLinks = offline
+  let byokLinks = offline
     ? links.filter((l) => LOCAL_PROVIDERS.has(l.provider))
     : links;
+
+  // SEC-BRA-04: a LOCAL default (Ollama / LM Studio / Custom) means the
+  // tenant's data must not leave their machine. A dead local endpoint must
+  // surface as an explicit error — never silently fail over to a cloud link,
+  // even one the tenant listed in fallbackOrder.
+  if (byokLinks.length > 0 && LOCAL_PROVIDERS.has(byokLinks[0].provider)) {
+    const cloud = byokLinks.filter((l) => !LOCAL_PROVIDERS.has(l.provider));
+    if (cloud.length > 0) {
+      logger.warn(
+        { tenantId, localProvider: byokLinks[0].provider, ignoredCloud: cloud.map((l) => l.provider) },
+        "Local provider is default — cloud fallback links ignored (SEC-BRA-04)",
+      );
+      byokLinks = byokLinks.filter((l) => LOCAL_PROVIDERS.has(l.provider));
+    }
+  }
 
   // BR-P0-002-D: allowSystemFallback and system-held environment keys are
   // historical inputs only. Runtime resolution returns tenant-owned BYOK or

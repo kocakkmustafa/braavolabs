@@ -641,3 +641,60 @@ describe("circuit breaker — a tripped head link is routed around before the fi
     );
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────
+// SEC-BRA-04 — LOCAL default must never silently fall over to a cloud link
+// ─────────────────────────────────────────────────────────────────────────
+
+describe("SEC-BRA-04 — local provider down → explicit error, zero cloud calls", () => {
+  const CLOUD = new Set(["DEEPSEEK", "GROQ", "OPENAI", "ANTHROPIC", "GOOGLE"]);
+
+  async function runWithLocalDown(err: Error) {
+    seedTenantRows([
+      { provider: "OLLAMA", model: "gemma3:4b", apiKey: null, isDefault: true },
+      { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-fb", fallbackOrder: 1 },
+    ]);
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    chatCompletionMock.mockImplementation(async (cfg: AIClientConfig) => {
+      if (cfg.provider === "OLLAMA") throw err;
+      return completion({ content: "cloud answered", provider: cfg.provider });
+    });
+    try {
+      await expect(
+        runAgentLoop({ systemPrompt: "sys", userMessage: "go", toolNames: [], tenantId: TENANT, govContext: GOV }),
+      ).rejects.toThrow(/Yerel sağlayıcı erişilemez/);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+    const cloudCalls = dialedConfigs().filter((c) => CLOUD.has(c.provider));
+    expect(cloudCalls).toHaveLength(0);
+    expect(fetchSpy).toHaveBeenCalledTimes(0);
+    expect(dialedConfigs().every((c) => c.provider === "OLLAMA")).toBe(true);
+  }
+
+  it("ECONNREFUSED → explicit local error; cloud client + fetch count = 0", async () => {
+    await runWithLocalDown(
+      new Error("OLLAMA endpoint is unreachable from the Braavolabs API server. Verify the endpoint is running."),
+    );
+  });
+
+  it("timeout → explicit local error; cloud client + fetch count = 0", async () => {
+    await runWithLocalDown(new Error("OLLAMA timeout after 240s. Local model may need to load."));
+  });
+
+  it("chain builder drops cloud fallbackOrder links under a local default but keeps cloud→cloud chains", async () => {
+    const chain = await import("../../../services/provider-chain");
+    seedTenantRows([
+      { provider: "OLLAMA", model: "gemma3:4b", apiKey: null, isDefault: true },
+      { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-fb", fallbackOrder: 1 },
+    ]);
+    expect((await chain.buildTenantProviderChain(TENANT)).map((l) => l.provider)).toEqual(["OLLAMA"]);
+
+    seedTenantRows([
+      { provider: "DEEPSEEK", model: "deepseek-chat", apiKey: "sk-ds", isDefault: true },
+      { provider: "GROQ", model: "llama-3.3-70b-versatile", apiKey: "gsk-fb", fallbackOrder: 1 },
+    ]);
+    expect((await chain.buildTenantProviderChain(TENANT)).map((l) => l.provider)).toEqual(["DEEPSEEK", "GROQ"]);
+  });
+});

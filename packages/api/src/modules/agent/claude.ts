@@ -8,6 +8,7 @@ import { runLocalAgentLoop } from "./claude-local";
 import { assertReasoningEffortSupported, UnsupportedReasoningEffortError, type ReasoningEffort } from "../../services/reasoning-effort";
 import {
   chatCompletion,
+  LOCAL_PROVIDERS,
   resolveModelForProvider,
   ToolsUnsupportedError,
   type AIClientConfig,
@@ -1054,6 +1055,12 @@ export async function runProviderAgentLoop(
         // status). isHandoffTriggerEligible() does that filtering downstream;
         // here we just record what the classifier saw. The message mirrors the
         // cause so every `.toThrow(/…/)` consumer reads exactly as before.
+        if (pendingLinks.length === 0 && LOCAL_PROVIDERS.has(callConfig.provider)) {
+          // SEC-BRA-04: explicit local-provider error; never a cloud handoff.
+          throw new Error(
+            `Yerel sağlayıcı erişilemez (${callConfig.provider}). Sunucunun çalıştığını ve erişilebilir olduğunu kontrol edin; veriler bulut sağlayıcıya otomatik gönderilmez.`,
+          );
+        }
         if (pendingLinks.length === 0) {
           throw ProviderExhaustedError.wrap(cls, callConfig.provider, callConfig.model, err);
         }
