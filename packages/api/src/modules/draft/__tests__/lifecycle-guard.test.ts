@@ -270,25 +270,28 @@ describe("draft decisions respect company lifecycle", () => {
     expect(activityLogCreate).not.toHaveBeenCalled();
   });
 
-  it("SEC-BRA-01: the same approve+send 3x = 1 email, 1 quota claim, 1 ActivityLog; repeats are rejected", async () => {
-    let status = "PENDING";
-    draftFindUnique.mockImplementation(async () => ({ ...pendingDraft("ACTIVE"), status }));
+  it("SEC-BRA-01 stale-read 3x approve+send: pre-read is PENDING every time, only the claim CAS stops 2 and 3 = 1 email/quota/log", async () => {
+    draftFindUnique.mockResolvedValue(pendingDraft("ACTIVE")); // stale: PENDING on all 3 calls
+    let claimed = false;
     draftUpdateMany.mockImplementation(async ({ where }: { where: any }) => {
-      if (where.status !== status) return { count: 0 };
-      status = "APPROVED";
+      if (where.status !== "PENDING" || claimed) return { count: 0 };
+      claimed = true;
       return { count: 1 };
-    });
-    draftUpdate.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
-      status = data.status as string;
-      return { id: "draft-1", ...data };
     });
     const results = [];
     for (let i = 0; i < 3; i++) results.push(await invoke("post", { send: true }));
     expect(results[0].error).toBeUndefined();
-    expect(results[1].error).toMatchObject({ statusCode: 400 });
-    expect(results[2].error).toMatchObject({ statusCode: 400 });
+    for (const r of results.slice(1)) {
+      expect(r.error).toMatchObject({ statusCode: 409, message: "Draft was already decided or the company is inactive." });
+    }
+    expect(draftUpdateMany).toHaveBeenCalledTimes(3);
+    for (const [arg] of draftUpdateMany.mock.calls) {
+      expect(arg.where).toMatchObject({ id: "draft-1", status: "PENDING", company: { tenantId: "tenant-1", status: "ACTIVE" } });
+      expect(arg.data).toEqual({ status: "APPROVED" });
+    }
     expect(sendEmail).toHaveBeenCalledTimes(1);
     expect(tenantTxMock).toHaveBeenCalledTimes(1);
+    expect(draftUpdate).toHaveBeenCalledTimes(1);
     expect(activityLogCreate).toHaveBeenCalledTimes(1);
   });
 
