@@ -178,6 +178,36 @@ describe("manifest hardening", () => {
     }
   });
 
+  it("padding cannot push a secret across the cut line (leaves no prefix behind)", () => {
+    const rnd = "Zq9Xw3Lm7Rt2Vb8Nc4Hd6Jf1Kg5Ps0Yu3Ae7Ox";
+    const secrets = ["sk-live-" + rnd, "ghp_" + rnd, "AKIAZQ9XW3LM7RT2VB8N", "eyJ" + rnd];
+    const leftovers = ["sk-l", "ghp_", "AKIA", "eyJ"];
+    const pads = [" ", "\t", "\n", " \t\n"];
+    const MAX = 200; // agent name limit
+    for (const secret of secrets) {
+      for (const unit of pads) {
+        for (let n = MAX - 70; n <= MAX + 70; n++) {
+          const pad = unit.repeat(n);
+          for (const input of [pad + secret, "x" + pad + secret, "a".repeat(n) + " " + secret]) {
+            const s = snapshot();
+            s.agents[0].name = input;
+            s.pipelines[0].description = input;
+            s.pipelines[0].steps = [{ name: input }];
+            const json = JSON.stringify(toMicroAppManifest(s, { version: "1.0.0" }));
+            for (const l of leftovers) expect(json).not.toContain(l);
+            for (let i = 0; i + 6 <= rnd.length; i++) expect(json).not.toContain(rnd.slice(i, i + 6));
+          }
+        }
+      }
+    }
+    // 5000-space padding in front of a secret
+    const s = snapshot();
+    s.agents[0].role = " ".repeat(5000) + "sk-live-" + rnd;
+    const m = toMicroAppManifest(s, { version: "1.0.0" });
+    expect(JSON.stringify(m)).not.toContain("sk-l");
+    expect(m.agents[0].role).toBe("[redacted]");
+  });
+
   it("malformed snapshots never throw and yield a valid manifest", () => {
     const bad: unknown[] = [
       {},

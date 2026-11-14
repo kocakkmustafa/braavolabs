@@ -128,22 +128,45 @@ const REDACT_TEST = new RegExp(REDACT_SOURCE);
 
 const looksCredential = (v: string): boolean => STRONG_TEST.test(v) || SECRET_WORD.test(v);
 
+// A token cut at a boundary that starts like a known credential prefix.
+const CREDENTIAL_PREFIX = /^(?:sk|pk|rk)[-_]|^gh[pousr]_|^github_pat_|^AKIA|^AIza|^eyJ|^xox|^xapp|^whsec_|^-----BEGIN/i;
+const WS_RUN = /[\s\u0000-\u001f\u007f]+/g;
+const lastToken = (t: string): { head: string; tail: string } => {
+  const i = t.lastIndexOf(" ");
+  return { head: t.slice(0, i + 1), tail: t.slice(i + 1) };
+};
+
 /**
- * Redaction (not rejection) for free text; never throws. Input is cut to
- * `max + 64` BEFORE the regexes run (snapshot JSON arrives schema-less from
- * the DB), which bounds regex work, and cut again to `max` afterwards.
+ * Redaction (not rejection) for free text; never throws. Order matters:
+ *  1. collapse whitespace/control runs and trimStart, so padding cannot push
+ *     a secret across the cut line;
+ *  2. cut to `max + 64` (bounds regex work; input is schema-less DB JSON);
+ *  3. if that cut happened, drop the partial last token (a truncated secret
+ *     may be too short for any pattern to match);
+ *  4. redact;
+ *  5. trim and cut to `max`; if this cut happened, drop a last token that
+ *     starts like a credential prefix.
  */
-function redact(v: string, max: number): string {
-  return v.slice(0, max + 64).replace(REDACT_RE, "[redacted]");
+function cleanText(v: unknown, max: number): string {
+  let t = (typeof v === "string" ? v : "").replace(WS_RUN, " ").trimStart();
+  if (t.length > max + 64) {
+    t = lastToken(t.slice(0, max + 64)).head;
+  }
+  t = t.replace(REDACT_RE, "[redacted]").trim();
+  if (t.length > max) {
+    const { head, tail } = lastToken(t.slice(0, max));
+    t = CREDENTIAL_PREFIX.test(tail) ? head.trim() : t.slice(0, max).trim();
+  }
+  return t;
 }
 
 function clean(v: unknown, max: number, fallback: string): string {
-  const out = redact(typeof v === "string" ? v : "", max).trim().slice(0, max);
+  const out = cleanText(v, max);
   return out.length > 0 ? out : fallback;
 }
 
 function cleanOptional(v: unknown, max: number): string | undefined {
-  const out = redact(typeof v === "string" ? v : "", max).trim().slice(0, max);
+  const out = cleanText(v, max);
   return out.length > 0 ? out : undefined;
 }
 
@@ -188,7 +211,7 @@ const clampInt = (v: unknown, min: number, max: number, fallback: number): numbe
 
 /** Build metadata is dropped; a credential-like or oversized prerelease is stripped to the core. */
 function cleanVersion(v: string): string {
-  const noBuild = v.slice(0, 256).split("+")[0];
+  const noBuild = (typeof v === "string" ? v : "").replace(WS_RUN, " ").trim().slice(0, 256).split("+")[0];
   const core = noBuild.split("-")[0];
   const bad = noBuild.length > 64 || looksCredential(noBuild) || REDACT_TEST.test(noBuild);
   return bad ? core : noBuild;
