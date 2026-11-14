@@ -203,6 +203,7 @@ exportRouter.get("/:companyId/micro-app", async (req, res, next) => {
       },
     });
 
+    res.set("Cache-Control", "private, no-store");
     res.json({ manifest, syntheticData });
   } catch (err) {
     next(err);

@@ -90,7 +90,7 @@ const get = async (qs = "", tok: string | null = token(), id = COMPANY) => {
     headers: tok ? { authorization: `Bearer ${tok}` } : {},
   });
   const text = await res.text();
-  return { status: res.status, type: res.headers.get("content-type") ?? "", text, body: JSON.parse(text) };
+  return { status: res.status, type: res.headers.get("content-type") ?? "", cache: res.headers.get("cache-control") ?? "", text, body: JSON.parse(text) };
 };
 
 describe("GET /export/:companyId/micro-app", () => {
@@ -102,6 +102,7 @@ describe("GET /export/:companyId/micro-app", () => {
     expect(r.body.manifest.schemaVersion).toBe("1");
     expect(r.body.syntheticData).toHaveLength(25);
     expect(r.text.length).toBeLessThan(500_000);
+    expect(r.cache).toBe("private, no-store");
   });
 
   it("leaks no ids, credentials or e-mail anywhere in the response", async () => {
@@ -126,6 +127,7 @@ describe("GET /export/:companyId/micro-app", () => {
 
   it.each([
     "?seed=-1", "?seed=NaN", "?seed=1.5", "?seed=", "?seed=abc", "?seed=4294967296", "?seed=1&seed=2",
+    "?seed=0x10", "?seed=1%202", "?seed=%201", "?seed=12345678901", "?seed[]=1",
     "?count=-1", "?count=NaN", "?count=1001", "?count=2.5", "?count=", "?count=1e2", "?count=1&count=2",
   ])("bad query %s -> 400", async (qs) => {
     expect((await get(qs)).status).toBe(400);
@@ -155,7 +157,16 @@ describe("GET /export/:companyId/micro-app", () => {
   });
 
   it("writes an activity log entry", async () => {
-    await get("?count=2");
+    await get("?seed=7&count=2");
     expect(activityCreate).toHaveBeenCalledTimes(1);
+    const arg = activityCreate.mock.calls[0][0];
+    expect(arg.data.details).toEqual({ format: "micro-app", seed: 7, count: 2 });
+  });
+
+  it("does not write an activity log entry on 404 or 400", async () => {
+    await get("", token(OTHER_TENANT));
+    await get("", token(), "nope");
+    await get("?seed=-1");
+    expect(activityCreate).not.toHaveBeenCalled();
   });
 });
