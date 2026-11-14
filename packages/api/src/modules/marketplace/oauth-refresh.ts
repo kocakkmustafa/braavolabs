@@ -20,6 +20,9 @@ import { connectorAad } from "./connector-lifecycle";
 /** Refresh slightly early so a token does not expire mid-flight. */
 export const REFRESH_SKEW_MS = 60_000;
 const TOKEN_TIMEOUT_MS = 15_000;
+/** Provider-supplied lifetime is clamped: non-finite or <=0 -> 1h, never above 24h. */
+const DEFAULT_EXPIRES_IN_S = 3600;
+const MAX_EXPIRES_IN_S = 24 * 3600;
 const TOKEN_MAX_BYTES = 64 * 1024;
 /** Failed refreshes are remembered per connector so repeated calls do not hammer the token endpoint. */
 const NEGATIVE_TTL_MS = 30_000;
@@ -113,7 +116,11 @@ async function doRefresh(
   if (!body || typeof body !== "object" || typeof body.access_token !== "string" || !body.access_token) {
     throw new OAuthRefreshError();
   }
-  const expiresIn = typeof body.expires_in === "number" && body.expires_in > 0 ? body.expires_in : 3600;
+  const rawExp = body.expires_in;
+  const expiresIn =
+    typeof rawExp === "number" && Number.isFinite(rawExp) && rawExp > 0
+      ? Math.min(rawExp, MAX_EXPIRES_IN_S)
+      : DEFAULT_EXPIRES_IN_S;
   const next: Record<string, string> = {
     ...creds,
     accessToken: body.access_token,
@@ -127,7 +134,7 @@ async function doRefresh(
   const encrypted = encrypt(JSON.stringify(next), aad);
   const write = () =>
     prisma.tenantConnector.updateMany({
-      where: { id: install.id, revokedAt: null, isEnabled: true, encryptedCredentials: readValue },
+      where: { id: install.id, tenantId, revokedAt: null, isEnabled: true, encryptedCredentials: readValue },
       data: { encryptedCredentials: encrypted },
     });
   let count: number;

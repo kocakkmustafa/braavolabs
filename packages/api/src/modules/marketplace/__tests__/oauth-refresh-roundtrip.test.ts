@@ -1,5 +1,7 @@
 /** BRA-P1-02a — real encrypt/decrypt round trip of the refreshed credential under the connector AAD. */
 import { describe, expect, it, vi } from "vitest";
+
+process.env.ENCRYPTION_KEY ??= "test-encryption-key-32-chars-minimum-1234567890";
 import { encrypt, decrypt } from "../../../lib/encryption";
 import { connectorAad } from "../connector-lifecycle";
 

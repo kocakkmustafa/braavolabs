@@ -178,6 +178,32 @@ describe("OAuth2 refresh", () => {
     expect(safeFetch).toHaveBeenCalledTimes(2);
   });
 
+  it("CAS write is scoped by tenantId", async () => {
+    decrypt.mockReturnValue(JSON.stringify(expired));
+    safeFetch.mockImplementation(async () => tokenOk());
+    await executeMcpTool("t", "acme", "x", {});
+    expect(casWrite.mock.calls[0]![0].where).toMatchObject({ tenantId: "t" });
+  });
+
+  it.each([
+    ["1e999 (Infinity)", "1e999", 3600],
+    ["zero", "0", 3600],
+    ["negative", "-5", 3600],
+    ["string", '"99"', 3600],
+    ["huge", "99999999999", 86_400],
+    ["normal", "120", 120],
+  ])("expires_in clamp: %s", async (_n, raw, expectS) => {
+    decrypt.mockReturnValue(JSON.stringify(expired));
+    safeFetch.mockImplementation(async () =>
+      new Response(`{"access_token":"A-token-123456","expires_in":${raw}}`, { status: 200 }));
+    const t0 = Date.now();
+    await executeMcpTool("t", "acme", "x", {});
+    const saved = JSON.parse(encrypt.mock.calls[0]![0] as string);
+    const delta = (Number(saved.expiresAt) - t0) / 1000;
+    expect(delta).toBeGreaterThan(expectS - 5);
+    expect(delta).toBeLessThan(expectS + 5);
+  });
+
   it("unparseable expiresAt on a refreshable credential is treated as expired", async () => {
     decrypt.mockReturnValue(JSON.stringify({ ...expired, expiresAt: "not-a-date" }));
     safeFetch.mockImplementation(async () => tokenOk());
