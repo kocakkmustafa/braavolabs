@@ -32,6 +32,7 @@ import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { safeExternalFetch, SsrfError } from "../../lib/ssrf";
 import { runAgentLoop } from "../agent/claude";
+import { summarizeCompareMetrics } from "../../services/compare-metrics";
 import { compareAcrossModels, validateModelSelections, type ModelSelection } from "../../services/multi-model";
 
 // ── Provider interface ──────────────────────────────────────
@@ -372,7 +373,12 @@ async function runCompareSession(sessionId: string, opts: StartCompareOptions): 
         // perModel answers, consensus, disagreements, synthesizer — is
         // embedded under `multiModel` (plan §2.5: "research findings
         // JSON'ına gömülür").
-        findings: { summary: compare.finalAnswer, claims: [], multiModel: compare } as any,
+        findings: {
+          summary: compare.finalAnswer,
+          claims: [],
+          multiModel: compare,
+          metrics: summarizeCompareMetrics(compare, { maxCostUsd: opts.maxCostUsd ?? 1.0 }),
+        } as any,
         costUsd: compare.totalCostUsd,
         completedAt: new Date(),
       },
@@ -418,7 +424,9 @@ async function augmentFindingsWithMultiModel(
       findings && typeof findings === "object" && !Array.isArray(findings)
         ? (findings as Record<string, unknown>)
         : { summary: String(findings ?? ""), claims: [] };
-    return { findings: { ...base, multiModel: compare }, addedCostUsd: compare.totalCostUsd };
+    return {
+      findings: { ...base, multiModel: compare, metrics: summarizeCompareMetrics(compare, { maxCostUsd: remainingBudget }) },
+      addedCostUsd: compare.totalCostUsd };
   } catch (err) {
     logger.warn(
       { sessionId: session.id, err: (err as Error).message },
