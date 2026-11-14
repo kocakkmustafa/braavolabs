@@ -38,7 +38,11 @@ describe.each([
   it.each(ROLES)("%s metin kontrastı >= 4.5", (role) => {
     expect(ratio(tok(block, role), tok(block, "background"))).toBeGreaterThanOrEqual(4.5);
   });
-  it.each(ROLES)("%s değeri eşleme belgesinde yazılı", (role) => {
-    expect(doc.toLowerCase()).toContain(tok(block, role).toLowerCase());
+  it.each(ROLES)("%s değeri eşleme tablosunda ilgili satırın web sütununda yazılı", (role) => {
+    const label = role === "error" ? "danger" : role;
+    const row = doc.split("\n").find((l) => l.startsWith(`| ${label} |`));
+    if (!row) throw new Error(`tablo satırı yok: ${label}`);
+    const webCell = row.split("|")[2].toLowerCase();
+    expect(webCell).toContain(tok(block, role).toLowerCase());
   });
 });
