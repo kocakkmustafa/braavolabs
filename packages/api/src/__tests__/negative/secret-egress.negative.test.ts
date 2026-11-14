@@ -28,7 +28,8 @@ vi.mock("../../services/push", () => ({ notifyTenantUsers: vi.fn().mockResolvedV
 vi.mock("../../lib/runEvents", () => ({ publishRunEvent: vi.fn().mockResolvedValue(undefined) }));
 
 import { executeTool } from "../../modules/agent/tool-executor";
-import { listConnectorToolsForTenant, scrubCredentials } from "../../modules/marketplace/dynamic-tools";
+import { listConnectorToolsForTenant } from "../../modules/marketplace/dynamic-tools";
+import { scrubSecrets, credentialSecrets } from "../../lib/mcp-auth";
 import { AppError } from "../../middleware/error";
 
 const connector = { id: "conn-1", slug: "acme", name: "Acme", mcpServerUrl: "https://mcp.acme.example/rpc", authMethod: "API_KEY" };
@@ -132,13 +133,71 @@ describe("secret egress — success payload (SEC-BRA-06b)", () => {
   });
 });
 
-describe("scrubCredentials", () => {
-  it("ignores short values and non-string creds, does not mutate input", () => {
-    const input = { t: "pin 123 and abcdefgh" };
-    const out = scrubCredentials(input, { a: "123", b: "abcdefgh" });
-    expect(out).toEqual({ t: "pin 123 and [REDACTED]" });
-    expect(input.t).toBe("pin 123 and abcdefgh");
-    expect(scrubCredentials(null, { a: "abcdefgh" })).toBeNull();
-    expect(scrubCredentials({ n: 5 }, { a: "abcdefgh" })).toEqual({ n: 5 });
+describe("secret egress — SEC-BRA-06b hardening", () => {
+  async function call(inst: any, payload?: unknown, err?: Error) {
+    findFirst.mockResolvedValue(inst);
+    findMany.mockResolvedValue([inst]);
+    if (err) callTool.mockRejectedValue(err);
+    else callTool.mockResolvedValue(payload);
+    const tools = await listConnectorToolsForTenant("tenant-a");
+    return executeTool("mcp_acme_lookup", {}, { ...ctx, extraTools: new Map(tools.map((t) => [t.name, t])) });
+  }
+  const asAudit = () => JSON.stringify(toolCallCreate.mock.calls);
+
+  it("fail-closed beyond depth 50: the subtree is redacted, not passed through", async () => {
+    let deep: any = { s: SECRET };
+    for (let i = 0; i < 60; i++) deep = { n: deep };
+    const res = await call(install, { content: [], meta: deep });
+    expect(leakedLayers(res)).toEqual([]);
+    expect(JSON.stringify(res.output)).toContain("[REDACTED]");
+    expect(toolCallCreate).toHaveBeenCalled();
+  });
+
+  it("a secret used as an object key is scrubbed", async () => {
+    const res = await call(install, { meta: { [SECRET]: "v" } });
+    expect(leakedLayers(res)).toEqual([]);
+    expect(toolCallCreate).toHaveBeenCalled();
+  });
+
+  it("an AppError message (JSON-RPC style) containing the secret is scrubbed in result, audit and logs", async () => {
+    const res = await call(install, undefined, new AppError(502, "MCP error -32000: bad key " + SECRET));
+    expect(res.output).toEqual({ error: "MCP error -32000: bad key [REDACTED]" });
+    expect(leakedLayers(res)).toEqual([]);
+    expect(toolCallCreate).toHaveBeenCalled();
+  });
+
+  it("BASIC: an echoed base64 Basic token and the raw password are scrubbed", async () => {
+    decrypt.mockReturnValue(JSON.stringify({ username: "alice-user", password: "p4ss-W0rd-long" }));
+    const token = Buffer.from("alice-user:p4ss-W0rd-long").toString("base64");
+    const res = await call(
+      { ...install, connector: { ...connector, authMethod: "BASIC" } },
+      { content: [{ type: "text", text: "Authorization: Basic " + token + " pw=p4ss-W0rd-long" }] },
+    );
+    const wire = JSON.stringify(res) + asAudit();
+    expect(wire).not.toContain(token);
+    expect(wire).not.toContain("p4ss-W0rd-long");
+    expect(toolCallCreate).toHaveBeenCalled();
+  });
+
+  it("CUSTOM: an echoed header value from the headers JSON is scrubbed", async () => {
+    decrypt.mockReturnValue(JSON.stringify({ headers: JSON.stringify({ "X-Api-Token": "hdr-secret-value-9", "X-Other": "other-secret-77" }) }));
+    const res = await call(
+      { ...install, connector: { ...connector, authMethod: "CUSTOM" } },
+      { content: [{ type: "text", text: "got hdr-secret-value-9 and other-secret-77" }] },
+    );
+    const wire = JSON.stringify(res) + asAudit();
+    expect(wire).not.toContain("hdr-secret-value-9");
+    expect(wire).not.toContain("other-secret-77");
+    expect(toolCallCreate).toHaveBeenCalled();
+  });
+
+  it("credentialSecrets/scrubSecrets: short values kept; trimmed, base64 and URL-encoded forms masked; input not mutated", () => {
+    const input = { t: "pin 123 abcdefgh YWJjZGVmZ2g= abc%20defg" };
+    const secrets = credentialSecrets("API_KEY", { apiKey: "abcdefgh\n", short: "123", sp: "abc defg" });
+    const out = scrubSecrets(input, secrets) as any;
+    expect(out.t).toBe("pin 123 [REDACTED] [REDACTED] [REDACTED]");
+    expect(input.t).toContain("abcdefgh");
+    expect(scrubSecrets(null, secrets)).toBeNull();
+    expect(scrubSecrets({ n: 5 }, secrets)).toEqual({ n: 5 });
   });
 });
