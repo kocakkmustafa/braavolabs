@@ -10,6 +10,7 @@ import { estimatePipelineCostUsd } from "../../lib/modelPricing";
 import { getTenantAIConfig, chatCompletion, type AIProviderType } from "../../services/ai-client";
 import { resolveTenantCompletionLink } from "../../services/provider-chain";
 import { claimQuota, releaseQuota } from "../billing/metering";
+import { sameUtcMonth } from "../billing/period";
 import { enqueueRun } from "../pipeline/runner";
 import { computePlanHash, planHashMatches } from "./plan-hash";
 import { canStartCard, createPlannedRun, isUniqueViolation, resolveStartBudget } from "./start";
@@ -183,6 +184,7 @@ jobsRouter.post("/start", startLimiter, async (req, res, next) => {
       throw new AppError(429, `Monthly run limit reached (${claim.value}/${claim.limit}). Upgrade your plan for more runs.`);
     }
 
+    const claimedAt = Date.now();
     let started;
     try {
       started = await createPlannedRun({
@@ -209,10 +211,19 @@ jobsRouter.post("/start", startLimiter, async (req, res, next) => {
     try {
       await enqueueRun(started.runId);
     } catch (err) {
-      await prisma.run
-        .update({ where: { id: started.runId }, data: { status: "FAILED", error: "enqueue_failed" } })
-        .catch((markErr) => logger.error({ err: markErr, runId: started.runId }, "jobs/start: marking run FAILED after enqueue failure failed"));
-      await releaseQuota(tenantId, "runs");
+      // CAS: yalnız hâlâ PENDING ise FAILED + iade. Throw → iade yok (satır PENDING kalır, pending-sweeper
+      // yönetir); count 0 → işçi aldı, iade yok. Ay sınırı: claim başka aydaysa iade atlanır.
+      let refund = false;
+      try {
+        const res = await prisma.run.updateMany({
+          where: { id: started.runId, status: "PENDING" },
+          data: { status: "FAILED", error: "enqueue_failed" },
+        });
+        refund = res.count === 1;
+      } catch (markErr) {
+        logger.error({ err: markErr, runId: started.runId }, "jobs/start: marking run FAILED after enqueue failure failed — no refund, sweeper owns the run");
+      }
+      if (refund && sameUtcMonth(claimedAt, Date.now())) await releaseQuota(tenantId, "runs");
       throw err;
     }
 

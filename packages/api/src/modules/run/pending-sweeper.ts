@@ -40,6 +40,7 @@ import { logger } from "../../lib/logger";
 import { runQueue } from "../../lib/queue";
 import { runWithoutTenant } from "../../lib/tenant-context";
 import { releaseQuota } from "../billing/metering";
+import { sameUtcMonth } from "../billing/period";
 import { enqueueRun } from "../pipeline/runner";
 import type { JobState } from "./job-state";
 import { isJobStateDualWriteEnabled, tryWriteReceipt } from "./transition";
@@ -98,11 +99,6 @@ async function clearFinishedSweepJob(runId: string): Promise<void> {
   const state = await prev.getState();
   if (state === "completed" || state === "failed") await prev.remove();
 }
-
-const sameUtcMonth = (d: Date, nowMs: number): boolean => {
-  const n = new Date(nowMs);
-  return d.getUTCFullYear() === n.getUTCFullYear() && d.getUTCMonth() === n.getUTCMonth();
-};
 
 /** Denetim satırı geçişten/kuyruktan SONRA ve best-effort: yazılamazsa koşu `errors`a düşmez. */
 async function auditBestEffort(tenantId: string, runId: string, action: string, ageMs: number): Promise<void> {

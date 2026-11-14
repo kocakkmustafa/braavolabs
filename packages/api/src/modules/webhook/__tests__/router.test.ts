@@ -316,16 +316,50 @@ describe("POST /hooks/:companySlug/:event", () => {
     expect(releaseQuotaMock).toHaveBeenCalledTimes(1);
   });
 
-  it("BRA-P0-03e-b: FAILED işaretleme hatası yutulmaz-ama-teslimatı bozmaz; iade yine yapılır", async () => {
+  it("BRA-P0-03e-b: CAS sırası — önce PENDING→FAILED, sonra iade", async () => {
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+    runCreate.mockResolvedValue({ id: "run-1" });
+    enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
+    await invoke(handler, validReq());
+    expect(runUpdateMany.mock.invocationCallOrder[0]).toBeLessThan(releaseQuotaMock.mock.invocationCallOrder[0]);
+  });
+
+  it("BRA-P0-03e-b: CAS kaybı (count 0, işçi aldı) → iade YOK", async () => {
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+    runCreate.mockResolvedValue({ id: "run-1" });
+    enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
+    runUpdateMany.mockResolvedValue({ count: 0 });
+    const { res } = await invoke(handler, validReq());
+    expect(res.statusCode).toBe(200);
+    expect(releaseQuotaMock).not.toHaveBeenCalled();
+  });
+
+  it("BRA-P0-03e-b: CAS throw → iade YOK (sweeper yönetir), teslimat yine 200", async () => {
     pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
     runCreate.mockResolvedValue({ id: "run-1" });
     enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
     runUpdateMany.mockRejectedValue(new Error("db down"));
-
     const { res } = await invoke(handler, validReq());
-
     expect(res.statusCode).toBe(200);
-    expect(releaseQuotaMock).toHaveBeenCalledTimes(1);
+    expect(releaseQuotaMock).not.toHaveBeenCalled();
+  });
+
+  it("BRA-P0-03e-b: ay dönümü (claim ile iade farklı UTC ay) → iade atlanır", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+      runCreate.mockResolvedValue({ id: "run-1" });
+      vi.setSystemTime(new Date(Date.UTC(2026, 9, 31, 23, 59, 59)));
+      enqueueRunMock.mockImplementation(async () => {
+        vi.setSystemTime(new Date(Date.UTC(2026, 10, 1, 0, 0, 1)));
+        throw new Error("queue unavailable");
+      });
+      await invoke(handler, validReq());
+      expect(runUpdateMany).toHaveBeenCalledTimes(1);
+      expect(releaseQuotaMock).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("run.create hatası: işaretlenecek koşu yok (updateMany çağrılmaz), iade yapılır", async () => {
