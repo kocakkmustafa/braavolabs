@@ -1,7 +1,7 @@
 "use client";
 /**
- * BRA-UX-05f — Şirket durumu (bayrak `NEXT_PUBLIC_UX_COMPANY`). Tek satır özet + ajanlar. Yalnız var olan uçlar: `GET /companies/:id`
- * ve `GET /runs?bucket=…` (şirket kimliğiyle istemcide süzülür). Okunamayan kova "Bilinmiyor", kısmi sayfa "en az N"; sayılar uydurulmaz.
+ * BRA-UX-05f — Şirket durumu (bayrak `NEXT_PUBLIC_UX_COMPANY`). Tek satır özet + ajanlar. Uçlar: `GET /companies/:id`
+ * ve `GET /runs?companyId=…&bucket=…` (BRA-P0-11a: sunucu şirkete süzer, kova toplamları `counts`ta). Okunamayan kova "Bilinmiyor", kısmi sayfa "en az N"; sayılar uydurulmaz.
  * Ekip, risk ve entegrasyon durumu için bu yüzeyde veri YOK: mevcut sayfalara bağlantı verilir.
  */
 import Link from "next/link";
@@ -39,7 +39,7 @@ export default function CompanyStatus() {
     if (!hydrated || !token || !companyId) return;
     const mine = ++seq.current;
     setLoad({ status: "loading", name: null, agents: [], pages: null });
-    const buckets = Promise.all(SUMMARY_BUCKETS.map((b) => api.inboxRuns(token, b).then((p) => p, () => null)));
+    const buckets = Promise.all(SUMMARY_BUCKETS.map((b) => api.companyRuns(token, companyId, b).then((p) => p, () => null)));
     Promise.all([api.getCompany(token, companyId), buckets])
       .then(([company, results]) => {
         if (mine !== seq.current) return;
@@ -62,7 +62,7 @@ export default function CompanyStatus() {
     );
   }
 
-  const summary = load.pages ? summarizeCompany(companyId, load.pages) : null;
+  const summary = load.pages ? summarizeCompany(load.pages) : null;
   const unknown = ct("unknown");
   const countText = (b: SummaryBucket) => {
     const c = summary?.counts[b];

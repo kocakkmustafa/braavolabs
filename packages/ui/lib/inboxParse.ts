@@ -2,7 +2,9 @@
  * BRA-P0-04e — /runs ve /approvals yanıt ayrıştırıcıları. SAF ve core-RUNTIME-bağımsız: `lib/api.ts` (herkese açık
  * sayfaların yüklediği zincir) bunu import eder; `@ai-company-os/core` değerleri yalnız `lib/inbox.ts`te kalır.
  */
-import type { InboxApprovalGroup, InboxApprovalGroupsPage, InboxRun, InboxRunsPage } from "./inbox";
+import type { InboxApprovalGroup, InboxApprovalGroupsPage, InboxBucketCounts, InboxRun, InboxRunsPage } from "./inbox";
+
+const COUNT_BUCKETS = ["working", "needs_approval", "done", "stuck"] as const;
 
 /** Yanıt şekli beklenenden farklıysa FIRLATIR: sessiz boş liste yok (UI hata durumu gösterir). */
 export class InboxShapeError extends Error {
@@ -19,7 +21,21 @@ const cursorOf = (v: unknown, what: string): string | null => {
 export function parseRunsPage(raw: unknown): InboxRunsPage {
   if (!isObj(raw) || !Array.isArray(raw.runs)) throw new InboxShapeError("runs");
   for (const r of raw.runs) if (!isObj(r) || typeof r.id !== "string" || typeof r.status !== "string") throw new InboxShapeError("runs");
-  return { runs: raw.runs as InboxRun[], nextCursor: cursorOf(raw.nextCursor, "runs") };
+  const page: InboxRunsPage = { runs: raw.runs as InboxRun[], nextCursor: cursorOf(raw.nextCursor, "runs") };
+  const counts = parseCounts(raw.counts);
+  if (counts) page.counts = counts;
+  return page;
+}
+
+/** Bozuk/negatif/ondalık sayı ya da yanlış tip → o kova yok (bilinmiyor); 0 uydurulmaz. */
+function parseCounts(raw: unknown): InboxBucketCounts | null {
+  if (!isObj(raw)) return null;
+  const out: InboxBucketCounts = {};
+  for (const b of COUNT_BUCKETS) {
+    const v = raw[b];
+    if (typeof v === "number" && Number.isInteger(v) && v >= 0) out[b] = v;
+  }
+  return out;
 }
 
 /** GET /approvals?groupBy=run → `{ groups, nextCursor }` GÖVDEDE. (Düz mod: dizi + X-Next-Cursor başlığı.) */

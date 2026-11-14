@@ -1,7 +1,7 @@
 /**
- * BRA-UX-05f — Şirket durumu GÖRÜNÜM katmanı (saf). Veri: `GET /runs?bucket=…` (kiracı geneli, sayfa başına 25) şirket kimliğiyle
- * süzülür. Bir kova okunamadıysa sayı 0 DEĞİL "bilinmiyor"dur; sonraki sayfa varsa sayı "en az" (`partial`) işaretlidir; hiçbir değer
- * uydurulmaz. Maliyet yalnız yüklenen işlerin, geçerli Decimal METİN/sayı değerlerinin toplamıdır.
+ * BRA-UX-05f — Şirket durumu GÖRÜNÜM katmanı (saf). Veri: `GET /runs?companyId=…&bucket=…` (BRA-P0-11a: sunucu şirkete süzer; istemci
+ * süzmesi YOK). Kova sayısı sunucunun `counts` toplamıdır (sayfa kırpmasından bağımsız, kesin). Bir kova okunamadıysa ya da `counts`
+ * gelmediyse sayı 0 DEĞİL "bilinmiyor"dur; hiçbir değer uydurulmaz. Maliyet yalnız yüklenen işlerin, geçerli Decimal METİN/sayı değerlerinin toplamıdır.
  */
 import type { InboxBucket } from "@ai-company-os/core";
 import type { InboxRunsPage } from "../inbox";
@@ -16,7 +16,7 @@ export type BucketPages = Record<SummaryBucket, InboxRunsPage | null>;
 export interface BucketCount {
   /** null → bilinmiyor (kova okunamadı). */
   count: number | null;
-  /** true → sonraki sayfa var: gerçek sayı bundan büyük olabilir ("en az"). */
+  /** Sunucu toplamı kesindir; bugün hep false (alan, arayüz sözleşmesi için kalır). */
   partial: boolean;
 }
 
@@ -30,19 +30,23 @@ export interface CompanySummary {
   costPartial: boolean;
 }
 
-export function summarizeCompany(companyId: string, pages: BucketPages): CompanySummary {
+export function summarizeCompany(pages: BucketPages): CompanySummary {
   const counts = {} as Record<SummaryBucket, BucketCount>;
   let micro = 0;
   let known = 0;
   let unknownCost = 0;
   let partial = false;
+  let untrusted = false;
   for (const b of SUMMARY_BUCKETS) {
     const page = pages[b];
     if (!page) { counts[b] = { count: null, partial: false }; partial = true; continue; }
-    const mine = page.runs.filter((r) => r?.pipeline?.company?.id === companyId);
-    counts[b] = { count: mine.length, partial: page.nextCursor !== null };
-    if (page.nextCursor !== null) partial = true;
-    for (const r of mine) {
+    const total = page.counts?.[b];
+    counts[b] = { count: typeof total === "number" ? total : null, partial: false };
+    if (typeof total !== "number") partial = true;
+    if (page.nextCursor !== null) partial = true; // maliyet yalnız yüklenen sayfadan toplanır
+    // `counts` yok = sunucu companyId'yi tanımamış olabilir (kiracı geneli koşu): bu sayfanın maliyeti HİÇ toplanmaz.
+    if (page.counts === undefined) { untrusted = true; continue; }
+    for (const r of page.runs) {
       const c = parseCostUsd(r.costUsd);
       if (c === null) unknownCost += 1;
       else { micro += Math.round(c * 1e6); known += 1; }
@@ -51,7 +55,7 @@ export function summarizeCompany(companyId: string, pages: BucketPages): Company
   // Şirketin hiç işi yoksa (tüm kovalar okundu, eşleşen iş yok) maliyet bilinmiyor değil 0'dır.
   const readable = SUMMARY_BUCKETS.every((b) => pages[b] !== null);
   const noJobs = readable && known === 0 && unknownCost === 0;
-  return { counts, costUsd: known > 0 ? micro / 1e6 : noJobs ? 0 : null, costUnknownRuns: unknownCost, costPartial: partial };
+  return { counts, costUsd: untrusted ? null : known > 0 ? micro / 1e6 : noJobs ? 0 : null, costUnknownRuns: unknownCost, costPartial: partial };
 }
 
 export interface AgentRow { id: string; name: string; role: string | null }

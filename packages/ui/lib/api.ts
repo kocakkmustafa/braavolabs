@@ -405,6 +405,9 @@ export const api = {
   // Inbox (BRA-P0-04e) — runs by bucket, approvals grouped by run, run actions, receipt
   inboxRuns: (token: string, bucket: InboxBucket, cursor?: string | null, signal?: AbortSignal) =>
     apiFetch<unknown>(`/runs?bucket=${bucket}&limit=25${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, { token, signal }).then(parseRunsPage),
+  /** BRA-P0-11a — şirketin işleri (sunucu süzgeci) + kova toplamları (`counts`). */
+  companyRuns: (token: string, companyId: string, bucket: InboxBucket, signal?: AbortSignal) =>
+    apiFetch<unknown>(`/runs?companyId=${encodeURIComponent(companyId)}&bucket=${bucket}&limit=25`, { token, signal }).then(parseRunsPage),
   inboxApprovalGroups: (token: string, cursor?: string | null, signal?: AbortSignal) =>
     apiFetch<unknown>(`/approvals?status=PENDING&groupBy=run&limit=25${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, { token, signal }).then(parseApprovalGroupsPage),
   runAction: (token: string, runId: string, action: "resume" | "retry" | "pause" | "stop") =>

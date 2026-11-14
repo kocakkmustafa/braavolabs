@@ -23,7 +23,9 @@ export interface InboxRun {
   bucket: InboxBucket | null;
   pipeline?: { id: string; name: string; company?: { id: string; name: string } | null } | null;
 }
-export interface InboxRunsPage { runs: InboxRun[]; nextCursor: string | null }
+/** `counts`: yalnız `?companyId=` ile gelir (BRA-P0-11a) — şirketin kova toplamları (sunucu sayımı; sayfadan bağımsız). */
+export type InboxBucketCounts = Partial<Record<InboxBucket, number>>;
+export interface InboxRunsPage { runs: InboxRun[]; nextCursor: string | null; counts?: InboxBucketCounts }
 
 export interface InboxApproval {
   id: string;
