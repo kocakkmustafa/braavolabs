@@ -36,6 +36,7 @@ export function summarizeCompany(pages: BucketPages): CompanySummary {
   let known = 0;
   let unknownCost = 0;
   let partial = false;
+  let untrusted = false;
   for (const b of SUMMARY_BUCKETS) {
     const page = pages[b];
     if (!page) { counts[b] = { count: null, partial: false }; partial = true; continue; }
@@ -43,6 +44,8 @@ export function summarizeCompany(pages: BucketPages): CompanySummary {
     counts[b] = { count: typeof total === "number" ? total : null, partial: false };
     if (typeof total !== "number") partial = true;
     if (page.nextCursor !== null) partial = true; // maliyet yalnız yüklenen sayfadan toplanır
+    // `counts` yok = sunucu companyId'yi tanımamış olabilir (kiracı geneli koşu): bu sayfanın maliyeti HİÇ toplanmaz.
+    if (page.counts === undefined) { untrusted = true; continue; }
     for (const r of page.runs) {
       const c = parseCostUsd(r.costUsd);
       if (c === null) unknownCost += 1;
@@ -52,7 +55,7 @@ export function summarizeCompany(pages: BucketPages): CompanySummary {
   // Şirketin hiç işi yoksa (tüm kovalar okundu, eşleşen iş yok) maliyet bilinmiyor değil 0'dır.
   const readable = SUMMARY_BUCKETS.every((b) => pages[b] !== null);
   const noJobs = readable && known === 0 && unknownCost === 0;
-  return { counts, costUsd: known > 0 ? micro / 1e6 : noJobs ? 0 : null, costUnknownRuns: unknownCost, costPartial: partial };
+  return { counts, costUsd: untrusted ? null : known > 0 ? micro / 1e6 : noJobs ? 0 : null, costUnknownRuns: unknownCost, costPartial: partial };
 }
 
 export interface AgentRow { id: string; name: string; role: string | null }

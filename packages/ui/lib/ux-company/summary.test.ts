@@ -50,6 +50,14 @@ describe("summarizeCompany", () => {
     expect(s.counts.working).toEqual({ count: null, partial: false });
     expect(s.costPartial).toBe(true);
   });
+  it("counts yok (eski sunucu companyId'yi yok saydı): maliyet HİÇ toplanmaz, null; başka şirketin parası şişirmez", () => {
+    const s = summarizeCompany({ working: page([run("a", "c2", "99")]), stuck: page([]), needs_approval: page([]), done: page([run("b", "c2", "50")]) });
+    expect(s.costUsd).toBeNull();
+    expect(s.costPartial).toBe(true);
+    // tek sayfada counts yoksa bile toplam null
+    const mixed = summarizeCompany(pages({ working: page([run("a", "c2", "99")]) }));
+    expect(mixed.costUsd).toBeNull();
+  });
   it("maliyet: bozuk/null değer toplama girmez ve sayılır; hiç okunamazsa costUsd null; 0 maliyet 0'dır", () => {
     const bad = summarizeCompany(pages({ working: page([run("a", "c1", null), run("b", "c1", "12,5")], null, C(2)) }));
     expect(bad.costUsd).toBeNull();
