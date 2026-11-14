@@ -21,7 +21,7 @@
 
 import { logger } from "./logger";
 import { AppError } from "../middleware/error";
-import { assertSafeExternalUrl, SsrfError } from "./ssrf";
+import { safeExternalFetch, SsrfError } from "./ssrf";
 
 export interface McpTool {
   name: string;
@@ -92,24 +92,27 @@ async function callMcp<T>(
   authMethod: string,
   creds: Record<string, string> | undefined,
 ): Promise<T> {
+  // SSRF: validate + pin the resolved address to the socket (no DNS-rebinding
+  // gap) and re-validate every redirect hop. The connector credentials must
+  // never follow a redirect to another origin or an internal address.
+  let res: Response;
   try {
-    await assertSafeExternalUrl(baseUrl);
+    res = await safeExternalFetch(baseUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...authHeaders(authMethod, creds),
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
   } catch (err) {
     if (err instanceof SsrfError) {
       throw new AppError(400, `Connector URL rejected: ${err.message}`);
     }
     throw err;
   }
-  const res = await fetch(baseUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...authHeaders(authMethod, creds),
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     logger.warn({ status: res.status, body: text.slice(0, 300) }, "MCP HTTP error");
