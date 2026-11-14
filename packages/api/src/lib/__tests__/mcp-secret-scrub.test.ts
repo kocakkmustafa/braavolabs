@@ -50,4 +50,43 @@ describe("mcp client secret scrubbing", () => {
     const tools = await listTools("https://m.example/rpc", "API_KEY", { apiKey: SECRET });
     expect(JSON.stringify(tools)).not.toContain(SECRET);
   });
+
+  it("SEC-BRA-06d: exempt header NAMES still mask a secret-looking VALUE; benign values stay readable", async () => {
+    const leaky = ["sk-live-abcdefghijklmnop", "ghp_abcdefghijklmnopqrstuvwxyz0123", "AIzaSyA1234567890abcdefghijklmnopqrstu", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig", "a".repeat(32).replace(/a/g, "f")];
+    for (const v of leaky) {
+      for (const name of ["User-Agent", "Accept", "Content-Type", "content-length"]) {
+        fetchMock.mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: async () => ({ jsonrpc: "2.0", id: "1", error: { code: 1, message: `echo ${v} end` } }),
+        });
+        const err: any = await callTool("https://m.example/rpc", "CUSTOM", { headers: JSON.stringify({ [name]: v }) }, "t", {}).catch((e) => e);
+        expect(err.message).not.toContain(v);
+        expect(err.message).toContain("[REDACTED]");
+      }
+    }
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ jsonrpc: "2.0", id: "1", error: { code: 1, message: "ua Mozilla/5.0 json" } }),
+    });
+    const ok: any = await callTool("https://m.example/rpc", "CUSTOM", { headers: JSON.stringify({ "User-Agent": "Mozilla/5.0", Accept: "application/json" }) }, "t", {}).catch((e) => e);
+    expect(ok.message).toContain("Mozilla/5.0 json");
+  });
+
+  it("SEC-BRA-06d: upstream body null / scalar / array, or error null/scalar, is a fixed 502 (no TypeError)", async () => {
+    for (const body of [null, 42, "boom", true, []]) {
+      fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => body });
+      const err: any = await listTools("https://m.example/rpc", "NONE", undefined).catch((e) => e);
+      expect(err).not.toBeInstanceOf(TypeError);
+      expect(err.statusCode).toBe(502);
+      expect(err.message).toBe("MCP yanıtı geçersiz");
+    }
+    for (const error of ["boom", 42, true, ["x"]]) {
+      fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ jsonrpc: "2.0", id: "1", error }) });
+      const err: any = await listTools("https://m.example/rpc", "NONE", undefined).catch((e) => e);
+      expect(err.statusCode).toBe(502);
+      expect(err.message).toBe("MCP sunucusu hata döndürdü");
+    }
+  });
 });

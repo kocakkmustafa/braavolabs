@@ -6,8 +6,9 @@ import type { Router } from "express";
 
 process.env.ENCRYPTION_KEY = "test-encryption-key-32-chars-minimum-1234567890";
 
+const loggerWarn = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/logger", () => ({
-  logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+  logger: { debug: vi.fn(), info: vi.fn(), warn: loggerWarn, error: vi.fn() },
 }));
 const connectorFindUnique = vi.hoisted(() => vi.fn());
 const listToolsMock = vi.hoisted(() => vi.fn());
@@ -57,5 +58,27 @@ describe("POST /connectors/:slug/install — HTTPS refusal", () => {
     expect(nextErr).toBeInstanceOf(AppError);
     expect(nextErr.statusCode).toBe(400);
     expect(nextErr.message).toMatch(/HTTPS olmalı/);
+  });
+
+  it("SEC-BRA-02c: a 502 / timeout probe failure is swallowed (warned), not turned into an HTTPS refusal", async () => {
+    for (const probeErr of [new AppError(502, "MCP server returned 502"), Object.assign(new Error("The operation was aborted due to timeout"), { name: "TimeoutError" })]) {
+      loggerWarn.mockClear();
+      connectorFindUnique.mockResolvedValue({
+        id: "c1", slug: "acme", visibility: "UNLISTED", isApproved: true, publisherTenantId: "p",
+        mcpServerUrl: "https://mcp.acme.example/rpc", authMethod: "API_KEY", toolsManifest: [],
+      });
+      listToolsMock.mockRejectedValue(probeErr);
+      let nextErr: any;
+      await install(
+        { auth: { tenantId: "t1", userId: "u1", role: "member" }, params: { slug: "acme" }, body: { credentials: { apiKey: "k" } }, query: {} },
+        { status() { return this; }, json() { return this; } },
+        (e?: any) => { nextErr = e; },
+      );
+      // The probe failure was logged and the install carried on past the probe
+      // (whatever fails later with the stubbed DB is not the probe error).
+      expect(loggerWarn).toHaveBeenCalledWith(expect.objectContaining({ err: probeErr }), expect.stringMatching(/probe failed during install/));
+      expect(nextErr).not.toBe(probeErr);
+      expect(String(nextErr?.message ?? "")).not.toMatch(/HTTPS/);
+    }
   });
 });
