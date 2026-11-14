@@ -10,6 +10,8 @@ import { prisma, tenantTx } from "../../lib/db";
 import { encrypt, decrypt } from "../../lib/encryption";
 import { AppError } from "../../middleware/error";
 import { listTools } from "../../lib/mcp";
+import { logger } from "../../lib/logger";
+import { safeExternalFetch } from "../../lib/ssrf";
 import { verifyManifest, isSignedManifest } from "./manifest-signature";
 
 export function connectorAad(tenantId: string, connectorId: string): string {
@@ -128,6 +130,59 @@ export async function refreshInstall(tenantId: string, slug: string): Promise<{ 
   return { toolCount: tools.length };
 }
 
+const REVOKE_TIMEOUT_MS = 5_000;
+const REVOKE_MAX_BYTES = 16 * 1024;
+/** Concurrent revokes of one install share a single upstream call. */
+const upstreamInflight = new Map<string, Promise<void>>();
+
+function isHttpsUrl(url: unknown): url is string {
+  if (typeof url !== "string") return false;
+  try {
+    return new URL(url).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * BRA-P1-02b: best-effort RFC 7009 token revocation at the provider. Prefers
+ * the refresh token, else the access token. Never throws and never logs token
+ * material; no/HTTP revocation URL means no call (legacy installs).
+ */
+async function revokeUpstream(slug: string, encryptedCredentials: string, aad: string): Promise<void> {
+  let creds: Record<string, string>;
+  try {
+    creds = JSON.parse(decrypt(encryptedCredentials, aad));
+  } catch {
+    return;
+  }
+  const url = creds?.revocationUrl ?? creds?.revokeUrl;
+  const token = creds?.refreshToken || creds?.accessToken;
+  if (!token || !isHttpsUrl(url)) return;
+  const isRefresh = Boolean(creds.refreshToken);
+  const form = new URLSearchParams({
+    token,
+    token_type_hint: isRefresh ? "refresh_token" : "access_token",
+  });
+  if (creds.clientId) form.set("client_id", creds.clientId);
+  if (creds.clientSecret) form.set("client_secret", creds.clientSecret);
+  try {
+    const res = await safeExternalFetch(
+      url,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded", Accept: "application/json" },
+        body: form.toString(),
+        signal: AbortSignal.timeout(REVOKE_TIMEOUT_MS),
+      },
+      { requireHttps: true, maxRedirects: 0, maxResponseBytes: REVOKE_MAX_BYTES },
+    );
+    if (!res.ok) logger.warn({ slug, status: res.status }, "upstream revoke rejected; local revoke proceeds");
+  } catch {
+    logger.warn({ slug }, "upstream revoke failed; local revoke proceeds");
+  }
+}
+
 export async function revokeInstall(tenantId: string, actor: string, slug: string): Promise<{ revokedAt: Date }> {
   const connector = await prisma.connector.findUnique({ where: { slug } });
   if (!connector) throw new AppError(404, "Connector not found");
@@ -137,6 +192,17 @@ export async function revokeInstall(tenantId: string, actor: string, slug: strin
   if (!install) throw new AppError(404, "Connector not installed");
   if (install.revokedAt) return { revokedAt: install.revokedAt }; // idempotent
   const revokedAt = new Date();
+  // Provider revoke first, exactly once; its outcome never blocks local destruction.
+  let pending = upstreamInflight.get(install.id);
+  if (!pending) {
+    pending = revokeUpstream(
+      connector.slug,
+      install.encryptedCredentials,
+      connectorAad(tenantId, connector.id),
+    ).finally(() => upstreamInflight.delete(install.id));
+    upstreamInflight.set(install.id, pending);
+  }
+  await pending;
   await tenantTx(async (tx) => {
     // Conditional claim: a concurrent second revoke gets count 0 → no audit.
     const claimed = await tx.tenantConnector.updateMany({
