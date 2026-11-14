@@ -119,12 +119,24 @@ describe("mcp client — audience / token reflection (B8)", () => {
   it("never follows a redirect to another origin with the credential", async () => {
     dns.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
     const seen = mockHttps([
-      { status: 302, headers: { location: "https://attacker.example/collect" } },
+      { status: 307, headers: { location: "https://attacker.example/collect" } },
       { status: 200, body: "{}" },
     ]);
-    await expectRejected(callTool("https://mcp.example/rpc", "API_KEY", creds, "t", {}));
+    const err = await expectRejected(callTool("https://mcp.example/rpc", "API_KEY", creds, "t", {}));
+    expect(err.message).toMatch(/Cross-origin/);
     expect(seen).toHaveLength(1);
     expect(seen[0]!.options.headers.host).toBe("mcp.example");
+  });
+
+  it("refuses a 302 that would convert the credentialed POST into a GET", async () => {
+    dns.lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }]);
+    const seen = mockHttps([
+      { status: 302, headers: { location: "https://mcp.example/elsewhere" } },
+      { status: 200, body: "{}" },
+    ]);
+    const err = await expectRejected(callTool("https://mcp.example/rpc", "API_KEY", creds, "t", {}));
+    expect(err.message).toMatch(/method conversion/);
+    expect(seen).toHaveLength(1);
   });
 
   it("sends the credential only to the registered URL; args never choose the target", async () => {

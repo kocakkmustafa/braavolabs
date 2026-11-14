@@ -110,6 +110,11 @@ describe("injected tool calls (B4)", () => {
     });
     expect(res.status).toBe("COMPLETED");
     expect(companyFindFirst.mock.calls[0]![0].where.tenantId).toBe("tenant-a");
+    // The executor rewrites companyId to the canonical tenant-scoped row. It does
+    // not strip an extra `tenantId` arg (no handler reads input.tenantId; scoping
+    // always uses context.tenantId), so pin that the scoped companyId wins.
+    const passed = handler.mock.calls[0]![0] as Record<string, unknown>;
+    expect(passed.companyId).toBe("co-a");
   });
 
   it("a money verb stays gated at AUTONOMOUS even when the call text asks to skip approval", async () => {
