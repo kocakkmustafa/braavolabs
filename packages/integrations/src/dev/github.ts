@@ -283,6 +283,59 @@ export async function createGitHubPR(
   return { prNumber: data.number, url: data.html_url };
 }
 
+const GH_NAME_RE = /^[A-Za-z0-9._-]+$/;
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHAR_RE = /[\u0000-\u001f\u007f]/;
+
+function assertGitHubName(label: string, v: unknown): void {
+  if (typeof v !== "string" || !GH_NAME_RE.test(v) || v === "." || v === "..") {
+    throw new Error(`GitHub dry-run: invalid ${label}`);
+  }
+}
+
+function assertRefLike(label: string, v: unknown): void {
+  if (typeof v !== "string" || v.trim().length === 0 || CONTROL_CHAR_RE.test(v)) {
+    throw new Error(`GitHub dry-run: invalid ${label}`);
+  }
+}
+
+/**
+ * Dry-run of createGitHubPR: pure, never calls fetch, carries no token or
+ * headers. Returns the request that WOULD be sent. Real PR creation is a
+ * separate ticket with founder approval.
+ */
+export function dryRunGitHubPR(
+  owner: string,
+  repo: string,
+  title: string,
+  body: string,
+  head: string,
+  base: string,
+  draft = false,
+): {
+  dryRun: true;
+  request: {
+    method: "POST";
+    url: string;
+    body: { title: string; body: string; head: string; base: string; draft: boolean };
+  };
+} {
+  assertGitHubName("owner", owner);
+  assertGitHubName("repo", repo);
+  assertRefLike("title", title);
+  if (title.length > 256) throw new Error("GitHub dry-run: invalid title");
+  assertRefLike("head", head);
+  assertRefLike("base", base);
+  return {
+    dryRun: true,
+    request: {
+      method: "POST",
+      url: `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls`,
+      body: { title, body, head, base, draft },
+    },
+  };
+}
+
 /**
  * List open issues in a repository.
  */

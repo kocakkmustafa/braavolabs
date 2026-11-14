@@ -261,3 +261,12 @@ describe("B-06 outbound gates", () => {
     expect(disabledFeatureForTool("mcp_e_list_items", { ...base, connectorSlug: "emergency-contacts", connectorName: "Emergency Contacts" })).toBeNull();
   });
 });
+
+describe("BRA-P1-03a create_pull_request gate", () => {
+  it("flag off -> deploy_merge; flag on -> null", () => {
+    vi.stubEnv("DEPLOY_MERGE_TOOLS_ENABLED", "");
+    expect(disabledFeatureForTool("create_pull_request")).toBe("deploy_merge");
+    vi.stubEnv("DEPLOY_MERGE_TOOLS_ENABLED", "true");
+    expect(disabledFeatureForTool("create_pull_request")).toBeNull();
+  });
+});

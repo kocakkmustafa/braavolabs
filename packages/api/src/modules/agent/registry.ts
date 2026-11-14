@@ -1563,6 +1563,55 @@ registerTool({
   },
 });
 
+// create_pull_request: DRY-RUN ONLY. Gerçek PR açma ayrı bilet + kurucu onayı;
+// bu araç dry-run. Ağa çıkmaz, `prUrl:null` döner (receipt'te "pr" kanıtı sayılmaz).
+registerTool({
+  name: "create_pull_request",
+  description:
+    "Dry-run of opening a pull request: validates input and returns the request that would be sent. Does NOT create a PR. Requires a GITHUB integration.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company ID for integration lookup" },
+      repo: { type: "string", description: "Repository name" },
+      title: { type: "string", description: "Pull request title" },
+      body: { type: "string", description: "Pull request description" },
+      head: { type: "string", description: "Head branch" },
+      base: { type: "string", description: "Base branch (default: main)" },
+      draft: { type: "boolean", description: "Open as draft" },
+      owner: { type: "string", description: "Repo owner/org (optional; falls back to the integration's default owner)" },
+    },
+    required: ["companyId", "repo", "title", "body", "head"],
+  },
+  meta: { requiresApproval: true, riskLevel: "high" },
+  handler: async (input) => {
+    const { companyId, repo, title, body, head, base, draft, owner } = input as {
+      companyId: string; repo: string; title: string; body: string; head: string;
+      base?: string; draft?: boolean; owner?: string;
+    };
+    const { getActiveIntegration } = await import("../integration/checker");
+    const creds = await getActiveIntegration(companyId, "GITHUB");
+    if (!creds) {
+      return {
+        status: "MISSING_INTEGRATION",
+        provider: "GITHUB",
+        message: "GitHub integration not configured. Please add your GitHub Personal Access Token in Settings > Integrations.",
+      };
+    }
+    const resolvedOwner = owner || creds.defaultOwner;
+    if (!resolvedOwner) {
+      return { status: "FAILED", error: "No owner provided and the GitHub integration has no default owner." };
+    }
+    try {
+      const { dryRunGitHubPR } = await import("@ai-company-os/integrations");
+      const result = dryRunGitHubPR(resolvedOwner, repo, title, body ?? "", head, base || "main", draft === true);
+      return { status: "COMPLETED", dryRun: true, prUrl: null, request: result.request };
+    } catch (err) {
+      return { status: "FAILED", error: err instanceof Error ? err.message : String(err) };
+    }
+  },
+});
+
 // ─── Voice agent tool — placeOutboundCall(voiceAgentId, prompt) ──
 //
 // Delegated to from a non-voice agent (e.g. the sales agent saying

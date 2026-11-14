@@ -21,9 +21,10 @@ vi.mock("../../integration/checker", async (importOriginal) => {
 
 const getGitHubPRStatus = vi.hoisted(() => vi.fn());
 const getGitHubBranchStatus = vi.hoisted(() => vi.fn());
+const createGitHubPR = vi.hoisted(() => vi.fn());
 vi.mock("@ai-company-os/integrations", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@ai-company-os/integrations")>();
-  return { ...actual, getGitHubPRStatus, getGitHubBranchStatus };
+  return { ...actual, getGitHubPRStatus, getGitHubBranchStatus, createGitHubPR };
 });
 
 import { getTool, getToolMeta } from "../registry";
@@ -33,6 +34,7 @@ beforeEach(() => {
   getActiveIntegration.mockReset();
   getGitHubPRStatus.mockReset();
   getGitHubBranchStatus.mockReset();
+  createGitHubPR.mockReset();
 });
 
 describe("GitHub read tools — registration", () => {
@@ -191,5 +193,46 @@ describe("get_github_branch_status — handler", () => {
     })) as any;
     expect(out.status).toBe("FAILED");
     expect(out.error).toMatch(/404/);
+  });
+});
+
+describe("create_pull_request (BRA-P1-03a dry-run)", () => {
+  const input = { companyId: "c1", repo: "r", title: "T", body: "B", head: "feat/x" };
+
+  it("is registered: approval + high risk + GITHUB provider", () => {
+    expect(getTool("create_pull_request")).toBeDefined();
+    const meta = getToolMeta("create_pull_request");
+    expect(meta?.requiresApproval).toBe(true);
+    expect(meta?.riskLevel).toBe("high");
+    expect(TOOL_PROVIDER_MAP.create_pull_request).toBe("GITHUB");
+  });
+
+  it("returns MISSING_INTEGRATION without a GITHUB integration", async () => {
+    getActiveIntegration.mockResolvedValue(null);
+    const out = (await getTool("create_pull_request")!.handler(input)) as any;
+    expect(out.status).toBe("MISSING_INTEGRATION");
+    expect(createGitHubPR).not.toHaveBeenCalled();
+  });
+
+  it("returns COMPLETED dryRun with prUrl null; no createGitHubPR, no fetch", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    getActiveIntegration.mockResolvedValue({ personalAccessToken: "ghp_x", defaultOwner: "o" });
+    const out = (await getTool("create_pull_request")!.handler({ ...input, draft: true })) as any;
+    vi.unstubAllGlobals();
+    expect(out.status).toBe("COMPLETED");
+    expect(out.dryRun).toBe(true);
+    expect(out.prUrl).toBeNull();
+    expect(out.request.url).toBe("https://api.github.com/repos/o/r/pulls");
+    expect(out.request.body).toEqual({ title: "T", body: "B", head: "feat/x", base: "main", draft: true });
+    expect(JSON.stringify(out)).not.toContain("ghp_x");
+    expect(createGitHubPR).toHaveBeenCalledTimes(0);
+    expect(fetchMock).toHaveBeenCalledTimes(0);
+  });
+
+  it("returns FAILED on invalid input", async () => {
+    getActiveIntegration.mockResolvedValue({ personalAccessToken: "ghp_x", defaultOwner: "o" });
+    const out = (await getTool("create_pull_request")!.handler({ ...input, title: "" })) as any;
+    expect(out.status).toBe("FAILED");
   });
 });
