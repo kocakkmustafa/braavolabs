@@ -34,8 +34,9 @@ export function serverFlagState(env: NodeJS.ProcessEnv = process.env): Array<{ n
 
 opsRouter.get("/flags", authMiddleware, async (req, res, next) => {
   try {
-    const me = await prisma.user.findUnique({ where: { id: req.auth!.userId }, select: { email: true } });
-    if (!isPlatformAdminEmail(me?.email)) {
+    const me = await prisma.user.findUnique({ where: { id: req.auth!.userId }, select: { email: true, emailVerifiedAt: true } });
+    // Fail-closed: e-posta listede olsa bile doğrulanmamış hesap yönetici sayılmaz.
+    if (!me?.emailVerifiedAt || !isPlatformAdminEmail(me.email)) {
       throw new AppError(403, "Restricted to platform admins");
     }
     res.set("Cache-Control", "no-store");
