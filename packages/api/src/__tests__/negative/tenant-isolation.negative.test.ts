@@ -4,8 +4,8 @@
  * cross-tenant.test (real Postgres, HTTP routes) and tool-tenant-scope.test.
  * Asserts: a foreign reference is refused with a response that does not reveal
  * whether the record exists elsewhere; connector tools/lookups are keyed by the
- * acting tenant; and (KNOWN GAP, `it.fails`) a tenant-scoped tool called WITHOUT
- * a string companyId reaches Prisma unscoped.
+ * acting tenant; and (SEC-BRA-06) tenant-scoped registry tools always run
+ * against the acting company, whatever companyId the model supplies.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,6 +19,10 @@ const connFindFirst = vi.hoisted(() => vi.fn());
 const tcFindFirst = vi.hoisted(() => vi.fn());
 const tcFindMany = vi.hoisted(() => vi.fn());
 const toolCallCreate = vi.hoisted(() => vi.fn());
+const tcCountFn = vi.hoisted(() => vi.fn());
+const runCountFn = vi.hoisted(() => vi.fn());
+const draftCountFn = vi.hoisted(() => vi.fn());
+const stepCountFn = vi.hoisted(() => vi.fn());
 
 vi.mock("../../lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 vi.mock("../../lib/db", () => ({
@@ -26,12 +30,14 @@ vi.mock("../../lib/db", () => ({
     company: { findFirst: companyFindFirst },
     contact: { findMany: contactFindMany, findFirst: vi.fn().mockResolvedValue(null) },
     deal: { findFirst: dealFindFirst },
-    draft: { findFirst: draftFindFirst },
     outreachSequence: { findFirst: sequenceFindFirst },
     voiceAgent: { findFirst: voiceFindFirst },
     externalConnection: { findFirst: connFindFirst },
     tenantConnector: { findFirst: tcFindFirst, findMany: tcFindMany },
-    toolCall: { create: toolCallCreate, count: vi.fn().mockResolvedValue(0) },
+    toolCall: { create: toolCallCreate, count: tcCountFn },
+    run: { count: runCountFn },
+    draft: { count: draftCountFn, findFirst: draftFindFirst },
+    runStep: { count: stepCountFn },
     approval: { create: vi.fn() },
   },
 }));
@@ -46,7 +52,8 @@ const ctx = { runId: "run-1", runStepId: "step-1", companyId: "co-a", tenantId: 
 const DENIED = "Access denied: referenced record is not in your workspace";
 
 beforeEach(() => {
-  for (const m of [companyFindFirst, contactFindMany, dealFindFirst, draftFindFirst, sequenceFindFirst, voiceFindFirst, connFindFirst, tcFindFirst, tcFindMany, toolCallCreate]) m.mockReset();
+  for (const m of [companyFindFirst, contactFindMany, dealFindFirst, draftFindFirst, sequenceFindFirst, voiceFindFirst, connFindFirst, tcFindFirst, tcFindMany, toolCallCreate, tcCountFn]) m.mockReset();
+  tcCountFn.mockResolvedValue(0);
   contactFindMany.mockResolvedValue([]);
   toolCallCreate.mockResolvedValue({});
   tcFindFirst.mockResolvedValue(null);
@@ -121,38 +128,68 @@ describe("connector tools are tenant-keyed", () => {
   });
 });
 
-describe("KNOWN GAP (tripwire, see PR): tenant-scoped registry tool without a string companyId", () => {
-  // enforceTenantScopedCompany returns null (= "nothing to validate") when
-  // companyId is absent or not a string, and the executor does not inject the
-  // acting company. crm_search_contacts (plain registerTool, no zod) then runs
-  // `contact.findMany({ where: { companyId, ... } })`: with companyId undefined
-  // Prisma drops the filter; with an object it is a Prisma operator. Either way
-  // the query is not scoped to the tenant. Production code is out of scope for
-  // BRA-P0-07; `it.fails` goes red when it is fixed, forcing promotion.
-  async function search(input: Record<string, unknown>) {
-    return executeTool("crm_search_contacts", { query: "a", ...input }, ctx);
+describe("SEC-BRA-06: tenant-scoped registry tools always run against the ACTING company", () => {
+  // The model's companyId is never trusted: absent -> injected, other company /
+  // non-string (Prisma operator object, array, null) -> refused before the handler.
+  const prismaRun = { count: runCountFn }, prismaDraft = { count: draftCountFn }, prismaStep = { count: stepCountFn }, prismaTc = { count: tcCountFn };
+  const TOOLS: Array<[string, Record<string, unknown>]> = [
+    ["crm_search_contacts", { query: "a" }],
+    ["fetch_metrics", { metric: "all" }],
+    ["generate_report", { reportType: "weekly" }],
+    ["compare_performance", {}],
+  ];
+  const BAD: Array<[string, unknown]> = [
+    ["another tenant's company", "co-of-tenant-b"],
+    ["Prisma operator object", { not: "x" }],
+    ["array", ["co-a", "co-of-tenant-b"]],
+    ["null", null],
+  ];
+
+  /** every `companyId` value that reached a Prisma query, at any depth */
+  function seenCompanyIds(): unknown[] {
+    const out: unknown[] = [];
+    const walk = (v: unknown) => {
+      if (!v || typeof v !== "object") return;
+      for (const [k, x] of Object.entries(v)) { if (k === "companyId") out.push(x); walk(x); }
+    };
+    for (const m of [contactFindMany, prismaRun.count, prismaDraft.count, prismaStep.count, prismaTc.count]) walk(m.mock.calls);
+    return out;
   }
-  const scoped = () => {
-    const where = contactFindMany.mock.calls[0]?.[0]?.where;
-    return typeof where?.companyId === "string" && where.companyId === "co-a";
-  };
 
-  it.fails("companyId omitted → the query must still be scoped to the acting company", async () => {
-    await search({});
-    expect(contactFindMany).toHaveBeenCalledTimes(1); // it ran (so a red here is about scoping)
-    expect(scoped()).toBe(true);
+  beforeEach(() => {
+    companyFindFirst.mockImplementation(async ({ where }: any) =>
+      where.OR.some((o: any) => o.id === "co-a") ? { id: "co-a", tenantId: "tenant-a" } : null);
+    for (const m of [prismaRun.count, prismaDraft.count, prismaStep.count, prismaTc.count]) m.mockReset().mockResolvedValue(0);
   });
 
-  it.fails("companyId as a Prisma operator object → refused or coerced, never passed as a filter", async () => {
-    await search({ companyId: { not: "co-of-tenant-b" } });
-    expect(contactFindMany).toHaveBeenCalledTimes(1);
-    expect(scoped()).toBe(true);
+  it.each(TOOLS)("%s: companyId omitted -> runs, and every query is scoped to the acting company", async (name, extra) => {
+    const res = await executeTool(name, { ...extra }, ctx);
+    expect(res.status).toBe("COMPLETED");
+    const ids = seenCompanyIds();
+    expect(ids.length).toBeGreaterThan(0);
+    expect(ids.every((id) => id === "co-a")).toBe(true);
   });
 
-  it("CONTROL: a string foreign companyId is blocked before the query", async () => {
-    companyFindFirst.mockResolvedValue(null);
-    const res = await search({ companyId: "co-of-tenant-b" });
-    expect(res).toMatchObject({ status: "FAILED", error: DENIED });
-    expect(contactFindMany).not.toHaveBeenCalled();
+  it.each(TOOLS)("%s: the acting company's own id still works (no regression)", async (name, extra) => {
+    const res = await executeTool(name, { ...extra, companyId: "co-a" }, ctx);
+    expect(res.status).toBe("COMPLETED");
+    expect(seenCompanyIds().every((id) => id === "co-a")).toBe(true);
+  });
+
+  describe.each(TOOLS)("%s", (name, extra) => {
+    it.each(BAD)("companyId = %s -> FAILED, generic message, no query", async (_label, bad) => {
+      const res = await executeTool(name, { ...extra, companyId: bad }, ctx);
+      expect(res.status).toBe("FAILED");
+      expect(res.error).toBe(DENIED);
+      expect(JSON.stringify(res)).not.toMatch(/tenant-b|tenant-a|co-of-tenant|co-a/);
+      expect(seenCompanyIds()).toEqual([]);
+      expect(contactFindMany).not.toHaveBeenCalled();
+    });
+  });
+
+  it("a connector tool's own companyId argument is not rewritten (belongs to the remote server)", async () => {
+    const { handler, extraTools } = probe("mcp_x_remote");
+    await executeTool("mcp_x_remote", { note: "n" }, { ...ctx, extraTools });
+    expect(handler).toHaveBeenCalledWith({ note: "n" });
   });
 });

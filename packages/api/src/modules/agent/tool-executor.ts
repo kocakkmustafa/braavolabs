@@ -243,9 +243,31 @@ export async function executeTool(
   //     draftId) — see CRIT-3 in the security audit.
   let scopedInput = input;
   try {
-    const scoped = await enforceTenantScopedCompany(input, context.tenantId);
-    if (scoped && input && typeof input === "object") {
-      scopedInput = { ...(input as Record<string, unknown>), companyId: scoped.id };
+    // SEC-BRA-06: a static tool that takes a companyId must run against the
+    // ACTING company only. The model's value is never trusted: absent →
+    // injected; non-string (object/array/null — Prisma operator objects) or a
+    // different company → refused. Connector tools are excluded: their args
+    // belong to the remote server, not to our Prisma queries.
+    const takesCompanyId =
+      !dynamicTool &&
+      !!(tool.inputSchema as { properties?: Record<string, unknown> } | undefined)?.properties &&
+      "companyId" in ((tool.inputSchema as { properties: Record<string, unknown> }).properties);
+    const inputObj = input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : null;
+    const hasCompanyKey = !!inputObj && inputObj.companyId !== undefined;
+    if (!dynamicTool && (takesCompanyId || hasCompanyKey)) {
+      if (hasCompanyKey && typeof inputObj!.companyId !== "string") {
+        throw new Error("Tenant isolation violation: companyId must be a string");
+      }
+      if (!hasCompanyKey && takesCompanyId) {
+        scopedInput = { ...(inputObj ?? {}), companyId: context.companyId };
+      }
+    }
+    const scoped = await enforceTenantScopedCompany(scopedInput, context.tenantId);
+    if (scoped && !dynamicTool && scoped.id !== context.companyId) {
+      throw new Error("Tenant isolation violation: companyId is not the acting company");
+    }
+    if (scoped && scopedInput && typeof scopedInput === "object") {
+      scopedInput = { ...(scopedInput as Record<string, unknown>), companyId: scoped.id };
     }
     // Cross-ID tenant scoping. Any tool input field that names a row in a
     // tenant-isolated table must trace back to this tenant. Otherwise an

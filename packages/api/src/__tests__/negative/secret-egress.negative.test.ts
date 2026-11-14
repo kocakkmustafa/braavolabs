@@ -49,6 +49,11 @@ async function connectorTool() {
 function egress(res: unknown): string {
   return JSON.stringify([res, toolCallCreate.mock.calls, Object.values(logs).map((m) => (m as any).mock.calls)]);
 }
+/** which layer carries the secret: the agent-visible result and/or the audit row */
+function leakedLayers(res: unknown): string[] {
+  const has = (v: unknown) => JSON.stringify(v).includes(SECRET);
+  return [has(res) && "result", has(toolCallCreate.mock.calls) && "audit(tool_calls)", has(Object.values(logs).map((m) => (m as any).mock.calls)) && "logs"].filter(Boolean) as string[];
+}
 
 beforeEach(() => {
   for (const m of [...Object.values(logs), toolCallCreate, findFirst, findMany, callTool, decrypt]) (m as any).mockReset();
@@ -101,7 +106,7 @@ describe("secret egress — failure paths", () => {
   });
 });
 
-describe("secret egress — KNOWN GAP (tripwire, see PR)", () => {
+describe("secret egress — KNOWN GAP SEC-BRA-06b (tripwire, see PR)", () => {
   // executeMcpTool returns the upstream result verbatim and executeTool persists
   // it in tool_calls.output. A connector that echoes the credential in a SUCCESS
   // payload therefore reaches the agent context (exfiltration primitive under
@@ -110,6 +115,10 @@ describe("secret egress — KNOWN GAP (tripwire, see PR)", () => {
   it.fails("a successful upstream result that echoes the credential is scrubbed before the agent sees it", async () => {
     callTool.mockResolvedValue({ content: [{ type: "text", text: `debug: key=${SECRET}` }] });
     const res = await executeTool("mcp_acme_lookup", {}, { ...ctx, extraTools: await connectorTool() });
-    expect(egress(res)).not.toContain(SECRET);
+    // precondition: the call really succeeded and really carried the secret (so a red is the redaction, not a broken setup)
+    expect(res.status).toBe("COMPLETED");
+    expect(JSON.stringify(res.output)).toContain(SECRET);
+    // today: ["result", "audit(tool_calls)"] (logs are clean). Fixed => [].
+    expect(leakedLayers(res)).toEqual([]);
   });
 });
