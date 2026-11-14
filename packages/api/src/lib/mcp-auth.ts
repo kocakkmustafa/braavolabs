@@ -52,9 +52,8 @@ function buildAuthHeaders(method: string, creds: Record<string, string>): Record
       }
       return {};
     case "OAUTH2":
-      // OAuth2 access tokens are short-lived; we expect the install
-      // flow to refresh them before storing. Long-term refresh is
-      // a follow-up — out of scope for the MVP marketplace.
+      // Short-lived access token; refresh (refreshToken/expiresAt in the
+      // credential JSON) happens in marketplace/oauth-refresh.ts before the call.
       if (creds.accessToken) return { Authorization: `Bearer ${creds.accessToken}` };
       return {};
     case "CUSTOM":
@@ -99,7 +98,7 @@ export function credentialSecrets(authMethod: string, creds: Record<string, stri
   // Raw creds: skip `headerName` (a header NAME, not a secret) and the CUSTOM
   // `headers` JSON blob (its non-secret entries are filtered below, per header).
   const base: string[] = Object.entries(creds)
-    .filter(([k, v]) => typeof v === "string" && k !== "headerName" && !(authMethod === "CUSTOM" && k === "headers"))
+    .filter(([k, v]) => typeof v === "string" && k !== "headerName" && k !== "expiresAt" && k !== "tokenUrl" && !(authMethod === "CUSTOM" && k === "headers"))
     .map(([, v]) => v);
   let headers: Record<string, unknown> = {};
   try {

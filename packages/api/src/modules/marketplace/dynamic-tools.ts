@@ -31,6 +31,7 @@ import { deriveConnectorToolMeta } from "./connector-tool-risk";
 import { AppError } from "../../middleware/error";
 import { checkConnectorCallAllowed, isToolInScope, pinAudienceIfUnset } from "./connector-lifecycle";
 import { logger } from "../../lib/logger";
+import { ensureFreshCredentials, OAuthRefreshError } from "./oauth-refresh";
 
 const TOOL_PREFIX = "mcp_";
 
@@ -122,6 +123,15 @@ export async function executeMcpTool(
     creds = JSON.parse(decrypt(install.encryptedCredentials, aadFor(tenantId, install.connector.id)));
   } catch {
     return { error: "Failed to decrypt connector credentials" };
+  }
+  // BRA-P1-02a: refresh an expired OAuth2 token first; on failure the call is
+  // refused and the stale token is never sent upstream.
+  try {
+    creds = await ensureFreshCredentials(tenantId, install, creds);
+  } catch (err) {
+    const msg = err instanceof OAuthRefreshError ? err.message : "OAuth token yenilenemedi";
+    logger.info({ slug: connectorSlug }, "Connector OAuth refresh failed");
+    return { error: msg };
   }
   const secrets = credentialSecrets(install.connector.authMethod, creds);
   try {
