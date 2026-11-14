@@ -1555,8 +1555,7 @@
       },
       "badge": {
         "byok": "BYOK",
-        "local": "محلي",
-        "compare": "مقارنة"
+        "local": "محلي"
       },
       "scope": {
         "company": "هذه الشركة",

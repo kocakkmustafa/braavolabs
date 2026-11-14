@@ -80,19 +80,14 @@ export function toOverviewView(o: ModelsOverview | null | undefined): OverviewVi
   };
 }
 
-export type ModeBadge = "byok" | "local" | "compare";
+export type ModeBadge = "byok" | "local";
 
 /**
- * BRA-P0-06a — model modu rozeti (saf eşleme). Varsayım: kaynak `byok` → BYOK, `local` → LOCAL; otomatik seçim AÇIK (`true`) → COMPARE
- * (platform model seçip karşılaştırır). Rozetler birbirini dışlamaz: sıra sabit [byok|local, compare]. `platform`/`unknown` kaynak tek başına
- * rozet üretmez; otomatik seçim `false`/`null` (bilinmiyor) COMPARE üretmez — hiçbir şey uydurulmaz.
+ * BRA-P0-06a — model modu rozeti (saf eşleme): kaynak `byok` → BYOK, `local` → LOCAL; `platform`/`unknown` rozet vermez.
+ * COMPARE kapsam dışı (ürün tanımı DIRECT/CASCADE/COMPARE kurucu kararı bekliyor); `autoSelection` bu eşlemeye bağlanmadı.
  */
-export function modeBadges(source: SourceKey, autoSelection: boolean | null): ModeBadge[] {
-  const out: ModeBadge[] = [];
-  if (source === "byok") out.push("byok");
-  else if (source === "local") out.push("local");
-  if (autoSelection === true) out.push("compare");
-  return out;
+export function modeBadges(source: SourceKey): ModeBadge[] {
+  return source === "byok" ? ["byok"] : source === "local" ? ["local"] : [];
 }
 
 /** `useDisplayFormats().usd` en çok 4 ondalık gösterir: 0'dan büyük ama bu hassasiyetin altındaki maliyet "$0.00" görünüp sıfırdan ayırt edilemez olmasın. */

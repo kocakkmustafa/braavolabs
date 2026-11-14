@@ -1555,8 +1555,7 @@
       },
       "badge": {
         "byok": "BYOK",
-        "local": "YEREL",
-        "compare": "KARŞILAŞTIR"
+        "local": "YEREL"
       },
       "scope": {
         "company": "bu şirket",

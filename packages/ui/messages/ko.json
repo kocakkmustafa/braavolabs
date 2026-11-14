@@ -1555,8 +1555,7 @@
       },
       "badge": {
         "byok": "BYOK",
-        "local": "로컬",
-        "compare": "비교"
+        "local": "로컬"
       },
       "scope": {
         "company": "이 회사",

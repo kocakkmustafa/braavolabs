@@ -1555,8 +1555,7 @@
       },
       "badge": {
         "byok": "BYOK",
-        "local": "ローカル",
-        "compare": "比較"
+        "local": "ローカル"
       },
       "scope": {
         "company": "この会社",

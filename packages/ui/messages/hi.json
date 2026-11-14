@@ -1555,8 +1555,7 @@
       },
       "badge": {
         "byok": "BYOK",
-        "local": "लोकल",
-        "compare": "तुलना"
+        "local": "लोकल"
       },
       "scope": {
         "company": "यह कंपनी",

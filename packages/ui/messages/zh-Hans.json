@@ -1555,8 +1555,7 @@
       },
       "badge": {
         "byok": "BYOK",
-        "local": "本地",
-        "compare": "对比"
+        "local": "本地"
       },
       "scope": {
         "company": "此公司",

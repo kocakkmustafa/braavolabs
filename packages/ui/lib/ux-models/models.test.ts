@@ -61,14 +61,15 @@ describe("toModelRow — API-02 null alanları 'unknown'/null kalır, değer uyd
   });
 });
 
-describe("modeBadges: kaynak x otomatik seçim, her kombinasyon", () => {
-  const cases: [Parameters<typeof modeBadges>[0], boolean | null, string[]][] = [
-    ["byok", true, ["byok", "compare"]], ["byok", false, ["byok"]], ["byok", null, ["byok"]],
-    ["local", true, ["local", "compare"]], ["local", false, ["local"]], ["local", null, ["local"]],
-    ["platform", true, ["compare"]], ["platform", false, []], ["platform", null, []],
-    ["unknown", true, ["compare"]], ["unknown", false, []], ["unknown", null, []],
-  ];
-  for (const [src, auto, want] of cases) it(`${src} + auto=${auto} → [${want}]`, () => expect(modeBadges(src, auto)).toEqual(want));
+describe("modeBadges: yalnız kaynağa bağlı (BYOK/LOCAL); autoSelection etkilemez", () => {
+  const cases: [Parameters<typeof modeBadges>[0], string[]][] = [["byok", ["byok"]], ["local", ["local"]], ["platform", []], ["unknown", []]];
+  for (const [src, want] of cases) it(`${src} → [${want}]`, () => expect(modeBadges(src)).toEqual(want));
+  it("autoSelection true/false/null görünümde de satır rozetini değiştirmez", () => {
+    for (const auto of [true, false, null]) {
+      const v = toOverviewView(overview({ autoSelection: { enabled: auto }, models: [{ id: "a", provider: null, source: "byok", access: { scope: null, mode: null }, costThisMonthUsd: null, runCountThisMonth: null }] }));
+      expect(modeBadges(v.rows[0].source)).toEqual(["byok"]);
+    }
+  });
 });
 
 describe("toOverviewView", () => {
@@ -94,10 +95,11 @@ describe("i18n: app.models 15 dilde aynı anahtar kümesi, boş değer yok", () 
   const dir = join(__dirname, "../../messages");
   const flat = (o: any, p = ""): string[] => Object.entries(o).flatMap(([k, v]) => (v && typeof v === "object" ? flat(v, `${p}${k}.`) : [`${p}${k}`]));
   const files = readdirSync(dir).filter((f) => f.endsWith(".json"));
+  it("tam 15 dil dosyası var", () => expect(files).toHaveLength(15));
   const en = JSON.parse(readFileSync(join(dir, "en.json"), "utf8")).app.models;
   it("en anahtarları bileşenin kullandığı anahtarları kapsar", () => {
     const keys = flat(en);
-    for (const k of ["title", "autoLabel", "autoOn", "autoOff", "unknown", "source.byok", "source.local", "source.platform", "source.unknown", "scope.company", "scope.workspace", "scope.agent", "mode.read", "mode.read_write", "costNote", "costSince", "updatedAt", "runCount", "badge.byok", "badge.local", "badge.compare", "links.own.title", "links.integrations.body"]) expect(keys).toContain(k);
+    for (const k of ["title", "autoLabel", "autoOn", "autoOff", "unknown", "source.byok", "source.local", "source.platform", "source.unknown", "scope.company", "scope.workspace", "scope.agent", "mode.read", "mode.read_write", "costNote", "costSince", "updatedAt", "runCount", "badge.byok", "badge.local", "links.own.title", "links.integrations.body"]) expect(keys).toContain(k);
   });
   for (const f of files) it(`${f}: app.models en ile birebir`, () => {
     const m = JSON.parse(readFileSync(join(dir, f), "utf8")).app.models;

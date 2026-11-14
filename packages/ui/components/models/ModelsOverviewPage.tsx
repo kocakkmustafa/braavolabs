@@ -156,7 +156,7 @@ export default function ModelsOverviewPage() {
                   <span style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
                     <span style={{ fontSize: 16, fontWeight: 600, overflowWrap: "anywhere", fontFamily: r.displayName ? undefined : "var(--font-mono, monospace)" }}>{r.displayName ?? r.id}</span>
                     <span style={chip}>{mt("source.label")}{mt("labelSep")}{mt(`source.${r.source}`)}</span>
-                    {modeBadges(r.source, view.autoSelection).map((b) => (
+                    {modeBadges(r.source).map((b) => (
                       <span key={b} data-testid={`model-badge-${r.id}-${b}`} style={chip}>{mt(`badge.${b}`)}</span>
                     ))}
                   </span>

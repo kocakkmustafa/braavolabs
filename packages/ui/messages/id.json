@@ -1555,8 +1555,7 @@
       },
       "badge": {
         "byok": "BYOK",
-        "local": "LOKAL",
-        "compare": "BANDINGKAN"
+        "local": "LOKAL"
       },
       "scope": {
         "company": "perusahaan ini",
