@@ -1075,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "Intégration",
-      "runs": "Exécutions"
+      "runs": "Exécutions",
+      "models": "Modèles"
     },
     "cost": {
       "estimateLabel": "Est. {low}–{high} pour cette exécution",
@@ -1518,6 +1519,8 @@
       }
     },
     "models": {
+      "labelSep": " : ",
+      "pairSep": " · ",
       "title": "Modèles et connexions",
       "subtitle": "Les modèles utilisés par votre entreprise, qui peut y accéder et ce qu'ils coûtent ce mois-ci. Lecture seule.",
       "company": "Entreprise",

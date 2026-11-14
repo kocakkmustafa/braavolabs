@@ -1075,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "Konfiguracja początkowa",
-      "runs": "Wykonania"
+      "runs": "Wykonania",
+      "models": "Modele"
     },
     "cost": {
       "estimateLabel": "Szac. {low}–{high} za to wykonanie",
@@ -1518,6 +1519,8 @@
       }
     },
     "models": {
+      "labelSep": ": ",
+      "pairSep": " · ",
       "title": "Modele i połączenia",
       "subtitle": "Jakich modeli używa Twoja firma, kto ma do nich dostęp i ile kosztują w tym miesiącu. Tylko do odczytu.",
       "company": "Firma",

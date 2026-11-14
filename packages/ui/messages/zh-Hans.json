@@ -1075,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "入门引导",
-      "runs": "运行"
+      "runs": "运行",
+      "models": "模型"
     },
     "cost": {
       "estimateLabel": "此次运行预计 {low}–{high}",
@@ -1518,6 +1519,8 @@
       }
     },
     "models": {
+      "labelSep": "：",
+      "pairSep": " · ",
       "title": "模型与连接",
       "subtitle": "查看公司使用的模型、谁可以访问以及本月费用。只读。",
       "company": "公司",

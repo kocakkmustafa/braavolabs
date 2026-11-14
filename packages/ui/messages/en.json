@@ -1075,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "Onboarding",
-      "runs": "Runs"
+      "runs": "Runs",
+      "models": "Models"
     },
     "cost": {
       "estimateLabel": "Est. {low}–{high} this run",
@@ -1518,6 +1519,8 @@
       }
     },
     "models": {
+      "labelSep": ": ",
+      "pairSep": " · ",
       "title": "Models and connections",
       "subtitle": "Which models your company uses, who can access them and what they cost this month. Read-only.",
       "company": "Company",

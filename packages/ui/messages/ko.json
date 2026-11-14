@@ -1075,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "시작 안내",
-      "runs": "실행"
+      "runs": "실행",
+      "models": "모델"
     },
     "cost": {
       "estimateLabel": "이 실행 예상 비용 {low}–{high}",
@@ -1518,6 +1519,8 @@
       }
     },
     "models": {
+      "labelSep": ": ",
+      "pairSep": " · ",
       "title": "모델 및 연결",
       "subtitle": "회사가 사용하는 모델, 접근 가능한 대상, 이번 달 비용을 보여 줍니다. 읽기 전용입니다.",
       "company": "회사",

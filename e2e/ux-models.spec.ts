@@ -187,6 +187,8 @@ test.describe("bayrak AÇIK: hata ve yarış", () => {
     await err.getByRole("button", { name: "Yeniden dene" }).click();
     await expect(page.getByTestId("models-list")).toBeVisible();
     await expect(page.getByTestId("models-error")).toHaveCount(0);
+    // BRA-UX-05h-b: odak body'ye düşmez, sonuç alanında kalır
+    await expect(page.getByTestId("models-results")).toBeFocused();
   });
 
   test("şirket yoksa dürüst boş durum; model ucu çağrılmaz", async ({ page }) => {

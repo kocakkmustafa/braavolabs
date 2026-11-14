@@ -1075,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "初期設定",
-      "runs": "実行"
+      "runs": "実行",
+      "models": "モデル"
     },
     "cost": {
       "estimateLabel": "この実行の見積もり：{low}〜{high}",
@@ -1518,6 +1519,8 @@
       }
     },
     "models": {
+      "labelSep": "：",
+      "pairSep": "・",
       "title": "モデルと接続",
       "subtitle": "会社が使っているモデル、アクセスできる範囲、今月の費用を表示します。読み取り専用です。",
       "company": "会社",
@@ -1538,10 +1541,10 @@
       "access": "アクセス",
       "cost": "今月の費用",
       "runs": "今月の実行数",
-      "runCount": "今月の実行数: {count}",
+      "runCount": "今月の実行数：{count}",
       "costNote": "費用は各エージェントの現在のモデルに割り当てられます。モデル変更前の実行も新しいモデルに計上されます。月は毎月1日 00:00 UTC に始まります。",
       "costSince": "{from} 以降。",
-      "updatedAt": "更新: {time}。",
+      "updatedAt": "更新：{time}。",
       "linksTitle": "管理",
       "source": {
         "label": "ソース",
