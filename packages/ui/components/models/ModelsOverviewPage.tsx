@@ -106,7 +106,7 @@ export default function ModelsOverviewPage() {
         <label style={{ display: "grid", gap: 4, marginBottom: 20, maxWidth: 360, minWidth: 0 }}>
           <span style={muted}>{mt("company")}</span>
           <select
-            data-testid="models-company" value={companyId} onChange={(e) => { setLoad({ status: "idle", view: null }); setCompanyId(e.target.value); }}
+            data-testid="models-company" value={companyId} onChange={(e) => { retryPending.current = false; setLoad({ status: "idle", view: null }); setCompanyId(e.target.value); }}
             style={{ width: "100%", minWidth: 0, minHeight: 44, padding: "0 12px", borderRadius: 10, background: "var(--color-surface-container)", color: "var(--color-on-surface)", border: "1px solid var(--color-surface-container-high)" }}
           >
             {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
@@ -196,7 +196,7 @@ export default function ModelsOverviewPage() {
                   <span style={{ fontWeight: 600 }}>{mt(`links.${k}.title`)}</span>
                   <span style={{ ...muted, display: "block" }}>{mt(`links.${k}.body`)}</span>
                 </span>
-                <span aria-hidden="true">›</span>
+                <span aria-hidden="true">{locale === "ar" ? "‹" : "›"}</span>
               </Link>
             </li>
           ))}

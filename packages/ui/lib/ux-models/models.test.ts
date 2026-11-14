@@ -130,6 +130,26 @@ describe("BRA-UX-05h-b: ayırıcılar çeviri anahtarında", () => {
   });
 });
 
+describe("BRA-UX-05h-b: ja/zh tam genişlikli ayırıcı, RTL ok, şirket değişiminde odak", () => {
+  const dir = join(__dirname, "../../messages");
+  const src = readFileSync(join(__dirname, "../../components/models/ModelsOverviewPage.tsx"), "utf8");
+  for (const f of ["ja.json", "zh-Hans.json"]) it(`${f}: app.models değerlerinde ASCII ': ' yok`, () => {
+    const m = JSON.parse(readFileSync(join(dir, f), "utf8")).app.models;
+    const vals = (o: any): string[] => Object.values(o).flatMap((v) => (v && typeof v === "object" ? vals(v) : [String(v)]));
+    for (const v of vals(m)) expect(v, `${f}: ${v}`).not.toMatch(/: /);
+    expect(m.runCount).toMatch(/：\{count\}/);
+  });
+  it("ar'da yönlendirme oku ters (‹), diğer dillerde ›", () => {
+    expect(src).toContain('{locale === "ar" ? "‹" : "›"}');
+  });
+  it("şirket değişiminde bekleyen odak iptal edilir (odak çalınmaz)", () => {
+    expect(src).toContain('onChange={(e) => { retryPending.current = false; setLoad(');
+    // saf yardımcı: bayrak sıfırlanınca hiçbir hedef yok
+    expect(retryFocusTarget(false, "ready")).toBeNull();
+    expect(retryFocusTarget(false, "error")).toBeNull();
+  });
+});
+
 describe("BRA-UX-05h-b: Tekrar dene sonrası odak", () => {
   it("retryFocusTarget", () => {
     for (const st of ["idle", "loading", "ready", "error"] as const) expect(retryFocusTarget(false, st)).toBeNull();
