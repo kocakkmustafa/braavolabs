@@ -116,7 +116,7 @@ vi.mock("../../../services/ai-client", async (importOriginal) => {
 
 import { runAgentLoop, type AgentGovContext } from "../claude";
 import { ProviderExhaustedError, isHandoffTriggerEligible } from "../../../services/provider-chain";
-import type { AIClientConfig, ChatCompletionResult } from "../../../services/ai-client";
+import { ProviderHttpError, type AIClientConfig, type ChatCompletionResult } from "../../../services/ai-client";
 
 const TENANT = "tenant-t7";
 const SYSTEM_KEY = "sk-ant-system-key";
@@ -708,21 +708,22 @@ describe("SEC-BRA-04 — local provider down → explicit error, zero cloud call
   });
 
   it.each([
-    ["401 on local default", "CUSTOM API error 401: unauthorized", /Yerel sağlayıcı hatası \(OLLAMA, FAILOVER\).*401/],
-    ["local→local chain end", "OLLAMA endpoint is unreachable", /Yerel sağlayıcı erişilemez/],
-  ])("%s → plain Error, not handoff-eligible", async (_n, msg, re) => {
+    ["401 on local default", () => new ProviderHttpError("OLLAMA", "gemma3:4b", 401), /Yerel sağlayıcı hatası \(OLLAMA, FAILOVER, durum 401\)/, 1, false],
+    ["503 TRANSIENT with real status", () => new ProviderHttpError("OLLAMA", "gemma3:4b", 503), /Yerel sağlayıcı erişilemez/, 1, false],
+    ["529 TRANSIENT with real status", () => new ProviderHttpError("OLLAMA", "gemma3:4b", 529), /Yerel sağlayıcı erişilemez/, 1, false],
+    ["local→local chain end", () => new Error("OLLAMA endpoint is unreachable"), /Yerel sağlayıcı erişilemez/, 2, true],
+  ])("%s → plain Error, not handoff-eligible", async (_n, mk, re, dials, twoLocal) => {
     seedTenantRows([
       { provider: "OLLAMA", model: "gemma3:4b", apiKey: null, isDefault: true },
-      ...(_n.startsWith("local→local")
-        ? [{ provider: "LMSTUDIO", model: "m", apiKey: null, fallbackOrder: 1 }]
-        : []),
+      ...(twoLocal ? [{ provider: "LMSTUDIO", model: "m", apiKey: null, fallbackOrder: 1 }] : []),
     ]);
-    chatCompletionMock.mockRejectedValue(new Error(msg));
+    chatCompletionMock.mockImplementation(async () => { throw mk(); });
     const err = await runAgentLoop({
       systemPrompt: "sys", userMessage: "go", toolNames: [], tenantId: TENANT, govContext: GOV,
     }).catch((e) => e);
     expect(err).not.toBeInstanceOf(ProviderExhaustedError);
     expect(isHandoffTriggerEligible(err)).toBe(false);
     expect(String(err.message)).toMatch(re);
+    expect(dialedConfigs()).toHaveLength(dials);
   });
 });
