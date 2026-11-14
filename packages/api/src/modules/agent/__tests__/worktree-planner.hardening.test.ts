@@ -64,7 +64,7 @@ describe("planWorktree hardening", () => {
         expect(typeof f.reason).toBe("string");
       }
     }
-    const q = planWorktree({ root, patches: [create("src/index.ts"), create(".vscode/settings.json")] });
+    const q = planWorktree({ root, patches: [create("src/index.ts"), create("README.md")] });
     expect(q.ok && q.files.every((f) => f.sensitive === false && f.reason === undefined)).toBe(true);
   });
 

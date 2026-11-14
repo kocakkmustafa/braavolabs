@@ -104,8 +104,9 @@ const LOOKALIKE_RE = charClass([
   [0x3002], [0xfe52], [0xff0e], [0xff0f], [0xff3c], [0xff61],
 ]);
 const DRIVE_RE = /^[A-Za-z]:/;
-const SHORT_GIT_RE = /^git~\d+$/i; // NTFS 8.3 short name for .git
-const SHORT_GITMOD_RE = /^gitmod~\d+$/i; // 8.3 short name for .gitmodules
+// NTFS 8.3 short names (GIT~1, GITHUB~1, ...): any segment ending in ~N is rejected.
+const SHORT_NAME_RE = /~\d+$/;
+const SHORT_GIT_RE = /^git~\d+$/i; // root-only check
 const DEVICE_RE = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
 
 type Check = { ok: true; value: string } | { ok: false; code: PlanErrorCode; message: string };
@@ -168,9 +169,10 @@ export function validateRelativePath(input: unknown, label = "path"): Check {
     }
     if (seg.includes(":")) return bad("PATH_RESERVED", `${label}: ':' in segment (NTFS stream)`);
     const lower = seg.toLowerCase();
-    if (lower === ".git" || lower === ".gitmodules" || SHORT_GIT_RE.test(seg) || SHORT_GITMOD_RE.test(seg) || DEVICE_RE.test(seg)) {
+    if (lower === ".git" || lower === ".gitmodules" || DEVICE_RE.test(seg)) {
       return bad("PATH_RESERVED", `${label}: reserved segment`);
     }
+    if (SHORT_NAME_RE.test(seg)) return bad("PATH_RESERVED", `${label}: 8.3 short name`);
   }
   return { ok: true, value: input };
 }
@@ -211,6 +213,11 @@ const SENSITIVE_BASENAMES: Record<string, string> = {
   ".pnpmfile.cjs": "pnpm hook script",
   ".envrc": "direnv auto-executed shell",
   makefile: "build script",
+  dockerfile: "container build",
+  jenkinsfile: "CI pipeline",
+  ".gitlab-ci.yml": "CI pipeline",
+  "azure-pipelines.yml": "CI pipeline",
+  ".travis.yml": "CI pipeline",
   gnumakefile: "build script",
   ".pre-commit-config.yaml": "pre-commit hooks",
   ".mcp.json": "MCP server configuration",
@@ -221,6 +228,11 @@ const SENSITIVE_DIRS: Record<string, string> = {
   ".claude": "agent configuration",
   ".cursor": "agent configuration",
   ".codex": "agent configuration",
+  ".github": "CI/GitHub config",
+  ".vscode": "editor configuration (auto-runnable tasks)",
+  ".devcontainer": "dev container (runs commands)",
+  ".circleci": "CI pipeline",
+  ".yarn": "yarn plugins/releases (executable)",
 };
 
 /**
@@ -233,9 +245,8 @@ function sensitiveReason(rootRelative: string): string | undefined {
   for (let i = 0; i < segs.length; i++) {
     const s = segs[i];
     if (Object.prototype.hasOwnProperty.call(SENSITIVE_DIRS, s)) return SENSITIVE_DIRS[s];
-    if (s === ".github" && segs[i + 1] === "workflows") return "CI workflow";
-    if (s === ".vscode" && (base === "tasks.json" || base === "launch.json")) return "editor tasks (auto-runnable)";
   }
+  if (/^docker-compose.*\.ya?ml$/.test(base)) return "container orchestration";
   return Object.prototype.hasOwnProperty.call(SENSITIVE_BASENAMES, base) ? SENSITIVE_BASENAMES[base] : undefined;
 }
 

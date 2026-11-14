@@ -39,11 +39,9 @@ describe("sensitive classification on root-relative path", () => {
   });
   it("gives a reason and does not flag ordinary files", () => {
     const p = one("ci.yml", ".github/workflows");
-    expect(p.ok && p.files[0].reason).toBe("CI workflow");
+    expect(p.ok && p.files[0].reason).toBe("CI/GitHub config");
     expect(sens(".gitignore")).toBe(false);
-    expect(sens("settings.json", ".vscode")).toBe(false);
     expect(sens("github/workflows/x.yml")).toBe(false);
-    expect(sens(".github/ISSUE_TEMPLATE.md")).toBe(false);
   });
 });
 
