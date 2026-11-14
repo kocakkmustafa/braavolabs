@@ -1553,6 +1553,10 @@
         "platform": "Platform",
         "unknown": "Bilinmiyor"
       },
+      "badge": {
+        "byok": "BYOK",
+        "local": "YEREL"
+      },
       "scope": {
         "company": "bu şirket",
         "workspace": "bu çalışma alanı",

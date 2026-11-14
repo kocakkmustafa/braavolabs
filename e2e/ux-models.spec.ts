@@ -21,7 +21,7 @@ const M_BYOK = { id: "claude-sonnet-5", provider: "anthropic", source: "byok", a
 const M_UNKNOWN = { id: "yerel-llama", provider: null, source: null, access: { scope: null, mode: null }, costThisMonthUsd: null, runCountThisMonth: null };
 const M_ZERO = { id: "gpt-zero", provider: "openai", source: "platform", access: { scope: "workspace", mode: "read_write" }, costThisMonthUsd: "0.000000", runCountThisMonth: 0 };
 const M_TINY = { id: "mini-model", provider: "mistral", source: "local", access: { scope: "agent", mode: "read" }, costThisMonthUsd: "0.000012", runCountThisMonth: 1 };
-const BY_COMPANY: Record<string, unknown> = { c1: overview([M_BYOK, M_UNKNOWN, M_ZERO]), c2: overview([], true), c3: overview([M_UNKNOWN, M_TINY]) };
+const BY_COMPANY: Record<string, unknown> = { c4: overview([M_BYOK, M_TINY, M_ZERO], true), c1: overview([M_BYOK, M_UNKNOWN, M_ZERO]), c2: overview([], true), c3: overview([M_UNKNOWN, M_TINY]) };
 
 type Calls = { method: string; path: string }[];
 interface MockOpts { companies?: unknown[]; modelsStatus?: Record<string, number>; modelsDelayMs?: Record<string, number> }
@@ -118,6 +118,10 @@ for (const { vp, size, scheme } of COMBOS) {
       const byok = page.getByTestId("model-row-claude-sonnet-5");
       await expect(byok).toContainText("Kendi API anahtarın");
       await expect(byok).toContainText("anthropic");
+      // BRA-P0-06a: kaynak byok → BYOK rozeti; platform (M_ZERO) ve bilinmeyen (M_UNKNOWN) kaynak → rozet yok.
+      await expect(page.getByTestId("model-badge-claude-sonnet-5-byok")).toHaveText("BYOK");
+      await expect(page.getByTestId("model-row-gpt-zero").locator('[data-testid^="model-badge-"]')).toHaveCount(0);
+      await expect(page.getByTestId("model-row-yerel-llama").locator('[data-testid^="model-badge-"]')).toHaveCount(0);
       await expect(page.getByTestId("model-access-claude-sonnet-5")).toHaveText("Erişim: bu şirket · Bilinmiyor");
       await expect(page.getByTestId("model-cost-claude-sonnet-5")).toContainText(/1[.,]2345/);
       await expect(page.getByTestId("model-runs-claude-sonnet-5")).toHaveText("Bu ay koşu: 7");
@@ -170,6 +174,22 @@ for (const { vp, size, scheme } of COMBOS) {
     });
   });
 }
+
+test.describe("bayrak AÇIK: model modu rozeti", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("local → LOCAL rozeti; otomatik seçim AÇIK iken rozet eklenmez (COMPARE yok), platform rozetsiz", async ({ page }) => {
+    await prepare(page, "dark");
+    await mockApi(page, { companies: [{ id: "c4", name: "Rozet" }] });
+    await page.goto(`${UI_LAB}/settings/models`);
+    await expect(page.getByTestId("models-auto")).toContainText("Açık");
+    await expect(page.getByTestId("model-badge-mini-model-local")).toHaveText("YEREL");
+    await expect(page.getByTestId("model-badge-claude-sonnet-5-byok")).toHaveText("BYOK");
+    await expect(page.getByTestId("model-row-gpt-zero").locator('[data-testid^="model-badge-"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid^="model-badge-"][data-testid$="-compare"]')).toHaveCount(0);
+    await expect(page.locator('[data-testid^="model-badge-"]')).toHaveCount(2);
+  });
+});
 
 test.describe("bayrak AÇIK: hata ve yarış", () => {
   test.use({ viewport: { width: 1440, height: 900 } });
