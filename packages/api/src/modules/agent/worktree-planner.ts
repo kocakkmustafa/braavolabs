@@ -214,16 +214,25 @@ const SENSITIVE_BASENAMES: Record<string, string> = {
   ".yarnrc.yml": "yarn configuration",
   ".pnpmfile.cjs": "pnpm hook script",
   ".envrc": "direnv auto-executed shell",
-  makefile: "build script",
-  dockerfile: "container build",
-  jenkinsfile: "CI pipeline",
-  ".gitlab-ci.yml": "CI pipeline",
-  "azure-pipelines.yml": "CI pipeline",
   ".travis.yml": "CI pipeline",
   gnumakefile: "build script",
   ".pre-commit-config.yaml": "pre-commit hooks",
   ".mcp.json": "MCP server configuration",
 };
+// Basename patterns (lower-cased). Not exhaustive: the planner is a marker,
+// not an allowlist; the approval gate / executor must apply further checks.
+const SENSITIVE_PATTERNS: Array<[RegExp, string]> = [
+  [/^(docker-)?compose(\..*)?\.ya?ml$/, "container orchestration"],
+  [/^dockerfile(\..*)?$/, "container build"],
+  [/\.dockerfile$/, "container build"],
+  [/^containerfile(\..*)?$/, "container build"],
+  [/^azure-pipelines\.ya?ml$/, "CI pipeline"],
+  [/^\.gitlab-ci\.ya?ml$/, "CI pipeline"],
+  [/^jenkinsfile(\..*)?$/, "CI pipeline"],
+  [/^makefile(\..*)?$/, "build script"],
+  [/\.mk$/, "build script"],
+];
+
 const SENSITIVE_DIRS: Record<string, string> = {
   ".husky": "git hooks",
   ".githooks": "git hooks",
@@ -248,7 +257,9 @@ function sensitiveReason(rootRelative: string): string | undefined {
     const s = segs[i];
     if (Object.prototype.hasOwnProperty.call(SENSITIVE_DIRS, s)) return SENSITIVE_DIRS[s];
   }
-  if (/^docker-compose.*\.ya?ml$/.test(base)) return "container orchestration";
+  for (const [re, reason] of SENSITIVE_PATTERNS) {
+    if (re.test(base)) return reason;
+  }
   return Object.prototype.hasOwnProperty.call(SENSITIVE_BASENAMES, base) ? SENSITIVE_BASENAMES[base] : undefined;
 }
 
