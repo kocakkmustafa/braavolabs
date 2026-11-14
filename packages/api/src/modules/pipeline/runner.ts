@@ -73,9 +73,6 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
   const { runId, tenantId: enqueuedTenantId } = job.data;
   const runStartTime = Date.now();
 
-  logger.info({ runId, jobId: job.id }, "Pipeline run started");
-  runCounter.add(1, { runId });
-
   // Load run with pipeline and company
   const run = await prisma.run.findUnique({
     where: { id: runId },
@@ -109,6 +106,22 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
     );
     return;
   }
+
+  // BRA-P0-03e-b: second barrier against double execution. Only PENDING (fresh) and RUNNING
+  // (resume/approval/retry commit RUNNING BEFORE they enqueue; BullMQ redelivery) may execute.
+  // A terminal or paused run (COMPLETED/FAILED/CANCELLED/PAUSED/WAITING_APPROVAL) with a stray
+  // job must not be dragged back to RUNNING (flag off: `legacyUnchecked` would force it).
+  // NOT a mutual-exclusion lock: two jobs for the SAME PENDING run (or a duplicate for a RUNNING one,
+  // indistinguishable from a legit resume job) both pass. The primary guard against that is the
+  // sweeper's fixed jobId `run-<id>` (BullMQ dedupe) + live-job scan; a real lease would be needed.
+  if (run.status !== "PENDING" && run.status !== "RUNNING") {
+    logger.warn({ runId, status: run.status, jobId: job.id }, "Pipeline runner: run is not PENDING/RUNNING — refusing to execute");
+    return;
+  }
+
+  // Counted only for jobs that actually execute (a refused job is not a run).
+  logger.info({ runId, jobId: job.id }, "Pipeline run started");
+  runCounter.add(1, { runId });
 
   // NOTE: Run quota is now claimed atomically at the enqueue site (POST
   // /pipelines/:id/run, webhook trigger, scheduled cron) via claimQuota().

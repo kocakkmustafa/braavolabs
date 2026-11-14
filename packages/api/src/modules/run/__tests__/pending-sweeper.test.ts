@@ -2,7 +2,9 @@
  * BRA-P0-03e — PENDING koşu süpürücüsü: enqueue öncesi süreç ölümünde kuyruksuz kalan PENDING koşu
  * yeniden kuyruğa alınır (≤24 sa) ya da FAILED yapılır (>24 sa); zaten kuyruktaki koşuya dokunulmaz;
  * ikinci süpürme etkisiz; başka kiracının koşusu görünmez; bayrak kapalıyken `state` adlandırılmaz.
- * NOT covered: gerçek Redis/BullMQ (sentetik kuyruk), gerçek veritabanı (sentetik run deposu), zamanlayıcı saati.
+ * NOT covered: gerçek Redis/BullMQ (sentetik kuyruk), gerçek veritabanı (sentetik run deposu), zamanlayıcı saati;
+ * `releaseQuota` (gerçek sayaç/ay sınırı; hatayı yutar, süpürücü iade başarısızlığını bilmez), `tryWriteReceipt`
+ * (gerçek makbuz yazımı) ve `enqueueRun` (gerçek BullMQ ekleme) mock'tur.
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -17,11 +19,18 @@ const prismaMock = vi.hoisted(() => ({
 }));
 const enqueueRunMock = vi.hoisted(() => vi.fn());
 const queueMock = vi.hoisted(() => ({ getJobs: vi.fn(), getJob: vi.fn() }));
+const releaseQuotaMock = vi.hoisted(() => vi.fn());
+const receiptMock = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../lib/db", () => ({ prisma: prismaMock }));
 vi.mock("../../../lib/logger", () => ({ logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock("../../../lib/queue", () => ({ runQueue: queueMock }));
 vi.mock("../../../lib/tenant-context", () => ({ runWithoutTenant: (_n: string, fn: () => unknown) => fn() }));
+vi.mock("../../billing/metering", () => ({ releaseQuota: (...a: unknown[]) => releaseQuotaMock(...a) }));
+vi.mock("../transition", async (orig) => ({
+  ...(await orig<typeof import("../transition")>()),
+  tryWriteReceipt: (...a: unknown[]) => receiptMock(...a),
+}));
 vi.mock("../../pipeline/runner", () => ({ enqueueRun: (...a: unknown[]) => enqueueRunMock(...a) }));
 
 import {
@@ -83,6 +92,8 @@ beforeEach(() => {
     return { count: 1 };
   });
   prismaMock.activityLog.create.mockResolvedValue({});
+  releaseQuotaMock.mockResolvedValue(undefined);
+  receiptMock.mockResolvedValue(undefined);
 
   queueMock.getJobs.mockImplementation(async () => h.jobs.filter((j: QJob) => ["waiting", "active", "delayed", "prioritized"].includes(j.state)));
   queueMock.getJob.mockImplementation(async (id: string) => {
@@ -197,7 +208,7 @@ describe("PENDING süpürücü — ölü PENDING koşu yeniden kuyruğa alınır
     expect(prismaMock.activityLog.create.mock.calls[0][0].data).toMatchObject({ action: "run.pending_orphaned", resourceId: "run-old" });
   });
 
-  it("(5b) FAILED yazımı CAS'lı: arada başlayan (RUNNING) koşu ezilmez", async () => {
+  it("(5b) taze okuma: arada başlayan (RUNNING) koşu FAILED yapılmaz (bayrak kapalı: CAS yok, `status=PENDING` kapısı)", async () => {
     addRun({ id: "run-old", createdAt: new Date(NOW - PENDING_MAX_AGE_MS - MIN) });
     // aday listelendikten sonra işçi koşuyu aldı
     prismaMock.run.findFirst.mockImplementationOnce(async () => {
@@ -210,12 +221,83 @@ describe("PENDING süpürücü — ölü PENDING koşu yeniden kuyruğa alınır
     expect(prismaMock.activityLog.create).not.toHaveBeenCalled();
   });
 
+  it("(5b2) bayrak KAPALI: taze okuma select'i ve FAILED updateMany where/data `state` adlandırmaz", async () => {
+    addRun({ id: "run-old", createdAt: new Date(NOW - PENDING_MAX_AGE_MS - MIN) });
+    await sweep({ dualWrite: false });
+    const sel = prismaMock.run.findFirst.mock.calls[0][0].select;
+    expect(sel).toEqual({ status: true });
+    const um = prismaMock.run.updateMany.mock.calls[0][0] as any;
+    expect(um.where).toEqual({ id: "run-old", status: "PENDING" });
+    expect(Object.keys(um.data)).not.toContain("state");
+    expect(receiptMock).not.toHaveBeenCalled();
+  });
+
+  it("(5b3) bayrak AÇIK: taze okuma `state`i seçer ve CAS `state`e bağlıdır", async () => {
+    addRun({ id: "run-old", state: "READY", createdAt: new Date(NOW - PENDING_MAX_AGE_MS - MIN) });
+    await sweep({ dualWrite: true });
+    expect(prismaMock.run.findFirst.mock.calls[0][0].select).toEqual({ status: true, state: true });
+    expect((prismaMock.run.updateMany.mock.calls[0][0] as any).where).toEqual({ id: "run-old", status: "PENDING", state: "READY" });
+  });
+
   it("(5c) CAS kaybı: okuma ile yazma arasında durum değişirse (updateMany count 0) FAILED sayılmaz, denetim satırı yok", async () => {
     addRun({ id: "run-old", createdAt: new Date(NOW - PENDING_MAX_AGE_MS - MIN) });
     prismaMock.run.updateMany.mockResolvedValueOnce({ count: 0 });
     const res = await sweep();
     expect(res).toMatchObject({ failed: 0, skippedChanged: 1, errors: 0 });
     expect(prismaMock.activityLog.create).not.toHaveBeenCalled();
+  });
+
+  it("(Q1) >24 sa FAILED + aynı UTC ay: kota iadesi (kiracı, 'runs') bir kez", async () => {
+    addRun({ id: "run-old", createdAt: new Date(NOW - PENDING_MAX_AGE_MS - MIN) }); // NOW 10 Kas → 8-9 Kas, aynı ay
+    await sweep();
+    expect(releaseQuotaMock).toHaveBeenCalledTimes(1);
+    expect(releaseQuotaMock).toHaveBeenCalledWith("tenant-1", "runs");
+  });
+
+  it("(Q2) ay dönümü: önceki ayda yaratılmış koşu için iade YOK (releaseQuota geçerli ayı düşer)", async () => {
+    addRun({ id: "run-old", createdAt: new Date(Date.UTC(2026, 9, 31, 22, 0, 0)) });
+    const res = await sweep();
+    expect(res.failed).toBe(1);
+    expect(releaseQuotaMock).not.toHaveBeenCalled();
+  });
+
+  it("(Q3) CAS kaybı / yeniden kuyruğa alma: iade YOK", async () => {
+    addRun({ id: "run-lost", createdAt: new Date(NOW - PENDING_MAX_AGE_MS - MIN) });
+    prismaMock.run.updateMany.mockResolvedValueOnce({ count: 0 });
+    addRun({ id: "run-dead" });
+    await sweep();
+    expect(releaseQuotaMock).not.toHaveBeenCalled();
+  });
+
+  it("(R1) bayrak AÇIK + >24 sa FAILED: makbuz yazılır (FAILED, koşunun kiracısı)", async () => {
+    addRun({ id: "run-old", createdAt: new Date(NOW - PENDING_MAX_AGE_MS - MIN) });
+    await sweep({ dualWrite: true });
+    expect(receiptMock).toHaveBeenCalledTimes(1);
+    expect(receiptMock.mock.calls[0].slice(1)).toEqual(["run-old", "FAILED", "tenant-1"]);
+  });
+
+  it("(R2) CAS kaybında makbuz yazılmaz", async () => {
+    addRun({ id: "run-old", createdAt: new Date(NOW - PENDING_MAX_AGE_MS - MIN) });
+    prismaMock.run.updateMany.mockResolvedValueOnce({ count: 0 });
+    await sweep({ dualWrite: true });
+    expect(receiptMock).not.toHaveBeenCalled();
+  });
+
+  it("(A1) FAILED CAS sonrası activityLog.create hatası: koşu FAILED kalır, failed sayılır, errors artmaz, iade yapılır", async () => {
+    addRun({ id: "run-old", createdAt: new Date(NOW - PENDING_MAX_AGE_MS - MIN) });
+    prismaMock.activityLog.create.mockRejectedValueOnce(new Error("db hiccup"));
+    const res = await sweep();
+    expect(res).toMatchObject({ failed: 1, errors: 0 });
+    expect(h.runs[0].status).toBe("FAILED");
+    expect(releaseQuotaMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("(A2) yeniden kuyruğa alma sonrası activityLog hatası: iş kuyrukta, requeued sayılır, errors artmaz", async () => {
+    addRun({ id: "run-dead" });
+    prismaMock.activityLog.create.mockRejectedValueOnce(new Error("db hiccup"));
+    const res = await sweep();
+    expect(res).toMatchObject({ requeued: 1, errors: 0 });
+    expect(h.jobs).toHaveLength(1);
   });
 
   it("(E1) bayrak AÇIK + >24 sa: READY→FAILED grafik kenarı olmadan da kapanır (state null ve READY), state FAILED yazılır; parti aç kalmaz", async () => {

@@ -5,6 +5,8 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { enqueueRun } from "../pipeline/runner";
 import { claimQuota, releaseQuota } from "../billing/metering";
+import { sameUtcMonth } from "../billing/period";
+import { isJobStateDualWriteEnabled, tryWriteReceipt } from "../run/transition";
 import { getWebhookTemplates, getWebhookTemplateById, getWebhookTemplateCategories } from "./templates";
 import { authMiddleware } from "../../middleware/auth";
 import { systemScope } from "../../middleware/system-scope";
@@ -213,6 +215,7 @@ webhookRouter.post(
           );
           continue;
         }
+        const claimedAt = Date.now();
 
         // Create a run for each matching pipeline. Cast on the JSON
         // column matches the rest of the codebase — Prisma's
@@ -225,6 +228,7 @@ webhookRouter.post(
         // can't slowly drain the tenant's monthly run quota with no runs to
         // show for it. Skip the failed pipeline and keep processing the rest
         // rather than aborting the whole delivery.
+        let createdRunId: string | undefined;
         try {
           const run = await prisma.run.create({
             data: {
@@ -238,6 +242,7 @@ webhookRouter.post(
             },
           });
 
+          createdRunId = run.id;
           await enqueueRun(run.id);
           runs.push(run.id);
 
@@ -246,10 +251,31 @@ webhookRouter.post(
             "Webhook triggered pipeline run",
           );
         } catch (enqErr) {
-          await releaseQuota(company.tenantId, "runs");
+          // BRA-P0-03e-b: enqueue patladıysa satır PENDING kalmasın; yoksa pending-sweeper >24 sa sonra
+          // aynı koşu için ikinci kez iade eder. PENDING→FAILED CAS (jobs/start kalıbı). İade YALNIZ CAS
+          // kazanıldıysa (count===1): CAS throw ederse satır PENDING kalır ve sweeper yönetir (iş
+          // çalışırsa claim yerinde, 24 sa+ ise sweeper iade eder); count 0 → işçi aldı, iade yok.
+          let refund = true;
+          if (createdRunId) {
+            try {
+              // Bayrak açıkken `state` de FAILED + FAILED makbuzu (sweeper kalıbı); kapalıyken `state` adlandırılmaz.
+              const dual = isJobStateDualWriteEnabled();
+              const res = await prisma.run.updateMany({
+                where: { id: createdRunId, status: "PENDING" },
+                data: { status: "FAILED", ...(dual ? { state: "FAILED" as const } : {}), error: "enqueue_failed" },
+              });
+              refund = res.count === 1;
+              if (refund && dual) await tryWriteReceipt(prisma, createdRunId, "FAILED", company.tenantId);
+            } catch (markErr) {
+              refund = false;
+              logger.error({ err: markErr, runId: createdRunId }, "Webhook: marking run FAILED after enqueue failure failed — no refund, sweeper owns the run");
+            }
+          }
+          // Ay sınırı: releaseQuota geçerli ayı düşer; claim başka aydaysa iade atlanır.
+          if (refund && sameUtcMonth(claimedAt, Date.now())) await releaseQuota(company.tenantId, "runs");
           logger.error(
-            { err: enqErr, pipelineId: pipeline.id, tenantId: company.tenantId },
-            "Webhook run enqueue failed — quota refunded, pipeline skipped",
+            { err: enqErr, pipelineId: pipeline.id, tenantId: company.tenantId, refunded: refund },
+            "Webhook run enqueue failed — pipeline skipped",
           );
         }
       }
