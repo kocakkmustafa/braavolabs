@@ -1587,7 +1587,23 @@
           "title": "Integrasi",
           "body": "Slack, GitHub, dan alat lain."
         }
-      }
+      },
+      "pickerTitle": "Ganti model",
+      "pickerHelp": "Pilih di mana model berlaku dan model mana yang dipakai. Agen: hanya agen itu. Default akun: dipakai agen tanpa model sendiri.",
+      "pickerTarget": "Berlaku untuk",
+      "pickerDefault": "Default akun (semua agen tanpa model sendiri)",
+      "pickerModel": "Model",
+      "pickerApply": "Terapkan",
+      "pickerSaving": "Menyimpan…",
+      "pickerSaved": "Tersimpan.",
+      "pickerError": "Gagal menyimpan. Coba lagi.",
+      "pickerLoadError": "Agen atau pilihan model tidak dapat dimuat.",
+      "pickerEmpty": "Belum ada model yang dikonfigurasi. Tambahkan kunci atau model lokal di Pengaturan.",
+      "pickerCurrent": "Saat ini: {model}",
+      "pickerCurrentUnknown": "Saat ini: Tidak diketahui",
+      "pickerLocalHint": "Penyedia lokal dan kustom hanya bisa diatur di Pengaturan.",
+      "pickerForbidden": "Kamu tidak punya izin untuk mengubah ini.",
+      "pickerPlan": "Paketmu tidak mengizinkan ini."
     },
     "companyStatus": {
       "title": "Status perusahaan",

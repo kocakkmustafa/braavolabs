@@ -1587,7 +1587,23 @@
           "title": "Integrazioni",
           "body": "Slack, GitHub e altri strumenti."
         }
-      }
+      },
+      "pickerTitle": "Cambia modello",
+      "pickerHelp": "Scegli dove si applica il modello e quale usare. Agente: solo quell'agente. Predefinito dell'account: usato dagli agenti senza modello proprio.",
+      "pickerTarget": "Si applica a",
+      "pickerDefault": "Predefinito dell'account (agenti senza modello proprio)",
+      "pickerModel": "Modello",
+      "pickerApply": "Applica",
+      "pickerSaving": "Salvataggio…",
+      "pickerSaved": "Salvato.",
+      "pickerError": "Salvataggio non riuscito. Riprova.",
+      "pickerLoadError": "Impossibile caricare agenti o modelli.",
+      "pickerEmpty": "Nessun modello configurato. Aggiungi una chiave o un modello locale nelle Impostazioni.",
+      "pickerCurrent": "Attuale: {model}",
+      "pickerCurrentUnknown": "Attuale: Sconosciuto",
+      "pickerLocalHint": "I provider locali e personalizzati si impostano solo nelle Impostazioni.",
+      "pickerForbidden": "Non hai il permesso di modificarlo.",
+      "pickerPlan": "Il tuo piano non lo consente."
     },
     "companyStatus": {
       "title": "Stato dell'azienda",

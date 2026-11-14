@@ -1587,7 +1587,23 @@
           "title": "Entegrasyonlar",
           "body": "Slack, GitHub ve diğer araçlar."
         }
-      }
+      },
+      "pickerTitle": "Model değiştir",
+      "pickerHelp": "Modelin nereye uygulanacağını ve hangi modelin kullanılacağını seç. Ajan: yalnız o ajan. Hesap varsayılanı: kendi modeli olmayan ajanlar kullanır.",
+      "pickerTarget": "Uygulanacak yer",
+      "pickerDefault": "Hesap varsayılanı (kendi modeli olmayan tüm ajanlar)",
+      "pickerModel": "Model",
+      "pickerApply": "Uygula",
+      "pickerSaving": "Kaydediliyor…",
+      "pickerSaved": "Kaydedildi.",
+      "pickerError": "Kaydedilemedi. Yeniden dene.",
+      "pickerLoadError": "Ajanlar veya model seçenekleri yüklenemedi.",
+      "pickerEmpty": "Henüz yapılandırılmış model yok. Ayarlar'dan anahtar ya da yerel model ekle.",
+      "pickerCurrent": "Şu an: {model}",
+      "pickerCurrentUnknown": "Şu an: Bilinmiyor",
+      "pickerLocalHint": "Yerel ve özel sağlayıcılar yalnız Ayarlar'dan seçilir.",
+      "pickerForbidden": "Bunu değiştirme yetkin yok.",
+      "pickerPlan": "Planın buna izin vermiyor."
     },
     "companyStatus": {
       "title": "Şirket durumu",

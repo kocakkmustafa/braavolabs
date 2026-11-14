@@ -177,3 +177,48 @@ describe("BRA-UX-05h-b: Tekrar dene sonrası odak", () => {
     expect(src).toContain("resultsRef.current?.focus(); if (companiesFailed) loadCompanies(); else { retryPending.current = true; loadModels(); }");
   });
 });
+
+import { buildPickerOptions, isCloudProvider, optionAllowedFor, pickerRequest, saveErrorKey, toPickerAgents } from "./picker";
+
+describe("BRA-P0-06b: model seçici mantığı", () => {
+  const opts = { companyId: "c1", maxCandidates: 3 as const, selections: [
+    { provider: "ANTHROPIC", model: "claude-sonnet-5", reasoningEfforts: [] },
+    { provider: "OLLAMA", model: "mini-model", reasoningEfforts: [] },
+    { provider: "OPENAI", model: "gpt-zero", reasoningEfforts: [] },
+    { provider: "OPENAI", model: "gpt-zero", reasoningEfforts: [] },
+  ] };
+  const rows = ["byok", "local", "platform"].map((source, i) => toModelRow({ id: ["claude-sonnet-5", "mini-model", "gpt-zero"][i], provider: null, source, access: { scope: null, mode: null }, costThisMonthUsd: null, runCountThisMonth: null } as never));
+
+  it("rozetler 06a eşlemesinden; platform/satırsız rozetsiz; yinelenen çift tekilleşir", () => {
+    const o = buildPickerOptions(opts, rows);
+    expect(o.map((x) => x.badges)).toEqual([["byok"], ["local"], []]);
+    expect(buildPickerOptions(opts, []).every((x) => x.badges.length === 0)).toBe(true);
+    expect(buildPickerOptions(null, rows)).toEqual([]);
+  });
+  it("ajan hedefi → PATCH {model}; varsayılan → PUT {provider, model} (anahtar yok)", () => {
+    expect(pickerRequest({ kind: "agent", agentId: "a1" }, { provider: "OPENAI", model: "gpt-zero" })).toEqual({ endpoint: "agent", agentId: "a1", body: { model: "gpt-zero" } });
+    const d = pickerRequest({ kind: "default" }, { provider: "OPENAI", model: "gpt-zero" });
+    expect(d).toEqual({ endpoint: "default", body: { provider: "OPENAI", model: "gpt-zero" } });
+    expect("apiKey" in d.body).toBe(false);
+  });
+  it("ajan listesi bozuk girdiyle çökmez; model yoksa null", () => {
+    expect(toPickerAgents(null)).toEqual([]);
+    expect(toPickerAgents([{ id: "a1", name: "X", model: "m" }, { id: "a2" }, null, { name: "y" }])).toEqual([{ id: "a1", name: "X", model: "m" }, { id: "a2", name: "a2", model: null }]);
+  });
+});
+
+describe("BRA-P0-06b: hesap varsayılanı yalnız bulut; hata eşlemesi", () => {
+  it("OLLAMA/LMSTUDIO/CUSTOM hesap hedefinde yasak, ajan hedefinde serbest", () => {
+    for (const p of ["OLLAMA", "lmstudio", "CUSTOM"]) {
+      expect(isCloudProvider(p)).toBe(false);
+      expect(optionAllowedFor({ kind: "default" }, { provider: p })).toBe(false);
+      expect(optionAllowedFor({ kind: "agent", agentId: "a" }, { provider: p })).toBe(true);
+    }
+    for (const p of ["ANTHROPIC", "OPENAI", "GOOGLE"]) expect(optionAllowedFor({ kind: "default" }, { provider: p })).toBe(true);
+  });
+  it("403/402 ayrı, diğerleri genel", () => {
+    expect(saveErrorKey({ status: 403 })).toBe("pickerForbidden");
+    expect(saveErrorKey({ status: 402 })).toBe("pickerPlan");
+    for (const e of [{ status: 400 }, { status: 500 }, new Error("x"), null]) expect(saveErrorKey(e)).toBe("pickerError");
+  });
+});

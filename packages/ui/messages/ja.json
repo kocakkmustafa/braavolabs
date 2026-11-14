@@ -1587,7 +1587,23 @@
           "title": "連携",
           "body": "Slack、GitHub などのツール。"
         }
-      }
+      },
+      "pickerTitle": "モデルを変更",
+      "pickerHelp": "モデルを適用する対象と使うモデルを選びます。エージェント：そのエージェントのみ。アカウント既定：専用モデルのないエージェントが使います。",
+      "pickerTarget": "適用先",
+      "pickerDefault": "アカウント既定（専用モデルのないすべてのエージェント）",
+      "pickerModel": "モデル",
+      "pickerApply": "適用",
+      "pickerSaving": "保存中…",
+      "pickerSaved": "保存しました。",
+      "pickerError": "保存できませんでした。もう一度お試しください。",
+      "pickerLoadError": "エージェントまたはモデルの選択肢を読み込めませんでした。",
+      "pickerEmpty": "設定済みのモデルがまだありません。設定でキーまたはローカルモデルを追加してください。",
+      "pickerCurrent": "現在：{model}",
+      "pickerCurrentUnknown": "現在：不明",
+      "pickerLocalHint": "ローカルとカスタムのプロバイダーは設定でのみ選べます。",
+      "pickerForbidden": "これを変更する権限がありません。",
+      "pickerPlan": "ご利用のプランでは許可されていません。"
     },
     "companyStatus": {
       "title": "会社の状況",

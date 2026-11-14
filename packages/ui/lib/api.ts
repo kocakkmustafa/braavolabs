@@ -820,6 +820,9 @@ export const api = {
       body: JSON.stringify(data),
       token,
     }),
+  /** BRA-P0-06b: yalnız sağlayıcı+model (anahtar gönderilmez; sunucu mevcut anahtarı yeniden kullanır). */
+  setDefaultModel: (token: string, data: { provider: string; model: string }) =>
+    apiFetch<{ success: boolean }>("/settings/ai-config", { method: "PUT", body: JSON.stringify(data), token }),
   deleteAIConfig: (token: string) =>
     apiFetch<{ success: boolean }>("/settings/ai-config", { method: "DELETE", token }),
   testAIConfig: (token: string) =>

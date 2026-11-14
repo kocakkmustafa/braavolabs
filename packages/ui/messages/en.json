@@ -1587,7 +1587,23 @@
           "title": "Integrations",
           "body": "Slack, GitHub and other tools."
         }
-      }
+      },
+      "pickerTitle": "Change a model",
+      "pickerHelp": "Choose where the model applies and which model to use. Agent: only that agent. Account default: used by agents without their own model.",
+      "pickerTarget": "Applies to",
+      "pickerDefault": "Account default (all agents without their own model)",
+      "pickerModel": "Model",
+      "pickerApply": "Apply",
+      "pickerSaving": "Saving…",
+      "pickerSaved": "Saved.",
+      "pickerError": "Could not save. Try again.",
+      "pickerLoadError": "Could not load agents or model options.",
+      "pickerEmpty": "No models configured yet. Add a key or local model in Settings.",
+      "pickerCurrent": "Current: {model}",
+      "pickerCurrentUnknown": "Current: Unknown",
+      "pickerLocalHint": "Local and custom providers can only be set in Settings.",
+      "pickerForbidden": "You do not have permission to change this.",
+      "pickerPlan": "Your plan does not allow this."
     },
     "companyStatus": {
       "title": "Company status",

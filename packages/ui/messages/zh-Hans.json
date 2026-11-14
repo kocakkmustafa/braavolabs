@@ -1587,7 +1587,23 @@
           "title": "集成",
           "body": "Slack、GitHub 等工具。"
         }
-      }
+      },
+      "pickerTitle": "更换模型",
+      "pickerHelp": "选择模型的适用范围和要使用的模型。智能体：仅该智能体。账户默认：没有自有模型的智能体使用。",
+      "pickerTarget": "适用于",
+      "pickerDefault": "账户默认（所有没有自有模型的智能体）",
+      "pickerModel": "模型",
+      "pickerApply": "应用",
+      "pickerSaving": "正在保存…",
+      "pickerSaved": "已保存。",
+      "pickerError": "保存失败，请重试。",
+      "pickerLoadError": "无法加载智能体或模型选项。",
+      "pickerEmpty": "尚未配置模型。请在设置中添加密钥或本地模型。",
+      "pickerCurrent": "当前：{model}",
+      "pickerCurrentUnknown": "当前：未知",
+      "pickerLocalHint": "本地和自定义提供商只能在设置中选择。",
+      "pickerForbidden": "你没有权限更改此项。",
+      "pickerPlan": "你的套餐不允许此操作。"
     },
     "companyStatus": {
       "title": "公司状态",
