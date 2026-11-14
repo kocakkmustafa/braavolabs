@@ -28,7 +28,7 @@ vi.mock("../../services/push", () => ({ notifyTenantUsers: vi.fn().mockResolvedV
 vi.mock("../../lib/runEvents", () => ({ publishRunEvent: vi.fn().mockResolvedValue(undefined) }));
 
 import { executeTool } from "../../modules/agent/tool-executor";
-import { listConnectorToolsForTenant } from "../../modules/marketplace/dynamic-tools";
+import { listConnectorToolsForTenant, scrubCredentials } from "../../modules/marketplace/dynamic-tools";
 import { AppError } from "../../middleware/error";
 
 const connector = { id: "conn-1", slug: "acme", name: "Acme", mcpServerUrl: "https://mcp.acme.example/rpc", authMethod: "API_KEY" };
@@ -106,29 +106,39 @@ describe("secret egress — failure paths", () => {
   });
 });
 
-describe("secret egress — KNOWN GAP SEC-BRA-06b (tripwire, see PR)", () => {
-  // executeMcpTool returns the upstream result verbatim and executeTool persists
-  // it in tool_calls.output. A connector that echoes the credential in a SUCCESS
-  // payload therefore reaches the agent context (exfiltration primitive under
-  // prompt injection). Production code is out of scope for BRA-P0-07; `it.fails`
-  // flips red the day a redaction is added, forcing this test to be promoted.
-  async function echoingCall() {
-    callTool.mockResolvedValue({ content: [{ type: "text", text: `debug: key=${SECRET}` }] });
+describe("secret egress — success payload (SEC-BRA-06b)", () => {
+  async function echoingCall(payload: unknown) {
+    callTool.mockResolvedValue(payload);
     return executeTool("mcp_acme_lookup", {}, { ...ctx, extraTools: await connectorTool() });
   }
 
-  // Precondition as its OWN normal test: if the setup breaks (or the echo is
-  // redacted at the source) this goes red on its own, and cannot hide inside
-  // the `it.fails` below. When SEC-BRA-06b lands, replace both with one test.
-  it("PRECONDITION: the call succeeds and the echoed credential does reach the result today", async () => {
-    const res = await echoingCall();
+  it("a successful upstream result that echoes the credential is scrubbed before the agent and the audit row see it", async () => {
+    const res = await echoingCall({ content: [{ type: "text", text: `debug: key=${SECRET}` }] });
     expect(res.status).toBe("COMPLETED");
-    expect(JSON.stringify(res.output)).toContain(SECRET);
+    expect(leakedLayers(res)).toEqual([]);
+    expect(JSON.stringify(res.output)).toContain("debug: key=[REDACTED]");
   });
 
-  it.fails("a successful upstream result that echoes the credential is scrubbed before the agent sees it", async () => {
-    const res = await echoingCall();
-    // today: ["result", "audit(tool_calls)"] (logs are clean). Fixed => [].
+  it("scrubs nested objects, arrays and repeated occurrences; leaves other text intact", async () => {
+    const res = await echoingCall({ content: [{ type: "text", text: `${SECRET}/${SECRET} ok` }], meta: { echo: [{ h: `Bearer ${SECRET}` }] } });
     expect(leakedLayers(res)).toEqual([]);
+    expect(JSON.stringify(res.output)).toContain("[REDACTED]/[REDACTED] ok");
+  });
+
+  it("a clean result passes through unchanged", async () => {
+    const payload = { content: [{ type: "text", text: "all good" }] };
+    const res = await echoingCall(payload);
+    expect(res.output).toEqual(payload);
+  });
+});
+
+describe("scrubCredentials", () => {
+  it("ignores short values and non-string creds, does not mutate input", () => {
+    const input = { t: "pin 123 and abcdefgh" };
+    const out = scrubCredentials(input, { a: "123", b: "abcdefgh" });
+    expect(out).toEqual({ t: "pin 123 and [REDACTED]" });
+    expect(input.t).toBe("pin 123 and abcdefgh");
+    expect(scrubCredentials(null, { a: "abcdefgh" })).toBeNull();
+    expect(scrubCredentials({ n: 5 }, { a: "abcdefgh" })).toEqual({ n: 5 });
   });
 });

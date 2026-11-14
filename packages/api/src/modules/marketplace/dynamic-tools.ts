@@ -31,6 +31,30 @@ import { AppError } from "../../middleware/error";
 import { checkConnectorCallAllowed, pinAudienceIfUnset } from "./connector-lifecycle";
 import { logger } from "../../lib/logger";
 
+/** Credential values shorter than this are not masked (a 1-3 char value would mangle unrelated text). */
+const MIN_SCRUB_LEN = 6;
+const REDACTED = "[REDACTED]";
+
+/**
+ * SEC-BRA-06b: a connector can echo the credential it was given in a SUCCESS
+ * payload. Replace every occurrence of each credential value (exact match) in
+ * every string of the upstream result, recursively, before it reaches the
+ * agent or the tool_calls audit row. Pure; does not mutate the input.
+ */
+export function scrubCredentials(value: unknown, creds: Record<string, string>): unknown {
+  const secrets = Object.values(creds)
+    .filter((v): v is string => typeof v === "string" && v.length >= MIN_SCRUB_LEN)
+    .sort((a, b) => b.length - a.length);
+  if (secrets.length === 0) return value;
+  const walk = (v: unknown, depth: number): unknown => {
+    if (typeof v === "string") return secrets.reduce((acc, sec) => acc.split(sec).join(REDACTED), v);
+    if (depth > 50 || v === null || typeof v !== "object") return v;
+    if (Array.isArray(v)) return v.map((x) => walk(x, depth + 1));
+    return Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [walk(k, depth + 1) as string, walk(x, depth + 1)]));
+  };
+  return walk(value, 0);
+}
+
 const TOOL_PREFIX = "mcp_";
 
 export function makeConnectorToolName(connectorSlug: string, remoteToolName: string): string {
@@ -140,7 +164,7 @@ export async function executeMcpTool(
         data: { spendUsd: { increment: cost } },
       });
     }
-    return result;
+    return scrubCredentials(result, creds) as typeof result;
   } catch (err) {
     if (err instanceof AppError) {
       logger.info({ err: err.message, slug: connectorSlug }, "Connector tool failed");
