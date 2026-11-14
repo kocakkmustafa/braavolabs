@@ -233,6 +233,8 @@ const envShape = z.object({
   OUTBOUND_EMAIL_ENABLED: z.string().optional(),
   OUTREACH_SEQUENCES_ENABLED: z.string().optional(),
   VOICE_AGENT_ENABLED: z.string().optional(),
+  // BRA-P1-03c: deploy / merge agent tools. OFF unless "true" (founder approval required).
+  DEPLOY_MERGE_TOOLS_ENABLED: z.string().optional(),
   // Vapi voice webhook HMAC secret — used to verify inbound Vapi callbacks.
   VAPI_WEBHOOK_SECRET: z.string().optional(),
   // ── Air-gap / offline mode ──

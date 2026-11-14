@@ -315,7 +315,12 @@ export async function executeTool(
   // B-06: outbound-contact tools (outreach enrollment, voice dialing) are
   // refused while their feature flag is off — before any approval row is
   // created, so nothing approvable reaches the approvals queue.
-  const disabledFeature = dynamicTool ? null : disabledFeatureForTool(toolName);
+  // BRA-P1-03c: this single choke point also refuses deploy / merge style
+  // tools (static or connector) until the founder-approved flag is on.
+  const disabledFeature = disabledFeatureForTool(toolName, {
+    dynamic: Boolean(dynamicTool),
+    description: dynamicTool?.description,
+  });
   if (disabledFeature) {
     const disabled = outboundFeatureDisabledError(disabledFeature);
     return {

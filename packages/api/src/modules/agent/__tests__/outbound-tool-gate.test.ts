@@ -120,3 +120,42 @@ describe("email_send_sequence — B-06 gate", () => {
     expect(enrollmentCreate).toHaveBeenCalledOnce();
   });
 });
+
+describe("deploy / merge connector tools — BRA-P1-03c gate", () => {
+  const handler = vi.fn();
+  const mk = (name: string, description = "") => new Map([[name, {
+    name, description, inputSchema: { type: "object" as const, properties: {} },
+    meta: { requiresApproval: true, riskLevel: "high" as const, moneyTouching: false },
+    handler: (...a: unknown[]) => handler(...a),
+  }]]);
+
+  beforeEach(() => { handler.mockReset(); handler.mockResolvedValue({ ok: true }); vi.stubEnv("DEPLOY_MERGE_TOOLS_ENABLED", "false"); });
+
+  it.each(["gh__merge_pull_request", "GH__MERGE_PR", "vc__DeployProd", "x__deployprod"])(
+    "%s is refused under every autonomy, handler never runs, no approval row",
+    async (name) => {
+      for (const autonomy of ["SUPERVISED", "BALANCED", "AUTONOMOUS"] as const) {
+        const res = await executeTool(name, {}, { ...ctx, autonomy, extraTools: mk(name) });
+        expect(res.status).toBe("FAILED");
+        expect(res.error).toMatch(/^DEPLOY_MERGE_TOOLS_DISABLED: /);
+        expect(res.error).not.toMatch(/token|secret|key/i);
+      }
+      expect(handler).not.toHaveBeenCalled();
+      expect(approvalCreate).not.toHaveBeenCalled();
+    },
+  );
+
+  it("a vague name with a deploy description is refused; unset flag too", async () => {
+    vi.unstubAllEnvs();
+    delete process.env.DEPLOY_MERGE_TOOLS_ENABLED;
+    const res = await executeTool("x__run", {}, { ...ctx, autonomy: "AUTONOMOUS", extraTools: mk("x__run", "Deploy the app to production") });
+    expect(res.error).toMatch(/^DEPLOY_MERGE_TOOLS_DISABLED:/);
+    expect(handler).not.toHaveBeenCalled();
+  });
+
+  it("flag \"true\" lets the call through to the approval gate", async () => {
+    vi.stubEnv("DEPLOY_MERGE_TOOLS_ENABLED", "true");
+    const res = await executeTool("gh__merge_pull_request", {}, { ...ctx, autonomy: "AUTONOMOUS", extraTools: mk("gh__merge_pull_request") });
+    expect(res.error ?? "").not.toMatch(/DEPLOY_MERGE_TOOLS_DISABLED/);
+  });
+});

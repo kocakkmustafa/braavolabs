@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() } }));
 
 import {
+  isDeployMergeTool,
   OUTBOUND_DISABLED_CODES,
   OUTBOUND_GATE_ENV,
   assertOutboundFeatureEnabled,
@@ -12,7 +13,7 @@ import {
 } from "../outbound-gates";
 import { AppError, errorHandler } from "../../middleware/error";
 
-const FEATURES: OutboundFeature[] = ["email", "outreach", "voice"];
+const FEATURES: OutboundFeature[] = ["email", "outreach", "voice", "deploy_merge"];
 
 afterEach(() => { vi.unstubAllEnvs(); });
 
@@ -22,11 +23,13 @@ describe("B-06 outbound gates", () => {
       email: "OUTBOUND_EMAIL_ENABLED",
       outreach: "OUTREACH_SEQUENCES_ENABLED",
       voice: "VOICE_AGENT_ENABLED",
+      deploy_merge: "DEPLOY_MERGE_TOOLS_ENABLED",
     });
     expect(OUTBOUND_DISABLED_CODES).toEqual({
       email: "EMAIL_SENDING_DISABLED",
       outreach: "OUTREACH_SEQUENCES_DISABLED",
       voice: "VOICE_AGENT_DISABLED",
+      deploy_merge: "DEPLOY_MERGE_TOOLS_DISABLED",
     });
   });
 
@@ -96,5 +99,25 @@ describe("B-06 outbound gates", () => {
     vi.stubEnv("VOICE_AGENT_ENABLED", "true");
     expect(disabledFeatureForTool("email_send_sequence")).toBeNull();
     expect(disabledFeatureForTool("make_outbound_call")).toBeNull();
+  });
+
+  it("classifies deploy / merge tools regardless of case, alias or separator", () => {
+    for (const n of ["deploy", "DEPLOY", "DeployApp", "github__merge_pull_request", "vercel.deployments-create", "mergePR", "deployprod", "rollback", "Release"]) {
+      expect(isDeployMergeTool(n), n).toBe(true);
+    }
+    for (const n of ["web_search", "get_github_pr_status", "get_pr_mergeable", "emergency_lookup", "crm_create_contact"]) {
+      expect(isDeployMergeTool(n), n).toBe(false);
+    }
+    expect(isDeployMergeTool("run", "Deploys the app to production")).toBe(true);
+    expect(isDeployMergeTool("run", "Runs a report")).toBe(false);
+  });
+
+  it("deploy/merge gate: off by default, on only for the literal true; connector description counts", () => {
+    vi.stubEnv("DEPLOY_MERGE_TOOLS_ENABLED", "");
+    expect(disabledFeatureForTool("gh__MERGE_pr", { dynamic: true })).toBe("deploy_merge");
+    expect(disabledFeatureForTool("x__run", { dynamic: true, description: "Merge the branch" })).toBe("deploy_merge");
+    expect(disabledFeatureForTool("web_search")).toBeNull();
+    vi.stubEnv("DEPLOY_MERGE_TOOLS_ENABLED", "true");
+    expect(disabledFeatureForTool("gh__merge_pr", { dynamic: true })).toBeNull();
   });
 });
