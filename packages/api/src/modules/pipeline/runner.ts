@@ -2,6 +2,7 @@ import type { Job } from "bullmq";
 import * as cron from "node-cron";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { redis } from "../../lib/redis";
 import { runWithoutTenant } from "../../lib/tenant-context";
 import { env } from "../../config/env";
 import { runQueue, scheduleQueue, createWorker } from "../../lib/queue";
@@ -768,6 +769,54 @@ export async function removeSchedule(pipelineId: string): Promise<void> {
   logger.info({ pipelineId, removed }, "Scheduled pipeline scheduler removed");
 }
 
+/** TTL for the per-slot tick dedup key: longer than a daily slot, not forever. */
+const TICK_SLOT_TTL_SECONDS = 25 * 60 * 60;
+
+/** Process-local counter of fail-closed skips caused by Redis dedup errors. */
+let tickDedupErrorCount = 0;
+export function getTickDedupErrorCount(): number {
+  return tickDedupErrorCount;
+}
+
+/**
+ * The planned fire time of a tick, in epoch ms, rounded to the minute.
+ *
+ * BullMQ JobScheduler creates each tick job at the previous fire with
+ * `delay` = ms until the next planned fire, so `timestamp + delay` is the
+ * planned slot and is identical for every duplicate/redelivery of that job.
+ * If delay is missing, fall back to the job timestamp, then to now.
+ */
+export function tickSlotMs(job: Job<ScheduledTickData>): number {
+  const delay = typeof job.opts?.delay === "number" ? job.opts.delay : 0;
+  const base = typeof job.timestamp === "number" ? job.timestamp + delay : Date.now();
+  return Math.floor(base / 60_000) * 60_000;
+}
+
+/**
+ * Claim (pipelineId, slot) with Redis SET NX EX. true = we own the slot.
+ * FAIL-CLOSED: a Redis error skips the tick (a double run spends money; a
+ * missed scheduled run is visible and recoverable by a manual run).
+ */
+async function claimTickSlot(pipelineId: string, slotMs: number): Promise<boolean> {
+  try {
+    const res = await redis.set(
+      `pipeline:tick:${pipelineId}:${slotMs}`,
+      "1",
+      "EX",
+      TICK_SLOT_TTL_SECONDS,
+      "NX",
+    );
+    return res === "OK";
+  } catch (err) {
+    tickDedupErrorCount += 1;
+    logger.warn(
+      { pipelineId, slotMs, err, tickDedupErrors: tickDedupErrorCount },
+      "Scheduled tick skipped — Redis dedup unavailable (fail-closed)",
+    );
+    return false;
+  }
+}
+
 /**
  * The tick body a scheduled JobScheduler enqueues on each fire. Exported so it
  * can be unit-tested directly (the old inline node-cron callback could not be).
@@ -821,6 +870,17 @@ export async function processScheduledTick(job: Job<ScheduledTickData>): Promise
     logger.info(
       { pipelineId, companyStatus: pipeline.company?.status ?? "missing" },
       "Scheduled run skipped — company not active",
+    );
+    return;
+  }
+
+  // Idempotency (BRA-P1-04c): one run per (pipeline, planned slot). Taken
+  // before the quota claim so a duplicate tick never burns quota.
+  const slotMs = tickSlotMs(job);
+  if (!(await claimTickSlot(pipelineId, slotMs))) {
+    logger.info(
+      { pipelineId, slotMs },
+      "Scheduled tick skipped — slot already claimed or dedup unavailable",
     );
     return;
   }

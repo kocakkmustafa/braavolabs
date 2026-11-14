@@ -48,12 +48,14 @@ vi.mock("../../../lib/queue", () => ({
 vi.mock("../../../lib/logger", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
+const redisMock = vi.hoisted(() => ({ set: vi.fn() }));
+vi.mock("../../../lib/redis", () => ({ redis: redisMock }));
 vi.mock("../../../config/env", () => ({ env: { SCHEDULER_TZ: "UTC" } }));
 
-import { processScheduledTick } from "../runner";
+import { processScheduledTick, getTickDedupErrorCount } from "../runner";
 
-function makeJob(pipelineId = "pipe-1") {
-  return { name: "scheduled-run", data: { pipelineId } } as any;
+function makeJob(pipelineId = "pipe-1", timestamp = 1_000_000, delay = 60_000) {
+  return { name: "scheduled-run", data: { pipelineId }, timestamp, opts: { delay } } as any;
 }
 
 const activePipeline = {
@@ -67,6 +69,7 @@ const activePipeline = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  redisMock.set.mockResolvedValue("OK");
   runQueueMock.add.mockResolvedValue({ id: "job-1" });
   prismaMock.pipeline.update.mockResolvedValue({});
   // enqueueRun's tenant snapshot lookup.
@@ -162,5 +165,51 @@ describe("processScheduledTick — idempotency / no double-claim (A2)", () => {
     // never retries internally (and the worker is registered attempts:1), a
     // post-claim failure cannot double-bill the tenant.
     expect(claimQuotaMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("processScheduledTick — slot dedup (BRA-P1-04c)", () => {
+  beforeEach(() => {
+    prismaMock.pipeline.findUnique.mockResolvedValue(activePipeline);
+    claimQuotaMock.mockResolvedValue({ claimed: true, value: 1, limit: 100 });
+    prismaMock.run.create.mockResolvedValue({ id: "run-1" });
+  });
+
+  it("same slot fired twice → one run (second SET NX returns null)", async () => {
+    redisMock.set.mockResolvedValueOnce("OK").mockResolvedValueOnce(null);
+    await processScheduledTick(makeJob());
+    await processScheduledTick(makeJob());
+    expect(prismaMock.run.create).toHaveBeenCalledTimes(1);
+    expect(claimQuotaMock).toHaveBeenCalledTimes(1);
+    const [k1, , ex, ttl, nx] = redisMock.set.mock.calls[0]!;
+    expect(k1).toBe(redisMock.set.mock.calls[1]![0]);
+    expect([ex, nx]).toEqual(["EX", "NX"]);
+    expect(ttl).toBe(25 * 3600);
+  });
+
+  it("different slots → separate keys and separate runs", async () => {
+    await processScheduledTick(makeJob("pipe-1", 1_000_000, 60_000));
+    await processScheduledTick(makeJob("pipe-1", 5_000_000, 60_000));
+    expect(redisMock.set.mock.calls[0]![0]).not.toBe(redisMock.set.mock.calls[1]![0]);
+    expect(prismaMock.run.create).toHaveBeenCalledTimes(2);
+  });
+
+  it("different pipelines, same slot → separate keys and separate runs", async () => {
+    prismaMock.pipeline.findUnique
+      .mockResolvedValueOnce(activePipeline)
+      .mockResolvedValueOnce({ ...activePipeline, id: "pipe-2" });
+    await processScheduledTick(makeJob("pipe-1"));
+    await processScheduledTick(makeJob("pipe-2"));
+    expect(redisMock.set.mock.calls[0]![0]).not.toBe(redisMock.set.mock.calls[1]![0]);
+    expect(prismaMock.run.create).toHaveBeenCalledTimes(2);
+  });
+
+  it("Redis error → fail-closed: no quota claim, no run, error counted, tick does not throw", async () => {
+    const before = getTickDedupErrorCount();
+    redisMock.set.mockRejectedValue(new Error("redis down"));
+    await expect(processScheduledTick(makeJob())).resolves.toBeUndefined();
+    expect(claimQuotaMock).not.toHaveBeenCalled();
+    expect(prismaMock.run.create).not.toHaveBeenCalled();
+    expect(getTickDedupErrorCount()).toBe(before + 1);
   });
 });
