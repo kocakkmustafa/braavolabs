@@ -45,6 +45,14 @@ readonly REVIEWED_JOBUX_LIFECYCLE_SHA256='b5b8697847763d9a7859c7a80d1dd6040d6c86
 readonly REVIEWED_JOBUX_APPROVAL_PATH='packages/db/prisma/migrations/20261108010000_approval_exact_action/migration.sql'
 readonly REVIEWED_JOBUX_APPROVAL_SHA256='ae6a932a2687a86ff3790aad9935d8a82ace08d8842754fcce996764342122f3'
 readonly REVIEWED_JOBUX_MIGRATION_TREE_SHA256='7120cc9cf47909a344e945592f5bf4618862c00cd36cd76c0823092c454df1f6'
+# Connector scope/audience/revoke (SEC-BRA-03; BRA-DEPLOY-02). Prisma quotes its
+# identifiers, which the generic nullable-ADD rule does not accept; the generic rule
+# stays strict. The previous release is deliberately NOT pinned (same reasoning as
+# job-ux): safety is the exact one-file delta plus the exact reviewed 56-file
+# candidate migration tree (an older live release yields extra delta files).
+readonly REVIEWED_CONNECTOR_PATH='packages/db/prisma/migrations/20261114000000_connector_scope_audience/migration.sql'
+readonly REVIEWED_CONNECTOR_SHA256='4297ebc1909c051217b90f62ebe501be57aae253115638fc47c79ea1c76215f4'
+readonly REVIEWED_CONNECTOR_MIGRATION_TREE_SHA256='b875ef099ceb6b2eb2e5c1b247b6a9ca044a21614c723161f4efb5b3a6b877e7'
 
 die() { local code="$1"; shift; printf 'deploy-platform: %s\n' "$*" >&2; exit "$code"; }
 require_value() { test -n "${!1:-}" || die "$EXIT_INPUT" "missing required input: $1"; }
@@ -456,6 +464,36 @@ reviewed_job_ux_delta() {
   test "$tree_hash" = "$REVIEWED_JOBUX_MIGRATION_TREE_SHA256"
 }
 
+reviewed_connector_delta() {
+  local staged="$1" delta_manifest="$2" path tree_hash
+  local discovery="$staged/migration-delta.name-status" meta="$staged/migration-delta.meta"
+  local reviewed_previous="${delta_previous_release:-${PREVIOUS_RELEASE_COMMIT:-}}"
+  local reviewed_candidate="${release_commit:-${RELEASE_COMMIT:-}}"
+  local reviewed_api="${api_ref:-${API_IMAGE_REF:-}}" reviewed_ui="${ui_ref:-${UI_IMAGE_REF:-}}"
+  [[ "$reviewed_previous" =~ ^[0-9a-f]{40}$ ]] || return 1
+  [[ "$reviewed_candidate" =~ ^[0-9a-f]{40}$ ]] || return 1
+  [[ "$reviewed_api" =~ ^ghcr[.]io/kocakkmustafa/braavolabs/api@sha256:[0-9a-f]{64}$ ]] || return 1
+  [[ "$reviewed_ui" =~ ^ghcr[.]io/kocakkmustafa/braavolabs/ui@sha256:[0-9a-f]{64}$ ]] || return 1
+  for path in "$delta_manifest" "$discovery" "$meta" "$staged/$REVIEWED_CONNECTOR_PATH"; do
+    test -f "$path" && test ! -L "$path" || return 1
+  done
+  for path in packages packages/db packages/db/prisma packages/db/prisma/migrations; do
+    test -d "$staged/$path" && test ! -L "$staged/$path" || return 1
+  done
+  test -z "$(find "$staged/packages/db/prisma/migrations" -type l -print -quit)" || return 1
+  # Exactly the one reviewed file, byte for byte, as an Add.
+  cmp -s "$delta_manifest" <(printf '%s  %s\n' "$REVIEWED_CONNECTOR_SHA256" "$REVIEWED_CONNECTOR_PATH") || return 1
+  cmp -s "$discovery" <(printf 'A\t%s\n' "$REVIEWED_CONNECTOR_PATH") || return 1
+  cmp -s "$meta" <(printf 'previousRelease=%s\ncandidateRelease=%s\napi=%s\nui=%s\ndiscoverySha256=%s\ndeltaSha256=%s\n' \
+    "$reviewed_previous" "$reviewed_candidate" "$reviewed_api" "$reviewed_ui" \
+    "$(sha256sum "$discovery" | awk '{print $1}')" \
+    "$(sha256sum "$delta_manifest" | awk '{print $1}')") || return 1
+  tree_hash="$(cd "$staged" &&
+    find packages/db/prisma/migrations -type f -name migration.sql -print0 |
+      LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')" || return 1
+  test "$tree_hash" = "$REVIEWED_CONNECTOR_MIGRATION_TREE_SHA256"
+}
+
 delta_discovery_matches_manifest() {
   local discovery="$1" manifest="$2" discovered manifested status
   discovered="$(mktemp)"; manifested="$(mktemp)"
@@ -480,6 +518,13 @@ migration_is_eligible() {
   test -f "$delta_manifest" || return 1
   if reviewed_subscription_plan_bundle "$staged" "$delta_manifest"; then
     return 0
+  fi
+  # The connector scope/audience migration is admitted only as exactly itself; if
+  # its path shows up, nothing else (reviewed or generic) may apply.
+  if grep -Fq -e "$REVIEWED_CONNECTOR_PATH" "$delta_manifest" ||
+     grep -Fq -e "$REVIEWED_CONNECTOR_PATH" "$staged/migration-delta.name-status"; then
+    reviewed_connector_delta "$staged" "$delta_manifest"
+    return "$?"
   fi
   # The job-lifecycle/approval pair is admitted only as exactly itself; if either
   # path shows up, nothing else (reviewed or generic) may apply.
