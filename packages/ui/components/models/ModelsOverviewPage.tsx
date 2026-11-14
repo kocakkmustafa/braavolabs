@@ -13,6 +13,7 @@ import { useAppStore } from "../../lib/store";
 import { useDisplayFormats } from "../../lib/useDisplayFormats";
 import { formatDateTime, currentTimeZone } from "../../i18n/locales";
 import { retryFocusTarget } from "../../lib/ux-models/focus";
+import ModelPicker from "./ModelPicker";
 import { COST_DISPLAY_FLOOR, isBelowCostPrecision, modeBadges, toOverviewView, type OverviewView } from "../../lib/ux-models/models";
 
 type Company = { id: string; name: string };
@@ -177,6 +178,8 @@ export default function ModelsOverviewPage() {
               ))}
             </ul>
           )}
+
+          <ModelPicker token={token} companyId={companyId} rows={view.rows} onChanged={loadModels} />
 
           <p data-testid="models-cost-note" style={{ ...muted, marginTop: 12 }}>
             {mt("costNote")}{when(view.costFrom) ? ` ${mt("costSince", { from: when(view.costFrom) as string })}` : ""}

@@ -23,7 +23,13 @@ const M_ZERO = { id: "gpt-zero", provider: "openai", source: "platform", access:
 const M_TINY = { id: "mini-model", provider: "mistral", source: "local", access: { scope: "agent", mode: "read" }, costThisMonthUsd: "0.000012", runCountThisMonth: 1 };
 const BY_COMPANY: Record<string, unknown> = { c4: overview([M_BYOK, M_TINY, M_ZERO], true), c1: overview([M_BYOK, M_UNKNOWN, M_ZERO]), c2: overview([], true), c3: overview([M_UNKNOWN, M_TINY]) };
 
-type Calls = { method: string; path: string }[];
+const PICKER_OPTIONS = [
+  { provider: "ANTHROPIC", model: "claude-sonnet-5", reasoningEfforts: [] },
+  { provider: "OLLAMA", model: "mini-model", reasoningEfforts: [] },
+  { provider: "OPENAI", model: "gpt-zero", reasoningEfforts: [] },
+];
+
+type Calls = { method: string; path: string; body?: string | null }[];
 interface MockOpts { companies?: unknown[]; modelsStatus?: Record<string, number>; modelsDelayMs?: Record<string, number> }
 
 async function mockApi(page: Page, opts: MockOpts = {}): Promise<Calls> {
@@ -35,7 +41,7 @@ async function mockApi(page: Page, opts: MockOpts = {}): Promise<Calls> {
     if (req.method() === "OPTIONS") return route.fulfill({ status: 204, headers: cors });
     const url = new URL(req.url());
     const path = url.pathname.replace(/^\/api\/v1/, "");
-    calls.push({ method: req.method(), path });
+    calls.push({ method: req.method(), path, body: req.postData() });
     const json = (status: number, data: unknown) => route.fulfill({ status, headers: { ...cors, "content-type": "application/json" }, body: JSON.stringify(data) });
     if (path === "/companies") return json(200, opts.companies ?? COMPANIES);
     const m = path.match(/^\/companies\/([^/]+)\/models$/);
@@ -46,6 +52,11 @@ async function mockApi(page: Page, opts: MockOpts = {}): Promise<Calls> {
       if (st && st >= 400) return json(st, { error: "no" });
       return json(200, BY_COMPANY[m[1]] ?? overview([]));
     }
+    // BRA-P0-06b: model seçici uçları.
+    if (path === "/research/compare/options") return json(200, { companyId: url.searchParams.get("companyId"), maxCandidates: 3, selections: PICKER_OPTIONS });
+    if (path === "/companies/c4/agents" && req.method() === "GET") return json(200, [{ id: "a1", name: "Satış ajanı", model: "gpt-zero" }]);
+    if (path === "/companies/c4/agents/a1" && req.method() === "PATCH") return json(200, { id: "a1", name: "Satış ajanı", ...JSON.parse(req.postData() ?? "{}") });
+    if (path === "/settings/ai-config" && req.method() === "PUT") return json(200, { success: true });
     return json(200, req.method() === "GET" ? [] : {});
   });
   return calls;
@@ -228,5 +239,63 @@ test.describe("bayrak AÇIK: hata ve yarış", () => {
     await page.waitForTimeout(1900);
     await expect(page.getByTestId("model-row-claude-sonnet-5")).toHaveCount(0);
     await expect(page.getByTestId("model-row-yerel-llama")).toBeVisible();
+  });
+});
+
+test.describe("BRA-P0-06b: tek model seçici", () => {
+  test.use({ viewport: { width: 1440, height: 900 } });
+
+  test("bayrak AÇIK: ajan modeli PATCH ile değişir; hesap varsayılanı PUT ile (anahtarsız); rozetler görünür", async ({ page }) => {
+    await prepare(page, "dark");
+    const calls = await mockApi(page, { companies: [{ id: "c4", name: "Rozet" }] });
+    await page.goto(`${UI_LAB}/settings/models`);
+    const picker = page.getByTestId("model-picker");
+    await expect(picker).toBeVisible();
+    await expect(page.getByTestId("model-picker-current")).toHaveText("Şu an: gpt-zero");
+    // Rozetler 06a eşlemesinden: byok → BYOK, local → YEREL, platform rozetsiz.
+    const labels = await page.getByTestId("model-picker-model").locator("option").allTextContents();
+    expect(labels).toEqual(["claude-sonnet-5 (ANTHROPIC) · BYOK", "mini-model (OLLAMA) · YEREL", "gpt-zero (OPENAI)"]);
+
+    await page.getByTestId("model-picker-model").selectOption({ label: "claude-sonnet-5 (ANTHROPIC) · BYOK" });
+    await page.getByTestId("model-picker-apply").click();
+    await expect(page.getByTestId("model-picker-status")).toHaveText("Kaydedildi.");
+    const patch = calls.filter((c) => c.method === "PATCH");
+    expect(patch).toHaveLength(1);
+    expect(patch[0].path).toBe("/companies/c4/agents/a1");
+    expect(JSON.parse(patch[0].body ?? "{}")).toEqual({ model: "claude-sonnet-5" });
+    await expect(page.getByTestId("model-picker-current")).toHaveText("Şu an: claude-sonnet-5");
+
+    await page.getByTestId("model-picker-target").selectOption({ label: "Hesap varsayılanı (kendi modeli olmayan tüm ajanlar)" });
+    await page.getByTestId("model-picker-model").selectOption({ label: "mini-model (OLLAMA) · YEREL" });
+    await page.getByTestId("model-picker-apply").click();
+    await expect(page.getByTestId("model-picker-status")).toHaveText("Kaydedildi.");
+    const put = calls.filter((c) => c.method === "PUT" && c.path === "/settings/ai-config");
+    expect(put).toHaveLength(1);
+    expect(JSON.parse(put[0].body ?? "{}")).toEqual({ provider: "OLLAMA", model: "mini-model" });
+  });
+
+  test("bayrak AÇIK: PATCH hata verirse hata mesajı görünür", async ({ page }) => {
+    await prepare(page, "dark");
+    await mockApi(page, { companies: [{ id: "c4", name: "Rozet" }] });
+    await page.route((u) => u.pathname.endsWith("/companies/c4/agents/a1"), (route) =>
+      route.request().method() === "PATCH"
+        ? route.fulfill({ status: 500, headers: { "access-control-allow-origin": UI_LAB, "access-control-allow-credentials": "true", "content-type": "application/json" }, body: "{}" })
+        : route.fallback());
+    await page.goto(`${UI_LAB}/settings/models`);
+    await page.getByTestId("model-picker-apply").click();
+    await expect(page.getByTestId("model-picker-status")).toHaveText("Kaydedilemedi. Yeniden dene.");
+  });
+
+  test("bayrak KAPALI: /settings değişmez (seçici yok, seçici uçları çağrılmaz)", async ({ page }) => {
+    await prepare(page, "dark");
+    const calls = await mockApi(page, { companies: [{ id: "c4", name: "Rozet" }] });
+    const res = await page.goto(`${UI}/settings`);
+    expect(res?.status()).toBeLessThan(400);
+    await page.waitForLoadState("networkidle");
+    expect(await page.getByTestId("model-picker").count()).toBe(0);
+    expect(await page.getByTestId("models-page").count()).toBe(0);
+    expect(calls.filter((c) => c.path === "/research/compare/options")).toEqual([]);
+    expect(calls.filter((c) => c.method === "PATCH")).toEqual([]);
+    expect((await page.goto(`${UI}/settings/models`))?.status()).toBe(404);
   });
 });
