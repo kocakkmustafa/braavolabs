@@ -220,13 +220,13 @@ describe("yanıt şekli ve değerler", () => {
 
   it("maliyet kaydı yok -> null; adım yoksa koşu 0; agentId'siz adım hiçbir satıra yazılmaz", async () => {
     db.agents = [ag("a1", "gpt-4o"), ag("a2", "gemini-1.5-pro")];
-    db.steps = [step("a1", "r1", null), step(null, "r9", "50")];
+    db.steps = [step("a1", "r1", null), step(null, "r9", "50123.456789")];
     const { res } = await invoke();
     const gpt = res.body.models.find((m: any) => m.id === "gpt-4o");
     const gem = res.body.models.find((m: any) => m.id === "gemini-1.5-pro");
     expect(gpt).toMatchObject({ costThisMonthUsd: null, runCountThisMonth: 1 });
     expect(gem).toMatchObject({ costThisMonthUsd: null, runCountThisMonth: 0 });
-    expect(JSON.stringify(res.body)).not.toContain("50.0");
+    expect(JSON.stringify(res.body)).not.toContain("50123");
   });
 
   it("null alanlar: eşleşen sağlayıcı satırı yok -> source null, access.mode null", async () => {
