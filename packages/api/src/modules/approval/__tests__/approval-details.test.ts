@@ -111,6 +111,8 @@ describe("deriveApprovalDetails", () => {
     ["40 karakter blok (sınır)", "abcXYZ_".repeat(5) + "abcde"],
     ["sk-live kelime başında", "my.sk-live-abc123"],
     ["sk_test sınırda (_ öncesi)", "id_sk_test_abc123"],
+    ["sk_test gömülü, uzun gövde", "idsk_test_4eC39HqLyjWDarjtT1zdp7dc"],
+    ["sk-ant gömülü, uzun gövde", "idsk-ant-api03-abcdefghijklmnop"],
     ["SK-LIVE büyük harf", "my.SK-LIVE-abc123"],
     ["Sk_Test karışık harf", "id.Sk_Test_abc123"],
     ["_ sonrası tireli sk-", "task_sk-abc123"],
@@ -150,6 +152,13 @@ describe("deriveApprovalDetails", () => {
     for (const ok of oks) {
       const d = deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "external_control", connectionId: ok, action: "PAUSE", targetId: ok });
       expect(d.dataTransfer, ok).toEqual([`PAUSE → bağlantı ${ok}, hedef ${ok}`]);
+    }
+  });
+
+  it("BİLİNEN TAKAS (belgeleme): gömülü + kısa gövdeli önek ve kısa gövdeli benzerler geçer", () => {
+    for (const ok of ["idsk_test_abc123", "flask_test", "disk_test_configuration", "task-test-1", "risk-test"]) {
+      const d = deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "external_control", connectionId: ok, action: "PAUSE", targetId: "t" });
+      expect(d.dataTransfer, ok).toEqual([`PAUSE → bağlantı ${ok}, hedef t`]);
     }
   });
 
@@ -193,7 +202,7 @@ describe("deriveApprovalDetails", () => {
   });
   it("alan adı: hex / acct_ / sk-live / JWT adlı anahtarlar düşer; task-test-1, keyjob, task_pk_1 kalır", () => {
     const input = {
-      "0123456789abcdef0123456789abcdef": 1, acct_1Abc23: 1, "my.sk-live-a": 1, "x.eyJhbGciOiJ": 1,
+      a123456789abcdef0123456789abcdef: 1, acct_1Abc23: 1, "my.sk-live-a": 1, "x.eyJhbGciOiJ": 1,
       ["abcXYZ_".repeat(5) + "abcde"]: 1, "task-test-1": 1, keyjob: 1, task_pk_1: 1,
     };
     const d = deriveApprovalDetails("SPEND", { toolName: "t", input });

@@ -54,6 +54,12 @@ const ID_SAFE = /^[\w.-]{1,64}$/;
  */
 const ID_SECRET_ANYWHERE =
   /(?<![a-z0-9])(sk|pk|rk)[-_](live|test|ant|proj)|gh[pousr]_|xox[abprs]?-|AKIA[0-9A-Z]{8,}|whsec_|acct[-_]/i;
+/**
+ * Sol sınırsız, gövde uzunluklu ek desen (gömülü "idsk_test_4eC39…" sızıntısı): önek + ≥20 karakter
+ * gövde. Kısa gövde ("task-test-1", "flask_test", "disk_test_configuration") geçer. ant/proj gövdesi
+ * `-`/`_` içerebilir (sk-ant-api03-…). Takas: gömülü + KISA gövdeli ("idsk_test_abc123") geçer.
+ */
+const ID_SECRET_EMBEDDED = /(sk|pk|rk)[-_](live|test)[-_][A-Za-z0-9]{20,}|(sk|pk|rk)[-_](ant|proj)[-_][A-Za-z0-9_-]{20,}/i;
 const ID_JWT = /(?<![A-Za-z0-9])eyJ/;
 /**
  * Genel `sk|pk|rk` + `-`/`_`: kelime başında ve `_` sınır SAYILMAZ ("task_pk_1" geçer). Tireli biçim
@@ -70,7 +76,7 @@ const ID_LONG_BLOCK = /[A-Za-z0-9_-]{40,}/;
 /** Önek/hex/blok süzgeci: kimlik, araç adı, sağlayıcı/model ve alan adı için ortak. */
 function leaksSecret(s: string): boolean {
   return (
-    ID_SECRET_ANYWHERE.test(s) || ID_JWT.test(s) || ID_SECRET_WORD_START.test(s) || ID_LONG_HEX.test(s) || ID_LONG_BLOCK.test(s)
+    ID_SECRET_ANYWHERE.test(s) || ID_SECRET_EMBEDDED.test(s) || ID_JWT.test(s) || ID_SECRET_WORD_START.test(s) || ID_LONG_HEX.test(s) || ID_LONG_BLOCK.test(s)
   );
 }
 
