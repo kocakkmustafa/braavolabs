@@ -33,7 +33,7 @@ import { assertSafeExternalUrl, SsrfError } from "../../lib/ssrf";
 import { listTools, type McpTool } from "../../lib/mcp";
 import { connectorManifestSchema } from "@ai-company-os/connector-sdk";
 import { signManifest, verifyManifest, isSignedManifest } from "./manifest-signature";
-import { refreshInstall, revokeInstall, audienceOf, toInstalledView } from "./connector-lifecycle";
+import { refreshInstall, revokeInstall, uninstallInstall, audienceOf, toInstalledView } from "./connector-lifecycle";
 import { claimQuota } from "../billing/metering";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { PLAN_LIMITS } from "@ai-company-os/core";
@@ -260,11 +260,7 @@ tenantRouter.post("/connectors/:slug/revoke", async (req, res, next) => {
 
 tenantRouter.post("/connectors/:slug/uninstall", async (req, res, next) => {
   try {
-    const connector = await prisma.connector.findUnique({ where: { slug: req.params.slug } });
-    if (!connector) throw new AppError(404, "Connector not found");
-    await prisma.tenantConnector.deleteMany({
-      where: { tenantId: req.auth!.tenantId, connectorId: connector.id },
-    });
+    await uninstallInstall(req.auth!.tenantId, req.auth!.userId, req.params.slug);
     res.json({ success: true });
   } catch (err) { next(err); }
 });
