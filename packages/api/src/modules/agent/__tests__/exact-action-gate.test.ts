@@ -89,13 +89,14 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllEnvs(); });
 
 describe("EXACT_ACTION_APPROVAL off (default) — unchanged gate", () => {
-  it("creates a PENDING approval with NO stamp and never touches grants", async () => {
+  it("creates a PENDING approval with NO stamp (tenantId yine yazılır) and never touches grants", async () => {
     const res = await executeTool("make_outbound_call", input, ctx);
     expect(res.status).toBe("PENDING_APPROVAL");
     const data = approvalCreate.mock.calls[0][0].data;
     expect(data).not.toHaveProperty("nonce");
     expect(data).not.toHaveProperty("actionHash");
-    expect(data).not.toHaveProperty("tenantId");
+    // SEC-BRA-05: sahiplik (tenantId) damgadan bağımsız yazılır; damga alanları yok.
+    expect(data.tenantId).toBe("tenant-1");
     expect(data).not.toHaveProperty("expiresAt");
     expect(approvalFindMany).not.toHaveBeenCalled();
     expect(approvalUpdateMany).not.toHaveBeenCalled();

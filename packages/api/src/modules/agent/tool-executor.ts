@@ -286,6 +286,8 @@ export async function executeTool(
     const approval = await prisma.approval.create({
       data: {
         runId: context.runId,
+        // SEC-BRA-05: owner written directly (not only via exact-action stamp).
+        tenantId: context.tenantId,
         type: "INPUT",
         description: question.slice(0, 2000),
         metadata: { toolName, question } as any,
@@ -379,6 +381,7 @@ export async function executeTool(
     const approval = await prisma.approval.create({
       data: {
         runId: context.runId,
+        tenantId: context.tenantId, // SEC-BRA-05
         type: "EXTERNAL_CONTROL",
         description: description.slice(0, 2000),
         // BRA-UX-API-01c: riskLevel registry meta'sından; TRIGGER geri alınamaz, PAUSE/RESUME birbirinin tersi.
@@ -520,6 +523,7 @@ export async function executeTool(
       const approval = await prisma.approval.create({
         data: {
           runId: context.runId,
+          tenantId: context.tenantId, // SEC-BRA-05 (exactStamp below writes the same value)
           type: "SPEND",
           description,
           amountUsd: amountUsd as any,

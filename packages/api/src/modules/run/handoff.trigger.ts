@@ -77,6 +77,7 @@ export async function maybeOpenAutoHandoff(
     const approval = await prisma.approval.create({
       data: {
         runId,
+        tenantId: ledger.tenantId, // SEC-BRA-05
         type: "HANDOFF",
         status: "PENDING",
         description: `Provider ${err.provider} exhausted the chain. Continue this run with ${viable.provider}?`,

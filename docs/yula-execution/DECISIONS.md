@@ -248,3 +248,62 @@ Limit tek kaynak: `retryLimit()` (`jobBudget.maxRetries` ?? 3); sayaç artışı
 - **Bağımlılıklar ve riskler:** 03b(b) düşük-risk yan etki açığı (`DECISIONS.md:177`) yüzünden "düşük risk toplu onay" kapalı kalır; `STEP_APPROVAL_GATE` (03d) kapalıyken yüksek riskli plan 422 verir, arayüz açık gösterir, onaylı iş akışı bayrak açıkken doğrulanır (açmak kurucu kararı); mobil konumlama çelişkisi (`mobile/CLAUDE.md` "Read + approve, don't build" ↔ talimat §4.2-J, `03-concepts.md:19`): mobilde iş BAŞLATMA ayrı kurucu kararına bağlı, UX-05j varsayımı oku+onayla+duraklat+yönlendir.
 - **Performans/A11Y istisnası:** niyet sınıflayıcısı gecikme bütçesi ölçülmeden yazılmadı; UX-04 prototipi ölçer (04-design §10).
 - **Geri alma:** belge revert; uygulama UX-04 bayrağı (`NEXT_PUBLIC_UX_LAB`, varsayılan kapalı) kapatılarak.
+
+---
+
+## ADR-0005 — Run/Approval doğrudan tenantId ve ActivityLog değişmezliği (SEC-BRA-05)
+
+- **Durum:** Önerilen, kurucu onayı bekliyor. Bu belge **yalnız karar önerisidir**: trigger/migration YAZILMADI, şema DEĞİŞMEDİ, hiçbir şey uygulanmadı. Kod değişikliği tek parça: yeni Approval satırlarının hepsinde `tenantId` doğrudan yazılır (aşağıda A).
+- **Bağlam (kodda doğrulanmış):** `runs.tenant_id/workspace_id` ve `approvals.tenant_id` kolonları var ama NULLABLE (ADR-0001 "daraltma", ADR-0002). `activity_log.tenant_id` zaten NOT NULL + FK + RLS politikası (`20260616000000_tenant_rls`). Bugün `activity_log` satırlarını değiştiren/silen uygulama kodu yok; tek UPDATE benzeri çağrılar IAP `upsert`leridir ve hepsi `update: {}` (boş güncelleme; `modules/billing/iap/router.ts` ×3, `manual-review.service.ts` ×2). Silme yalnız `tenants` → `activity_log` `ON DELETE CASCADE` ile olur.
+
+### A. Denetim: yeni kayıtlarda tenantId yazımı
+
+| Yol | Tür | Önce | Sonra |
+|---|---|---|---|
+| `pipeline/router.ts` (manuel koşu) | Run | `tenantId`+`workspaceId` yazıyor | değişmedi |
+| `webhook/router.ts` | Run | yazıyor | değişmedi |
+| `pipeline/runner.ts` (zamanlanmış) | Run | yazıyor | değişmedi |
+| `jobs/start.ts` | Run | yazıyor | değişmedi |
+| `pipeline/step-approval.ts` (adım kapısı) | Approval | yazıyor (damgadan) | değişmedi |
+| `agent/tool-executor.ts` SPEND | Approval | **yalnız `EXACT_ACTION_APPROVAL` açıkken** | **her zaman** |
+| `agent/tool-executor.ts` EXTERNAL_CONTROL | Approval | **YOK** | **yazılıyor** |
+| `agent/tool-executor.ts` INPUT (`ask_user`) | Approval | **YOK** | **yazılıyor** |
+| `run/handoff.trigger.ts` HANDOFF | Approval | **YOK** | **yazılıyor** (`ledger.tenantId`) |
+
+Notlar: `scripts/live/*.ts` (3 elle çalıştırılan e2e kurulum betiği) `run.create` ile tenantId yazmaz; üretim yolu değil, kapsam dışı bırakıldı. Grant tüketimi (`evaluateGrant`) `nonce/actionHash/expiresAt` da ister; damgasız satırlara `tenantId` eklemek onları exact-action grant YAPMAZ (davranış değişmez).
+Regresyon koruması: `agent/__tests__/approval-tenant-owner.test.ts` (davranış testleri + kaynakta her `run.create`/`approval.create` veri bloğunda `tenantId` taraması).
+
+### B. ActivityLog değişmezliği — seçenekler
+
+1. **Append-only DB trigger'ı** (`BEFORE UPDATE OR DELETE ON activity_log` → istisna). (+) en küçük; uygulama kodundan, SQL enjeksiyonundan ve yanlış betikten korur; uygulama değişikliği gerekmez. (−) `tenants` silinince `ON DELETE CASCADE` de tetiği çalıştırır: kiracı silme/GDPR silme akışı kırılır → tetik `session_replication_role`/ayrı bakım rolü ya da "kiracı silinirken izin" koşulu ister (örn. `pg_trigger_depth() > 1` ya da `current_setting('app.allow_log_purge', true)='on'`). IAP `update: {}` upsert'leri Prisma'da `ON CONFLICT DO NOTHING`e değil `DO UPDATE SET`e inerse tetiğe takılır → ön test şart. Tablo sahibi/superuser tetiği yine kaldırabilir (yalnız sınıf-içi koruma).
+2. **Hash zinciri** (`prev_hash`, `hash` kolonları; satır = sha256(prev_hash ‖ kanonik içerik), kiracı başına zincir). (+) değişiklik/silme *tespit edilir* (sahip rolü bile gizleyemez, ta ki zincir yeniden yazılmadıkça; dış çıpa için günlük kök hash saklanabilir). (−) büyük iş: yazım yolunda kiracı başına sıralı kilit (yüzlerce yazıcıda sıcak nokta; yazım hızı ~180M satır/yıl hedefiyle çelişir), mevcut satırlar için geri doldurma, çok yazıcılı yarışlar, doğrulayıcı iş. Önleme DEĞİL tespit.
+3. **Hiçbiri** (RLS + uygulama disiplini). Reddedildi: bugünkü koruma yalnız "başka kiracı göremez"; aynı kiracının/yetkili rolün izi silmesi engellenmiyor.
+
+### C. ÖNERİ
+
+**Seçenek 1 (append-only trigger migration'ı), hash zinciri sonra.** Gerekçe: en küçük değişiklik, hemen sınıf-içi koruma, bugünkü yazıcılar (yalnız INSERT) etkilenmez. Önerilen uygulama (ayrı, onaylı bilet; **bu bilet yazmaz**): (i) `BEFORE UPDATE OR DELETE` satır tetiği + `TRUNCATE` tetiği; (ii) kiracı silme için açık, denetlenen bypass (`app.allow_log_purge`) yalnız bakım yolunda; (iii) önce staging'de IAP `update: {}` upsert'lerinin tetiğe takılmadığı kanıtı; (iv) geri alma: `DROP TRIGGER`. Hash zinciri, uyumluluk (SOC2/HIPAA) gereği doğdukça ayrı ADR ile.
+
+### D. Run/Approval NOT NULL daralması — hazırlık
+
+- Yeni satırlar artık NULL üretmez (A tablosu + test). Daralma (`NOT NULL` + FK `tenants`) **ayrı, kurucu onaylı migration**dır ve **prod'da NULL kalmadığı kanıtlanana dek yapılmaz**; eski satırlar için önce geri doldurma (`runs.tenant_id` = `pipelines → companies.tenant_id`; `approvals.tenant_id` = `runs.tenant_id`) gerekir, bu da ayrı onaydır. Bu bilet bunların hiçbirini çalıştırmaz.
+- **Prod'da SALT-OKUR doğrulama SQL'i (ÇALIŞTIRILMADI; kurucu/DB sahibi çalıştırır, yalnız `SELECT`):**
+
+```sql
+-- Hepsi 0 olmalı (daralmadan önce). Salt-okur.
+SELECT 'runs.tenant_id NULL'      AS kontrol, count(*) AS adet FROM runs      WHERE tenant_id IS NULL
+UNION ALL SELECT 'runs.workspace_id NULL',      count(*) FROM runs      WHERE workspace_id IS NULL
+UNION ALL SELECT 'approvals.tenant_id NULL',    count(*) FROM approvals WHERE tenant_id IS NULL
+-- Tutarlılık: doğrudan tenantId, Pipeline→Company→Tenant zincirindeki ile aynı mı
+UNION ALL SELECT 'runs.tenant_id != companies.tenant_id', count(*)
+  FROM runs r JOIN pipelines p ON p.id = r.pipeline_id JOIN companies c ON c.id = p.company_id
+  WHERE r.tenant_id IS NOT NULL AND r.tenant_id <> c.tenant_id
+UNION ALL SELECT 'approvals.tenant_id != runs.tenant_id', count(*)
+  FROM approvals a JOIN runs r ON r.id = a.run_id
+  WHERE a.tenant_id IS NOT NULL AND r.tenant_id IS NOT NULL AND a.tenant_id <> r.tenant_id
+-- Yeni (bu PR'dan sonra yaratılan) satırlarda NULL olmamalı: PR dağıtım zamanını :deploy_ts ile verin
+UNION ALL SELECT 'runs NULL, deploy sonrası',      count(*) FROM runs      WHERE tenant_id IS NULL AND created_at >= :'deploy_ts'
+UNION ALL SELECT 'approvals NULL, deploy sonrası', count(*) FROM approvals WHERE tenant_id IS NULL AND created_at >= :'deploy_ts';
+```
+
+  Beklenen: dağıtım sonrası iki satır 0 (kabul kanıtı); eski satırlar için NULL sayıları >0 olabilir → geri doldurma kararı. (Tam tablo taraması: büyük tabloda `runs`/`approvals` için düşük trafikte, gerekirse replikada çalıştırın.)
+- **Kurucu kararı gerekir:** (1) B/C önerisi (append-only trigger, hash zinciri sonra) onayı ve (2) prod NULL sayımının çalıştırılıp geri doldurma/daralma migration'ının onaylanması.
