@@ -25,6 +25,7 @@
 import { prisma } from "../../lib/db";
 import { decrypt } from "../../lib/encryption";
 import { callTool, type McpTool } from "../../lib/mcp";
+import { credentialSecrets, scrubSecrets } from "../../lib/mcp-auth";
 import type { ToolDefinition } from "../agent/registry";
 import { deriveConnectorToolMeta } from "./connector-tool-risk";
 import { AppError } from "../../middleware/error";
@@ -82,8 +83,8 @@ export async function listConnectorToolsForTenant(tenantId: string): Promise<Too
 }
 
 /** Never hand a raw Error (message/stack may embed a bearer token) to the logger. */
-function sanitizeErr(err: unknown): { message: string } {
-  const raw = err instanceof Error ? err.message : String(err);
+function sanitizeErr(err: unknown, secrets: string[]): { message: string } {
+  const raw = scrubSecrets(err instanceof Error ? err.message : String(err), secrets) as string;
   return {
     message: raw
       .replace(/(bearer\s+)[^\s"']+/gi, "$1[REDACTED]")
@@ -122,6 +123,7 @@ export async function executeMcpTool(
   } catch {
     return { error: "Failed to decrypt connector credentials" };
   }
+  const secrets = credentialSecrets(install.connector.authMethod, creds);
   try {
     const result = await callTool(
       install.connector.mcpServerUrl,
@@ -143,13 +145,14 @@ export async function executeMcpTool(
         data: { spendUsd: { increment: cost } },
       });
     }
-    return result;
+    return scrubSecrets(result, secrets) as typeof result;
   } catch (err) {
     if (err instanceof AppError) {
-      logger.info({ err: err.message, slug: connectorSlug }, "Connector tool failed");
-      return { error: err.message };
+      const safeMsg = scrubSecrets(err.message, secrets) as string;
+      logger.info({ err: safeMsg, slug: connectorSlug }, "Connector tool failed");
+      return { error: safeMsg };
     }
-    logger.error({ err: sanitizeErr(err), slug: connectorSlug }, "Connector tool crashed");
+    logger.error({ err: sanitizeErr(err, secrets), slug: connectorSlug }, "Connector tool crashed");
     return { error: "Connector invocation failed" };
   }
 }

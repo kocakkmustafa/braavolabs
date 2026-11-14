@@ -21,6 +21,7 @@
 
 import { logger } from "./logger";
 import { AppError } from "../middleware/error";
+import { authHeaders, credentialSecrets, scrubSecrets } from "./mcp-auth";
 import { safeExternalFetch, SsrfError, SsrfResponseTooLargeError } from "./ssrf";
 
 export interface McpTool {
@@ -49,48 +50,6 @@ interface JsonRpcResponse {
 }
 
 const REQUEST_TIMEOUT_MS = 30_000;
-
-function authHeaders(method: string, creds: Record<string, string> | undefined): Record<string, string> {
-  if (!creds) return {};
-  switch (method) {
-    case "NONE":
-      return {};
-    case "API_KEY":
-      // Accept either standard header keys or a tenant-supplied
-      // override (header name is encoded into the connector's
-      // authSchema).
-      if (creds.headerName && creds.apiKey) return { [creds.headerName]: creds.apiKey };
-      if (creds.apiKey) return { Authorization: `Bearer ${creds.apiKey}` };
-      return {};
-    case "BASIC":
-      if (creds.username && creds.password) {
-        const token = Buffer.from(`${creds.username}:${creds.password}`).toString("base64");
-        return { Authorization: `Basic ${token}` };
-      }
-      return {};
-    case "OAUTH2":
-      // OAuth2 access tokens are short-lived; we expect the install
-      // flow to refresh them before storing. Long-term refresh is
-      // a follow-up — out of scope for the MVP marketplace.
-      if (creds.accessToken) return { Authorization: `Bearer ${creds.accessToken}` };
-      return {};
-    case "CUSTOM":
-      // Custom auth: caller pre-formats headers into `headers` JSON.
-      // Must be a plain object of string values; "null", arrays, scalars
-      // and malformed JSON all count as "no headers".
-      try {
-        const parsed: unknown = creds.headers ? JSON.parse(creds.headers) : {};
-        if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return {};
-        const out: Record<string, string> = {};
-        for (const [k, v] of Object.entries(parsed)) if (typeof v === "string") out[k] = v;
-        return out;
-      } catch {
-        return {};
-      }
-    default:
-      return {};
-  }
-}
 
 async function callMcp<T>(
   baseUrl: string,
@@ -142,12 +101,22 @@ async function callMcp<T>(
   }
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    logger.warn({ status: res.status, body: text.slice(0, 300) }, "MCP HTTP error");
+    logger.warn(
+      { status: res.status, body: (scrubSecrets(text, credentialSecrets(authMethod, creds)) as string).slice(0, 300) },
+      "MCP HTTP error",
+    );
     throw new AppError(502, `MCP server returned ${res.status}`);
   }
-  const json = (await res.json()) as JsonRpcResponse;
+  let json: JsonRpcResponse;
+  try {
+    json = (await res.json()) as JsonRpcResponse;
+  } catch {
+    // Parser errors can quote upstream text; never forward them.
+    throw new AppError(502, "MCP yanıtı geçersiz JSON");
+  }
   if (json.error) {
-    throw new AppError(502, `MCP error ${json.error.code}: ${json.error.message}`);
+    const msg = scrubSecrets(`MCP error ${json.error.code}: ${json.error.message}`, credentialSecrets(authMethod, creds));
+    throw new AppError(502, msg as string);
   }
   return json.result as T;
 }
@@ -167,7 +136,8 @@ export async function listTools(
     authMethod,
     creds,
   );
-  return Array.isArray(result?.tools) ? result.tools : [];
+  const tools = Array.isArray(result?.tools) ? result.tools : [];
+  return scrubSecrets(tools, credentialSecrets(authMethod, creds)) as McpTool[];
 }
 
 export async function callTool(
