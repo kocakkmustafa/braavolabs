@@ -17,17 +17,23 @@ const { row, connectorRow, activityCreate, callTool, listTools, logSink } = vi.h
   logSink: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock("../../../lib/db", () => ({
-  prisma: {
+const dbMock = {
     connector: { findUnique: async () => connectorRow },
     tenantConnector: {
       findUnique: async () => ({ ...row, connector: connectorRow }),
       findFirst: async (a: any) =>
         a.where.isEnabled && !row.isEnabled ? null : { ...row, connector: connectorRow },
       update: async ({ data }: any) => { Object.assign(row, data); return row; },
+      updateMany: async ({ where, data }: any) => {
+        if (where.audience === null && row.audience !== null) return { count: 0 };
+        Object.assign(row, data); return { count: 1 };
+      },
     },
     activityLog: { create: (...a: unknown[]) => activityCreate(...a) },
-  },
+};
+vi.mock("../../../lib/db", () => ({
+  get prisma() { return dbMock; },
+  tenantTx: async (fn: (tx: unknown) => Promise<unknown>) => fn(dbMock),
 }));
 vi.mock("../../../lib/encryption", () => ({
   encrypt: (plain: string, aad: string) => `enc:${aad}:${plain}`,
@@ -133,7 +139,48 @@ describe("scope / audience", () => {
     callTool.mockRejectedValue(new Error("boom Bearer sk-SECRET"));
     await executeMcpTool("t1", "acme", "lookup", {});
     await revokeInstall("t1", "u1", "acme");
-    const logged = JSON.stringify(Object.values(logSink).map((f) => f.mock.calls));
-    expect(logged).not.toContain("sk-SECRET");
+    const calls = Object.values(logSink).flatMap((f) => f.mock.calls);
+    expect(calls.length).toBeGreaterThan(0);
+    const flat = JSON.stringify(calls, (_k, v) => (v instanceof Error ? { m: v.message, st: v.stack } : v));
+    expect(flat).not.toContain("sk-SECRET");
+    expect(flat).toContain("REDACTED");
+  });
+
+  it("NULL audience is pinned on first valid call, then a different origin is refused", async () => {
+    row.audience = null;
+    await executeMcpTool("t1", "acme", "lookup", {});
+    expect(row.audience).toBe("https://mcp.acme.example");
+    callTool.mockClear();
+    connectorRow.mcpServerUrl = "https://evil.example/rpc";
+    const out = (await executeMcpTool("t1", "acme", "lookup", {})) as { error: string };
+    expect(out.error).toMatch(/audience mismatch/);
+    expect(callTool).not.toHaveBeenCalled();
+  });
+});
+
+describe("refresh gate (no decrypt/probe on refusal)", () => {
+  it("audience mismatch refused", async () => {
+    connectorRow.mcpServerUrl = "https://evil.example/rpc";
+    await expect(refreshInstall("t1", "acme")).rejects.toMatchObject({ statusCode: 409 });
+    expect(listTools).not.toHaveBeenCalled();
+  });
+  it("disabled refused", async () => {
+    row.isEnabled = false;
+    await expect(refreshInstall("t1", "acme")).rejects.toMatchObject({ statusCode: 409 });
+    expect(listTools).not.toHaveBeenCalled();
+  });
+  it("NULL audience pinned on refresh", async () => {
+    row.audience = null;
+    await refreshInstall("t1", "acme");
+    expect(row.audience).toBe("https://mcp.acme.example");
+  });
+});
+
+describe("revoke idempotency", () => {
+  it("second revoke keeps the first revokedAt and writes one audit row", async () => {
+    const first = await revokeInstall("t1", "u1", "acme");
+    const second = await revokeInstall("t1", "u1", "acme");
+    expect(second.revokedAt).toBe(first.revokedAt);
+    expect(activityCreate).toHaveBeenCalledTimes(1);
   });
 });

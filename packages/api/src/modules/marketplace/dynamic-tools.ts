@@ -28,7 +28,7 @@ import { callTool, type McpTool } from "../../lib/mcp";
 import type { ToolDefinition } from "../agent/registry";
 import { deriveConnectorToolMeta } from "./connector-tool-risk";
 import { AppError } from "../../middleware/error";
-import { checkConnectorCallAllowed } from "./connector-lifecycle";
+import { checkConnectorCallAllowed, pinAudienceIfUnset } from "./connector-lifecycle";
 import { logger } from "../../lib/logger";
 
 const TOOL_PREFIX = "mcp_";
@@ -78,6 +78,17 @@ export async function listConnectorToolsForTenant(tenantId: string): Promise<Too
   return tools;
 }
 
+/** Never hand a raw Error (message/stack may embed a bearer token) to the logger. */
+function sanitizeErr(err: unknown): { message: string } {
+  const raw = err instanceof Error ? err.message : String(err);
+  return {
+    message: raw
+      .replace(/(bearer\s+)[^\s"']+/gi, "$1[REDACTED]")
+      .replace(/\bsk-[A-Za-z0-9_-]+/g, "[REDACTED]")
+      .slice(0, 200),
+  };
+}
+
 export async function executeMcpTool(
   tenantId: string,
   connectorSlug: string,
@@ -95,6 +106,7 @@ export async function executeMcpTool(
   // any credential is decrypted or sent.
   const denied = checkConnectorCallAllowed(install, remoteToolName);
   if (denied) return { error: denied };
+  await pinAudienceIfUnset(install);
   // Spend cap check.
   if (install.spendCapUsd && Number(install.spendUsd) >= Number(install.spendCapUsd)) {
     return {
@@ -134,7 +146,7 @@ export async function executeMcpTool(
       logger.info({ err: err.message, slug: connectorSlug }, "Connector tool failed");
       return { error: err.message };
     }
-    logger.error({ err, slug: connectorSlug }, "Connector tool crashed");
+    logger.error({ err: sanitizeErr(err), slug: connectorSlug }, "Connector tool crashed");
     return { error: "Connector invocation failed" };
   }
 }

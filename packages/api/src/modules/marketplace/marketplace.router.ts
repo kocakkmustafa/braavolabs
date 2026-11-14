@@ -106,7 +106,7 @@ const installSchema = z.object({
   credentials: z.record(z.string(), z.string()).default({}),
   spendCapUsd: z.number().min(0.01).max(10_000).nullable().optional(),
   // Allowed remote tool names; empty/omitted = unrestricted (legacy).
-  scopes: z.array(z.string().min(1).max(120)).max(200).default([]),
+  scopes: z.array(z.string().min(1).max(120)).max(200).optional(),
 });
 
 function aadFor(tenantId: string, connectorId: string): string {
@@ -203,7 +203,7 @@ tenantRouter.post("/connectors/:slug/install", async (req, res, next) => {
         cachedToolsManifest: manifest as any,
         cachedAt: new Date(),
         spendCapUsd: body.spendCapUsd ?? null,
-        scopes: body.scopes,
+        scopes: body.scopes ?? [],
         audience: audienceOf(connector.mcpServerUrl),
       },
       update: {
@@ -211,7 +211,8 @@ tenantRouter.post("/connectors/:slug/install", async (req, res, next) => {
         cachedToolsManifest: manifest as any,
         cachedAt: new Date(),
         spendCapUsd: body.spendCapUsd ?? null,
-        scopes: body.scopes,
+        // Re-install keeps the existing scopes unless the body sets them.
+        ...(body.scopes !== undefined ? { scopes: body.scopes } : {}),
         audience: audienceOf(connector.mcpServerUrl),
         revokedAt: null,
         isEnabled: true,

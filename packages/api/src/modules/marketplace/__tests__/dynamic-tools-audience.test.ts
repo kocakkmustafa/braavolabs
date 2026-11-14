@@ -11,7 +11,7 @@ const update = vi.fn();
 const decrypt = vi.fn();
 const callTool = vi.fn();
 vi.mock("../../../lib/db", () => ({
-  prisma: { tenantConnector: { findFirst: (...a: unknown[]) => findFirst(...a), update: (...a: unknown[]) => update(...a) } },
+  prisma: { tenantConnector: { findFirst: (...a: unknown[]) => findFirst(...a), update: (...a: unknown[]) => update(...a), updateMany: async () => ({ count: 1 }) } },
 }));
 vi.mock("../../../lib/encryption", () => ({ decrypt: (...a: unknown[]) => decrypt(...a) }));
 vi.mock("../../../lib/mcp", () => ({ callTool: (...a: unknown[]) => callTool(...a) }));
