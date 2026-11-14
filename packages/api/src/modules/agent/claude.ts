@@ -3,7 +3,7 @@ import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { getTool, type ToolDefinition } from "./registry";
-import { executeTool, type ToolExecResult } from "./tool-executor";
+import { executeTool, requiresGovernedTenantScope, type ToolExecResult } from "./tool-executor";
 import { runLocalAgentLoop } from "./claude-local";
 import { assertReasoningEffortSupported, UnsupportedReasoningEffortError, type ReasoningEffort } from "../../services/reasoning-effort";
 import {
@@ -354,8 +354,7 @@ async function executeToolCalls(
     // companyId field MUST run via a governed pipeline. Refusing here
     // means a future caller that omits govContext can never silently
     // escalate cross-tenant — they get an obvious error instead.
-    const inputObj = (input ?? {}) as Record<string, unknown>;
-    if ("companyId" in inputObj) {
+    if (requiresGovernedTenantScope(registeredTool, input)) {
       return {
         id: call.id,
         name: call.name,
