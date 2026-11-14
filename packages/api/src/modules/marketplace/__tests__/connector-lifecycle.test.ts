@@ -26,6 +26,7 @@ const dbMock = {
       update: async ({ data }: any) => { Object.assign(row, data); return row; },
       updateMany: async ({ where, data }: any) => {
         if (where.audience === null && row.audience !== null) return { count: 0 };
+        if (where.revokedAt === null && row.revokedAt) return { count: 0 };
         Object.assign(row, data); return { count: 1 };
       },
     },
@@ -176,7 +177,19 @@ describe("refresh gate (no decrypt/probe on refusal)", () => {
   });
 });
 
+describe("refresh with scoped install", () => {
+  it("scopes=['lookup'] install still refreshes (scope is not a lifecycle gate)", async () => {
+    row.scopes = ["lookup"];
+    await expect(refreshInstall("t1", "acme")).resolves.toMatchObject({ toolCount: 2 });
+  });
+});
+
 describe("revoke idempotency", () => {
+  it("concurrent double revoke writes a single audit row", async () => {
+    await Promise.all([revokeInstall("t1", "u1", "acme"), revokeInstall("t1", "u2", "acme")]);
+    expect(activityCreate).toHaveBeenCalledTimes(1);
+  });
+
   it("second revoke keeps the first revokedAt and writes one audit row", async () => {
     const first = await revokeInstall("t1", "u1", "acme");
     const second = await revokeInstall("t1", "u1", "acme");

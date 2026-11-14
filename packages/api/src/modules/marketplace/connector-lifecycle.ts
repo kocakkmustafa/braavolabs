@@ -29,7 +29,10 @@ interface GuardInstall {
 }
 
 /** Returns an error message when the call must be refused, else null. */
-export function checkConnectorCallAllowed(install: GuardInstall, remoteToolName: string): string | null {
+export function checkConnectorCallAllowed(
+  install: GuardInstall,
+  remoteToolName: string | null,
+): string | null {
   const slug = install.connector.slug;
   if (install.revokedAt) return `Connector "${slug}" has been revoked for this tenant.`;
   if (install.audience) {
@@ -43,6 +46,8 @@ export function checkConnectorCallAllowed(install: GuardInstall, remoteToolName:
       return `Connector "${slug}" audience mismatch: credentials are not valid for this server.`;
     }
   }
+  // remoteToolName null = lifecycle call (refresh): revoked/audience only.
+  if (remoteToolName === null) return null;
   const scopes = install.scopes ?? [];
   if (scopes.length > 0 && !scopes.includes("*") && !scopes.includes(remoteToolName)) {
     return `Tool "${remoteToolName}" is outside the granted scope of connector "${slug}".`;
@@ -76,7 +81,7 @@ export async function refreshInstall(tenantId: string, slug: string): Promise<{ 
   // disabled or re-pointed (audience-mismatched) server.
   if (install.revokedAt) throw new AppError(409, "Connector has been revoked");
   if (!install.isEnabled) throw new AppError(409, "Connector is disabled");
-  const denied = checkConnectorCallAllowed({ ...install, connector }, "*");
+  const denied = checkConnectorCallAllowed({ ...install, connector }, null);
   if (denied) throw new AppError(409, denied);
   await pinAudienceIfUnset({ ...install, connector });
   let creds: Record<string, string> | undefined;
@@ -120,14 +125,16 @@ export async function revokeInstall(tenantId: string, actor: string, slug: strin
   if (install.revokedAt) return { revokedAt: install.revokedAt }; // idempotent
   const revokedAt = new Date();
   await tenantTx(async (tx) => {
-    await tx.tenantConnector.update({
-      where: { id: install.id },
+    // Conditional claim: a concurrent second revoke gets count 0 → no audit.
+    const claimed = await tx.tenantConnector.updateMany({
+      where: { id: install.id, revokedAt: null },
       data: {
         isEnabled: false,
         revokedAt,
         encryptedCredentials: encrypt("{}", connectorAad(tenantId, connector.id)),
       },
     });
+    if (claimed.count === 0) return;
     await tx.activityLog.create({
       data: {
         tenantId,
