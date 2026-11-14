@@ -21,7 +21,7 @@
 
 import { logger } from "./logger";
 import { AppError } from "../middleware/error";
-import { safeExternalFetch, SsrfError } from "./ssrf";
+import { safeExternalFetch, SsrfError, SsrfResponseTooLargeError } from "./ssrf";
 
 export interface McpTool {
   name: string;
@@ -96,18 +96,26 @@ async function callMcp<T>(
   // gap) and re-validate every redirect hop. The connector credentials must
   // never follow a redirect to another origin or an internal address.
   let res: Response;
+  const auth = authHeaders(authMethod, creds);
   try {
     res = await safeExternalFetch(baseUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        ...authHeaders(authMethod, creds),
+        ...auth,
       },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    }, {
+      // Credentials must never travel in cleartext: HTTPS is mandatory
+      // (initial URL and every redirect hop) whenever auth headers are sent.
+      requireHttps: Object.keys(auth).length > 0,
     });
   } catch (err) {
+    if (err instanceof SsrfResponseTooLargeError) {
+      throw new AppError(502, "MCP server response too large");
+    }
     if (err instanceof SsrfError) {
       throw new AppError(400, `Connector URL rejected: ${err.message}`);
     }
