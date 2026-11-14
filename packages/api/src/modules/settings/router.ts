@@ -18,6 +18,7 @@ import {
   type AIProviderType,
 } from "../../services/ai-client";
 import { decryptForTenant } from "../../lib/encryption";
+import { orderRowsForCandidates, dropCloudRowsBehindLocalDefault } from "../../services/provider-chain";
 import { getProviderModels, isKnownProvider } from "./provider-models";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 
@@ -88,7 +89,7 @@ settingsRouter.get("/ai-config", async (req, res, next) => {
 // `{ providers: [{ provider, model, isDefault, fallbackOrder, keyMasked }] }`.
 // keyMasked is "sk-…abcd"-style (last 4 chars) or null for keyless-local rows —
 // the plaintext apiKey is NEVER returned. Rows are ordered exactly like
-// listTenantProviderLinks (default first, then fallbackOrder asc, then
+// listTenantProviderLinks (chain head first, then default, fallbackOrder asc,
 // createdAt) so the picker's default is the picker's first entry.
 settingsRouter.get("/ai-config/providers", async (req, res, next) => {
   try {
@@ -96,13 +97,9 @@ settingsRouter.get("/ai-config/providers", async (req, res, next) => {
       where: { tenantId: req.auth!.tenantId },
     });
 
-    const sorted = [...rows].sort((a, b) => {
-      if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
-      const ao = a.fallbackOrder ?? Number.MAX_SAFE_INTEGER;
-      const bo = b.fallbackOrder ?? Number.MAX_SAFE_INTEGER;
-      if (ao !== bo) return ao - bo;
-      return a.createdAt.getTime() - b.createdAt.getTime();
-    });
+    // Same set + order as listTenantProviderLinks: local default hides cloud
+    // rows (SEC-BRA-04d), chain head (pickDefaultRow) first.
+    const sorted = orderRowsForCandidates(dropCloudRowsBehindLocalDefault(rows));
 
     const providers = sorted.map((row) => {
       // Mask the key: show only the last 4 plaintext chars behind a fixed dot

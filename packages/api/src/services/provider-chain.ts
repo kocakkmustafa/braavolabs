@@ -327,7 +327,9 @@ function dropCloudBehindLocalDefault(
   if (!defaultRow || !LOCAL_PROVIDERS.has(defaultRow.provider as AIProviderType)) return links;
   const cloud = links.filter((l) => !LOCAL_PROVIDERS.has(l.provider));
   if (cloud.length === 0) return links;
-  logger.warn(
+  // debug, not warn: one request calls list + chain (+ blocked-check), and a
+  // privacy rule doing its job is not a warning-level event (SEC-BRA-04d).
+  logger.debug(
     { tenantId, localProvider: defaultRow.provider, ignoredCloud: cloud.map((l) => l.provider) },
     "Local provider is default — cloud links ignored (SEC-BRA-04)",
   );
@@ -336,7 +338,9 @@ function dropCloudBehindLocalDefault(
 
 /** True when `provider` is a cloud provider that the local-default rule hides
  * from this tenant — lets callers return the privacy message instead of a
- * misleading "not configured". */
+ * misleading "not configured". Only true when the tenant actually HAS a keyed
+ * row for that provider; otherwise it is genuinely "not configured"
+ * (SEC-BRA-04d). */
 export async function isCloudBlockedByLocalDefault(
   tenantId: string,
   provider: string,
@@ -346,7 +350,35 @@ export async function isCloudBlockedByLocalDefault(
     where: { tenantId },
   })) as unknown as UserAIConfigRow[];
   const def = pickDefaultRow(rows);
-  return !!def && LOCAL_PROVIDERS.has(def.provider as AIProviderType);
+  if (!def || !LOCAL_PROVIDERS.has(def.provider as AIProviderType)) return false;
+  return rows.some((r) => r.provider === provider && !!r.encryptedApiKey);
+}
+
+/**
+ * Candidate order shared by listTenantProviderLinks and the settings picker
+ * endpoint: the chain head (pickDefaultRow) first, the rest default →
+ * fallbackOrder asc → createdAt. Head-first guarantees "first entry" ==
+ * "chain head" even with no / several isDefault rows (SEC-BRA-04d).
+ */
+export function orderRowsForCandidates<T extends UserAIConfigRow>(rows: T[]): T[] {
+  const head = pickDefaultRow(rows) as T | undefined;
+  const rest = rows
+    .filter((r) => r !== head)
+    .sort((a, b) => {
+      if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
+      const ao = a.fallbackOrder ?? Number.MAX_SAFE_INTEGER;
+      const bo = b.fallbackOrder ?? Number.MAX_SAFE_INTEGER;
+      if (ao !== bo) return ao - bo;
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+  return head ? [head, ...rest] : rest;
+}
+
+/** Row-level twin of dropCloudBehindLocalDefault (same default → same set). */
+export function dropCloudRowsBehindLocalDefault<T extends UserAIConfigRow>(rows: T[]): T[] {
+  const def = pickDefaultRow(rows);
+  if (!def || !LOCAL_PROVIDERS.has(def.provider as AIProviderType)) return rows;
+  return rows.filter((r) => LOCAL_PROVIDERS.has(r.provider as AIProviderType));
 }
 
 /**
@@ -364,13 +396,7 @@ export async function listTenantProviderLinks(tenantId: string): Promise<Provide
     where: { tenantId },
   })) as unknown as UserAIConfigRow[];
 
-  const sorted = [...rows].sort((a, b) => {
-    if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
-    const ao = a.fallbackOrder ?? Number.MAX_SAFE_INTEGER;
-    const bo = b.fallbackOrder ?? Number.MAX_SAFE_INTEGER;
-    if (ao !== bo) return ao - bo;
-    return a.createdAt.getTime() - b.createdAt.getTime();
-  });
+  const sorted = orderRowsForCandidates(rows);
 
   const links: ProviderChainLink[] = [];
   sorted.forEach((row, i) => {
