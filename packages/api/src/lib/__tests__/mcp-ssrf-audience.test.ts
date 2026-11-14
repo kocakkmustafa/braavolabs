@@ -191,6 +191,22 @@ describe("mcp client — SEC-BRA-02b transport safety", () => {
     expect(http.request).toHaveBeenCalledTimes(5);
   });
 
+  it("valid names (underscore) and values (Bearer abc, tab, Latin-1) are accepted", async () => {
+    const { authHeaders } = await import("../mcp-auth");
+    expect(authHeaders("CUSTOM", { headers: JSON.stringify({ "X-Custom_Header": "Bearer abc", "X-T": "a\tb", "X-L": "caf\u00e9" }) })).toEqual({
+      "X-Custom_Header": "Bearer abc",
+      "X-T": "a\tb",
+      "X-L": "caf\u00e9",
+    });
+    expect(authHeaders("API_KEY", { headerName: "X-Api_Key", apiKey: "abc" })).toEqual({ "X-Api_Key": "abc" });
+  });
+
+  it("empty headerName falls back to Bearer; empty CUSTOM header name is refused", async () => {
+    const { authHeaders } = await import("../mcp-auth");
+    expect(authHeaders("API_KEY", { headerName: "", apiKey: "abc" })).toEqual({ Authorization: "Bearer abc" });
+    expect(() => authHeaders("CUSTOM", { headers: JSON.stringify({ "": "v" }) })).toThrow("Bağlayıcı başlığı geçersiz");
+  });
+
   it("CUSTOM numeric / boolean header values are sent as String(v) and force HTTPS", async () => {
     await expectRejected(
       listTools("http://mcp.example/rpc", "CUSTOM", { headers: JSON.stringify({ "X-Tenant": 42 }) }),
@@ -210,6 +226,12 @@ describe("mcp client — SEC-BRA-02b transport safety", () => {
       ["CUSTOM", { headers: JSON.stringify({ "X Key": "sk-SECRET-connector-key" }) }],
       ["CUSTOM", { headers: JSON.stringify({ "X-Key": "sk-SECRET\nInjected: 1" }) }],
       ["CUSTOM", { headers: JSON.stringify({ "X-Key": "a\rb" }) }],
+      ["CUSTOM", { headers: JSON.stringify({ "X-Key": "\u201csmart\u201d" }) }],
+      ["CUSTOM", { headers: JSON.stringify({ "X-Key": "日本" }) }],
+      ["CUSTOM", { headers: JSON.stringify({ "X-Key": "a\u0001b" }) }],
+      ["CUSTOM", { headers: JSON.stringify({ "X-Key": "a\u007fb" }) }],
+      ["API_KEY", { headerName: "__proto__", apiKey: "sk-SECRET-connector-key" }],
+      ["API_KEY", { headerName: "X-Ünï", apiKey: "sk-SECRET-connector-key" }],
     ];
     for (const [method, c] of bad) {
       const err = await listTools("https://mcp.example/rpc", method, c).then(() => null, (e) => e);

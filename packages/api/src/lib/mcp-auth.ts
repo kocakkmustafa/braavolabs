@@ -9,8 +9,11 @@ import { leaksSecret } from "../modules/approval/details";
 
 /** RFC 7230 token: the only characters a header NAME may contain. */
 const HEADER_NAME = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-/** CR, LF and NUL in a header VALUE would make Node's http layer throw (or enable header injection). */
-const HEADER_VALUE_FORBIDDEN = /[\r\n\0]/;
+/**
+ * Anything outside HTAB, printable ASCII and Latin-1 (obs-text) is refused: CR/LF/NUL and other control
+ * characters make Node's http layer throw (ERR_INVALID_CHAR), and code points above 0xFF make `new Headers` throw.
+ */
+const HEADER_VALUE_FORBIDDEN = /[^\t\x20-\x7e\x80-\xff]/;
 
 /**
  * SEC-BRA-02c: a malformed connector header (name with a space, CR/LF in the
@@ -19,7 +22,7 @@ const HEADER_VALUE_FORBIDDEN = /[\r\n\0]/;
  */
 function assertValidHeaders(headers: Record<string, string>): Record<string, string> {
   for (const [name, value] of Object.entries(headers)) {
-    if (!HEADER_NAME.test(name) || HEADER_VALUE_FORBIDDEN.test(value)) {
+    if (name === "__proto__" || !HEADER_NAME.test(name) || HEADER_VALUE_FORBIDDEN.test(value)) {
       throw new AppError(400, "Bağlayıcı başlığı geçersiz");
     }
   }

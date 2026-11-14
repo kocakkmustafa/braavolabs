@@ -164,7 +164,11 @@ tenantRouter.post("/connectors/:slug/install", async (req, res, next) => {
       probedTools = await listTools(connector.mcpServerUrl, connector.authMethod, body.credentials);
       manifest = probedTools as any;
     } catch (err) {
-      // Cleartext-with-credentials is a hard refusal, not a probe hiccup.
+      // Cleartext-with-credentials and a malformed connector header are hard, deliberate
+      // fail-fast refusals (the same credential would fail on every call), not probe hiccups.
+      if (err instanceof AppError && err.statusCode === 400 && err.message === "Bağlayıcı başlığı geçersiz") {
+        throw err;
+      }
       if (err instanceof AppError && err.statusCode === 400 && /HTTPS is required/.test(err.message)) {
         throw new AppError(400, "Bağlayıcı URL'si HTTPS olmalı: kimlik bilgisi düz metin gönderilemez. Bağlayıcı sahibi URL'yi https'e çevirmeli.");
       }
