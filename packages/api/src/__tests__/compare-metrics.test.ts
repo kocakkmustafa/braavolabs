@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { summarizeCompareMetrics, readCompareMetrics } from "../services/compare-metrics";
+import { summarizeCompareMetrics, readCompareMetrics, stripUntrustedMetrics } from "../services/compare-metrics";
 
 const cand = (provider: string, model: string, i: number, o: number, c: number, d: number) => ({
   provider: provider as never, model, answer: "a", tokens: { input: i, output: o }, costUsd: c, durationMs: d,
@@ -65,5 +65,56 @@ describe("readCompareMetrics (back-compat)", () => {
   it("new findings expose metrics", () => {
     const metrics = summarizeCompareMetrics({ ...base, perModel: [], totalCostUsd: 0 });
     expect(readCompareMetrics({ summary: "s", metrics })).toEqual(metrics);
+  });
+});
+
+describe("edge cases", () => {
+  it("flag true with cost under cap stays exceeded", () => {
+    expect(summarizeCompareMetrics({ ...base, perModel: [], totalCostUsd: 0.1, budgetExceeded: true }, { maxCostUsd: 1 }).budget.exceeded).toBe(true);
+  });
+  it("cost == cap is not exceeded", () => {
+    expect(summarizeCompareMetrics({ ...base, perModel: [], totalCostUsd: 1 }, { maxCostUsd: 1 }).budget.exceeded).toBe(false);
+  });
+  it("maxCostUsd 0 and negative", () => {
+    expect(summarizeCompareMetrics({ ...base, perModel: [], totalCostUsd: 0 }, { maxCostUsd: 0 }).budget).toEqual({ maxCostUsd: 0, exceeded: false });
+    expect(summarizeCompareMetrics({ ...base, perModel: [], totalCostUsd: 0.5 }, { maxCostUsd: 0 }).budget.exceeded).toBe(true);
+    expect(summarizeCompareMetrics({ ...base, perModel: [], totalCostUsd: 0 }, { maxCostUsd: -1 }).budget.exceeded).toBe(true);
+  });
+  it("NaN/undefined fields coerce to 0 and stay finite", () => {
+    const bad = { provider: "a" as never, model: "m", answer: "", tokens: { input: NaN, output: undefined as never }, costUsd: undefined as never, durationMs: NaN };
+    const m = summarizeCompareMetrics({ perModel: [bad], failed: [], synthesizer: null, totalCostUsd: NaN, budgetExceeded: false }, { maxCostUsd: NaN });
+    expect(m.totals.inputTokens).toBe(0);
+    expect(m.totals.totalCostUsd).toBe(0);
+    expect(m.budget.maxCostUsd).toBeNull();
+    expect(readCompareMetrics({ metrics: m })).toEqual(m);
+  });
+  it("failed candidate contributes nothing to sums", () => {
+    const m = summarizeCompareMetrics({
+      ...base, perModel: [cand("a", "m1", 1, 2, 0.1, 10)],
+      failed: [{ provider: "b" as never, model: "m2", error: "x", tokens: { input: 99, output: 99 }, costUsd: 9, durationMs: 999 } as never],
+      totalCostUsd: 0.11,
+    });
+    expect(m.totals).toMatchObject({ inputTokens: 1, outputTokens: 2, maxCandidateDurationMs: 10 });
+    expect(m.totals.candidateCostUsd).toBeCloseTo(0.1);
+  });
+});
+
+describe("forged metrics", () => {
+  const good = summarizeCompareMetrics({ ...base, perModel: [cand("a", "m1", 1, 2, 0.1, 10)], totalCostUsd: 0.11 });
+  it.each([
+    ["not object", "x"],
+    ["candidates not array", { ...good, candidates: "x" }],
+    ["candidate bad field", { ...good, candidates: [{ ...good.candidates[0], costUsd: "1" }] }],
+    ["totals missing key", { ...good, totals: { ...good.totals, totalCostUsd: undefined } }],
+    ["totals string", { ...good, totals: { ...good.totals, inputTokens: "5" } }],
+    ["budget bad", { ...good, budget: { maxCostUsd: null, exceeded: "no" } }],
+  ])("rejects %s", (_n, metrics) => {
+    expect(readCompareMetrics({ metrics })).toBeNull();
+  });
+  it("stripUntrustedMetrics drops the key, keeps the rest, no mutation", () => {
+    const f = { summary: "s", claims: [], metrics: { forged: 1 } };
+    expect(stripUntrustedMetrics(f)).toEqual({ summary: "s", claims: [] });
+    expect(f.metrics).toEqual({ forged: 1 });
+    expect(stripUntrustedMetrics("t")).toBe("t");
   });
 });

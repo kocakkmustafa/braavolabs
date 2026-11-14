@@ -32,7 +32,7 @@ import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { safeExternalFetch, SsrfError } from "../../lib/ssrf";
 import { runAgentLoop } from "../agent/claude";
-import { summarizeCompareMetrics } from "../../services/compare-metrics";
+import { summarizeCompareMetrics, stripUntrustedMetrics } from "../../services/compare-metrics";
 import { compareAcrossModels, validateModelSelections, type ModelSelection } from "../../services/multi-model";
 
 // ── Provider interface ──────────────────────────────────────
@@ -402,7 +402,7 @@ async function runCompareSession(sessionId: string, opts: StartCompareOptions): 
  * attach the compare block to the findings. Additive and non-fatal: any
  * error leaves the original findings untouched.
  */
-async function augmentFindingsWithMultiModel(
+export async function augmentFindingsWithMultiModel(
   session: { id: string; tenantId: string; query: string; maxCostUsd: unknown },
   allSources: Array<{ url: string; title: string | null; content: string }>,
   findings: unknown,
@@ -416,13 +416,15 @@ async function augmentFindingsWithMultiModel(
     const task = digest
       ? `${session.query}\n\nBase your answer on these sources where possible:\n${digest}`
       : session.query;
+    // NOTE: the compare slice gets max(0.1, remaining), so metrics.budget
+    // (maxCostUsd/exceeded) describes THIS slice, not the session-wide cap.
     const remainingBudget = Math.max(0.1, Number(session.maxCostUsd) - costSoFar);
     const compare = await compareAcrossModels(session.tenantId, task, {
       maxCostUsd: remainingBudget,
     });
     const base =
       findings && typeof findings === "object" && !Array.isArray(findings)
-        ? (findings as Record<string, unknown>)
+        ? (stripUntrustedMetrics(findings) as Record<string, unknown>)
         : { summary: String(findings ?? ""), claims: [] };
     return {
       findings: { ...base, multiModel: compare, metrics: summarizeCompareMetrics(compare, { maxCostUsd: remainingBudget }) },
@@ -432,7 +434,7 @@ async function augmentFindingsWithMultiModel(
       { sessionId: session.id, err: (err as Error).message },
       "multiModel augment failed (non-fatal) — research findings stand without it",
     );
-    return { findings, addedCostUsd: 0 };
+    return { findings: stripUntrustedMetrics(findings), addedCostUsd: 0 };
   }
 }
 
@@ -563,7 +565,7 @@ async function runResearchLoop(sessionId: string, multiModel = false): Promise<v
       }
 
       if (parsed && parsed.done) {
-        let findings: unknown = parsed.findings;
+        let findings: unknown = stripUntrustedMetrics(parsed.findings);
         if (multiModel) {
           const augmented = await augmentFindingsWithMultiModel(session, allSources, findings, cost);
           findings = augmented.findings;
@@ -617,7 +619,7 @@ async function runResearchLoop(sessionId: string, multiModel = false): Promise<v
     cost += final.totalCostUsd ?? 0;
     let findings: unknown = { summary: final.finalContent.slice(0, 4000), claims: [] };
     try {
-      findings = JSON.parse(final.finalContent.trim());
+      findings = stripUntrustedMetrics(JSON.parse(final.finalContent.trim()));
     } catch {
       /* leave the fallback */
     }

@@ -96,9 +96,45 @@ export function summarizeCompareMetrics(
   };
 }
 
-/** Back-compat reader: legacy findings (no `metrics`) yield null. */
+const isNum = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+const isNumOrNull = (v: unknown): boolean => v === null || isNum(v);
+const isStr = (v: unknown): v is string => typeof v === "string";
+const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
+
+const TOTAL_KEYS = [
+  "candidateCount", "succeeded", "failed", "inputTokens", "outputTokens", "candidateCostUsd",
+  "synthesizerCostUsd", "totalCostUsd", "candidateDurationMs", "maxCandidateDurationMs", "synthesizerDurationMs",
+] as const;
+
+function isCandidateMetric(c: unknown): boolean {
+  return (
+    isObj(c) && isStr(c.provider) && isStr(c.model) && typeof c.ok === "boolean" &&
+    isNumOrNull(c.durationMs) && isNumOrNull(c.inputTokens) && isNumOrNull(c.outputTokens) &&
+    isNumOrNull(c.costUsd) && (c.error === null || isStr(c.error))
+  );
+}
+
+/**
+ * Back-compat + trust-boundary reader: legacy findings (no `metrics`) and
+ * malformed/forged ones (findings can originate from LLM output) yield null.
+ */
 export function readCompareMetrics(findings: unknown): CompareMetrics | null {
-  if (!findings || typeof findings !== "object" || Array.isArray(findings)) return null;
-  const m = (findings as Record<string, unknown>).metrics;
-  return m && typeof m === "object" && !Array.isArray(m) ? (m as CompareMetrics) : null;
+  if (!isObj(findings)) return null;
+  const m = findings.metrics;
+  if (!isObj(m) || !Array.isArray(m.candidates) || !m.candidates.every(isCandidateMetric)) return null;
+  const t = m.totals;
+  if (!isObj(t) || !TOTAL_KEYS.every((k) => isNum(t[k]))) return null;
+  const b = m.budget;
+  if (!isObj(b) || typeof b.exceeded !== "boolean" || !isNumOrNull(b.maxCostUsd)) return null;
+  return m as unknown as CompareMetrics;
+}
+
+/**
+ * `metrics` is written only by our own code. Drop any `metrics` key that
+ * arrived inside LLM-produced findings so a model cannot forge it.
+ */
+export function stripUntrustedMetrics<T>(findings: T): T {
+  if (!isObj(findings) || !("metrics" in findings)) return findings;
+  const { metrics: _drop, ...rest } = findings as Record<string, unknown>;
+  return rest as T;
 }
