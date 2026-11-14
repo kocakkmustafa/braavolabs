@@ -2,6 +2,7 @@ import type { Job } from "bullmq";
 import * as cron from "node-cron";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { redis } from "../../lib/redis";
 import { runWithoutTenant } from "../../lib/tenant-context";
 import { env } from "../../config/env";
 import { runQueue, scheduleQueue, createWorker } from "../../lib/queue";
@@ -768,6 +769,78 @@ export async function removeSchedule(pipelineId: string): Promise<void> {
   logger.info({ pipelineId, removed }, "Scheduled pipeline scheduler removed");
 }
 
+/** TTL for the per-slot tick dedup key: longer than a daily slot, not forever. */
+const TICK_SLOT_TTL_SECONDS = 25 * 60 * 60;
+
+/** Process-local counter of fail-closed skips caused by Redis dedup errors. */
+let tickDedupErrorCount = 0;
+export function getTickDedupErrorCount(): number {
+  return tickDedupErrorCount;
+}
+
+/**
+ * The planned fire time of a tick, in exact epoch ms (NO rounding: a
+ * sub-minute cron such as a 6-field node-cron pattern would otherwise collapse
+ * two real fires into one slot).
+ *
+ * BullMQ JobScheduler creates each tick job at the previous fire with
+ * `delay` = ms until the next planned fire, so `timestamp + delay` is stable
+ * across redeliveries of the same fire. Returns null when the job carries no
+ * timestamp; there is then no stable slot (a `Date.now()` fallback would make
+ * every delivery unique and dedup would silently do nothing).
+ */
+export function tickSlotMs(job: Job<ScheduledTickData>): number | null {
+  if (typeof job.timestamp !== "number") return null;
+  const delay = typeof job.opts?.delay === "number" ? job.opts.delay : 0;
+  return job.timestamp + delay;
+}
+
+/** Max wait for the dedup SET. lib/redis uses maxRetriesPerRequest:null + an
+ * offline queue, so with Redis down `set` never rejects; it just waits. */
+const TICK_DEDUP_TIMEOUT_MS = 3_000;
+
+/**
+ * Claim (pipelineId, slot) with Redis SET NX EX. true = we own the slot.
+ * FAIL-CLOSED: a Redis error or a timeout skips the tick (a double run spends
+ * money; a missed scheduled run is visible and recoverable by a manual run).
+ * Narrowest acceptable exception: no stable slot (slotMs null) -> warn and
+ * proceed WITHOUT dedup, since there is nothing to key on.
+ * At-most-once by design: if the process dies after the key is taken but
+ * before run.create, that slot is lost. No DEL on failure paths, because
+ * claimQuota has no rollback.
+ */
+async function claimTickSlot(pipelineId: string, slotMs: number | null): Promise<boolean> {
+  if (slotMs === null) {
+    logger.warn(
+      { pipelineId },
+      "Scheduled tick has no stable slot (job.timestamp missing) — running WITHOUT dedup",
+    );
+    return true;
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const res = await Promise.race([
+      redis.set(`pipeline:tick:${pipelineId}:${slotMs}`, "1", "EX", TICK_SLOT_TTL_SECONDS, "NX"),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`tick dedup SET timed out after ${TICK_DEDUP_TIMEOUT_MS}ms`)),
+          TICK_DEDUP_TIMEOUT_MS,
+        );
+      }),
+    ]);
+    return res === "OK";
+  } catch (err) {
+    tickDedupErrorCount += 1;
+    logger.warn(
+      { pipelineId, slotMs, err, tickDedupErrors: tickDedupErrorCount },
+      "Scheduled tick skipped — Redis dedup unavailable (fail-closed)",
+    );
+    return false;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 /**
  * The tick body a scheduled JobScheduler enqueues on each fire. Exported so it
  * can be unit-tested directly (the old inline node-cron callback could not be).
@@ -821,6 +894,17 @@ export async function processScheduledTick(job: Job<ScheduledTickData>): Promise
     logger.info(
       { pipelineId, companyStatus: pipeline.company?.status ?? "missing" },
       "Scheduled run skipped — company not active",
+    );
+    return;
+  }
+
+  // Idempotency (BRA-P1-04c): one run per (pipeline, planned slot). Taken
+  // before the quota claim so a duplicate tick never burns quota.
+  const slotMs = tickSlotMs(job);
+  if (!(await claimTickSlot(pipelineId, slotMs))) {
+    logger.info(
+      { pipelineId, slotMs },
+      "Scheduled tick skipped — slot already claimed or dedup unavailable",
     );
     return;
   }
