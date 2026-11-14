@@ -184,6 +184,9 @@ function ensureDelegateToolRegistered(): void {
             text: workerResult.finalContent,
             turns: workerResult.turns.length,
             toolCalls: workerResult.totalToolCalls,
+            // BRA-P0-06c: adımı fiilen sunan sağlayıcı/model (makbuz `step` kanıtı okur).
+            ...(workerResult.provider ? { provider: workerResult.provider } : {}),
+            ...(workerResult.model ? { model: workerResult.model } : {}),
           } as any,
           costUsd: workerResult.totalCostUsd ?? 0,
           // Forge P1: real per-call token counts, same call site as

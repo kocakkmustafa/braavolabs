@@ -25,6 +25,7 @@
  */
 import { createHash } from "node:crypto";
 import type { JobReceipt, JobReceiptEvidence, JobReceiptEvidenceKind } from "@ai-company-os/core";
+import { logger } from "../../lib/logger";
 import { deriveResultStatus, type JobState, type ResultStatus } from "./job-state";
 
 /** Makbuz yazılan sonuç durumları. */
@@ -57,6 +58,8 @@ export interface ReceiptRunInput {
   /** Koşu girdisi: yalnız "kod işi mi" boolean'ı için okunur, makbuza girmez. */
   input?: unknown;
   steps: ReadonlyArray<{ toolCalls?: ReadonlyArray<ReceiptToolCall> }>;
+  /** BRA-P0-06c: adım başına sağlayıcı/model satırları (`loadStepModels`). */
+  stepModels?: ReadonlyArray<StepModelRow>;
   approvals?: ReadonlyArray<{ id: string }>;
 }
 
@@ -209,13 +212,62 @@ export function deriveEvidence(
   return { all, stored, codeToolUsed };
 }
 
+const MAX_STEP_FIELD = 100;
+/** Saklanan `step` öğesi üst sınırı. Toplam `evidence` ≤ MAX_EVIDENCE (kanıt) + MAX_STEP_ITEMS = 100. */
+export const MAX_STEP_ITEMS = 50;
+const cleanField = (v: unknown): string | null => {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t.length > 0 && t.length <= MAX_STEP_FIELD ? t : null;
+};
+
+/** `run_steps` satırından yalnız sağlayıcı/model ( `output->>'provider'`, `output->>'model'`). */
+export interface StepModelRow {
+  stepIndex: number;
+  status?: string | null;
+  provider?: unknown;
+  model?: unknown;
+}
+
+/**
+ * BRA-P0-06c — adım başına sağlayıcı/model (`kind: "step"`, ref `step:<stepIndex>`).
+ * Satırlar `(stepIndex, createdAt)` sırasıyla gelir. Aynı `stepIndex` için TEK öğe:
+ * verisi olan satırlar arasında son COMPLETED kazanır; COMPLETED yoksa sonuncusu.
+ * FAILED/yeniden deneme satırı başarılıyı ezmez. İkisi de yoksa öğe üretilmez.
+ * Kanıt DEĞİLDİR: karar (`deriveResultStatus`) bu öğeleri görmez.
+ */
+export function deriveStepModels(rows: ReadonlyArray<StepModelRow>): JobReceiptEvidence[] {
+  const byIndex = new Map<number, { provider: string | null; model: string | null; done: boolean }>();
+  for (const row of rows) {
+    if (!Number.isInteger(row.stepIndex)) continue;
+    const provider = cleanField(row.provider);
+    const model = cleanField(row.model);
+    if (!provider && !model) continue;
+    const done = row.status === "COMPLETED";
+    const prev = byIndex.get(row.stepIndex);
+    if (prev?.done && !done) continue;
+    byIndex.set(row.stepIndex, { provider, model, done });
+  }
+  return [...byIndex.entries()]
+    .sort((x, y) => x[0] - y[0])
+    .slice(0, MAX_STEP_ITEMS)
+    .map(([idx, v]) => ({
+      kind: "step" as const,
+      ref: `step:${idx}`,
+      ...(v.provider ? { provider: v.provider } : {}),
+      ...(v.model ? { model: v.model } : {}),
+    }));
+}
+
 function stableHash(payload: unknown): string {
   return createHash("sha256").update(JSON.stringify(payload)).digest("hex");
 }
 
 export function buildReceipt(run: ReceiptRunInput): ReceiptDraft {
   const inputText = inputToText(run.input);
-  const { all, stored: evidence, codeToolUsed } = deriveEvidence(run.steps, inputText.toLowerCase());
+  const { all, stored, codeToolUsed } = deriveEvidence(run.steps, inputText.toLowerCase());
+  // `step` öğeleri karardan SONRA eklenir: `all`/resultStatus onlardan etkilenmez.
+  const evidence = [...stored, ...deriveStepModels(run.stepModels ?? [])];
   const requiredKinds = looksLikeCodeJob(inputText, codeToolUsed) ? CODE_JOB_REQUIRED_KINDS : [];
   // deriveResultStatus ana kabul: COMPLETED dışında null; kanıt yoksa UNVERIFIED (fail-closed).
   // Karar TÜM kanıttan verilir (50. sonrası başarısız test de veto eder).
@@ -242,12 +294,61 @@ export interface ReceiptClient {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     findFirst(args: any): PromiseLike<any>;
   };
+  /** Yalnız `loadStepModels` için (prisma/transaction sunar; sahteler vermeyebilir). */
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  $queryRaw?: (strings: TemplateStringsArray, ...values: any[]) => PromiseLike<any>;
   jobReceipt?: {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     findFirst(args: any): PromiseLike<any>;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     create(args: any): PromiseLike<any>;
   };
+}
+
+const STEP_MODEL_ROW_LIMIT = 500;
+
+/**
+ * Adım başına sağlayıcı/model: yalnız `output->>'provider'|'model'` seçilir (tam
+ * `finalContent` belleğe çekilmez). Tenant kapsamı run→pipeline→company join'inde.
+ * `$queryRaw` yoksa ya da sorgu düşerse boş döner (makbuz yazımı bunun için bozulmaz).
+ */
+export async function loadStepModels(client: ReceiptClient, runId: string, tenantId: string): Promise<StepModelRow[]> {
+  if (!client.$queryRaw) return [];
+  // Gerçek Postgres interaktif tx'inde (transition.ts tryWriteReceipt SAVEPOINT'i içinde) sorgu
+  // hatası tx'i abort eder (25P02): yutmak yetmez, sonraki findFirst/create düşer. Bu yüzden
+  // sorgu kendi SAVEPOINT'inde koşar; desen tryWriteReceipt ile aynıdır (düz prisma/sahte
+  // istemcide `$transaction` var ya da `$executeRawUnsafe` yok → savepoint yok, eski davranış).
+  const raw = (client as unknown as { $executeRawUnsafe?: (sql: string) => PromiseLike<unknown> }).$executeRawUnsafe;
+  const useSavepoint = typeof raw === "function" && typeof (client as unknown as { $transaction?: unknown }).$transaction !== "function";
+  const exec = (sql: string) => (raw as (sql: string) => PromiseLike<unknown>).call(client, sql);
+  try {
+    if (useSavepoint) await exec("SAVEPOINT receipt_steps");
+    let rows: StepModelRow[];
+    try {
+      // `->>` nesne/sayıyı metne çevirir; yalnız JSON string değerler alınır.
+      rows = (await client.$queryRaw`
+        SELECT rs.step_index AS "stepIndex", rs.status::text AS "status",
+               CASE WHEN jsonb_typeof(rs.output->'provider') = 'string' THEN rs.output->>'provider' END AS "provider",
+               CASE WHEN jsonb_typeof(rs.output->'model') = 'string' THEN rs.output->>'model' END AS "model"
+        FROM run_steps rs
+        JOIN runs r ON r.id = rs.run_id
+        JOIN pipelines p ON p.id = r.pipeline_id
+        JOIN companies c ON c.id = p.company_id
+        WHERE rs.run_id = ${runId} AND c.tenant_id = ${tenantId}
+          AND (jsonb_typeof(rs.output->'provider') = 'string' OR jsonb_typeof(rs.output->'model') = 'string')
+        ORDER BY rs.step_index ASC, rs.created_at ASC
+        LIMIT ${STEP_MODEL_ROW_LIMIT}`) as StepModelRow[];
+    } catch (err) {
+      if (useSavepoint) await exec("ROLLBACK TO SAVEPOINT receipt_steps");
+      throw err;
+    }
+    if (useSavepoint) await exec("RELEASE SAVEPOINT receipt_steps");
+    return Array.isArray(rows) ? rows : [];
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn({ runId, err: message }, "Receipt step model query failed — receipt written without step entries");
+    return [];
+  }
 }
 
 export type WriteReceiptResult =
@@ -295,6 +396,7 @@ export async function writeReceipt(
     retryCount: run.retryCount,
     input: run.input,
     steps: run.steps ?? [],
+    stepModels: await loadStepModels(client, runId, tenantId),
     approvals: run.approvals ?? [],
   });
   const existing = await store.findFirst({
