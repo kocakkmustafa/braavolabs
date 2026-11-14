@@ -40,3 +40,17 @@ export function pickerRequest(target: PickerTarget, option: Pick<PickerOption, "
     ? ({ endpoint: "agent" as const, agentId: target.agentId, body: { model: option.model } })
     : ({ endpoint: "default" as const, body: { provider: option.provider, model: option.model } });
 }
+
+/** Yerel/özel sağlayıcılar baseUrl/anahtar taşır; hesap-varsayılanı PUT'u bunları ezeceğinden bu hedefte seçilemez (Ayarlar'dan). */
+const NON_CLOUD = new Set(["OLLAMA", "LMSTUDIO", "CUSTOM"]);
+export function isCloudProvider(provider: string): boolean {
+  return !NON_CLOUD.has(provider.toUpperCase());
+}
+export function optionAllowedFor(target: PickerTarget, option: Pick<PickerOption, "provider">): boolean {
+  return target.kind === "agent" || isCloudProvider(option.provider);
+}
+/** Kaydet hatası → i18n anahtarı (yalnız 403/402 ayrı, kalanı genel). */
+export function saveErrorKey(err: unknown): "pickerForbidden" | "pickerPlan" | "pickerError" {
+  const st = (err as { status?: unknown } | null)?.status;
+  return st === 403 ? "pickerForbidden" : st === 402 ? "pickerPlan" : "pickerError";
+}

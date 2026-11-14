@@ -1600,7 +1600,10 @@
       "pickerLoadError": "تعذّر تحميل الوكلاء أو خيارات النماذج.",
       "pickerEmpty": "لا توجد نماذج مهيأة بعد. أضف مفتاحًا أو نموذجًا محليًا من الإعدادات.",
       "pickerCurrent": "الحالي: {model}",
-      "pickerCurrentUnknown": "الحالي: غير معروف"
+      "pickerCurrentUnknown": "الحالي: غير معروف",
+      "pickerLocalHint": "المزوّدون المحليون والمخصصون يُحدَّدون من الإعدادات فقط.",
+      "pickerForbidden": "ليست لديك صلاحية لتغيير هذا.",
+      "pickerPlan": "خطتك لا تسمح بذلك."
     },
     "companyStatus": {
       "title": "حالة الشركة",

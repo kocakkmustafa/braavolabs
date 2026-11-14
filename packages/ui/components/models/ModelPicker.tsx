@@ -9,13 +9,14 @@ import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import type { CompareOptions } from "../../lib/compare";
 import type { ModelRow } from "../../lib/ux-models/models";
-import { buildPickerOptions, pickerRequest, toPickerAgents, type PickerAgent } from "../../lib/ux-models/picker";
+import { buildPickerOptions, optionAllowedFor, pickerRequest, saveErrorKey, toPickerAgents, type PickerAgent } from "../../lib/ux-models/picker";
 
 const DEFAULT_TARGET = "__default__";
 const muted: React.CSSProperties = { color: "var(--color-on-surface-variant)", fontSize: 13 };
 const field: React.CSSProperties = { width: "100%", minWidth: 0, minHeight: 44, padding: "0 12px", borderRadius: 10, background: "var(--color-surface-container)", color: "var(--color-on-surface)", border: "1px solid var(--color-surface-container-high)" };
 
 type Status = "idle" | "saving" | "saved" | "error";
+const targetOf = (t: string) => (t === DEFAULT_TARGET ? ({ kind: "default" } as const) : ({ kind: "agent", agentId: t } as const));
 
 export default function ModelPicker({ token, companyId, rows, onChanged }: { token: string; companyId: string; rows: ModelRow[]; onChanged?: () => void }) {
   const t = useTranslations();
@@ -26,6 +27,7 @@ export default function ModelPicker({ token, companyId, rows, onChanged }: { tok
   const [target, setTarget] = useState<string>(DEFAULT_TARGET);
   const [optionKey, setOptionKey] = useState("");
   const [status, setStatus] = useState<Status>("idle");
+  const [errKey, setErrKey] = useState<string>("pickerError");
   const seq = useRef(0);
 
   useEffect(() => {
@@ -44,14 +46,15 @@ export default function ModelPicker({ token, companyId, rows, onChanged }: { tok
   }, [token, companyId]);
 
   const choices = useMemo(() => buildPickerOptions(options, rows), [options, rows]);
-  useEffect(() => { setOptionKey((cur) => (choices.some((c) => c.key === cur) ? cur : choices[0]?.key ?? "")); }, [choices]);
+  const allowed = useMemo(() => choices.filter((c) => optionAllowedFor(targetOf(target), c)), [choices, target]);
+  useEffect(() => { setOptionKey((cur) => (allowed.some((c) => c.key === cur) ? cur : allowed[0]?.key ?? "")); }, [allowed]);
 
   const agent = agents.find((a) => a.id === target);
-  const chosen = choices.find((c) => c.key === optionKey);
+  const chosen = allowed.find((c) => c.key === optionKey);
 
   async function apply() {
     if (!chosen || status === "saving") return;
-    const req = pickerRequest(target === DEFAULT_TARGET ? { kind: "default" } : { kind: "agent", agentId: target }, chosen);
+    const req = pickerRequest(targetOf(target), chosen);
     setStatus("saving");
     try {
       if (req.endpoint === "agent") {
@@ -62,7 +65,7 @@ export default function ModelPicker({ token, companyId, rows, onChanged }: { tok
       }
       setStatus("saved");
       onChanged?.();
-    } catch { setStatus("error"); }
+    } catch (e) { setErrKey(saveErrorKey(e)); setStatus("error"); }
   }
 
   return (
@@ -81,11 +84,12 @@ export default function ModelPicker({ token, companyId, rows, onChanged }: { tok
             </select>
           </label>
           {agent && <span data-testid="model-picker-current" style={muted}>{agent.model ? pt("pickerCurrent", { model: agent.model }) : pt("pickerCurrentUnknown")}</span>}
+          {target === DEFAULT_TARGET && <span data-testid="model-picker-local-hint" style={muted}>{pt("pickerLocalHint")}</span>}
           <label style={{ display: "grid", gap: 4 }}>
             <span style={muted}>{pt("pickerModel")}</span>
             <select data-testid="model-picker-model" value={optionKey} onChange={(e) => { setOptionKey(e.target.value); setStatus("idle"); }} style={field}>
               {choices.map((c) => (
-                <option key={c.key} value={c.key}>{c.model} ({c.provider}){c.badges.map((b) => ` · ${pt(`badge.${b}`)}`).join("")}</option>
+                <option key={c.key} value={c.key} disabled={!optionAllowedFor(targetOf(target), c)}>{c.model} ({c.provider}){c.badges.map((b) => ` · ${pt(`badge.${b}`)}`).join("")}</option>
               ))}
             </select>
           </label>
@@ -93,7 +97,7 @@ export default function ModelPicker({ token, companyId, rows, onChanged }: { tok
             {status === "saving" ? pt("pickerSaving") : pt("pickerApply")}
           </button>
           <p role="status" aria-live="polite" data-testid="model-picker-status" style={{ ...muted, minHeight: 18, color: status === "error" ? "#FF8A8A" : undefined }}>
-            {status === "saved" ? pt("pickerSaved") : status === "error" ? pt("pickerError") : ""}
+            {status === "saved" ? pt("pickerSaved") : status === "error" ? pt(errKey) : ""}
           </p>
         </div>
       )}

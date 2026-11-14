@@ -1600,7 +1600,10 @@
       "pickerLoadError": "Agenten oder Modelloptionen konnten nicht geladen werden.",
       "pickerEmpty": "Noch keine Modelle konfiguriert. Füge in den Einstellungen einen Schlüssel oder ein lokales Modell hinzu.",
       "pickerCurrent": "Aktuell: {model}",
-      "pickerCurrentUnknown": "Aktuell: Unbekannt"
+      "pickerCurrentUnknown": "Aktuell: Unbekannt",
+      "pickerLocalHint": "Lokale und eigene Anbieter lassen sich nur in den Einstellungen festlegen.",
+      "pickerForbidden": "Dir fehlt die Berechtigung dafür.",
+      "pickerPlan": "Dein Tarif erlaubt das nicht."
     },
     "companyStatus": {
       "title": "Unternehmensstatus",

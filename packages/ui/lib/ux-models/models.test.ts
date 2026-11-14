@@ -178,7 +178,7 @@ describe("BRA-UX-05h-b: Tekrar dene sonrası odak", () => {
   });
 });
 
-import { buildPickerOptions, pickerRequest, toPickerAgents } from "./picker";
+import { buildPickerOptions, isCloudProvider, optionAllowedFor, pickerRequest, saveErrorKey, toPickerAgents } from "./picker";
 
 describe("BRA-P0-06b: model seçici mantığı", () => {
   const opts = { companyId: "c1", maxCandidates: 3 as const, selections: [
@@ -204,5 +204,21 @@ describe("BRA-P0-06b: model seçici mantığı", () => {
   it("ajan listesi bozuk girdiyle çökmez; model yoksa null", () => {
     expect(toPickerAgents(null)).toEqual([]);
     expect(toPickerAgents([{ id: "a1", name: "X", model: "m" }, { id: "a2" }, null, { name: "y" }])).toEqual([{ id: "a1", name: "X", model: "m" }, { id: "a2", name: "a2", model: null }]);
+  });
+});
+
+describe("BRA-P0-06b: hesap varsayılanı yalnız bulut; hata eşlemesi", () => {
+  it("OLLAMA/LMSTUDIO/CUSTOM hesap hedefinde yasak, ajan hedefinde serbest", () => {
+    for (const p of ["OLLAMA", "lmstudio", "CUSTOM"]) {
+      expect(isCloudProvider(p)).toBe(false);
+      expect(optionAllowedFor({ kind: "default" }, { provider: p })).toBe(false);
+      expect(optionAllowedFor({ kind: "agent", agentId: "a" }, { provider: p })).toBe(true);
+    }
+    for (const p of ["ANTHROPIC", "OPENAI", "GOOGLE"]) expect(optionAllowedFor({ kind: "default" }, { provider: p })).toBe(true);
+  });
+  it("403/402 ayrı, diğerleri genel", () => {
+    expect(saveErrorKey({ status: 403 })).toBe("pickerForbidden");
+    expect(saveErrorKey({ status: 402 })).toBe("pickerPlan");
+    for (const e of [{ status: 400 }, { status: 500 }, new Error("x"), null]) expect(saveErrorKey(e)).toBe("pickerError");
   });
 });

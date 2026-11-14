@@ -266,12 +266,14 @@ test.describe("BRA-P0-06b: tek model seçici", () => {
     await expect(page.getByTestId("model-picker-current")).toHaveText("Şu an: claude-sonnet-5");
 
     await page.getByTestId("model-picker-target").selectOption({ label: "Hesap varsayılanı (kendi modeli olmayan tüm ajanlar)" });
-    await page.getByTestId("model-picker-model").selectOption({ label: "mini-model (OLLAMA) · YEREL" });
+    await expect(page.getByTestId("model-picker-model").locator("option", { hasText: "mini-model" })).toHaveAttribute("disabled", "");
+    await expect(page.getByTestId("model-picker-local-hint")).toBeVisible();
+    await page.getByTestId("model-picker-model").selectOption({ label: "gpt-zero (OPENAI)" });
     await page.getByTestId("model-picker-apply").click();
     await expect(page.getByTestId("model-picker-status")).toHaveText("Kaydedildi.");
     const put = calls.filter((c) => c.method === "PUT" && c.path === "/settings/ai-config");
     expect(put).toHaveLength(1);
-    expect(JSON.parse(put[0].body ?? "{}")).toEqual({ provider: "OLLAMA", model: "mini-model" });
+    expect(JSON.parse(put[0].body ?? "{}")).toEqual({ provider: "OPENAI", model: "gpt-zero" });
   });
 
   test("bayrak AÇIK: PATCH hata verirse hata mesajı görünür", async ({ page }) => {
@@ -296,6 +298,7 @@ test.describe("BRA-P0-06b: tek model seçici", () => {
     expect(await page.getByTestId("models-page").count()).toBe(0);
     expect(calls.filter((c) => c.path === "/research/compare/options")).toEqual([]);
     expect(calls.filter((c) => c.method === "PATCH")).toEqual([]);
+    expect(calls.filter((c) => c.method === "PUT" && c.path === "/settings/ai-config")).toEqual([]);
     expect((await page.goto(`${UI}/settings/models`))?.status()).toBe(404);
   });
 });

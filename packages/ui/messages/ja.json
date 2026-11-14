@@ -1600,7 +1600,10 @@
       "pickerLoadError": "エージェントまたはモデルの選択肢を読み込めませんでした。",
       "pickerEmpty": "設定済みのモデルがまだありません。設定でキーまたはローカルモデルを追加してください。",
       "pickerCurrent": "現在：{model}",
-      "pickerCurrentUnknown": "現在：不明"
+      "pickerCurrentUnknown": "現在：不明",
+      "pickerLocalHint": "ローカルとカスタムのプロバイダーは設定でのみ選べます。",
+      "pickerForbidden": "これを変更する権限がありません。",
+      "pickerPlan": "ご利用のプランでは許可されていません。"
     },
     "companyStatus": {
       "title": "会社の状況",

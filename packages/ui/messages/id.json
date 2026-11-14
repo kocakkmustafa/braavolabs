@@ -1600,7 +1600,10 @@
       "pickerLoadError": "Agen atau pilihan model tidak dapat dimuat.",
       "pickerEmpty": "Belum ada model yang dikonfigurasi. Tambahkan kunci atau model lokal di Pengaturan.",
       "pickerCurrent": "Saat ini: {model}",
-      "pickerCurrentUnknown": "Saat ini: Tidak diketahui"
+      "pickerCurrentUnknown": "Saat ini: Tidak diketahui",
+      "pickerLocalHint": "Penyedia lokal dan kustom hanya bisa diatur di Pengaturan.",
+      "pickerForbidden": "Kamu tidak punya izin untuk mengubah ini.",
+      "pickerPlan": "Paketmu tidak mengizinkan ini."
     },
     "companyStatus": {
       "title": "Status perusahaan",

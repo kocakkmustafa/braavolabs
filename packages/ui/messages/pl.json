@@ -1600,7 +1600,10 @@
       "pickerLoadError": "Nie udało się wczytać agentów ani modeli.",
       "pickerEmpty": "Brak skonfigurowanych modeli. Dodaj klucz lub model lokalny w Ustawieniach.",
       "pickerCurrent": "Obecny: {model}",
-      "pickerCurrentUnknown": "Obecny: Nieznany"
+      "pickerCurrentUnknown": "Obecny: Nieznany",
+      "pickerLocalHint": "Dostawców lokalnych i własnych ustawisz tylko w Ustawieniach.",
+      "pickerForbidden": "Nie masz uprawnień do tej zmiany.",
+      "pickerPlan": "Twój plan na to nie pozwala."
     },
     "companyStatus": {
       "title": "Stan firmy",

@@ -1600,7 +1600,10 @@
       "pickerLoadError": "No se pudieron cargar los agentes ni los modelos.",
       "pickerEmpty": "Aún no hay modelos configurados. Añade una clave o un modelo local en Ajustes.",
       "pickerCurrent": "Actual: {model}",
-      "pickerCurrentUnknown": "Actual: Desconocido"
+      "pickerCurrentUnknown": "Actual: Desconocido",
+      "pickerLocalHint": "Los proveedores locales y personalizados solo se configuran en Ajustes.",
+      "pickerForbidden": "No tienes permiso para cambiar esto.",
+      "pickerPlan": "Tu plan no lo permite."
     },
     "companyStatus": {
       "title": "Estado de la empresa",

@@ -1600,7 +1600,10 @@
       "pickerLoadError": "Could not load agents or model options.",
       "pickerEmpty": "No models configured yet. Add a key or local model in Settings.",
       "pickerCurrent": "Current: {model}",
-      "pickerCurrentUnknown": "Current: Unknown"
+      "pickerCurrentUnknown": "Current: Unknown",
+      "pickerLocalHint": "Local and custom providers can only be set in Settings.",
+      "pickerForbidden": "You do not have permission to change this.",
+      "pickerPlan": "Your plan does not allow this."
     },
     "companyStatus": {
       "title": "Company status",

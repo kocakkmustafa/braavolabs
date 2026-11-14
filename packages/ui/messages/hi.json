@@ -1600,7 +1600,10 @@
       "pickerLoadError": "एजेंट या मॉडल विकल्प लोड नहीं हो सके।",
       "pickerEmpty": "अभी कोई मॉडल कॉन्फ़िगर नहीं है। सेटिंग्स में कुंजी या लोकल मॉडल जोड़ें।",
       "pickerCurrent": "वर्तमान: {model}",
-      "pickerCurrentUnknown": "वर्तमान: अज्ञात"
+      "pickerCurrentUnknown": "वर्तमान: अज्ञात",
+      "pickerLocalHint": "लोकल और कस्टम प्रोवाइडर केवल सेटिंग्स में चुने जा सकते हैं।",
+      "pickerForbidden": "इसे बदलने की आपको अनुमति नहीं है।",
+      "pickerPlan": "आपका प्लान इसकी अनुमति नहीं देता।"
     },
     "companyStatus": {
       "title": "कंपनी की स्थिति",

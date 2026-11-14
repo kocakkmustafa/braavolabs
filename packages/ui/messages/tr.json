@@ -1600,7 +1600,10 @@
       "pickerLoadError": "Ajanlar veya model seçenekleri yüklenemedi.",
       "pickerEmpty": "Henüz yapılandırılmış model yok. Ayarlar'dan anahtar ya da yerel model ekle.",
       "pickerCurrent": "Şu an: {model}",
-      "pickerCurrentUnknown": "Şu an: Bilinmiyor"
+      "pickerCurrentUnknown": "Şu an: Bilinmiyor",
+      "pickerLocalHint": "Yerel ve özel sağlayıcılar yalnız Ayarlar'dan seçilir.",
+      "pickerForbidden": "Bunu değiştirme yetkin yok.",
+      "pickerPlan": "Planın buna izin vermiyor."
     },
     "companyStatus": {
       "title": "Şirket durumu",
