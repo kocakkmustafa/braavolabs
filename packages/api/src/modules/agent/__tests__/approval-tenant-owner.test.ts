@@ -56,12 +56,14 @@ const ctx = (extra?: Map<string, never>) => ({
 const created = () => approvalCreate.mock.calls[0][0].data as Record<string, unknown>;
 
 beforeEach(() => {
+  vi.unstubAllEnvs();
   vi.clearAllMocks();
   approvalCreate.mockResolvedValue({ id: "appr-1" });
 });
 
 describe("Approval.tenantId doğrudan yazılır", () => {
   it("SPEND (damgasız, exact-action bayrağı kapalı)", async () => {
+    vi.stubEnv("EXACT_ACTION_APPROVAL", "false");
     const t = tool("ad_spend_x");
     const res = await executeTool(t.name, { budgetUsd: 5 }, ctx(new Map([[t.name, t as never]])));
     expect(res.status).toBe("PENDING_APPROVAL");
@@ -103,8 +105,8 @@ describe("kaynak taraması: her run.create / approval.create tenantId yazar", ()
   };
   walk(root);
 
-  it("Run (4 yol) ve Approval (5 yol) oluşturucuların veri bloğunda tenantId var", () => {
-    const re = /\b(?:prisma|tx)\.(run|approval)\.create\(\{/g;
+  it("Run (4 yol; genel kapsam taraması — tool-executor SPEND'in tenantId'sini yalnız davranış testi kanıtlar, çünkü `...exactStamp` kalıbı taramayı da geçirir) ve Approval (5 yol) oluşturucuların veri bloğunda tenantId var", () => {
+    const re = /\b(?:prisma|tx|db)\.(run|approval)\.create\(\s*\{/g;
     const found: Record<string, number> = { run: 0, approval: 0 };
     const missing: string[] = [];
     for (const f of files) {

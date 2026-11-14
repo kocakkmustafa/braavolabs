@@ -275,7 +275,7 @@ Regresyon koruması: `agent/__tests__/approval-tenant-owner.test.ts` (davranış
 
 ### B. ActivityLog değişmezliği — seçenekler
 
-1. **Append-only DB trigger'ı** (`BEFORE UPDATE OR DELETE ON activity_log` → istisna). (+) en küçük; uygulama kodundan, SQL enjeksiyonundan ve yanlış betikten korur; uygulama değişikliği gerekmez. (−) `tenants` silinince `ON DELETE CASCADE` de tetiği çalıştırır: kiracı silme/GDPR silme akışı kırılır → tetik `session_replication_role`/ayrı bakım rolü ya da "kiracı silinirken izin" koşulu ister (örn. `pg_trigger_depth() > 1` ya da `current_setting('app.allow_log_purge', true)='on'`). IAP `update: {}` upsert'leri Prisma'da `ON CONFLICT DO NOTHING`e değil `DO UPDATE SET`e inerse tetiğe takılır → ön test şart. Tablo sahibi/superuser tetiği yine kaldırabilir (yalnız sınıf-içi koruma).
+1. **Append-only DB trigger'ı** (`BEFORE UPDATE OR DELETE ON activity_log` → istisna). (+) en küçük; uygulama değişikliği gerekmez; uygulama kodundaki hatalı UPDATE/DELETE'e ve yanlış betiğe karşı korur. **Sınır:** yetkili bir DB bağlantısına/tablo sahibine/superuser'a karşı koruma DEĞİLDİR (tetik kaldırılabilir, `session_replication_role` değiştirilebilir) ve SQL enjeksiyonuna karşı garanti vermez (enjeksiyonla `SET app.allow_log_purge` de çalıştırılabilir). (−) `tenants` silinince `ON DELETE CASCADE` de tetiği çalıştırır; kiracı silme akışları ADI İLE etkilenir: `modules/user/user.router.ts:232` (`prisma.tenant.delete`), `modules/user/erasure-tombstones.ts:108` (ham `DELETE FROM tenants`), test teardown'ları `__tests__/db/db-harness.ts:100` ve `lib/pushOwnership.postgres.test.ts:61`. Bu yüzden bir bypass gerekir ve her aday ZAYIFTIR: (i) `current_setting('app.allow_log_purge', true)='on'` — herhangi bir bağlantı/enjeksiyon açabilir, yalnız "kazara" silmeyi engeller; daha sağlam hâli: ayrı, yalnız silme akışının kullandığı DB rolü + `current_user` denetimi; (ii) `pg_trigger_depth() > 1` — başka bir trigger'dan gelen HER silmeyi geçirir, yalnız cascade'e özgü değildir; bu nedenle ÖNERİLMEZ. Seçilen bypass'ın sınırı uygulama biletinde açıkça test edilmeli. IAP `update: {}` upsert'leri Prisma'da `ON CONFLICT DO NOTHING`e değil `DO UPDATE SET`e inerse tetiğe takılır → ön test şart.
 2. **Hash zinciri** (`prev_hash`, `hash` kolonları; satır = sha256(prev_hash ‖ kanonik içerik), kiracı başına zincir). (+) değişiklik/silme *tespit edilir* (sahip rolü bile gizleyemez, ta ki zincir yeniden yazılmadıkça; dış çıpa için günlük kök hash saklanabilir). (−) büyük iş: yazım yolunda kiracı başına sıralı kilit (yüzlerce yazıcıda sıcak nokta; yazım hızı ~180M satır/yıl hedefiyle çelişir), mevcut satırlar için geri doldurma, çok yazıcılı yarışlar, doğrulayıcı iş. Önleme DEĞİL tespit.
 3. **Hiçbiri** (RLS + uygulama disiplini). Reddedildi: bugünkü koruma yalnız "başka kiracı göremez"; aynı kiracının/yetkili rolün izi silmesi engellenmiyor.
 
@@ -285,7 +285,7 @@ Regresyon koruması: `agent/__tests__/approval-tenant-owner.test.ts` (davranış
 
 ### D. Run/Approval NOT NULL daralması — hazırlık
 
-- Yeni satırlar artık NULL üretmez (A tablosu + test). Daralma (`NOT NULL` + FK `tenants`) **ayrı, kurucu onaylı migration**dır ve **prod'da NULL kalmadığı kanıtlanana dek yapılmaz**; eski satırlar için önce geri doldurma (`runs.tenant_id` = `pipelines → companies.tenant_id`; `approvals.tenant_id` = `runs.tenant_id`) gerekir, bu da ayrı onaydır. Bu bilet bunların hiçbirini çalıştırmaz.
+- Yeni satırlar artık NULL üretmez (A tablosu + test). Daralma (`NOT NULL` + FK `tenants`) **ayrı, kurucu onaylı migration**dır ve **prod'da NULL kalmadığı kanıtlanana dek yapılmaz**; geri doldurma kısmen yapıldı: `20261108010000_approval_exact_action` migration'ı `approvals.tenant_id`'yi `runs → pipelines → companies` zinciriyle zaten doldurdu; bu yüzden `runs.tenant_id` NULL olabilir ve `approvals` doğrulaması `runs.tenant_id`'ye DEĞİL pipeline→company zincirine dayanmalı. Kalan NULL'lar için ek geri doldurma ayrı onaydır. Bu bilet bunların hiçbirini çalıştırmaz.
 - **Prod'da SALT-OKUR doğrulama SQL'i (ÇALIŞTIRILMADI; kurucu/DB sahibi çalıştırır, yalnız `SELECT`):**
 
 ```sql
@@ -297,10 +297,10 @@ UNION ALL SELECT 'approvals.tenant_id NULL',    count(*) FROM approvals WHERE te
 UNION ALL SELECT 'runs.tenant_id != companies.tenant_id', count(*)
   FROM runs r JOIN pipelines p ON p.id = r.pipeline_id JOIN companies c ON c.id = p.company_id
   WHERE r.tenant_id IS NOT NULL AND r.tenant_id <> c.tenant_id
-UNION ALL SELECT 'approvals.tenant_id != runs.tenant_id', count(*)
-  FROM approvals a JOIN runs r ON r.id = a.run_id
-  WHERE a.tenant_id IS NOT NULL AND r.tenant_id IS NOT NULL AND a.tenant_id <> r.tenant_id
--- Yeni (bu PR'dan sonra yaratılan) satırlarda NULL olmamalı: PR dağıtım zamanını :deploy_ts ile verin
+UNION ALL SELECT 'approvals.tenant_id != companies.tenant_id', count(*)
+  FROM approvals a JOIN runs r ON r.id = a.run_id JOIN pipelines p ON p.id = r.pipeline_id JOIN companies c ON c.id = p.company_id
+  WHERE a.tenant_id IS NOT NULL AND a.tenant_id <> c.tenant_id
+-- Yeni (bu PR'dan sonra yaratılan) satırlarda NULL olmamalı: PR dağıtım zamanını `psql -v deploy_ts="'2026-11-14T00:00:00Z'"` ile verin (`:'deploy_ts'` yalnız psql'de çalışır; başka istemcide literal yazın)
 UNION ALL SELECT 'runs NULL, deploy sonrası',      count(*) FROM runs      WHERE tenant_id IS NULL AND created_at >= :'deploy_ts'
 UNION ALL SELECT 'approvals NULL, deploy sonrası', count(*) FROM approvals WHERE tenant_id IS NULL AND created_at >= :'deploy_ts';
 ```

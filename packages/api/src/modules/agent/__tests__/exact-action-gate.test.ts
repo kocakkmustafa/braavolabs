@@ -3,7 +3,7 @@
  * Uses make_outbound_call: money-touching, so it is approval-gated under every
  * autonomy level. Persistence and the voice service are synthetic.
  *
- * Flag off  → byte-for-byte the old gate (no stamp, no grant lookup).
+ * Flag off  → the old gate, except SEC-BRA-05 now writes tenantId directly (no nonce/hash/expiry stamp, no grant lookup).
  * Flag on   → a new approval is stamped with tenant/nonce/hash/expiry; the call
  *             runs only if a matching APPROVED grant is spent by the CAS.
  */
