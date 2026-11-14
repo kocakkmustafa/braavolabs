@@ -3,7 +3,7 @@ import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { getTool, type ToolDefinition } from "./registry";
-import { executeTool, requiresGovernedTenantScope, type ToolExecResult } from "./tool-executor";
+import { executeTool, guardUngovernedTenantScope, type ToolExecResult } from "./tool-executor";
 import { runLocalAgentLoop } from "./claude-local";
 import { assertReasoningEffortSupported, UnsupportedReasoningEffortError, type ReasoningEffort } from "../../services/reasoning-effort";
 import {
@@ -291,6 +291,9 @@ async function executeToolCalls(
   toolCalls: ChatToolCall[],
   govContext?: AgentGovContext,
   extraTools?: Map<string, ToolDefinition>,
+  // SEC-BRA-06c: ungoverned path only — the model may call ONLY the tools it
+  // was offered, and secondary *Id fields are validated against tenantId.
+  ungoverned?: { allowedNames: ReadonlySet<string>; tenantId?: string },
 ): Promise<AgentTurnResult["toolCalls"]> {
   return mapWithConcurrency(toolCalls, TOOL_PARALLELISM, async (call) => {
     const input = parseToolArgs(call.argumentsJson);
@@ -324,6 +327,16 @@ async function executeToolCalls(
     // completeness means an approval-required connector tool is blocked below
     // rather than silently missing.
     const start = Date.now();
+    if (ungoverned && !ungoverned.allowedNames.has(call.name)) {
+      return {
+        id: call.id,
+        name: call.name,
+        input,
+        output: null,
+        durationMs: Date.now() - start,
+        error: `Tool "${call.name}" is not in this agent's allowed tool list`,
+      };
+    }
     const registeredTool = extraTools?.get(call.name) ?? getTool(call.name);
 
     if (!registeredTool) {
@@ -354,14 +367,15 @@ async function executeToolCalls(
     // companyId field MUST run via a governed pipeline. Refusing here
     // means a future caller that omits govContext can never silently
     // escalate cross-tenant — they get an obvious error instead.
-    if (requiresGovernedTenantScope(registeredTool, input)) {
+    const scopeError = await guardUngovernedTenantScope(registeredTool, input, call.name, ungoverned?.tenantId);
+    if (scopeError) {
       return {
         id: call.id,
         name: call.name,
         input,
         output: null,
         durationMs: Date.now() - start,
-        error: `Tool "${call.name}" requires a tenant-scoped pipeline run (companyId in input)`,
+        error: scopeError,
       };
     }
 
@@ -1106,7 +1120,12 @@ export async function runProviderAgentLoop(
     if (toolsForbidden && requestedCalls.length > 0) {
       throw new Error("Tool calls are not allowed for this request");
     }
-    const toolCallResults = await executeToolCalls(requestedCalls, govContext, extraTools);
+    const toolCallResults = await executeToolCalls(
+      requestedCalls,
+      govContext,
+      extraTools,
+      { allowedNames: new Set(effectiveToolNames), tenantId: cbTenant },
+    );
 
     turns.push({
       content: result.content,

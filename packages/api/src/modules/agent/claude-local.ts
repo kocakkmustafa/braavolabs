@@ -10,7 +10,7 @@
 import { spawn } from "node:child_process";
 import { logger } from "../../lib/logger";
 import { getTool } from "./registry";
-import { requiresGovernedTenantScope } from "./tool-executor";
+import { guardUngovernedTenantScope } from "./tool-executor";
 import type { AgentTurnResult, AgentLoopResult } from "./claude";
 
 interface ToolSchema {
@@ -181,6 +181,17 @@ async function executeLocalTurn(
   const toolCallResults = await Promise.all(
     parsedCalls.map(async (call, index) => {
       const toolStart = Date.now();
+      // SEC-BRA-06c: only tools the agent was configured with may run.
+      if (!toolNames.includes(call.name)) {
+        return {
+          id: `local_${Date.now()}_${index}`,
+          name: call.name,
+          input: call.input,
+          output: null,
+          durationMs: Date.now() - toolStart,
+          error: `Tool "${call.name}" is not in this agent's allowed tool list`,
+        };
+      }
       const registeredTool = getTool(call.name);
 
       if (!registeredTool) {
@@ -209,14 +220,16 @@ async function executeLocalTurn(
           error: `Tool "${call.name}" requires spend approval and cannot run outside a governed pipeline run`,
         };
       }
-      if (requiresGovernedTenantScope(registeredTool, call.input)) {
+      // Local CLI mode has no acting tenant: tenant-scoped ids are refused.
+      const scopeError = await guardUngovernedTenantScope(registeredTool, call.input, call.name);
+      if (scopeError) {
         return {
           id: `local_${Date.now()}_${index}`,
           name: call.name,
           input: call.input,
           output: null,
           durationMs: Date.now() - toolStart,
-          error: `Tool "${call.name}" requires a tenant-scoped pipeline run (companyId in input)`,
+          error: scopeError,
         };
       }
 

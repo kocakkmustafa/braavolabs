@@ -180,6 +180,49 @@ export async function enforceTenantScopedSecondaryIds(
   }
 }
 
+function isTenantRowIdKey(key: string): boolean {
+  return /[a-z]Id$/.test(key) && !SAFE_INPUT_ID_FIELDS.has(key);
+}
+
+/**
+ * SEC-BRA-06c: shared fail-closed guard for the UNGOVERNED paths (claude.ts
+ * ungoverned branch, claude-local.ts). Returns an error string, or null when
+ * the call may run.
+ *  - companyId tools never run ungoverned (no acting company to compare).
+ *  - tools that name tenant rows by a secondary `*Id` (dealId, contactId, ...)
+ *    run ONLY when the caller knows the acting tenant; every id in the input
+ *    is then validated with the same logic as the governed path
+ *    (enforceTenantScopedSecondaryIds, fails closed on unknown `*Id`).
+ *    Without a tenantId (local CLI mode) they are refused.
+ *  - tools without any tenant-scoped field (ask_user, delegate, generate_post)
+ *    are untouched.
+ */
+export async function guardUngovernedTenantScope(
+  tool: Pick<ToolDefinition, "inputSchema"> | undefined,
+  input: unknown,
+  toolName: string,
+  tenantId?: string,
+): Promise<string | null> {
+  if (requiresGovernedTenantScope(tool, input)) {
+    return `Tool "${toolName}" requires a tenant-scoped pipeline run (companyId in input)`;
+  }
+  const props = (tool?.inputSchema as { properties?: unknown } | undefined)?.properties;
+  const schemaKeys = props && typeof props === "object" ? Object.keys(props) : [];
+  const inputKeys =
+    input && typeof input === "object" && !Array.isArray(input) ? Object.keys(input as object) : [];
+  const touchesTenantRows = [...schemaKeys, ...inputKeys].some(isTenantRowIdKey);
+  if (!touchesTenantRows) return null;
+  if (!tenantId) {
+    return `Tool "${toolName}" requires a tenant-scoped pipeline run (tenant-scoped id in input)`;
+  }
+  try {
+    await enforceTenantScopedSecondaryIds(input, tenantId, toolName);
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
+  return null;
+}
+
 /**
  * BRA-P0-02c-3: drive the run into WAITING_APPROVAL through `transitionRun`
  * (graph state NEEDS_APPROVAL). Called right AFTER the gate's approval row is

@@ -927,9 +927,16 @@ registerTool({
   },
   meta: { requiresApproval: false, riskLevel: "low" },
   handler: async (input) => {
-    const { contactId, ...updates } = input as any;
+    // SEC-BRA-06c: allowlist — never mass-assign ownership fields
+    // (companyId/tenantId/id/...) from model-controlled input.
+    const raw = input as Record<string, unknown>;
+    const { contactId } = raw;
+    const updates: Record<string, unknown> = {};
+    for (const key of ["name", "status", "tags", "properties"]) {
+      if (raw[key] !== undefined) updates[key] = raw[key];
+    }
     const contact = await prisma.contact.update({
-      where: { id: contactId },
+      where: { id: contactId as string },
       data: updates as any,
     });
     return { contactId: contact.id, name: contact.name };
