@@ -62,7 +62,8 @@ export function planDelegationResume(
   const sorted = [...rows].sort((a, b) => a.stepIndex - b.stepIndex || a.id.localeCompare(b.id));
   for (const r of sorted) {
     if (r.stepIndex > maxStepIndex) maxStepIndex = r.stepIndex;
-    delegationCost += Number(r.costUsd ?? 0) || 0;
+    const rowCost = Number(r.costUsd ?? 0);
+    delegationCost += Number.isFinite(rowCost) && rowCost > 0 ? rowCost : 0;
     if (r.status !== "COMPLETED") continue;
     const inp = (r.input ?? {}) as { agentId?: unknown; task?: unknown };
     const cost = Number(r.costUsd ?? 0) || 0;
