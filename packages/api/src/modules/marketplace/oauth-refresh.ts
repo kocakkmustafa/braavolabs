@@ -12,13 +12,18 @@
  */
 
 import { prisma } from "../../lib/db";
-import { encrypt } from "../../lib/encryption";
+import { encrypt, decrypt } from "../../lib/encryption";
+import { logger } from "../../lib/logger";
 import { safeExternalFetch } from "../../lib/ssrf";
+import { connectorAad } from "./connector-lifecycle";
 
 /** Refresh slightly early so a token does not expire mid-flight. */
 export const REFRESH_SKEW_MS = 60_000;
 const TOKEN_TIMEOUT_MS = 15_000;
 const TOKEN_MAX_BYTES = 64 * 1024;
+/** Failed refreshes are remembered per connector so repeated calls do not hammer the token endpoint. */
+const NEGATIVE_TTL_MS = 30_000;
+const WRITE_RETRY_DELAY_MS = 50;
 
 export class OAuthRefreshError extends Error {
   constructor(message = "OAuth token yenilenemedi") {
@@ -29,10 +34,17 @@ export class OAuthRefreshError extends Error {
 
 interface RefreshInstall {
   id: string;
-  connector: { id: string; authMethod: string; mcpServerUrl: string };
+  connector: { id: string; slug?: string; authMethod: string; mcpServerUrl: string };
 }
 
 const inflight = new Map<string, Promise<Record<string, string>>>();
+const failedUntil = new Map<string, number>();
+
+/** Test hook: clears process-local state. */
+export function __resetOAuthRefreshState(): void {
+  inflight.clear();
+  failedUntil.clear();
+}
 
 export function needsRefresh(authMethod: string, creds: Record<string, string>, now = Date.now()): boolean {
   if (authMethod !== "OAUTH2" || !creds.refreshToken || !creds.expiresAt) return false;
@@ -54,6 +66,23 @@ async function doRefresh(
   install: RefreshInstall,
   creds: Record<string, string>,
 ): Promise<Record<string, string>> {
+  // Re-read the row: a refresh that finished after our caller read the
+  // credentials must not be repeated with a stale (possibly rotated-away)
+  // refresh token. Revoked/disabled rows are refused here too.
+  const aad = connectorAad(tenantId, install.connector.id);
+  const row = await prisma.tenantConnector.findFirst({
+    where: { id: install.id, tenantId, revokedAt: null, isEnabled: true },
+    select: { encryptedCredentials: true },
+  });
+  if (!row) throw new OAuthRefreshError();
+  const readValue = row.encryptedCredentials;
+  try {
+    creds = JSON.parse(decrypt(readValue, aad));
+  } catch {
+    throw new OAuthRefreshError();
+  }
+  if (!needsRefresh(install.connector.authMethod, creds)) return creds;
+
   const { tokenUrl } = creds;
   if (!tokenUrl || !isHttps(tokenUrl) || !isHttps(install.connector.mcpServerUrl)) {
     throw new OAuthRefreshError("OAuth token yenilenemedi: HTTPS gerekli");
@@ -93,17 +122,28 @@ async function doRefresh(
   // Providers that rotate refresh tokens return a new one; otherwise keep the old.
   if (typeof body.refresh_token === "string" && body.refresh_token) next.refreshToken = body.refresh_token;
 
-  try {
-    await prisma.tenantConnector.update({
-      where: { id: install.id },
-      data: {
-        encryptedCredentials: encrypt(JSON.stringify(next), `${tenantId}|tenant_connector|${install.connector.id}`),
-      },
+  // Compare-and-swap on the value we read: a concurrent revoke/disable (or
+  // another writer) makes count 0 and the revoked credential is never revived.
+  const encrypted = encrypt(JSON.stringify(next), aad);
+  const write = () =>
+    prisma.tenantConnector.updateMany({
+      where: { id: install.id, revokedAt: null, isEnabled: true, encryptedCredentials: readValue },
+      data: { encryptedCredentials: encrypted },
     });
+  let count: number;
+  try {
+    ({ count } = await write());
   } catch {
-    // Without persistence a rotated refresh token would be lost: refuse.
-    throw new OAuthRefreshError();
+    await new Promise((r) => setTimeout(r, WRITE_RETRY_DELAY_MS));
+    try {
+      ({ count } = await write());
+    } catch {
+      // A rotated refresh token would be lost: refuse (no token in the log).
+      logger.warn({ slug: install.connector.slug ?? null }, "rotation write failed");
+      throw new OAuthRefreshError();
+    }
   }
+  if (count === 0) throw new OAuthRefreshError();
   return next;
 }
 
@@ -114,9 +154,20 @@ export function ensureFreshCredentials(
   creds: Record<string, string>,
 ): Promise<Record<string, string>> {
   if (!needsRefresh(install.connector.authMethod, creds)) return Promise.resolve(creds);
+  const until = failedUntil.get(install.id);
+  if (until && until > Date.now()) return Promise.reject(new OAuthRefreshError());
   const existing = inflight.get(install.id);
   if (existing) return existing;
-  const p = doRefresh(tenantId, install, creds).finally(() => inflight.delete(install.id));
+  const p = doRefresh(tenantId, install, creds)
+    .then((fresh) => {
+      failedUntil.delete(install.id);
+      return fresh;
+    })
+    .catch((err) => {
+      failedUntil.set(install.id, Date.now() + NEGATIVE_TTL_MS);
+      throw err;
+    })
+    .finally(() => inflight.delete(install.id));
   inflight.set(install.id, p);
   return p;
 }
