@@ -50,7 +50,8 @@ const ID_SAFE = /^[\w.-]{1,64}$/;
  * "task-test-1", "risk-test" yanlış pozitif olmaz; "id_sk_test_x", "my.sk-live-x" yakalanır.
  * `eyJ` (JWT başlığı) büyük/küçük harf DUYARLI ve sol sınırlı ("keyjob" geçer). `ghp_`-ailesi, `xox*`,
  * `AKIA…`, `whsec_`, `acct[-_]` her konumda (ayırt edici, yanlış pozitif riski düşük).
- * Bilinen takas: önekin harf/rakama BİTİŞİK gömülmesi ("idsk_test_x") artık yakalanmaz.
+ * Harf/rakama BİTİŞİK gömülü önek ("idsk_test_x") bu desenle değil, aşağıdaki gövde uzunluklu
+ * `ID_SECRET_EMBEDDED` ile (≥20 karakter gövde) yakalanır; kısa gövdeli gömülü geçer (takas).
  */
 const ID_SECRET_ANYWHERE =
   /(?<![a-z0-9])(sk|pk|rk)[-_](live|test|ant|proj)|gh[pousr]_|xox[abprs]?-|AKIA[0-9A-Z]{8,}|whsec_|acct[-_]/i;

@@ -155,11 +155,34 @@ describe("deriveApprovalDetails", () => {
     }
   });
 
-  it("BİLİNEN TAKAS (belgeleme): gömülü + kısa gövdeli önek ve kısa gövdeli benzerler geçer", () => {
-    for (const ok of ["idsk_test_abc123", "flask_test", "disk_test_configuration", "task-test-1", "risk-test"]) {
-      const d = deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "external_control", connectionId: ok, action: "PAUSE", targetId: "t" });
-      expect(d.dataTransfer, ok).toEqual([`PAUSE → bağlantı ${ok}, hedef t`]);
+  const B24 = "4eC39HqLyjWDarjtT1zdp7dc"; // 24 karakter gövde
+  const idDt = (id: string) => deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "external_control", connectionId: id, action: "PAUSE", targetId: "t" }).dataTransfer;
+
+  it("ID yanlış pozitifleri (kısa gövde) geçmeli: flask_test, disk_test_configuration, task-test-1, risk-test", () => {
+    for (const ok of ["flask_test", "disk_test_configuration", "task-test-1", "risk-test"]) {
+      expect(idDt(ok), ok).toEqual([`PAUSE → bağlantı ${ok}, hedef t`]);
     }
+  });
+
+  it("BİLİNEN TAKAS (belgeleme): gömülü + kısa gövdeli önek geçer; ≥20 gövdeli gömülü yanlış pozitifler düşer", () => {
+    expect(idDt("idsk_test_abc123")).toEqual(["PAUSE → bağlantı idsk_test_abc123, hedef t"]); // sızıntı geçer (takas)
+    // Güvenli yönde yanlış pozitif: alan null olur.
+    for (const fp of ["disk-proj-name-with-many-words", "bookmark_proj_list_all_items_in_repo", "task-test-cjld2cjxh0000qzrmn831i7rn"]) {
+      expect(idDt(fp), fp).toBeNull();
+    }
+  });
+
+  // BRA-UX-API-01d — ID_SECRET_EMBEDDED kolları (sol sınırsız, gövde ≥20).
+  it.each([
+    ["live", `idpk_live_${B24}`], ["test", `idrk_test_${B24}`], ["sk test", `idsk_test_${B24}`], ["sk live", `idsk-live-${B24}`],
+    ["proj", "idsk-proj-" + "a".repeat(20)], ["proj, - içeren gövde", "idsk-proj-abcd-efgh-ijkl-mnopq"], ["ant", "idsk-ant-api03-abcdefghijklmnop"],
+    ["büyük harf", `IDSK_TEST_${B24}`],
+  ])("EMBEDDED kolu düşer — %s", (_n, bad) => {
+    expect(idDt(bad)).toBeNull();
+  });
+  it("EMBEDDED gövde sınırı: 19 karakter geçer, 20 düşer", () => {
+    expect(idDt("idsk_test_" + "a".repeat(19))).toEqual([`PAUSE → bağlantı idsk_test_${"a".repeat(19)}, hedef t`]);
+    expect(idDt("idsk_test_" + "a".repeat(20))).toBeNull();
   });
 
   it("ID: 65 karakter ID_SAFE dışı; 64 sınırı üstü reddedilir", () => {
@@ -178,7 +201,7 @@ describe("deriveApprovalDetails", () => {
   });
 
   // BRA-UX-API-01d — aynı süzgeç araç adı / sağlayıcı / model / alan adı için.
-  const NAME_LEAKS = ["0123456789abcdef0123456789abcdef", "pre:sk-live-abc123", "id.ghp_abcd1234", "t:acct_1Abc23", "t.eyJhbGciOiJIUzI1", "my.SK-LIVE-abc", "abcXYZ_".repeat(6)];
+  const NAME_LEAKS = ["0123456789abcdef0123456789abcdef", "pre:sk-live-abc123", "id.ghp_abcd1234", "t:acct_1Abc23", "t.eyJhbGciOiJIUzI1", "my.SK-LIVE-abc", "abcXYZ_".repeat(6), `idsk_test_${B24}`, `idpk_live_${B24}`, "idsk-proj-" + "a".repeat(20)];
   it.each(NAME_LEAKS)("araç adı süzgeci: %s düşer", (bad) => {
     expect(deriveApprovalDetails("SPEND", { gate: "step", tool: "x" + bad }).permissions).toBeNull();
     expect(deriveApprovalDetails("SPEND", { toolName: "a" + bad }).permissions).toBeNull();
@@ -189,7 +212,7 @@ describe("deriveApprovalDetails", () => {
       expect(deriveApprovalDetails("SPEND", { toolName: t }).permissions).toEqual([t]);
     }
   });
-  it.each(["0123456789abcdef0123456789abcdef", "x/sk-live-abc", "v/ghp_abcd1234", "p:acct_1Abc23", "v/eyJhbGciOiJIUzI1", "m/" + "abcXYZ_".repeat(6)])(
+  it.each(["0123456789abcdef0123456789abcdef", "x/sk-live-abc", "v/ghp_abcd1234", "p:acct_1Abc23", "v/eyJhbGciOiJIUzI1", "m/" + "abcXYZ_".repeat(6), `idsk_test_${B24}`, `idrk_live_${B24}`])(
     "sağlayıcı/model süzgeci: %s düşer",
     (bad) => {
       expect(deriveApprovalDetails("HANDOFF", { suggestedProvider: bad, suggestedModel: "gpt-4o" }).dataTransfer).toBeNull();
@@ -202,7 +225,7 @@ describe("deriveApprovalDetails", () => {
   });
   it("alan adı: hex / acct_ / sk-live / JWT adlı anahtarlar düşer; task-test-1, keyjob, task_pk_1 kalır", () => {
     const input = {
-      a123456789abcdef0123456789abcdef: 1, acct_1Abc23: 1, "my.sk-live-a": 1, "x.eyJhbGciOiJ": 1,
+      a123456789abcdef0123456789abcdef: 1, acct_1Abc23: 1, "my.sk-live-a": 1, "x.eyJhbGciOiJ": 1, [`idsk_test_${B24}`]: 1,
       ["abcXYZ_".repeat(5) + "abcde"]: 1, "task-test-1": 1, keyjob: 1, task_pk_1: 1,
     };
     const d = deriveApprovalDetails("SPEND", { toolName: "t", input });
