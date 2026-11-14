@@ -767,7 +767,7 @@ test("legal pages render the single published operator record", async () => {
 
 test("every product surface names the one shared support address", async () => {
   const { execFileSync } = await import("node:child_process");
-  // Founder rule (2026-10-24): all YULA Lab products share support@yulalab.com. The legal
+  // Founder rule (2026-10-24): all Yula Lab products share support@yulalab.com. The legal
   // request channels (kvkk@ / gdpr@ / privacy@braavolabs.com) are a separate decision.
   const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" }).split("\0")
     .filter((path) => path && !path.startsWith("scripts/public-claims.test.mjs") && existsSync(join(ROOT, path)));
