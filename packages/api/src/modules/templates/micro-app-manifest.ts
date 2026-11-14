@@ -106,7 +106,7 @@ const STRONG_SOURCES = [
   "xapp-[0-9A-Za-z-]+",
   "whsec_[0-9A-Za-z]+",
   "(?:rk|sk|pk)_(?:live|test)_[0-9A-Za-z]+",
-  "[\\w-]*(?<![A-Za-z0-9])(?:sk|pk|rk)[-_][\\w-]{3,}",
+  "[\\w-]{0,40}(?<![A-Za-z0-9])(?:sk|pk|rk)[-_][\\w-]{3,}",
   "-----BEGIN [A-Z ]*-----",
   "[0-9a-fA-F]{32,}",
   "(?<![a-z0-9])c[a-z0-9]{24}(?![a-z0-9])",
@@ -116,7 +116,7 @@ const STRONG_SOURCES = [
   "[?&](?:token|key|secret|sig|signature|password)=\\S*",
 ];
 // Free-text extras (PII-ish): e-mail, long digit runs.
-const TEXT_EXTRA_SOURCES = ["[^\\s@]+@[^\\s@]+", "\\d{12,}"];
+const TEXT_EXTRA_SOURCES = ["[^\\s@]{1,64}@[^\\s@]{1,255}", "\\d{12,}"];
 // Credential-ish words. "token" alone is deliberately absent so that
 // legitimate names such as `token_counter` survive.
 const SECRET_WORD = /(secret|password|credential|api[-_]?key|bearer|private[-_]?key)/i;
@@ -128,31 +128,35 @@ const REDACT_TEST = new RegExp(REDACT_SOURCE);
 
 const looksCredential = (v: string): boolean => STRONG_TEST.test(v) || SECRET_WORD.test(v);
 
-/** Redaction (not rejection) for free text; never throws. */
-function redact(v: string): string {
-  return v.replace(REDACT_RE, "[redacted]");
+/**
+ * Redaction (not rejection) for free text; never throws. Input is cut to
+ * `max + 64` BEFORE the regexes run (snapshot JSON arrives schema-less from
+ * the DB), which bounds regex work, and cut again to `max` afterwards.
+ */
+function redact(v: string, max: number): string {
+  return v.slice(0, max + 64).replace(REDACT_RE, "[redacted]");
 }
 
 function clean(v: unknown, max: number, fallback: string): string {
-  const out = redact(typeof v === "string" ? v : "").trim().slice(0, max);
+  const out = redact(typeof v === "string" ? v : "", max).trim().slice(0, max);
   return out.length > 0 ? out : fallback;
 }
 
 function cleanOptional(v: unknown, max: number): string | undefined {
-  const out = redact(typeof v === "string" ? v : "").trim().slice(0, max);
+  const out = redact(typeof v === "string" ? v : "", max).trim().slice(0, max);
   return out.length > 0 ? out : undefined;
 }
 
 /** Identifier fields (provider / tool / scope): dropped when credential-like. */
 const safeSlug = (v: unknown): string | null =>
-  typeof v === "string" && slug.safeParse(v).success && !looksCredential(v) ? v : null;
+  typeof v === "string" && v.length <= 64 && slug.safeParse(v).success && !looksCredential(v) ? v : null;
 
 /** Tool entries: a bare string name, or `{ name }` / `{ name, connector, scopes }`. */
 function readTools(tools: unknown): { names: string[]; connectors: Array<{ provider: string; scopes: string[] }> } {
   const names: string[] = [];
   const connectors: Array<{ provider: string; scopes: string[] }> = [];
   if (!Array.isArray(tools)) return { names, connectors };
-  for (const t of tools) {
+  for (const t of tools.slice(0, 500)) {
     const entry = typeof t === "string" ? { name: t } : isRecord(t) ? t : null;
     if (!entry) continue;
     const name = safeSlug(entry.name);
@@ -160,7 +164,7 @@ function readTools(tools: unknown): { names: string[]; connectors: Array<{ provi
     const provider = safeSlug(entry.connector);
     if (provider) {
       const scopes = Array.isArray(entry.scopes)
-        ? entry.scopes.map(safeSlug).filter((s): s is string => s !== null)
+        ? entry.scopes.slice(0, 200).map(safeSlug).filter((s): s is string => s !== null)
         : [];
       connectors.push({ provider, scopes });
     }
@@ -182,28 +186,42 @@ function readStepNames(steps: unknown): string[] {
 const clampInt = (v: unknown, min: number, max: number, fallback: number): number =>
   typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, Math.trunc(v))) : fallback;
 
-/** Prerelease is free text: strip it when credential-like or when too long. */
+/** Build metadata is dropped; a credential-like or oversized prerelease is stripped to the core. */
 function cleanVersion(v: string): string {
-  const core = v.split(/[-+]/)[0];
-  const tooLong = v.length > 64;
-  return tooLong || looksCredential(v) || REDACT_TEST.test(v) ? core : v;
+  const noBuild = v.slice(0, 256).split("+")[0];
+  const core = noBuild.split("-")[0];
+  const bad = noBuild.length > 64 || looksCredential(noBuild) || REDACT_TEST.test(noBuild);
+  return bad ? core : noBuild;
 }
+
+const cmp = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
+
+const TRIGGERS = ["MANUAL", "SCHEDULED", "WEBHOOK", "EVENT"] as const;
+const PIPELINE_TYPES = ["SEQUENTIAL", "HIERARCHICAL"] as const;
+const pick = <T extends string>(v: unknown, allowed: readonly T[], fallback: T): T =>
+  typeof v === "string" && (allowed as readonly string[]).includes(v) ? (v as T) : fallback;
+
+const recordList = (v: unknown, max: number): Record<string, unknown>[] =>
+  Array.isArray(v) ? v.filter(isRecord).slice(0, max) : [];
 
 /**
  * Pure, deterministic. Real/random handles are renumbered (`agent-1`, ...),
- * so equal snapshots always yield equal manifests. Never throws on oversized
- * or hostile snapshot content: lists are truncated and free text is redacted.
- * Invalid caller input (`version` with no valid core) still throws ZodError.
+ * so equal snapshots always yield equal manifests. Every snapshot field is
+ * read defensively (unknown shapes get safe defaults, lists are truncated,
+ * free text is redacted), so a malformed or hostile SNAPSHOT never throws.
+ * Only an unusable caller-supplied `version` (no valid semver core) throws
+ * a ZodError.
  */
 export function toMicroAppManifest(
   snapshot: CompanyTemplateSnapshot,
   opts: ToMicroAppManifestOptions,
 ): MicroAppManifest {
-  const srcAgents = (snapshot.agents ?? []).slice(0, MAX_ITEMS);
+  const snap: Record<string, unknown> = isRecord(snapshot) ? snapshot : {};
+  const srcAgents = recordList(snap.agents, MAX_ITEMS);
   // First occurrence wins on duplicate handles (deterministic).
   const handleMap = new Map<string, string>();
   srcAgents.forEach((a, i) => {
-    if (!handleMap.has(a.handle)) handleMap.set(a.handle, `agent-${i + 1}`);
+    if (typeof a.handle === "string" && !handleMap.has(a.handle)) handleMap.set(a.handle, `agent-${i + 1}`);
   });
 
   const merged = new Map<string, Set<string>>();
@@ -224,16 +242,17 @@ export function toMicroAppManifest(
     };
   });
 
-  const pipelines = (snapshot.pipelines ?? []).slice(0, MAX_ITEMS).map((p) => {
-    const manager = p.managerAgentHandle ? handleMap.get(p.managerAgentHandle) : undefined;
+  const pipelines = recordList(snap.pipelines, MAX_ITEMS).map((p) => {
+    const manager = typeof p.managerAgentHandle === "string" ? handleMap.get(p.managerAgentHandle) : undefined;
+    const type = pick(p.pipelineType, PIPELINE_TYPES, "SEQUENTIAL");
     return {
       name: clean(p.name, 200, "pipeline"),
       description: cleanOptional(p.description, 2000),
-      trigger: p.trigger,
+      trigger: pick(p.trigger, TRIGGERS, "MANUAL"),
       schedule: cleanOptional(p.schedule, 200),
       // A HIERARCHICAL pipeline whose manager is missing/unknown/dropped
       // cannot be expressed; degrade it to SEQUENTIAL rather than drop it.
-      pipelineType: p.pipelineType === "HIERARCHICAL" && !manager ? ("SEQUENTIAL" as const) : p.pipelineType,
+      pipelineType: type === "HIERARCHICAL" && !manager ? ("SEQUENTIAL" as const) : type,
       managerAgentHandle: manager,
       maxDelegationDepth: clampInt(p.maxDelegationDepth, 0, MAX_DEPTH_CAP, 0),
       stepNames: readStepNames(p.steps),
@@ -241,15 +260,15 @@ export function toMicroAppManifest(
   });
 
   const connectorRequests = [...merged.entries()]
-    .sort(([a], [b]) => a.localeCompare(b))
+    .sort(([a], [b]) => cmp(a, b))
     .slice(0, MAX_ITEMS)
-    .map(([provider, scopes]) => ({ provider, scopes: [...scopes].sort().slice(0, 50) }));
+    .map(([provider, scopes]) => ({ provider, scopes: [...scopes].sort(cmp).slice(0, 50) }));
 
   return microAppManifestSchema.parse({
     schemaVersion: MICRO_APP_MANIFEST_SCHEMA_VERSION,
-    name: clean(snapshot.name, 200, "micro-app"),
+    name: clean(snap.name, 200, "micro-app"),
     version: cleanVersion(opts.version),
-    description: cleanOptional(snapshot.description, 2000) ?? null,
+    description: cleanOptional(snap.description, 2000) ?? null,
     agents,
     pipelines,
     connectorRequests,

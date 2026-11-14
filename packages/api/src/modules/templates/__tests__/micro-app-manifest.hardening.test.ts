@@ -143,6 +143,85 @@ describe("manifest hardening", () => {
     expect(microAppManifestSchema.safeParse(bad).success).toBe(false);
   });
 
+  it("T1b: legitimate connector keeps good scopes, drops trap scopes", () => {
+    const traps = [
+      "eyJhbGciOiJIUzI1NiJ9.payload.sig",
+      "ghp_abcdefghijklmnopqrstuvwxyz0123456789",
+      "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+      "AKIAABCDEFGHIJKLMNOP",
+    ];
+    const out = toMicroAppManifest(
+      withTool({ name: "mail", connector: "gmail", scopes: ["read", ...traps, "send"] }),
+      { version: "1.0.0" },
+    );
+    expect(out.connectorRequests).toEqual([{ provider: "gmail", scopes: ["read", "send"] }]);
+    for (const t of traps) expect(JSON.stringify(out)).not.toContain(t);
+  });
+
+  it("ReDoS: 200k-char hostile free text is fast and schema-valid", () => {
+    for (const unit of ["a", "a-", "a@", "sk-", "1", "a/"]) {
+      const big = unit.repeat(200_000);
+      const s = snapshot();
+      s.name = big;
+      s.description = big;
+      s.agents[0].name = big;
+      s.agents[0].role = big;
+      s.agents[0].model = big;
+      s.pipelines[0].name = big;
+      s.pipelines[0].description = big;
+      s.pipelines[0].schedule = big;
+      s.pipelines[0].steps = [{ name: big }];
+      const t0 = performance.now();
+      const m = toMicroAppManifest(s, { version: "1.0.0" });
+      expect(performance.now() - t0).toBeLessThan(200);
+      expect(microAppManifestSchema.safeParse(m).success).toBe(true);
+    }
+  });
+
+  it("malformed snapshots never throw and yield a valid manifest", () => {
+    const bad: unknown[] = [
+      {},
+      null,
+      { agents: null, pipelines: null, description: null },
+      { pipelines: [{ trigger: "CRON", pipelineType: 42 }] },
+      { pipelines: [{ trigger: undefined, pipelineType: undefined, name: 5, steps: "x" }] },
+      { agents: [null, 3, "x", {}], pipelines: [null, [], 7] },
+    ];
+    for (const b of bad) {
+      const m = toMicroAppManifest(b as CompanyTemplateSnapshot, { version: "1.0.0" });
+      expect(microAppManifestSchema.safeParse(m).success).toBe(true);
+    }
+    const base = snapshot();
+    const m = toMicroAppManifest(
+      {
+        ...base,
+        pipelines: [{ ...base.pipelines[0], trigger: "CRON" as never, pipelineType: 42 as never }],
+      },
+      { version: "1.0.0" },
+    );
+    expect(m.pipelines[0].trigger).toBe("MANUAL");
+    expect(m.pipelines[0].pipelineType).toBe("SEQUENTIAL");
+  });
+
+  it("version: build metadata dropped, core kept", () => {
+    expect(toMicroAppManifest(snapshot(), { version: "1.0.0+build.5" }).version).toBe("1.0.0");
+    expect(toMicroAppManifest(snapshot(), { version: "1.0.0-rc.1+b" }).version).toBe("1.0.0-rc.1");
+  });
+
+  it("ordering is locale independent and the first 50 sorted providers survive", () => {
+    const s = snapshot();
+    s.agents[0].tools = Array.from({ length: 60 }, (_, i) => ({
+      name: "t",
+      connector: "p" + String(i).padStart(2, "0"),
+      scopes: ["b", "B", "a"],
+    }));
+    const m = toMicroAppManifest(s, { version: "1.0.0" });
+    expect(m.connectorRequests.map((c) => c.provider)).toEqual(
+      Array.from({ length: 50 }, (_, i) => "p" + String(i).padStart(2, "0")),
+    );
+    expect(m.connectorRequests[0].scopes).toEqual(["B", "a", "b"]);
+  });
+
   it("T4: empty agents, null description, malformed tools, duplicate handles", () => {
     const s = snapshot();
     s.agents = [];
