@@ -1,0 +1,159 @@
+# QA-BRA-01 — OpenAPI TASLAĞI (yalnız liste uçları). Tek kaynak değil: kaynak zod şemalarıdır
+# (packages/api/src/__tests__/contract/rest-contract.ts); rest-contract.test.ts bu dosyayı onlarla
+# karşılaştırır, ayrışırsa kırılır. Mobil/masaüstü istemci üretimi için başlangıç noktasıdır.
+openapi: 3.1.0
+info:
+  title: Braavolabs REST (taslak)
+  version: 0.0.1-draft
+servers:
+  - url: /api/v1
+paths:
+  /runs:
+    get:
+      summary: İşler gelen kutusu (sayfalı)
+      parameters:
+        - name: bucket
+          in: query
+          schema: { type: string, enum: [working, needs_approval, done, stuck] }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 100, default: 25 }
+        - name: cursor
+          in: query
+          description: Opak imleç; istemci biçimi çözmez.
+          schema: { type: string, maxLength: 256 }
+      responses:
+        "200":
+          description: Koşu sayfası; imleç gövdede (`nextCursor`), son sayfada null.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RunsListResponse" }
+        "400":
+          description: Geçersiz bucket / limit / cursor.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorBody" }
+  /approvals:
+    get:
+      summary: Onay kuyruğu
+      description: >
+        Parametresiz çağrı düz dizi döner ve sayfalama yoktur (sınırsız liste). Sözleşme notu: istemci sınırsız liste alabilir. `limit`/`cursor` verilirse gövde yine dizidir
+        ve sonraki imleç `X-Next-Cursor` başlığındadır. `groupBy=run` gövdeyi `{groups, nextCursor}` yapar.
+      parameters:
+        - name: status
+          in: query
+          schema: { type: string, enum: [PENDING, APPROVED, REJECTED, EXPIRED], default: PENDING }
+        - name: groupBy
+          in: query
+          schema: { type: string, enum: [run] }
+        - name: limit
+          in: query
+          description: Verilmezse (limit/cursor/groupBy yokken) sayfalama YOK; tüm kayıtlar döner.
+          schema: { type: integer, minimum: 1, maximum: 100 }
+        - name: cursor
+          in: query
+          schema: { type: string, maxLength: 256 }
+      responses:
+        "200":
+          description: Düz dizi (başlıkta imleç) ya da gruplu gövde.
+          headers:
+            X-Next-Cursor:
+              description: Yalnız sayfalı düz dizi yanıtında ve devamı varken.
+              schema: { type: string }
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: array
+                    items: { $ref: "#/components/schemas/ApprovalItem" }
+                  - { $ref: "#/components/schemas/ApprovalsGroupedResponse" }
+        "400":
+          description: Geçersiz status / groupBy / limit / cursor.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorBody" }
+components:
+  schemas:
+    ErrorBody:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string }
+        details: {}
+        code: { type: string }
+        requestId: { type: string }
+    RunListItem:
+      type: object
+      required: [id, pipelineId, status, state, resultStatus, trigger, costUsd, startedAt, completedAt, heartbeatAt, createdAt, updatedAt, pipeline, bucket]
+      properties:
+        id: { type: string }
+        pipelineId: { type: string }
+        status: { type: string }
+        state: { type: [string, "null"] }
+        resultStatus: { type: [string, "null"] }
+        trigger: { type: string }
+        costUsd: { type: [string, "null"] }
+        startedAt: { type: [string, "null"] }
+        completedAt: { type: [string, "null"] }
+        heartbeatAt: { type: [string, "null"] }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+        pipeline:
+          type: object
+          required: [id, name, company]
+          properties:
+            id: { type: string }
+            name: { type: string }
+            company:
+              type: object
+              required: [id, name]
+              properties:
+                id: { type: string }
+                name: { type: string }
+        bucket:
+          type: [string, "null"]
+          enum: [working, needs_approval, done, stuck, null]
+    RunsListResponse:
+      type: object
+      required: [runs, nextCursor]
+      properties:
+        runs:
+          type: array
+          items: { $ref: "#/components/schemas/RunListItem" }
+        nextCursor: { type: [string, "null"] }
+    ApprovalItem:
+      type: object
+      additionalProperties: true
+      required: [id, runId, type, status, metadata, createdAt]
+      properties:
+        id: { type: string }
+        runId: { type: string }
+        type: { type: string }
+        status: { type: string, enum: [PENDING, APPROVED, REJECTED, EXPIRED] }
+        metadata:
+          type: object
+          properties:
+            toolName: { type: string }
+        createdAt: { type: string }
+    ApprovalsGroupedResponse:
+      type: object
+      required: [groups, nextCursor]
+      properties:
+        groups:
+          type: array
+          items:
+            type: object
+            required: [runId, runTitle, approvals]
+            properties:
+              runId: { type: string }
+              runTitle: { type: [string, "null"] }
+              approvals:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+                  required: [id, runId]
+                  properties:
+                    id: { type: string }
+                    runId: { type: string }
+        nextCursor: { type: [string, "null"] }
