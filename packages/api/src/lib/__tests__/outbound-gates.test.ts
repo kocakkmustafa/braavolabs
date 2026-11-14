@@ -206,6 +206,21 @@ describe("B-06 outbound gates", () => {
     expect(isDeployMergeTool("run", "then d3pl0y$ it")).toBe(true);
   });
 
+  it("$ and @ are read both as leet letters and as separators (OR)", () => {
+    for (const n of ["de$ploy", "mer@ge_pr", "dep@loy", "relea$e", "rollb@ck"]) {
+      expect(isDeployMergeTool(n), n).toBe(true);
+    }
+    expect(isDeployMergeTool("run", "then de$ploys it")).toBe(true);
+    for (const n of ["mergeable", "emergency", "Cost$ summary", "user@example_list"]) {
+      expect(isDeployMergeTool(n), n).toBe(false);
+    }
+    expect(isDeployMergeTool("run", "Cost$ summary report")).toBe(false);
+    const t0 = performance.now();
+    expect(isDeployMergeTool("run", "$@".repeat(100000))).toBe(false);
+    expect(isDeployMergeTool("run", "a$".repeat(120000))).toBe(false);
+    expect(performance.now() - t0).toBeLessThan(500);
+  });
+
   it("a very long separator run does not hide or slow the scan", () => {
     const t0 = performance.now();
     expect(isDeployMergeTool("run", "d" + "_".repeat(50000) + "e_p_l_o_y")).toBe(true);

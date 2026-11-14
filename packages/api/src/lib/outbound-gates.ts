@@ -136,13 +136,14 @@ function stripInvisible(text: string): string {
  * (ligatures / compatibility chars), so the cap is applied again to the
  * normalised string BEFORE any further per-char work; null = over the cap.
  */
-function foldBase(text: string, max: number): string | null {
+function foldBase(text: string, max: number): string[] | null {
   const normalized = stripInvisible(text).normalize("NFKC");
   if (normalized.length > max) return null;
   // Order: NFKC, Cf/M strip (above), homoglyphs, non-alphanumeric LEET keys ($ @), then the caller collapses separators.
-  return normalized
-    .replace(/[^\x00-\x7f]/g, (c) => CONFUSABLES[c.toLowerCase()] ?? c)
-    .replace(/[$@]/g, (c) => LEET[c] ?? c);
+  const base = normalized.replace(/[^\x00-\x7f]/g, (c) => CONFUSABLES[c.toLowerCase()] ?? c);
+  // Two readings, classifier ORs them (fail closed): (A) $ and @ as leet
+  // letters (relea$e, d3pl0y$), (B) $ and @ as separators (de$ploy, mer@ge_pr).
+  return [base.replace(/[$@]/g, (c) => LEET[c] ?? c), base.replace(/[$@]/g, " ")];
 }
 
 /** Token lists: camelCase-split and plain, each with `1` read as i and as l. */
@@ -231,10 +232,10 @@ export function isDeployMergeTool(toolName: unknown, remoteDescription?: unknown
   const foldedName = foldBase(toolName, MAX_NAME);
   if (foldedName === null) return true;
   if (mixesScripts(toolName)) return true;
-  if (textHits(foldedName, true)) return true;
+  if (foldedName.some((f) => textHits(f, true))) return true;
   if (typeof remoteDescription !== "string") return false;
   const foldedDesc = foldBase(remoteDescription, MAX_DESC);
-  return foldedDesc === null || textHits(foldedDesc, false);
+  return foldedDesc === null || foldedDesc.some((f) => textHits(f, false));
 }
 
 export interface ToolCallGateOpts {
