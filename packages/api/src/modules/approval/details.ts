@@ -45,24 +45,38 @@ const FIELD_NAME = /^[A-Za-z_][\w.-]{0,40}$/;
  */
 const ID_SAFE = /^[\w.-]{1,64}$/;
 /**
- * Kimlikte HER KONUMDA aranan gizli önekler (başta olması gerekmez): Stripe/Anthropic tipi
- * `sk|pk|rk` + `-`/`_` + canlı/test/ant/proj önekleri, `ghp_`-ailesi, `xox*`, `AKIA…`, JWT (`eyJ`),
- * `whsec_`, `acct[-_]`. Genel `sk-`/`pk_`/`rk-` yalnız kelime başında (ör. "risk-1" yanlış pozitif olmaz).
+ * Gizli önekler (BRA-UX-API-01d: sol sınırlı). `sk|pk|rk` + `-`/`_` + live/test/ant/proj yalnız
+ * KELİME BAŞINDA aranır: sol komşu harf/rakam OLMAMALI (`_`, `.`, `-`, başlangıç sınır sayılır) →
+ * "task-test-1", "risk-test" yanlış pozitif olmaz; "id_sk_test_x", "my.sk-live-x" yakalanır.
+ * `eyJ` (JWT başlığı) büyük/küçük harf DUYARLI ve sol sınırlı ("keyjob" geçer). `ghp_`-ailesi, `xox*`,
+ * `AKIA…`, `whsec_`, `acct[-_]` her konumda (ayırt edici, yanlış pozitif riski düşük).
+ * Bilinen takas: önekin harf/rakama BİTİŞİK gömülmesi ("idsk_test_x") artık yakalanmaz.
  */
 const ID_SECRET_ANYWHERE =
-  /(sk|pk|rk)[-_](live|test|ant|proj)|gh[pousr]_|xox[abprs]?-|AKIA[0-9A-Z]{8,}|eyJ|whsec_|acct[-_]/i;
-const ID_SECRET_WORD_START = /(^|[^a-z0-9])(sk|pk|rk)[-_]/i;
-/** Uzun hex (≥32 hane, her konumda) ve ≥40 karakterlik blok: anahtar/özet/token gibi görünür. */
+  /(?<![a-z0-9])(sk|pk|rk)[-_](live|test|ant|proj)|gh[pousr]_|xox[abprs]?-|AKIA[0-9A-Z]{8,}|whsec_|acct[-_]/i;
+const ID_JWT = /(?<![A-Za-z0-9])eyJ/;
+/**
+ * Genel `sk|pk|rk` + `-`/`_`: kelime başında ve `_` sınır SAYILMAZ ("task_pk_1" geçer). Tireli biçim
+ * (`sk-…`) `_` sonrasında da yakalanır ("x_sk-abc"). Takas: "task_pk-1" reddedilir.
+ */
+const ID_SECRET_WORD_START = /(?<![a-z0-9_])(sk|pk|rk)[-_]|(?<![a-z0-9])(sk|pk|rk)-/i;
+/**
+ * Uzun hex (≥32 hane, her konumda) ve ≥40 karakterlik blok: anahtar/özet/token gibi görünür.
+ * Bilinen takas: `.`/`-` ile bölünmüş hex (ör. 16+16 hane) bu desenlere takılmaz (uuid de geçmeli).
+ */
 const ID_LONG_HEX = /[0-9a-f]{32,}/i;
 const ID_LONG_BLOCK = /[A-Za-z0-9_-]{40,}/;
 
-/** `ID_SAFE` + sızıntı süzgeçleri; uymazsa null (ham değer yanıta girmez). */
+/** Önek/hex/blok süzgeci: kimlik, araç adı, sağlayıcı/model ve alan adı için ortak. */
+function leaksSecret(s: string): boolean {
+  return (
+    ID_SECRET_ANYWHERE.test(s) || ID_JWT.test(s) || ID_SECRET_WORD_START.test(s) || ID_LONG_HEX.test(s) || ID_LONG_BLOCK.test(s)
+  );
+}
+
+/** `ID_SAFE` (+ `matching` içindeki ortak sızıntı süzgeci); uymazsa null. */
 function safeId(v: unknown): string | null {
-  const id = matching(v, ID_SAFE);
-  if (id === null) return null;
-  if (ID_SECRET_ANYWHERE.test(id) || ID_SECRET_WORD_START.test(id)) return null;
-  if (ID_LONG_HEX.test(id) || ID_LONG_BLOCK.test(id)) return null;
-  return id;
+  return matching(v, ID_SAFE);
 }
 /** Araç adı biçimi (registry adı / pipeline config tool). */
 const TOOL_NAME = /^[A-Za-z][\w.:-]{0,63}$/;
@@ -81,9 +95,10 @@ function clamp(v: string): string {
   return t.length > MAX_DETAIL_STRING ? t.slice(0, MAX_DETAIL_STRING - 1) + "…" : t;
 }
 
-/** Biçim allowlist'ine uyan değer; uymazsa null (ham değer asla çıkmaz). */
+/** Biçim allowlist'ine uyan ve `leaksSecret` süzgecinden geçen değer; uymazsa null (ham değer asla çıkmaz). */
 function matching(v: unknown, re: RegExp): string | null {
   if (typeof v !== "string" || !re.test(v) || SECRET_VALUE.test(v)) return null;
+  if (leaksSecret(v)) return null;
   return v;
 }
 
@@ -107,7 +122,7 @@ function inputFieldNames(input: unknown): string[] {
   if (!input || typeof input !== "object" || Array.isArray(input)) return [];
   return Object.keys(input as Record<string, unknown>)
     .slice(0, MAX_KEYS_SCANNED)
-    .filter((k) => FIELD_NAME.test(k) && !SECRET_NAME.test(k) && !SECRET_VALUE.test(k))
+    .filter((k) => FIELD_NAME.test(k) && !SECRET_NAME.test(k) && !SECRET_VALUE.test(k) && !leaksSecret(k))
     .slice(0, MAX_DETAIL_ITEMS);
 }
 
