@@ -115,7 +115,7 @@ vi.mock("../../../services/ai-client", async (importOriginal) => {
 });
 
 import { runAgentLoop, type AgentGovContext } from "../claude";
-import { ProviderExhaustedError } from "../../../services/provider-chain";
+import { ProviderExhaustedError, isHandoffTriggerEligible } from "../../../services/provider-chain";
 import type { AIClientConfig, ChatCompletionResult } from "../../../services/ai-client";
 
 const TENANT = "tenant-t7";
@@ -705,5 +705,24 @@ describe("SEC-BRA-04 — local provider down → explicit error, zero cloud call
     }).catch((e) => e);
     expect(err).toBeInstanceOf(ProviderExhaustedError);
     expect(String(err.message)).not.toMatch(/bulut sağlayıcıya otomatik/);
+  });
+
+  it.each([
+    ["401 on local default", "CUSTOM API error 401: unauthorized", /Yerel sağlayıcı hatası \(OLLAMA, FAILOVER\).*401/],
+    ["local→local chain end", "OLLAMA endpoint is unreachable", /Yerel sağlayıcı erişilemez/],
+  ])("%s → plain Error, not handoff-eligible", async (_n, msg, re) => {
+    seedTenantRows([
+      { provider: "OLLAMA", model: "gemma3:4b", apiKey: null, isDefault: true },
+      ...(_n.startsWith("local→local")
+        ? [{ provider: "LMSTUDIO", model: "m", apiKey: null, fallbackOrder: 1 }]
+        : []),
+    ]);
+    chatCompletionMock.mockRejectedValue(new Error(msg));
+    const err = await runAgentLoop({
+      systemPrompt: "sys", userMessage: "go", toolNames: [], tenantId: TENANT, govContext: GOV,
+    }).catch((e) => e);
+    expect(err).not.toBeInstanceOf(ProviderExhaustedError);
+    expect(isHandoffTriggerEligible(err)).toBe(false);
+    expect(String(err.message)).toMatch(re);
   });
 });

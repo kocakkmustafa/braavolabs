@@ -1062,13 +1062,17 @@ export async function runProviderAgentLoop(
             { tenantId: cbTenant, provider: callConfig.provider, cls, err },
             "Local provider failed (SEC-BRA-04) — no cloud failover",
           );
-          // Explicit local-provider error only for unreachable/timeout (TRANSIENT);
-          // auth/quota errors (e.g. CUSTOM 401) fall through to the real error path.
+          // Plain Error (NOT ProviderExhaustedError): a local-started chain must
+          // never be handoff-eligible, or a cloud target could be offered.
           if (cls === "TRANSIENT") {
             throw new Error(
               `Yerel sağlayıcı erişilemez (${callConfig.provider}). Sunucunun çalıştığını ve erişilebilir olduğunu kontrol edin; veriler bulut sağlayıcıya otomatik gönderilmez.`,
             );
           }
+          const cause = (err instanceof Error ? err.message : String(err)).slice(0, 200);
+          throw new Error(
+            `Yerel sağlayıcı hatası (${callConfig.provider}, ${cls}): ${cause}. Veriler bulut sağlayıcıya otomatik gönderilmez.`,
+          );
         }
         if (pendingLinks.length === 0) {
           throw ProviderExhaustedError.wrap(cls, callConfig.provider, callConfig.model, err);
