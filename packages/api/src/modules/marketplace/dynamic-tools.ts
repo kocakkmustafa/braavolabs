@@ -28,6 +28,7 @@ import { callTool, type McpTool } from "../../lib/mcp";
 import type { ToolDefinition } from "../agent/registry";
 import { deriveConnectorToolMeta } from "./connector-tool-risk";
 import { AppError } from "../../middleware/error";
+import { checkConnectorCallAllowed } from "./connector-lifecycle";
 import { logger } from "../../lib/logger";
 
 const TOOL_PREFIX = "mcp_";
@@ -90,6 +91,10 @@ export async function executeMcpTool(
   if (!install) {
     return { error: `Connector "${connectorSlug}" is not installed or is disabled for this tenant.` };
   }
+  // SEC-BRA-03: revoked / audience-mismatch / out-of-scope → refuse before
+  // any credential is decrypted or sent.
+  const denied = checkConnectorCallAllowed(install, remoteToolName);
+  if (denied) return { error: denied };
   // Spend cap check.
   if (install.spendCapUsd && Number(install.spendUsd) >= Number(install.spendCapUsd)) {
     return {

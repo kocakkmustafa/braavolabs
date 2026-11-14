@@ -1236,6 +1236,12 @@ model TenantConnector {
   // connector that loops on its own paid tools.
   spendCapUsd  Decimal? @map("spend_cap_usd") @db.Decimal(10, 2)
   spendUsd     Decimal  @default(0) @map("spend_usd") @db.Decimal(10, 2)
+  // SEC-BRA-03: allowed remote tool names (empty = unrestricted, legacy
+  // behaviour), the MCP server origin the credentials are bound to, and
+  // the revoke timestamp (non-null = credentials destroyed, calls refused).
+  scopes       String[] @default([])
+  audience     String?
+  revokedAt    DateTime? @map("revoked_at")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 

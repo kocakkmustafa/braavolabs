@@ -9,6 +9,7 @@
  *   GET    /marketplace/installed            list this tenant's installs
  *   POST   /marketplace/connectors/:slug/install   { credentials, spendCapUsd? }
  *   POST   /marketplace/connectors/:slug/refresh   re-fetch the live manifest
+ *   POST   /marketplace/connectors/:slug/revoke    destroy credentials + disable
  *   POST   /marketplace/connectors/:slug/uninstall
  *
  * Publisher surfaces (auth required):
@@ -32,6 +33,7 @@ import { assertSafeExternalUrl, SsrfError } from "../../lib/ssrf";
 import { listTools, type McpTool } from "../../lib/mcp";
 import { connectorManifestSchema } from "@ai-company-os/connector-sdk";
 import { signManifest, verifyManifest, isSignedManifest } from "./manifest-signature";
+import { refreshInstall, revokeInstall, audienceOf } from "./connector-lifecycle";
 import { claimQuota } from "../billing/metering";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { PLAN_LIMITS } from "@ai-company-os/core";
@@ -103,6 +105,8 @@ tenantRouter.use(authMiddleware);
 const installSchema = z.object({
   credentials: z.record(z.string(), z.string()).default({}),
   spendCapUsd: z.number().min(0.01).max(10_000).nullable().optional(),
+  // Allowed remote tool names; empty/omitted = unrestricted (legacy).
+  scopes: z.array(z.string().min(1).max(120)).max(200).default([]),
 });
 
 function aadFor(tenantId: string, connectorId: string): string {
@@ -199,12 +203,17 @@ tenantRouter.post("/connectors/:slug/install", async (req, res, next) => {
         cachedToolsManifest: manifest as any,
         cachedAt: new Date(),
         spendCapUsd: body.spendCapUsd ?? null,
+        scopes: body.scopes,
+        audience: audienceOf(connector.mcpServerUrl),
       },
       update: {
         encryptedCredentials,
         cachedToolsManifest: manifest as any,
         cachedAt: new Date(),
         spendCapUsd: body.spendCapUsd ?? null,
+        scopes: body.scopes,
+        audience: audienceOf(connector.mcpServerUrl),
+        revokedAt: null,
         isEnabled: true,
       },
     });
@@ -228,45 +237,15 @@ tenantRouter.post("/connectors/:slug/install", async (req, res, next) => {
 
 tenantRouter.post("/connectors/:slug/refresh", async (req, res, next) => {
   try {
-    const connector = await prisma.connector.findUnique({ where: { slug: req.params.slug } });
-    if (!connector) throw new AppError(404, "Connector not found");
-    const install = await prisma.tenantConnector.findUnique({
-      where: { tenantId_connectorId: { tenantId: req.auth!.tenantId, connectorId: connector.id } },
-    });
-    if (!install) throw new AppError(404, "Connector not installed");
-    let creds: Record<string, string> | undefined;
-    try {
-      creds = JSON.parse(decrypt(install.encryptedCredentials, aadFor(req.auth!.tenantId, connector.id)));
-    } catch {
-      throw new AppError(500, "Failed to decrypt connector credentials");
-    }
-    const tools = await listTools(connector.mcpServerUrl, connector.authMethod, creds);
+    const { toolCount } = await refreshInstall(req.auth!.tenantId, req.params.slug);
+    res.json({ success: true, toolCount });
+  } catch (err) { next(err); }
+});
 
-    // ── Manifest HMAC verification (E5/T5) ───────────────────────
-    // Refresh is the exact post-approval-swap attack surface: a publisher
-    // changes the MCP server's tool set after approval and every tenant's
-    // refresh silently pulls it. Verify the re-probed surface against the
-    // signed manifest; a mismatch refuses to cache the tampered tools.
-    if (isSignedManifest(connector.manifestSignature)) {
-      const ok = verifyManifest(connector.publisherTenantId ?? "", connector.manifestSignature, {
-        slug: connector.slug,
-        version: connector.version,
-        tools,
-      });
-      if (!ok) {
-        throw new AppError(
-          409,
-          "Connector manifest signature mismatch — the live tool set does not match the signed manifest. " +
-            "Refresh refused; the connector may have been tampered with after publish.",
-        );
-      }
-    }
-
-    await prisma.tenantConnector.update({
-      where: { id: install.id },
-      data: { cachedToolsManifest: tools as any, cachedAt: new Date() },
-    });
-    res.json({ success: true, toolCount: tools.length });
+tenantRouter.post("/connectors/:slug/revoke", async (req, res, next) => {
+  try {
+    const { revokedAt } = await revokeInstall(req.auth!.tenantId, req.auth!.userId, req.params.slug);
+    res.json({ success: true, revokedAt });
   } catch (err) { next(err); }
 });
 
