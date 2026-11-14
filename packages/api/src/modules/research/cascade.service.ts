@@ -59,7 +59,7 @@
 
 import { runAgentLoop } from "../agent/claude";
 import { AppError } from "../../middleware/error";
-import { listTenantProviderLinks, type ProviderChainLink } from "../../services/provider-chain";
+import { listTenantProviderLinks, isCloudBlockedByLocalDefault, LOCAL_DEFAULT_CLOUD_BLOCKED_MESSAGE, type ProviderChainLink } from "../../services/provider-chain";
 import { resolveModelSelections, type ModelSelection } from "../../services/multi-model";
 import {
   runCascade,
@@ -250,6 +250,9 @@ export async function runTenantSelectedCascade(
   try {
     selected = resolveModelSelections(links, [accepted], 1);
   } catch {
+    if (await isCloudBlockedByLocalDefault(tenantId, accepted.provider)) {
+      throw new AppError(400, LOCAL_DEFAULT_CLOUD_BLOCKED_MESSAGE);
+    }
     throw new AppError(400, "Model selection is unavailable or unsupported for this tenant");
   }
   const result = await runCascadeWithLinks(prompt, selected, opts, accepted);
