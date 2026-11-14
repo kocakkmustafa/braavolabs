@@ -89,10 +89,13 @@ export const OUTBOUND_TOOL_GATES: Readonly<Record<string, readonly OutboundFeatu
  * connector slug / display name (a deploy-looking connector taints ALL its
  * tools; fail closed, no allowlist).
  *
- * Normalisation before matching (input is clipped FIRST so cost is bounded):
- * strip format/combining chars (ZWSP, soft hyphen, ...), NFKC, a small
+ * Normalisation before matching: strip format/combining chars (ZWSP, soft hyphen, ...), NFKC, a small
  * Cyrillic/Greek look-alike map, camelCase splitting (`PRMerge`, `mergePR`)
  * and leet folding (0->o 1->i|l 3->e 4->a 5->s 7->t $->s @->a).
+ * Cost is bounded without ever skipping text: a name over 512 chars or a
+ * description over 256 KiB is a match (fail closed); everything else is
+ * scanned in full, after folding, in 4000-char windows with 64-char overlap
+ * (a verb or joined match split by a window edge falls inside the overlap).
  *
  * Name blocking rules:
  *  - folds to deploy/merge (also homoglyph-only names such as an all-Cyrillic
@@ -110,9 +113,10 @@ export const OUTBOUND_TOOL_GATES: Readonly<Record<string, readonly OutboundFeatu
  */
 const NAME_EXACT = new Set(["rollout", "rollback", "release", "promote"]);
 
-const MAX_NAME = 200;
-const MAX_DESC_HEAD = 4000;
-const MAX_DESC_TAIL = 1000;
+const MAX_NAME = 512;
+const MAX_DESC = 256 * 1024;
+const WINDOW = 4000;
+const OVERLAP = 64;
 
 const CONFUSABLES: Record<string, string> = {
   "а": "a", "е": "e", "о": "o", "р": "p", "с": "c", "у": "y", "х": "x", "і": "i",
@@ -122,16 +126,6 @@ const CONFUSABLES: Record<string, string> = {
   "υ": "u", "χ": "x", "δ": "d", "μ": "m",
 };
 const LEET: Record<string, string> = { "0": "o", "3": "e", "4": "a", "5": "s", "7": "t", $: "s", "@": "a" };
-
-function clipName(text: string): string {
-  return text.length > MAX_NAME ? text.slice(0, MAX_NAME) : text;
-}
-
-/** Head + tail of an over-long description so a verb hidden in the tail is still seen. */
-function clipDescription(text: string): string {
-  if (text.length <= MAX_DESC_HEAD + MAX_DESC_TAIL) return text;
-  return `${text.slice(0, MAX_DESC_HEAD)} ${text.slice(-MAX_DESC_TAIL)}`;
-}
 
 function stripInvisible(text: string): string {
   return text.replace(/[\p{Cf}\p{M}]/gu, "");
@@ -187,13 +181,23 @@ function joinedMergeHit(tokens: string[]): boolean {
   return false;
 }
 
-function textHits(folded: string, isName: boolean): boolean {
+function windowHits(folded: string, isName: boolean): boolean {
   for (const tokens of tokenVariants(folded)) {
     if (tokens.some((t) => isDeployToken(t) || isMergeToken(t))) return true;
     if (isName && tokens.some((t) => NAME_EXACT.has(t))) return true;
     // Squashed (`deployprod`, `d-e-p-l-o-y`).
     if (tokens.join("").includes("deploy")) return true;
     if (joinedMergeHit(tokens)) return true;
+  }
+  return false;
+}
+
+/** textHits over the FULL folded text, in overlapping windows (split AFTER folding). */
+function textHits(folded: string, isName: boolean): boolean {
+  if (folded.length <= WINDOW) return windowHits(folded, isName);
+  for (let start = 0; start < folded.length; start += WINDOW - OVERLAP) {
+    if (windowHits(folded.slice(start, start + WINDOW), isName)) return true;
+    if (start + WINDOW >= folded.length) break;
   }
   return false;
 }
@@ -210,10 +214,11 @@ export function isDeployMergeTool(toolName: unknown, remoteDescription?: unknown
   // Anything that is not a string cannot be classified: fail closed, never throw.
   if (typeof toolName !== "string") return true;
   if (remoteDescription !== undefined && typeof remoteDescription !== "string") return true;
-  const clipped = clipName(toolName);
-  if (mixesScripts(clipped)) return true;
-  if (textHits(foldBase(clipped), true)) return true;
-  return typeof remoteDescription === "string" && textHits(foldBase(clipDescription(remoteDescription)), false);
+  if (toolName.length > MAX_NAME) return true;
+  if (typeof remoteDescription === "string" && remoteDescription.length > MAX_DESC) return true;
+  if (mixesScripts(toolName)) return true;
+  if (textHits(foldBase(toolName), true)) return true;
+  return typeof remoteDescription === "string" && textHits(foldBase(remoteDescription), false);
 }
 
 export interface ToolCallGateOpts {

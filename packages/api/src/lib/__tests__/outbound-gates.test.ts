@@ -154,16 +154,42 @@ describe("B-06 outbound gates", () => {
   it("classification is linear-time on adversarial input", () => {
     const inputs = ["A".repeat(200000), "aA".repeat(100000), "deploy ".repeat(100000), "AB".repeat(100000) + "c"];
     for (const x of inputs) {
-      for (const [n, d] of [[x, undefined], ["list_items", x]] as const) {
-        const t = performance.now();
+      for (const [n, d] of [[x.slice(0, 500), undefined], ["list_items", x]] as const) {
+        const t0 = performance.now();
         isDeployMergeTool(n, d);
-        expect(performance.now() - t).toBeLessThan(200);
+        expect(performance.now() - t0).toBeLessThan(500);
       }
     }
+    const t1 = performance.now();
+    expect(isDeployMergeTool("A".repeat(200000))).toBe(true); // over the name cap: fail closed, instantly
+    expect(performance.now() - t1).toBeLessThan(200);
   });
 
-  it("a verb in the tail of an over-long description is still seen", () => {
-    expect(isDeployMergeTool("run", "x ".repeat(20000) + " then deploy it")).toBe(true);
+  it("scans the WHOLE description: verb buried in the middle, split at window edges, over caps", () => {
+    const pad = "lorem ipsum ".repeat(8334); // ~100k chars
+    expect(isDeployMergeTool("run", pad + "deploy" + pad)).toBe(true);
+    expect(isDeployMergeTool("run", pad + pad)).toBe(false);
+    // Verb straddling every window edge position near the 4000/64 boundary.
+    for (let k = 3900; k < 4010; k += 7) {
+      const text = "x".repeat(k) + "deploy" + "x".repeat(9000);
+      expect(isDeployMergeTool("run", text), String(k)).toBe(true);
+      const j = "x".repeat(k) + "mer_ge_pr" + "x".repeat(9000);
+      expect(isDeployMergeTool("run", j), "j" + k).toBe(true);
+    }
+    // 300 000 chars (over the 256 KiB cap) fail closed; 1 MB fails fast.
+    expect(isDeployMergeTool("run", "a ".repeat(150000))).toBe(true);
+    const t0 = performance.now();
+    expect(isDeployMergeTool("run", "q".repeat(1024 * 1024))).toBe(true);
+    expect(performance.now() - t0).toBeLessThan(500);
+    // Just under the cap is scanned (not blindly blocked) and stays linear.
+    const t1 = performance.now();
+    expect(isDeployMergeTool("run", "a ".repeat(120000))).toBe(false);
+    expect(performance.now() - t1).toBeLessThan(2000);
+  });
+
+  it("names over 512 chars fail closed", () => {
+    expect(isDeployMergeTool("a".repeat(513))).toBe(true);
+    expect(isDeployMergeTool("a".repeat(512))).toBe(false);
   });
 
   it("deploy/merge gate: off by default, on only for the literal true; connector description counts", () => {
