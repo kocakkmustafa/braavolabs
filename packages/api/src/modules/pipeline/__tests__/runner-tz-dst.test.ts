@@ -4,12 +4,12 @@
  *  - `tz` passed to BullMQ upsertJobScheduler is env.SCHEDULER_TZ verbatim
  *    (Europe/Istanbul included).
  *  - Invalid cron is skipped (no upsert); invalid tz is NOT pre-validated by
- *    the app — BullMQ's rejection propagates to the caller.
- *  - DST transitions are delegated to BullMQ (cron-parser): the app does no
- *    DST arithmetic. Same pattern + tz option is passed through unchanged
- *    regardless of the date (spring-forward / fall-back), and no offset or
- *    UTC conversion is applied.
+ *    the app — whatever BullMQ rejects with propagates to the caller.
+ *  - DST is delegated to BullMQ (cron-parser): registerSchedule is
+ *    date-independent and does no DST math. REAL DST behaviour is exercised
+ *    directly against cron-parser (the library BullMQ uses).
  */
+import { createRequire } from "node:module";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
 const scheduleQueueMock = vi.hoisted(() => ({
@@ -30,6 +30,17 @@ vi.mock("../../../lib/logger", () => ({
 vi.mock("../../../config/env", () => ({ env: envMock }));
 
 import { registerSchedule } from "../runner";
+import { logger } from "../../../lib/logger";
+
+// cron-parser is BullMQ's own (transitive) dependency, not ours. Resolve it
+// through bullmq so no new dependency / lockfile change is needed.
+const bullmqRequire = createRequire(createRequire(import.meta.url).resolve("bullmq"));
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const cronParser: any = bullmqRequire("cron-parser");
+const nextFires = (pattern: string, tz: string, from: string, n: number): string[] => {
+  const it = cronParser.parseExpression(pattern, { currentDate: new Date(from), tz });
+  return Array.from({ length: n }, () => it.next().toDate().toISOString());
+};
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -60,65 +71,92 @@ describe("registerSchedule — tz option", () => {
 });
 
 describe("registerSchedule — invalid input", () => {
-  it.each(["not a cron", "99 * * * *", "* * *", ""])(
-    "rejects invalid cron %j without calling BullMQ",
+  it.each(["not a cron", "99 * * * *", "* * *"])(
+    "skips invalid cron %j without calling BullMQ and warns",
     async (schedule) => {
       await registerSchedule({ id: "pipe-bad", schedule });
       expect(scheduleQueueMock.upsertJobScheduler).not.toHaveBeenCalled();
+      expect(logger.warn).toHaveBeenCalledTimes(1);
     },
   );
 
-  it("invalid tz is not pre-validated; BullMQ's rejection propagates", async () => {
+  it("skips an empty schedule string (short-circuits on !schedule, before cron.validate)", async () => {
+    await registerSchedule({ id: "pipe-empty", schedule: "" });
+    expect(scheduleQueueMock.upsertJobScheduler).not.toHaveBeenCalled();
+    expect(logger.warn).toHaveBeenCalledTimes(1);
+  });
+
+  // NOTE: this proves only that registerSchedule does not swallow/pre-validate
+  // tz errors (error propagation with a MOCKED rejection). It is NOT evidence
+  // of BullMQ's real rejection; see the cron-parser test below for that.
+  it("invalid tz: app does not pre-validate; a (mocked) BullMQ rejection propagates", async () => {
     envMock.SCHEDULER_TZ = "Mars/Olympus_Mons";
     scheduleQueueMock.upsertJobScheduler.mockRejectedValueOnce(new Error("Invalid time zone"));
 
     await expect(registerSchedule({ id: "pipe-badtz", schedule: "0 9 * * *" })).rejects.toThrow(
       "Invalid time zone",
     );
-    expect(scheduleQueueMock.upsertJobScheduler).toHaveBeenCalledTimes(1);
     expect(scheduleQueueMock.upsertJobScheduler.mock.calls[0]![1]).toEqual({
       pattern: "0 9 * * *",
       tz: "Mars/Olympus_Mons",
     });
   });
+
+  it("cron-parser (BullMQ's engine) really rejects an unknown tz", () => {
+    expect(() => nextFires("0 9 * * *", "Mars/Olympus_Mons", "2026-03-01T00:00:00Z", 1)).toThrow();
+  });
 });
 
-describe("registerSchedule — DST is left to BullMQ", () => {
-  // 2026 Europe/Berlin-style transitions; Istanbul has no DST (fixed +03),
-  // but the app must behave identically for any IANA zone.
-  const dates = [
-    ["spring-forward", "2026-03-29T00:30:00Z"],
-    ["fall-back", "2026-10-25T00:30:00Z"],
-    ["ordinary day", "2026-07-01T12:00:00Z"],
-  ] as const;
-
-  it.each(dates)(
-    "%s: option is passed unchanged, no app-side DST/offset math",
-    async (_label, iso) => {
+describe("registerSchedule — date-independent tz pass-through", () => {
+  it.each(["2026-03-08T00:00:00Z", "2026-11-01T00:00:00Z", "2026-07-01T12:00:00Z"])(
+    "at %s the repeat options are identical: only {pattern, tz}, no app-side DST math",
+    async (iso) => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date(iso));
-      envMock.SCHEDULER_TZ = "Europe/Berlin";
-
-      // 02:30 local does not exist on spring-forward and occurs twice on fall-back.
+      envMock.SCHEDULER_TZ = "America/New_York";
       await registerSchedule({ id: "pipe-dst", schedule: "30 2 * * *" });
-
-      const [, repeat] = scheduleQueueMock.upsertJobScheduler.mock.calls[0]!;
-      expect(repeat).toEqual({ pattern: "30 2 * * *", tz: "Europe/Berlin" });
-      // Only pattern + tz are handed over: no startDate/offset/utc rewrite.
-      expect(Object.keys(repeat).sort()).toEqual(["pattern", "tz"]);
+      expect(scheduleQueueMock.upsertJobScheduler.mock.calls[0]![1]).toEqual({
+        pattern: "30 2 * * *",
+        tz: "America/New_York",
+      });
     },
   );
+});
 
-  it("re-registering across a DST boundary yields identical repeat options", async () => {
-    vi.useFakeTimers();
-    envMock.SCHEDULER_TZ = "Europe/Berlin";
+describe("DST handled by cron-parser (BullMQ's engine), not by the app", () => {
+  it("America/New_York spring-forward 2026-03-08: nonexistent 02:30 local still fires once (as 03:30 EDT)", () => {
+    const fires = nextFires("30 2 * * *", "America/New_York", "2026-03-07T12:00:00Z", 3);
+    expect(fires).toEqual([
+      "2026-03-08T07:30:00.000Z", // observed cron-parser behaviour: 02:30 EST-equivalent instant = 03:30 EDT
+      "2026-03-09T06:30:00.000Z", // 02:30 EDT (-04)
+      "2026-03-10T06:30:00.000Z",
+    ]);
+  });
 
-    vi.setSystemTime(new Date("2026-03-28T12:00:00Z"));
-    await registerSchedule({ id: "pipe-dst", schedule: "30 2 * * *" });
-    vi.setSystemTime(new Date("2026-03-30T12:00:00Z"));
-    await registerSchedule({ id: "pipe-dst", schedule: "30 2 * * *" });
+  it("America/New_York offset changes across the boundary for '0 9 * * *'", () => {
+    const fires = nextFires("0 9 * * *", "America/New_York", "2026-03-07T00:00:00Z", 3);
+    expect(fires).toEqual([
+      "2026-03-07T14:00:00.000Z", // 09:00 EST (-05)
+      "2026-03-08T13:00:00.000Z", // 09:00 EDT (-04)
+      "2026-03-09T13:00:00.000Z",
+    ]);
+  });
 
-    const [a, b] = scheduleQueueMock.upsertJobScheduler.mock.calls;
-    expect(a![1]).toEqual(b![1]);
+  it("America/New_York fall-back 2026-11-01: wall-clock '0 9 * * *' shifts from EDT to EST", () => {
+    const fires = nextFires("0 9 * * *", "America/New_York", "2026-10-31T00:00:00Z", 3);
+    expect(fires).toEqual([
+      "2026-10-31T13:00:00.000Z", // EDT (-04)
+      "2026-11-01T14:00:00.000Z", // EST (-05)
+      "2026-11-02T14:00:00.000Z",
+    ]);
+  });
+
+  it("Europe/Istanbul has no DST: fixed +03 all year", () => {
+    const summer = nextFires("0 9 * * *", "Europe/Istanbul", "2026-07-01T00:00:00Z", 1);
+    const winter = nextFires("0 9 * * *", "Europe/Istanbul", "2026-01-15T00:00:00Z", 1);
+    expect(summer).toEqual(["2026-07-01T06:00:00.000Z"]);
+    expect(winter).toEqual(["2026-01-15T06:00:00.000Z"]);
+    const across = nextFires("0 9 * * *", "Europe/Istanbul", "2026-03-07T00:00:00Z", 3);
+    expect(across.every((f) => f.endsWith("T06:00:00.000Z"))).toBe(true);
   });
 });
