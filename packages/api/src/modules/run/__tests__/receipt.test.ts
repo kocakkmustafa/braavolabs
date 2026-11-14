@@ -369,7 +369,7 @@ describe("BRA-P0-06c — adım başına sağlayıcı/model", () => {
     expect(vals).toContain("t7");
     expect(create.mock.calls[0][0].data.evidence).toEqual([{ kind: "step", ref: "step:0", provider: "anthropic", model: "m" }]);
   });
-  it("writeReceipt: $queryRaw yoksa ya da düşerse makbuz yine yazılır (step öğesiz)", async () => {
+  it("writeReceipt: $queryRaw yoksa (sahte istemci) ya da düşerse (savepoint yok) makbuz yine yazılır, step öğesiz", async () => {
     const { writeReceipt } = await import("../receipt");
     const mk = (extra: object) => {
       const create = vi.fn().mockResolvedValue({ id: "rc" });
@@ -380,6 +380,42 @@ describe("BRA-P0-06c — adım başına sağlayıcı/model", () => {
     const b = mk({ $queryRaw: vi.fn().mockRejectedValue(new Error("boom")) });
     expect((await writeReceipt(b.client, "r", "COMPLETED", "t")).written).toBe(true);
     expect(b.create.mock.calls[0][0].data.evidence).toEqual([]);
+  });
+  it("SAVEPOINT: sorgu kendi savepoint'inde koşar (SAVEPOINT → sorgu → RELEASE)", async () => {
+    const { writeReceipt } = await import("../receipt");
+    const order: string[] = [];
+    const $executeRawUnsafe = vi.fn(async (sql: string) => { order.push(sql); });
+    const $queryRaw = vi.fn(async () => { order.push("QUERY"); return [{ stepIndex: 0, status: "COMPLETED", provider: "p", model: "m" }]; });
+    const create = vi.fn(async () => { order.push("CREATE"); return { id: "rc" }; });
+    const client = { run: { findFirst: vi.fn().mockResolvedValue({ costUsd: null, input: {}, retryCount: 0, approvals: [], steps: [] }) }, $executeRawUnsafe, $queryRaw, jobReceipt: { findFirst: vi.fn().mockResolvedValue(null), create } };
+    expect((await writeReceipt(client, "r", "COMPLETED", "t")).written).toBe(true);
+    expect(order).toEqual(["SAVEPOINT receipt_steps", "QUERY", "RELEASE SAVEPOINT receipt_steps", "CREATE"]);
+  });
+  it("SAVEPOINT: sorgu hatasında ROLLBACK TO SAVEPOINT çağrılır, uyarı basılır ve makbuz yazımı (findFirst/create) devam eder", async () => {
+    const { writeReceipt } = await import("../receipt");
+    const { logger } = await import("../../../lib/logger");
+    const order: string[] = [];
+    const $executeRawUnsafe = vi.fn(async (sql: string) => { order.push(sql); });
+    const $queryRaw = vi.fn(async () => { order.push("QUERY"); throw new Error("25P02-benzeri"); });
+    const existing = vi.fn(async () => { order.push("FIND"); return null; });
+    const create = vi.fn(async () => { order.push("CREATE"); return { id: "rc" }; });
+    const client = { run: { findFirst: vi.fn().mockResolvedValue({ costUsd: null, input: {}, retryCount: 0, approvals: [], steps: [] }) }, $executeRawUnsafe, $queryRaw, jobReceipt: { findFirst: existing, create } };
+    const r = await writeReceipt(client, "r", "COMPLETED", "t");
+    expect(r.written).toBe(true);
+    expect(order).toEqual(["SAVEPOINT receipt_steps", "QUERY", "ROLLBACK TO SAVEPOINT receipt_steps", "FIND", "CREATE"]);
+    expect(order).not.toContain("RELEASE SAVEPOINT receipt_steps");
+    expect(logger.warn).toHaveBeenCalled();
+    expect(create.mock.calls[0][0].data.evidence).toEqual([]);
+  });
+  it("SQL yalnız JSON string provider/model alır (jsonb_typeof koşulu)", async () => {
+    const { writeReceipt } = await import("../receipt");
+    const $queryRaw = vi.fn().mockResolvedValue([]);
+    const client = { run: { findFirst: vi.fn().mockResolvedValue({ costUsd: null, input: {}, retryCount: 0, approvals: [], steps: [] }) }, $queryRaw, jobReceipt: { findFirst: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({ id: "x" }) } };
+    await writeReceipt(client, "r", "COMPLETED", "t");
+    const sql = ($queryRaw.mock.calls[0] as unknown as [string[]])[0].join("?");
+    expect(sql).toContain("jsonb_typeof(rs.output->'provider') = 'string'");
+    expect(sql).toContain("jsonb_typeof(rs.output->'model') = 'string'");
+    expect(sql).toMatch(/CASE WHEN jsonb_typeof\(rs\.output->'provider'\) = 'string' THEN rs\.output->>'provider' END/);
   });
   it("geri uyum: step öğesi içermeyen eski makbuz satırı aynen okunur", () => {
     const row = {

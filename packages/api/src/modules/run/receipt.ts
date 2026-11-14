@@ -25,6 +25,7 @@
  */
 import { createHash } from "node:crypto";
 import type { JobReceipt, JobReceiptEvidence, JobReceiptEvidenceKind } from "@ai-company-os/core";
+import { logger } from "../../lib/logger";
 import { deriveResultStatus, type JobState, type ResultStatus } from "./job-state";
 
 /** Makbuz yazılan sonuç durumları. */
@@ -313,20 +314,39 @@ const STEP_MODEL_ROW_LIMIT = 500;
  */
 export async function loadStepModels(client: ReceiptClient, runId: string, tenantId: string): Promise<StepModelRow[]> {
   if (!client.$queryRaw) return [];
+  // Gerçek Postgres interaktif tx'inde (transition.ts tryWriteReceipt SAVEPOINT'i içinde) sorgu
+  // hatası tx'i abort eder (25P02): yutmak yetmez, sonraki findFirst/create düşer. Bu yüzden
+  // sorgu kendi SAVEPOINT'inde koşar; desen tryWriteReceipt ile aynıdır (düz prisma/sahte
+  // istemcide `$transaction` var ya da `$executeRawUnsafe` yok → savepoint yok, eski davranış).
+  const raw = (client as unknown as { $executeRawUnsafe?: (sql: string) => PromiseLike<unknown> }).$executeRawUnsafe;
+  const useSavepoint = typeof raw === "function" && typeof (client as unknown as { $transaction?: unknown }).$transaction !== "function";
+  const exec = (sql: string) => (raw as (sql: string) => PromiseLike<unknown>).call(client, sql);
   try {
-    const rows = (await client.$queryRaw`
-      SELECT rs.step_index AS "stepIndex", rs.status::text AS "status",
-             rs.output->>'provider' AS "provider", rs.output->>'model' AS "model"
-      FROM run_steps rs
-      JOIN runs r ON r.id = rs.run_id
-      JOIN pipelines p ON p.id = r.pipeline_id
-      JOIN companies c ON c.id = p.company_id
-      WHERE rs.run_id = ${runId} AND c.tenant_id = ${tenantId}
-        AND (rs.output->>'provider' IS NOT NULL OR rs.output->>'model' IS NOT NULL)
-      ORDER BY rs.step_index ASC, rs.created_at ASC
-      LIMIT ${STEP_MODEL_ROW_LIMIT}`) as StepModelRow[];
+    if (useSavepoint) await exec("SAVEPOINT receipt_steps");
+    let rows: StepModelRow[];
+    try {
+      // `->>` nesne/sayıyı metne çevirir; yalnız JSON string değerler alınır.
+      rows = (await client.$queryRaw`
+        SELECT rs.step_index AS "stepIndex", rs.status::text AS "status",
+               CASE WHEN jsonb_typeof(rs.output->'provider') = 'string' THEN rs.output->>'provider' END AS "provider",
+               CASE WHEN jsonb_typeof(rs.output->'model') = 'string' THEN rs.output->>'model' END AS "model"
+        FROM run_steps rs
+        JOIN runs r ON r.id = rs.run_id
+        JOIN pipelines p ON p.id = r.pipeline_id
+        JOIN companies c ON c.id = p.company_id
+        WHERE rs.run_id = ${runId} AND c.tenant_id = ${tenantId}
+          AND (jsonb_typeof(rs.output->'provider') = 'string' OR jsonb_typeof(rs.output->'model') = 'string')
+        ORDER BY rs.step_index ASC, rs.created_at ASC
+        LIMIT ${STEP_MODEL_ROW_LIMIT}`) as StepModelRow[];
+    } catch (err) {
+      if (useSavepoint) await exec("ROLLBACK TO SAVEPOINT receipt_steps");
+      throw err;
+    }
+    if (useSavepoint) await exec("RELEASE SAVEPOINT receipt_steps");
     return Array.isArray(rows) ? rows : [];
-  } catch {
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    logger.warn({ runId, err: message }, "Receipt step model query failed — receipt written without step entries");
     return [];
   }
 }
