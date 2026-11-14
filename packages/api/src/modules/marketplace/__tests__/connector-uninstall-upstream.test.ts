@@ -29,6 +29,7 @@ const dbMock = {
     deleteMany: async ({ where }: any) => {
       deleteSpy(where);
       if (where.tenantId !== row.tenantId) return { count: 0 };
+      if (where.revokedAt?.not === null && !row.revokedAt) return { count: 0 };
       flags.deleted = true;
       return { count: 1 };
     },
@@ -84,7 +85,7 @@ describe("uninstall upstream revoke", () => {
     await uninstallInstall("t1", "u1", "acme");
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(new URLSearchParams(fetchMock.mock.calls[0]![1].body).get("token")).toBe("RT-SECRET");
-    expect(deleteSpy).toHaveBeenCalledWith({ tenantId: "t1", connectorId: "conn-1" });
+    expect(deleteSpy).toHaveBeenCalledWith({ tenantId: "t1", connectorId: "conn-1", revokedAt: { not: null } });
     expect(flags.deleted).toBe(true);
     expect(activityCreate).toHaveBeenCalledTimes(1);
     expect(activityCreate.mock.calls[0]![0].data.action).toBe("marketplace.revoke");
@@ -129,6 +130,29 @@ describe("uninstall upstream revoke", () => {
     expect(deleteSpy).not.toHaveBeenCalled();
     expect(flags.deleted).toBe(false);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("re-install during upstream call: new install is NOT deleted, still success", async () => {
+    fetchMock.mockImplementation(async () => {
+      Object.assign(row, { revokedAt: null, isEnabled: true }); // install upsert
+      return { ok: true, status: 200 };
+    });
+    await expect(uninstallInstall("t1", "u1", "acme")).resolves.toBeUndefined();
+    expect(deleteSpy).toHaveBeenCalledTimes(1);
+    expect(flags.deleted).toBe(false);
+    expect(row.revokedAt).toBeNull();
+  });
+
+  it("concurrent uninstall: revoke 404 -> idempotent success, no delete", async () => {
+    const orig = dbMock.tenantConnector.findUnique;
+    let n = 0;
+    dbMock.tenantConnector.findUnique = async (a: any) => (n++ === 0 ? orig(a) : null);
+    try {
+      await expect(uninstallInstall("t1", "u1", "acme")).resolves.toBeUndefined();
+    } finally {
+      dbMock.tenantConnector.findUnique = orig;
+    }
+    expect(deleteSpy).not.toHaveBeenCalled();
   });
 
   it("tenant isolation: other tenant's install untouched, upstream not called", async () => {

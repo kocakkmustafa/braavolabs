@@ -267,6 +267,17 @@ export async function uninstallInstall(tenantId: string, actor: string, slug: st
     where: { tenantId_connectorId: { tenantId, connectorId: connector.id } },
   });
   if (!install) return;
-  await revokeInstall(tenantId, actor, slug); // throws 409 => no delete
-  await prisma.tenantConnector.deleteMany({ where: { tenantId, connectorId: connector.id } });
+  try {
+    await revokeInstall(tenantId, actor, slug); // 409 (fail closed) propagates => no delete
+  } catch (e) {
+    // A concurrent uninstall already removed the row: idempotent success.
+    if (e instanceof AppError && e.statusCode === 404) return;
+    throw e;
+  }
+  // Only delete the row WE revoked. A re-install during the (<=5s) upstream call
+  // upserts revokedAt back to null; that fresh install must survive. count 0 is
+  // therefore a normal outcome and uninstall still reports success.
+  await prisma.tenantConnector.deleteMany({
+    where: { tenantId, connectorId: connector.id, revokedAt: { not: null } },
+  });
 }
