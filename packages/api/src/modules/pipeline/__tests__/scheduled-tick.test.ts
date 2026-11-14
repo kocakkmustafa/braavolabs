@@ -52,6 +52,7 @@ const redisMock = vi.hoisted(() => ({ set: vi.fn() }));
 vi.mock("../../../lib/redis", () => ({ redis: redisMock }));
 vi.mock("../../../config/env", () => ({ env: { SCHEDULER_TZ: "UTC" } }));
 
+import { logger } from "../../../lib/logger";
 import { processScheduledTick, getTickDedupErrorCount } from "../runner";
 
 function makeJob(pipelineId = "pipe-1", timestamp = 1_000_000, delay = 60_000) {
@@ -69,7 +70,13 @@ const activePipeline = {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  redisMock.set.mockResolvedValue("OK");
+  // Real SET NX semantics: existing key -> null, else "OK".
+  const store = new Map<string, string>();
+  redisMock.set.mockImplementation(async (k: string, v: string) => {
+    if (store.has(k)) return null;
+    store.set(k, v);
+    return "OK";
+  });
   runQueueMock.add.mockResolvedValue({ id: "job-1" });
   prismaMock.pipeline.update.mockResolvedValue({});
   // enqueueRun's tenant snapshot lookup.
@@ -84,6 +91,7 @@ describe("processScheduledTick — fire-time guards (G3)", () => {
     await processScheduledTick(makeJob());
     expect(claimQuotaMock).not.toHaveBeenCalled();
     expect(prismaMock.run.create).not.toHaveBeenCalled();
+    expect(redisMock.set).not.toHaveBeenCalled();
   });
 
   it("trigger no longer SCHEDULED → no run created", async () => {
@@ -112,13 +120,15 @@ describe("processScheduledTick — fire-time guards (G3)", () => {
     await processScheduledTick(makeJob());
     expect(claimQuotaMock).not.toHaveBeenCalled();
     expect(prismaMock.run.create).not.toHaveBeenCalled();
+    expect(redisMock.set).not.toHaveBeenCalled();
   });
 
-  it("quota exhausted → no run created", async () => {
+  it("quota exhausted → no run created, slot key WAS taken (at-most-once)", async () => {
     prismaMock.pipeline.findUnique.mockResolvedValue(activePipeline);
     claimQuotaMock.mockResolvedValue({ claimed: false, value: 100, limit: 100 });
     await processScheduledTick(makeJob());
     expect(prismaMock.run.create).not.toHaveBeenCalled();
+    expect(redisMock.set).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -176,7 +186,6 @@ describe("processScheduledTick — slot dedup (BRA-P1-04c)", () => {
   });
 
   it("same slot fired twice → one run (second SET NX returns null)", async () => {
-    redisMock.set.mockResolvedValueOnce("OK").mockResolvedValueOnce(null);
     await processScheduledTick(makeJob());
     await processScheduledTick(makeJob());
     expect(prismaMock.run.create).toHaveBeenCalledTimes(1);
@@ -185,6 +194,20 @@ describe("processScheduledTick — slot dedup (BRA-P1-04c)", () => {
     expect(k1).toBe(redisMock.set.mock.calls[1]![0]);
     expect([ex, nx]).toEqual(["EX", "NX"]);
     expect(ttl).toBe(25 * 3600);
+  });
+
+  it("sub-minute cron: two fires 30s apart → two runs (no minute rounding)", async () => {
+    await processScheduledTick(makeJob("pipe-1", 1_000_000, 30_000));
+    await processScheduledTick(makeJob("pipe-1", 1_030_000, 30_000));
+    expect(prismaMock.run.create).toHaveBeenCalledTimes(2);
+  });
+
+  it("no job.timestamp → warn and run without dedup", async () => {
+    const job = { name: "scheduled-run", data: { pipelineId: "pipe-1" }, opts: {} } as any;
+    await processScheduledTick(job);
+    expect(redisMock.set).not.toHaveBeenCalled();
+    expect(prismaMock.run.create).toHaveBeenCalledTimes(1);
+    expect(logger.warn).toHaveBeenCalled();
   });
 
   it("different slots → separate keys and separate runs", async () => {
@@ -211,5 +234,23 @@ describe("processScheduledTick — slot dedup (BRA-P1-04c)", () => {
     expect(claimQuotaMock).not.toHaveBeenCalled();
     expect(prismaMock.run.create).not.toHaveBeenCalled();
     expect(getTickDedupErrorCount()).toBe(before + 1);
+    expect(logger.warn).toHaveBeenCalled();
+  });
+
+  it("Redis never answers → times out after 3s, tick skipped (fail-closed)", async () => {
+    vi.useFakeTimers();
+    try {
+      const before = getTickDedupErrorCount();
+      redisMock.set.mockImplementation(() => new Promise(() => {}));
+      const p = processScheduledTick(makeJob());
+      await vi.advanceTimersByTimeAsync(3_001);
+      await expect(p).resolves.toBeUndefined();
+      expect(claimQuotaMock).not.toHaveBeenCalled();
+      expect(prismaMock.run.create).not.toHaveBeenCalled();
+      expect(getTickDedupErrorCount()).toBe(before + 1);
+      expect(logger.warn).toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -779,33 +779,55 @@ export function getTickDedupErrorCount(): number {
 }
 
 /**
- * The planned fire time of a tick, in epoch ms, rounded to the minute.
+ * The planned fire time of a tick, in exact epoch ms (NO rounding: a
+ * sub-minute cron such as a 6-field node-cron pattern would otherwise collapse
+ * two real fires into one slot).
  *
  * BullMQ JobScheduler creates each tick job at the previous fire with
- * `delay` = ms until the next planned fire, so `timestamp + delay` is the
- * planned slot and is identical for every duplicate/redelivery of that job.
- * If delay is missing, fall back to the job timestamp, then to now.
+ * `delay` = ms until the next planned fire, so `timestamp + delay` is stable
+ * across redeliveries of the same fire. Returns null when the job carries no
+ * timestamp; there is then no stable slot (a `Date.now()` fallback would make
+ * every delivery unique and dedup would silently do nothing).
  */
-export function tickSlotMs(job: Job<ScheduledTickData>): number {
+export function tickSlotMs(job: Job<ScheduledTickData>): number | null {
+  if (typeof job.timestamp !== "number") return null;
   const delay = typeof job.opts?.delay === "number" ? job.opts.delay : 0;
-  const base = typeof job.timestamp === "number" ? job.timestamp + delay : Date.now();
-  return Math.floor(base / 60_000) * 60_000;
+  return job.timestamp + delay;
 }
+
+/** Max wait for the dedup SET. lib/redis uses maxRetriesPerRequest:null + an
+ * offline queue, so with Redis down `set` never rejects; it just waits. */
+const TICK_DEDUP_TIMEOUT_MS = 3_000;
 
 /**
  * Claim (pipelineId, slot) with Redis SET NX EX. true = we own the slot.
- * FAIL-CLOSED: a Redis error skips the tick (a double run spends money; a
- * missed scheduled run is visible and recoverable by a manual run).
+ * FAIL-CLOSED: a Redis error or a timeout skips the tick (a double run spends
+ * money; a missed scheduled run is visible and recoverable by a manual run).
+ * Narrowest acceptable exception: no stable slot (slotMs null) -> warn and
+ * proceed WITHOUT dedup, since there is nothing to key on.
+ * At-most-once by design: if the process dies after the key is taken but
+ * before run.create, that slot is lost. No DEL on failure paths, because
+ * claimQuota has no rollback.
  */
-async function claimTickSlot(pipelineId: string, slotMs: number): Promise<boolean> {
-  try {
-    const res = await redis.set(
-      `pipeline:tick:${pipelineId}:${slotMs}`,
-      "1",
-      "EX",
-      TICK_SLOT_TTL_SECONDS,
-      "NX",
+async function claimTickSlot(pipelineId: string, slotMs: number | null): Promise<boolean> {
+  if (slotMs === null) {
+    logger.warn(
+      { pipelineId },
+      "Scheduled tick has no stable slot (job.timestamp missing) — running WITHOUT dedup",
     );
+    return true;
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const res = await Promise.race([
+      redis.set(`pipeline:tick:${pipelineId}:${slotMs}`, "1", "EX", TICK_SLOT_TTL_SECONDS, "NX"),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`tick dedup SET timed out after ${TICK_DEDUP_TIMEOUT_MS}ms`)),
+          TICK_DEDUP_TIMEOUT_MS,
+        );
+      }),
+    ]);
     return res === "OK";
   } catch (err) {
     tickDedupErrorCount += 1;
@@ -814,6 +836,8 @@ async function claimTickSlot(pipelineId: string, slotMs: number): Promise<boolea
       "Scheduled tick skipped — Redis dedup unavailable (fail-closed)",
     );
     return false;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
 }
 
