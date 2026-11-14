@@ -176,6 +176,19 @@ describe("decide APPROVED (non-HANDOFF)", () => {
     expect(enqueueRunMock).toHaveBeenCalledTimes(1);
   });
 
+  it("SEC-BRA-01: the same APPROVED decide 3x = 1 side effect (one enqueue, one ActivityLog), repeats are 409", async () => {
+    flag(false);
+    const a = addApproval({ id: "a" }); serve(a);
+    const first = await decide("a", "APPROVED");
+    const second = await decide("a", "APPROVED");
+    const third = await decide("a", "APPROVED");
+    expect(first.nextErr).toBeUndefined();
+    expect(second.nextErr?.statusCode).toBe(409);
+    expect(third.nextErr?.statusCode).toBe(409);
+    expect(enqueueRunMock).toHaveBeenCalledTimes(1);
+    expect(activityLogCreate).toHaveBeenCalledTimes(1);
+  });
+
   it("flag ON: NEEDS_APPROVAL → RESUMING → RUNNING in the same tx (ADR-0001 (e)), one enqueue", async () => {
     flag(true);
     setRun("WAITING_APPROVAL", "NEEDS_APPROVAL");
