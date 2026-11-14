@@ -13,6 +13,8 @@
  *   The executor must use paths as-is and never percent-decode them.
  * - Pass `absPath` to APIs with `--` and without a shell. Names starting with
  *   `-` or containing `;`, `$()`, quotes etc. are legal and must stay inert.
+ * - The planner does no real path resolution. On Windows the executor must
+ *   verify the root with GetLongPathName / realpath.native before use.
  * - Symlink safety (lstat / realpath / O_NOFOLLOW) is the executor's job; the
  *   planner only sees strings.
  * - Files flagged `sensitive: true` are allowed but need an extra approval
@@ -104,8 +106,8 @@ const LOOKALIKE_RE = charClass([
   [0x3002], [0xfe52], [0xff0e], [0xff0f], [0xff3c], [0xff61],
 ]);
 const DRIVE_RE = /^[A-Za-z]:/;
-// NTFS 8.3 short names (GIT~1, GITHUB~1, ...): any segment ending in ~N is rejected.
-const SHORT_NAME_RE = /~\d+$/;
+// NTFS 8.3 short names (GIT~1, GITLAB~1.YML, ...): any tilde followed by a digit is rejected.
+const SHORT_NAME_RE = /~\d/;
 const SHORT_GIT_RE = /^git~\d+$/i; // root-only check
 const DEVICE_RE = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
 

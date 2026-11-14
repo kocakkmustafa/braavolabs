@@ -57,7 +57,7 @@ describe("reserved names on root-relative path", () => {
     expect(sub("GIT~1")).toBe("PATH_RESERVED");
   });
   it("accepts false-positive look-alikes", () => {
-    for (const n of ["my.git.txt", "legit/x", "gitlab/ci.yml", "GITHUB.md", "a~1b.txt", ".gitignore", "console/x"]) {
+    for (const n of ["my.git.txt", "legit/x", "gitlab/ci.yml", "GITHUB.md", ".gitignore", "console/x"]) {
       expect(sub(n)).toBe("OK");
     }
   });

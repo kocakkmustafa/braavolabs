@@ -25,7 +25,7 @@ describe("round 3: wider sensitive tree", () => {
     }
   });
   it("does not flag ordinary files", () => {
-    for (const f of [".gitignore", "README.md", "a~1b.txt", "release~notes.md", "src/github/x.ts"]) {
+    for (const f of [".gitignore", "README.md", "release~notes.md", "src/github/x.ts"]) {
       expect(sens(f)).toBe(false);
     }
   });
@@ -33,12 +33,11 @@ describe("round 3: wider sensitive tree", () => {
 
 describe("round 3: 8.3 short names", () => {
   it("rejects segments ending in ~N", () => {
-    for (const f of ["GITHUB~1/workflows/x", "VSCODE~1/tasks.json", "HUSKY~1/pre-commit", "a~1", "sub/GIT~2/config"]) {
+    for (const f of ["GITHUB~1/workflows/x", "VSCODE~1/tasks.json", "HUSKY~1/pre-commit", "a~1", "sub/GIT~2/config", "GITLAB~1.YML", "DOCKER~1.YAM", "PRE-CO~1.YAM", "PNPMFI~1.CJS", "a~1b.txt"]) {
       expect(err(f)).toBe("PATH_RESERVED");
     }
   });
-  it("accepts names where ~ is not at the end", () => {
-    expect(err("a~1b.txt")).toBe("OK");
+  it("accepts tilde not followed by a digit", () => {
     expect(err("release~notes.md")).toBe("OK");
   });
 });
