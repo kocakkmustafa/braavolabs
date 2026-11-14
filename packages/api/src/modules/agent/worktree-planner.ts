@@ -16,7 +16,8 @@
  * - Symlink safety (lstat / realpath / O_NOFOLLOW) is the executor's job; the
  *   planner only sees strings.
  * - Files flagged `sensitive: true` are allowed but need an extra approval
- *   gate before being written.
+ *   gate before being written. Sensitivity is computed on the ROOT-relative
+ *   path (subPath + "/" + path), at any depth.
  */
 import { posix } from "node:path";
 
@@ -93,7 +94,7 @@ function charClass(ranges: Array<[number, number?]>): RegExp {
 const CONTROL_RE = charClass([[0x00, 0x1f], [0x7f, 0x9f]]);
 // Zero-width, bidi and other invisible format characters.
 const INVISIBLE_RE = charClass([
-  [0xad], [0x34f], [0x61c], [0x115f], [0x1160], [0x17b4], [0x17b5], [0x180e],
+  [0xad], [0x34f], [0x61c], [0x115f], [0x1160], [0x17b4], [0x17b5], [0x180b, 0x180e],
   [0x200b, 0x200f], [0x2028, 0x202e], [0x2060, 0x206f], [0x3164],
   [0xfe00, 0xfe0f], [0xfeff], [0xffa0],
 ]);
@@ -104,6 +105,7 @@ const LOOKALIKE_RE = charClass([
 ]);
 const DRIVE_RE = /^[A-Za-z]:/;
 const SHORT_GIT_RE = /^git~\d+$/i; // NTFS 8.3 short name for .git
+const SHORT_GITMOD_RE = /^gitmod~\d+$/i; // 8.3 short name for .gitmodules
 const DEVICE_RE = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
 
 type Check = { ok: true; value: string } | { ok: false; code: PlanErrorCode; message: string };
@@ -124,6 +126,15 @@ function hasLoneSurrogate(s: string): boolean {
   return false;
 }
 
+/** Unicode tag characters and variation selectors supplement (astral, invisible). */
+function hasInvisibleAstral(s: string): boolean {
+  for (const ch of s) {
+    const cp = ch.codePointAt(0) as number;
+    if ((cp >= 0xe0000 && cp <= 0xe007f) || (cp >= 0xe0100 && cp <= 0xe01ef)) return true;
+  }
+  return false;
+}
+
 const utf8Len = (s: string) => Buffer.byteLength(s, "utf8");
 
 /** Validate a relative POSIX path; returns it unchanged when safe. */
@@ -140,6 +151,7 @@ export function validateRelativePath(input: unknown, label = "path"): Check {
   }
   if (input.startsWith("/")) return bad("PATH_ABSOLUTE", `${label}: absolute path`);
   if (hasLoneSurrogate(input)) return bad("PATH_UNICODE", `${label}: lone surrogate`);
+  if (hasInvisibleAstral(input)) return bad("PATH_UNICODE", `${label}: invisible astral character`);
   if (INVISIBLE_RE.test(input) || LOOKALIKE_RE.test(input)) {
     return bad("PATH_UNICODE", `${label}: invisible or look-alike character`);
   }
@@ -156,7 +168,7 @@ export function validateRelativePath(input: unknown, label = "path"): Check {
     }
     if (seg.includes(":")) return bad("PATH_RESERVED", `${label}: ':' in segment (NTFS stream)`);
     const lower = seg.toLowerCase();
-    if (lower === ".git" || lower === ".gitmodules" || SHORT_GIT_RE.test(seg) || DEVICE_RE.test(seg)) {
+    if (lower === ".git" || lower === ".gitmodules" || SHORT_GIT_RE.test(seg) || SHORT_GITMOD_RE.test(seg) || DEVICE_RE.test(seg)) {
       return bad("PATH_RESERVED", `${label}: reserved segment`);
     }
   }
@@ -169,7 +181,7 @@ function validateRoot(root: unknown): Check {
   if (!root.startsWith("/") || root.startsWith("//")) return bad("ROOT_INVALID", "root: must be absolute POSIX");
   if (
     CONTROL_RE.test(root) || INVISIBLE_RE.test(root) || LOOKALIKE_RE.test(root) ||
-    root.includes(BS) || hasLoneSurrogate(root)
+    root.includes(BS) || hasLoneSurrogate(root) || hasInvisibleAstral(root)
   ) {
     return bad("ROOT_INVALID", "root: forbidden character");
   }
@@ -194,23 +206,36 @@ const SENSITIVE_BASENAMES: Record<string, string> = {
   ".gitattributes": "git attributes (filters/drivers)",
   "package.json": "npm scripts / dependencies",
   ".npmrc": "npm configuration",
+  ".yarnrc": "yarn configuration",
+  ".yarnrc.yml": "yarn configuration",
+  ".pnpmfile.cjs": "pnpm hook script",
   ".envrc": "direnv auto-executed shell",
   makefile: "build script",
+  gnumakefile: "build script",
+  ".pre-commit-config.yaml": "pre-commit hooks",
+  ".mcp.json": "MCP server configuration",
 };
-const SENSITIVE_PREFIXES: Array<[string, string]> = [
-  [".husky/", "git hooks"],
-  [".githooks/", "git hooks"],
-  [".github/workflows/", "CI workflow"],
-];
+const SENSITIVE_DIRS: Record<string, string> = {
+  ".husky": "git hooks",
+  ".githooks": "git hooks",
+  ".claude": "agent configuration",
+  ".cursor": "agent configuration",
+  ".codex": "agent configuration",
+};
 
-/** Classify a validated relative path; returns a reason when sensitive. */
-function sensitiveReason(rel: string): string | undefined {
-  const lower = rel.toLowerCase();
-  if (lower === ".vscode/tasks.json") return "editor tasks (auto-runnable)";
-  for (const [prefix, reason] of SENSITIVE_PREFIXES) {
-    if (lower.startsWith(prefix)) return reason;
+/**
+ * Classify a path RELATIVE TO THE ROOT (subPath + "/" + rel), at any depth;
+ * returns a reason when sensitive.
+ */
+function sensitiveReason(rootRelative: string): string | undefined {
+  const segs = rootRelative.toLowerCase().split("/");
+  const base = segs[segs.length - 1];
+  for (let i = 0; i < segs.length; i++) {
+    const s = segs[i];
+    if (Object.prototype.hasOwnProperty.call(SENSITIVE_DIRS, s)) return SENSITIVE_DIRS[s];
+    if (s === ".github" && segs[i + 1] === "workflows") return "CI workflow";
+    if (s === ".vscode" && (base === "tasks.json" || base === "launch.json")) return "editor tasks (auto-runnable)";
   }
-  const base = lower.slice(lower.lastIndexOf("/") + 1);
   return Object.prototype.hasOwnProperty.call(SENSITIVE_BASENAMES, base) ? SENSITIVE_BASENAMES[base] : undefined;
 }
 
@@ -219,12 +244,14 @@ export function planWorktree(input: WorktreeInput): WorktreePlan {
   if (!root.ok) return root;
 
   let workDir = root.value;
+  let subRel = "";
   if (input.subPath !== undefined) {
     const sub = validateRelativePath(input.subPath, "subPath");
     if (!sub.ok) return sub;
     const joined = joinUnder(root.value, sub.value);
     if (!joined) return { ok: false, code: "PATH_ESCAPES_ROOT", message: "subPath: escapes root" };
     workDir = joined;
+    subRel = sub.value + "/";
   }
 
   const patches = input.patches ?? [];
@@ -259,7 +286,7 @@ export function planWorktree(input: WorktreeInput): WorktreePlan {
     const key = rel.value.toLowerCase(); // case-insensitive FS safe
     if (seen.has(key)) return { ok: false, code: "PATCH_DUPLICATE", message: `${label}: duplicate path` };
     seen.add(key);
-    const reason = sensitiveReason(rel.value);
+    const reason = sensitiveReason(subRel + rel.value);
     const file: PlannedFile = { path: rel.value, absPath, op, bytes, sensitive: reason !== undefined };
     if (reason !== undefined) file.reason = reason;
     files.push(file);
