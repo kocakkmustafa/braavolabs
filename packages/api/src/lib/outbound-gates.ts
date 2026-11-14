@@ -139,7 +139,10 @@ function stripInvisible(text: string): string {
 function foldBase(text: string, max: number): string | null {
   const normalized = stripInvisible(text).normalize("NFKC");
   if (normalized.length > max) return null;
-  return normalized.replace(/[^\x00-\x7f]/g, (c) => CONFUSABLES[c.toLowerCase()] ?? c);
+  // Order: NFKC, Cf/M strip (above), homoglyphs, non-alphanumeric LEET keys ($ @), then the caller collapses separators.
+  return normalized
+    .replace(/[^\x00-\x7f]/g, (c) => CONFUSABLES[c.toLowerCase()] ?? c)
+    .replace(/[$@]/g, (c) => LEET[c] ?? c);
 }
 
 /** Token lists: camelCase-split and plain, each with `1` read as i and as l. */

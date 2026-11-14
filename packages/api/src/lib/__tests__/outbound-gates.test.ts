@@ -198,6 +198,14 @@ describe("B-06 outbound gates", () => {
     expect(isDeployMergeTool("run", pad(100000))).toBe(false);
   });
 
+  it("non-alphanumeric leet keys ($ @) are folded before separators collapse", () => {
+    for (const n of ["relea$e", "rele@se", "rollb@ck", "d3pl0y$", "d3$pl0y".replace("$", "_"), "m3rg3@pr", "$deploy"]) {
+      expect(isDeployMergeTool(n), n).toBe(true);
+    }
+    expect(isDeployMergeTool("run", "then rele@se it")).toBe(false); // description: release is name-only
+    expect(isDeployMergeTool("run", "then d3pl0y$ it")).toBe(true);
+  });
+
   it("a very long separator run does not hide or slow the scan", () => {
     const t0 = performance.now();
     expect(isDeployMergeTool("run", "d" + "_".repeat(50000) + "e_p_l_o_y")).toBe(true);
