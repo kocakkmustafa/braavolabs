@@ -3,7 +3,7 @@
  * Uses make_outbound_call: money-touching, so it is approval-gated under every
  * autonomy level. Persistence and the voice service are synthetic.
  *
- * Flag off  → byte-for-byte the old gate (no stamp, no grant lookup).
+ * Flag off  → the old gate, except SEC-BRA-05 now writes tenantId directly (no nonce/hash/expiry stamp, no grant lookup).
  * Flag on   → a new approval is stamped with tenant/nonce/hash/expiry; the call
  *             runs only if a matching APPROVED grant is spent by the CAS.
  */
@@ -89,13 +89,14 @@ beforeEach(() => {
 afterEach(() => { vi.unstubAllEnvs(); });
 
 describe("EXACT_ACTION_APPROVAL off (default) — unchanged gate", () => {
-  it("creates a PENDING approval with NO stamp and never touches grants", async () => {
+  it("creates a PENDING approval with NO stamp (tenantId yine yazılır) and never touches grants", async () => {
     const res = await executeTool("make_outbound_call", input, ctx);
     expect(res.status).toBe("PENDING_APPROVAL");
     const data = approvalCreate.mock.calls[0][0].data;
     expect(data).not.toHaveProperty("nonce");
     expect(data).not.toHaveProperty("actionHash");
-    expect(data).not.toHaveProperty("tenantId");
+    // SEC-BRA-05: sahiplik (tenantId) damgadan bağımsız yazılır; damga alanları yok.
+    expect(data.tenantId).toBe("tenant-1");
     expect(data).not.toHaveProperty("expiresAt");
     expect(approvalFindMany).not.toHaveBeenCalled();
     expect(approvalUpdateMany).not.toHaveBeenCalled();
