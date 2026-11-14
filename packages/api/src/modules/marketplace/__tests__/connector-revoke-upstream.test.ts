@@ -235,13 +235,32 @@ describe("upstream revoke", () => {
       return { count: 0 };
     };
     try {
-      const out = await revokeInstall("t1", "u1", "acme");
-      expect(out.revokedAt).toBeInstanceOf(Date);
+      await expect(revokeInstall("t1", "u1", "acme")).rejects.toMatchObject({ statusCode: 409 });
     } finally {
       dbMock.tenantConnector.updateMany = orig;
     }
     expect(calls).toBe(2);
+    expect(row.revokedAt).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
     expect(activityCreate).not.toHaveBeenCalled();
+  });
+
+  it("two CAS losses but row got revoked meanwhile: returns that revokedAt", async () => {
+    const dbDate = new Date("2026-02-02T00:00:00Z");
+    const orig = dbMock.tenantConnector.updateMany;
+    let calls = 0;
+    dbMock.tenantConnector.updateMany = async () => {
+      calls++;
+      setCreds({ refreshToken: `RT${calls + 1}`, revocationUrl: "https://idp.acme.example/revoke" });
+      if (calls === 2) row.revokedAt = dbDate;
+      return { count: 0 };
+    };
+    try {
+      const out = await revokeInstall("t1", "u1", "acme");
+      expect(out.revokedAt).toBe(dbDate);
+    } finally {
+      dbMock.tenantConnector.updateMany = orig;
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

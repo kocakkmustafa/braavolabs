@@ -249,5 +249,7 @@ export async function revokeInstall(tenantId: string, actor: string, slug: strin
     where: { tenantId_connectorId: { tenantId, connectorId: connector.id } },
     select: { revokedAt: true },
   });
-  return { revokedAt: final?.revokedAt ?? revokedAt };
+  if (final?.revokedAt) return { revokedAt: final.revokedAt };
+  // Fail closed: never report success while the row is still live.
+  throw new AppError(409, "Connector credentials changed concurrently; revoke not applied, retry");
 }
