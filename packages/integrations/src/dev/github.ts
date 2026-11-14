@@ -283,6 +283,90 @@ export async function createGitHubPR(
   return { prNumber: data.number, url: data.html_url };
 }
 
+const GH_NAME_RE = /^[A-Za-z0-9._-]+$/;
+// C0/DEL, C1, line/paragraph separators, bidi controls, zero-width chars, BOM.
+// eslint-disable-next-line no-control-regex
+const HIDDEN_CHAR_RE = /[\u0000-\u001f\u007f\u0080-\u009f\u2028\u2029\u202a-\u202e\u2066-\u2069\u200b-\u200f\ufeff]/;
+// git ref rule: no space and none of ~ ^ : ? * [ \
+const BAD_REF_CHAR_RE = /[ ~^:?*[\\]/;
+
+const MAX_NAME = 100;
+const MAX_REF = 255;
+const MAX_TITLE = 256;
+const MAX_BODY = 65536;
+
+function invalid(label: string): Error {
+  return new Error(`GitHub dry-run: invalid ${label}`);
+}
+
+function assertGitHubName(label: string, v: unknown): void {
+  if (
+    typeof v !== "string" ||
+    v.length > MAX_NAME ||
+    !GH_NAME_RE.test(v) ||
+    v === "." ||
+    v === ".."
+  ) {
+    throw invalid(label);
+  }
+}
+
+function assertText(label: string, v: unknown, max: number): string {
+  if (
+    typeof v !== "string" ||
+    v.length === 0 ||
+    v.length > max ||
+    v !== v.trim() ||
+    HIDDEN_CHAR_RE.test(v)
+  ) {
+    throw invalid(label);
+  }
+  return v;
+}
+
+function assertRefLike(label: string, v: unknown): void {
+  const s = assertText(label, v, MAX_REF);
+  if (BAD_REF_CHAR_RE.test(s) || s.includes("..")) throw invalid(label);
+}
+
+/**
+ * Dry-run of createGitHubPR: pure, never calls fetch, carries no token or
+ * headers. Returns the request that WOULD be sent. Real PR creation is a
+ * separate ticket with founder approval.
+ */
+export function dryRunGitHubPR(
+  owner: string,
+  repo: string,
+  title: string,
+  body: string,
+  head: string,
+  base: string,
+  draft = false,
+): {
+  dryRun: true;
+  request: {
+    method: "POST";
+    url: string;
+    body: { title: string; body: string; head: string; base: string; draft: boolean };
+  };
+} {
+  assertGitHubName("owner", owner);
+  assertGitHubName("repo", repo);
+  assertText("title", title, MAX_TITLE);
+  const bodyText: unknown = body ?? "";
+  if (typeof bodyText !== "string" || bodyText.length > MAX_BODY) throw invalid("body");
+  assertRefLike("head", head);
+  assertRefLike("base", base);
+  return {
+    dryRun: true,
+    request: {
+      method: "POST",
+      url: `${GITHUB_API_BASE}/repos/${owner}/${repo}/pulls`,
+      body: { title, body: bodyText, head, base, draft },
+    },
+  };
+}
+
 /**
  * List open issues in a repository.
  */
