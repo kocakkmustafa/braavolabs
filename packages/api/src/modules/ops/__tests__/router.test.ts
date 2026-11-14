@@ -78,9 +78,20 @@ describe("GET /ops/flags", () => {
     expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 403 });
   });
 
-  it("200 for an admin: all three flags off by default, no-store, no secrets", async () => {
+  it("403 fail-closed for an admin email whose emailVerifiedAt is null", async () => {
+    process.env.MARKETPLACE_ADMIN_EMAILS = "admin@example.com";
+    userFindUnique.mockResolvedValue({ email: "admin@example.com", emailVerifiedAt: null });
+    const res = mockRes();
+    const next = vi.fn();
+    await handler({ auth: { userId: "u1", tenantId: "t1", role: "OWNER" } }, res, next);
+    expect(next.mock.calls[0][0]).toMatchObject({ statusCode: 403 });
+    expect(res.body).toBeUndefined();
+    expect(userFindUnique.mock.calls[0][0].select).toEqual({ email: true, emailVerifiedAt: true });
+  });
+
+  it("200 for a verified admin: all three flags off by default, no-store, no secrets", async () => {
     process.env.MARKETPLACE_ADMIN_EMAILS = " Admin@Example.com ";
-    userFindUnique.mockResolvedValue({ email: "admin@example.com" });
+    userFindUnique.mockResolvedValue({ email: "admin@example.com", emailVerifiedAt: new Date() });
     const res = mockRes();
     await handler({ auth: { userId: "u1", tenantId: "t1", role: "OWNER" } }, res, vi.fn());
     expect(res.statusCode).toBe(200);
