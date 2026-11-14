@@ -46,6 +46,12 @@ const enqueueRunMock = vi.hoisted(() => vi.fn());
 vi.mock("../../pipeline/runner", () => ({ enqueueRun: (...a: unknown[]) => enqueueRunMock(...a) }));
 
 const claimQuotaMock = vi.hoisted(() => vi.fn());
+const receiptMock = vi.hoisted(() => vi.fn());
+vi.mock("../../run/transition", async (orig) => ({
+  ...(await orig<typeof import("../../run/transition")>()),
+  tryWriteReceipt: (...a: unknown[]) => receiptMock(...a),
+}));
+
 const releaseQuotaMock = vi.hoisted(() => vi.fn());
 vi.mock("../../billing/metering", () => ({
   claimQuota: (...a: unknown[]) => claimQuotaMock(...a),
@@ -122,6 +128,8 @@ describe("POST /hooks/:companySlug/:event", () => {
     releaseQuotaMock.mockResolvedValue(undefined);
     enqueueRunMock.mockResolvedValue(undefined);
     runUpdateMany.mockResolvedValue({ count: 1 });
+    receiptMock.mockResolvedValue(undefined);
+    delete process.env.JOB_STATE_DUAL_WRITE;
   });
 
   function validReq(overrides: Record<string, unknown> = {}) {
@@ -322,6 +330,43 @@ describe("POST /hooks/:companySlug/:event", () => {
     enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
     await invoke(handler, validReq());
     expect(runUpdateMany.mock.invocationCallOrder[0]).toBeLessThan(releaseQuotaMock.mock.invocationCallOrder[0]);
+  });
+
+  it("BRA-P0-03e-b: bayrak AÇIK → CAS state FAILED yazar + FAILED makbuzu", async () => {
+    process.env.JOB_STATE_DUAL_WRITE = "true";
+    try {
+      pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+      runCreate.mockResolvedValue({ id: "run-1" });
+      enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
+      await invoke(handler, validReq());
+      expect(runUpdateMany).toHaveBeenCalledWith({ where: { id: "run-1", status: "PENDING" }, data: { status: "FAILED", state: "FAILED", error: "enqueue_failed" } });
+      expect(receiptMock.mock.calls[0].slice(1)).toEqual(["run-1", "FAILED", "tenant-1"]);
+    } finally {
+      delete process.env.JOB_STATE_DUAL_WRITE;
+    }
+  });
+
+  it("BRA-P0-03e-b: bayrak KAPALI → `state` adlandırılmaz, makbuz yok", async () => {
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+    runCreate.mockResolvedValue({ id: "run-1" });
+    enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
+    await invoke(handler, validReq());
+    expect(Object.keys((runUpdateMany.mock.calls[0][0] as any).data)).not.toContain("state");
+    expect(receiptMock).not.toHaveBeenCalled();
+  });
+
+  it("BRA-P0-03e-b: bayrak AÇIK + CAS kaybı → makbuz yok", async () => {
+    process.env.JOB_STATE_DUAL_WRITE = "true";
+    try {
+      pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+      runCreate.mockResolvedValue({ id: "run-1" });
+      enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
+      runUpdateMany.mockResolvedValue({ count: 0 });
+      await invoke(handler, validReq());
+      expect(receiptMock).not.toHaveBeenCalled();
+    } finally {
+      delete process.env.JOB_STATE_DUAL_WRITE;
+    }
   });
 
   it("BRA-P0-03e-b: CAS kaybı (count 0, işçi aldı) → iade YOK", async () => {

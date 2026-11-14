@@ -6,6 +6,7 @@ import { logger } from "../../lib/logger";
 import { enqueueRun } from "../pipeline/runner";
 import { claimQuota, releaseQuota } from "../billing/metering";
 import { sameUtcMonth } from "../billing/period";
+import { isJobStateDualWriteEnabled, tryWriteReceipt } from "../run/transition";
 import { getWebhookTemplates, getWebhookTemplateById, getWebhookTemplateCategories } from "./templates";
 import { authMiddleware } from "../../middleware/auth";
 import { systemScope } from "../../middleware/system-scope";
@@ -257,11 +258,14 @@ webhookRouter.post(
           let refund = true;
           if (createdRunId) {
             try {
+              // Bayrak açıkken `state` de FAILED + FAILED makbuzu (sweeper kalıbı); kapalıyken `state` adlandırılmaz.
+              const dual = isJobStateDualWriteEnabled();
               const res = await prisma.run.updateMany({
                 where: { id: createdRunId, status: "PENDING" },
-                data: { status: "FAILED", error: "enqueue_failed" },
+                data: { status: "FAILED", ...(dual ? { state: "FAILED" as const } : {}), error: "enqueue_failed" },
               });
               refund = res.count === 1;
+              if (refund && dual) await tryWriteReceipt(prisma, createdRunId, "FAILED", company.tenantId);
             } catch (markErr) {
               refund = false;
               logger.error({ err: markErr, runId: createdRunId }, "Webhook: marking run FAILED after enqueue failure failed — no refund, sweeper owns the run");

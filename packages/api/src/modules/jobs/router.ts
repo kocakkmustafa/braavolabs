@@ -11,6 +11,7 @@ import { getTenantAIConfig, chatCompletion, type AIProviderType } from "../../se
 import { resolveTenantCompletionLink } from "../../services/provider-chain";
 import { claimQuota, releaseQuota } from "../billing/metering";
 import { sameUtcMonth } from "../billing/period";
+import { isJobStateDualWriteEnabled, tryWriteReceipt } from "../run/transition";
 import { enqueueRun } from "../pipeline/runner";
 import { computePlanHash, planHashMatches } from "./plan-hash";
 import { canStartCard, createPlannedRun, isUniqueViolation, resolveStartBudget } from "./start";
@@ -197,7 +198,7 @@ jobsRouter.post("/start", startLimiter, async (req, res, next) => {
         budget: resolveStartBudget(result.card),
       });
     } catch (err) {
-      await releaseQuota(tenantId, "runs");
+      if (sameUtcMonth(claimedAt, Date.now())) await releaseQuota(tenantId, "runs");
       if (isUniqueViolation(err)) {
         const raced = await replay(); // eşzamanlı aynı anahtar: kazananın koşusunu döndür
         if (raced) {
@@ -215,11 +216,14 @@ jobsRouter.post("/start", startLimiter, async (req, res, next) => {
       // yönetir); count 0 → işçi aldı, iade yok. Ay sınırı: claim başka aydaysa iade atlanır.
       let refund = false;
       try {
+        // Bayrak açıkken `state` de FAILED + FAILED makbuzu (sweeper kalıbı); kapalıyken `state` adlandırılmaz.
+        const dual = isJobStateDualWriteEnabled();
         const res = await prisma.run.updateMany({
           where: { id: started.runId, status: "PENDING" },
-          data: { status: "FAILED", error: "enqueue_failed" },
+          data: { status: "FAILED", ...(dual ? { state: "FAILED" as const } : {}), error: "enqueue_failed" },
         });
         refund = res.count === 1;
+        if (refund && dual) await tryWriteReceipt(prisma, started.runId, "FAILED", tenantId);
       } catch (markErr) {
         logger.error({ err: markErr, runId: started.runId }, "jobs/start: marking run FAILED after enqueue failure failed — no refund, sweeper owns the run");
       }

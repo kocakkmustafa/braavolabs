@@ -16,6 +16,7 @@ const m = vi.hoisted(() => ({
   runCreate: vi.fn(),
   runUpdate: vi.fn(),
   runUpdateMany: vi.fn(),
+  receipt: vi.fn(),
   approvalCreate: vi.fn(),
   activityCreate: vi.fn(),
   claimQuota: vi.fn(),
@@ -46,6 +47,10 @@ vi.mock("../../../services/provider-chain", () => ({ resolveTenantCompletionLink
 vi.mock("../../billing/metering", () => ({
   claimQuota: (...a: unknown[]) => m.claimQuota(...a),
   releaseQuota: (...a: unknown[]) => m.releaseQuota(...a),
+}));
+vi.mock("../../run/transition", async (orig) => ({
+  ...(await orig<typeof import("../../run/transition")>()),
+  tryWriteReceipt: (...a: unknown[]) => m.receipt(...a),
 }));
 vi.mock("../../pipeline/runner", () => ({ enqueueRun: (...a: unknown[]) => m.enqueueRun(...a) }));
 vi.mock("../../../lib/modelPricing", () => ({
@@ -112,6 +117,8 @@ beforeEach(() => {
   m.releaseQuota.mockResolvedValue(undefined);
   m.runUpdate.mockResolvedValue({});
   m.runUpdateMany.mockResolvedValue({ count: 1 });
+  m.receipt.mockResolvedValue(undefined);
+  delete process.env.JOB_STATE_DUAL_WRITE;
 });
 
 describe("planHash", () => {
@@ -316,6 +323,73 @@ describe("POST /jobs/start", () => {
       m.enqueueRun.mockImplementation(async () => {
         vi.setSystemTime(new Date(Date.UTC(2026, 10, 1, 0, 0, 1)));
         throw new Error("redis");
+      });
+      await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
+      expect(m.releaseQuota).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("enqueue hatası + bayrak AÇIK: CAS state FAILED yazar ve FAILED makbuzu yazılır", async () => {
+    process.env.JOB_STATE_DUAL_WRITE = "true";
+    try {
+      const planHash = await planHashFor(MSG);
+      m.enqueueRun.mockRejectedValue(new Error("redis"));
+      await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
+      expect(m.runUpdateMany).toHaveBeenCalledWith({ where: { id: "run-1", status: "PENDING" }, data: { status: "FAILED", state: "FAILED", error: "enqueue_failed" } });
+      expect(m.receipt.mock.calls[0].slice(1)).toEqual(["run-1", "FAILED", "tenant-1"]);
+    } finally {
+      delete process.env.JOB_STATE_DUAL_WRITE;
+    }
+  });
+
+  it("enqueue hatası + bayrak KAPALI: `state` adlandırılmaz, makbuz yok", async () => {
+    const planHash = await planHashFor(MSG);
+    m.enqueueRun.mockRejectedValue(new Error("redis"));
+    await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
+    expect(Object.keys((m.runUpdateMany.mock.calls[0][0] as any).data)).not.toContain("state");
+    expect(m.receipt).not.toHaveBeenCalled();
+  });
+
+  it("bayrak AÇIK + CAS kaybı (count 0): makbuz yok, iade yok", async () => {
+    process.env.JOB_STATE_DUAL_WRITE = "true";
+    try {
+      const planHash = await planHashFor(MSG);
+      m.enqueueRun.mockRejectedValue(new Error("redis"));
+      m.runUpdateMany.mockResolvedValue({ count: 0 });
+      await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
+      expect(m.receipt).not.toHaveBeenCalled();
+      expect(m.releaseQuota).not.toHaveBeenCalled();
+    } finally {
+      delete process.env.JOB_STATE_DUAL_WRITE;
+    }
+  });
+
+  it("createPlannedRun hatası + ay dönümü: iade atlanır", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date(Date.UTC(2026, 9, 31, 23, 59, 59)));
+      const planHash = await planHashFor(MSG);
+      m.runCreate.mockImplementation(async () => {
+        vi.setSystemTime(new Date(Date.UTC(2026, 10, 1, 0, 0, 1)));
+        throw new Error("db");
+      });
+      await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
+      expect(m.releaseQuota).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("idempotency yarışı (P2002) + ay dönümü: iade atlanır, kazananın runId'si yine döner", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date(Date.UTC(2026, 9, 31, 23, 59, 59)));
+      const planHash = await planHashFor(MSG);
+      m.runCreate.mockImplementation(async () => {
+        vi.setSystemTime(new Date(Date.UTC(2026, 10, 1, 0, 0, 1)));
+        throw Object.assign(new Error("dup"), { code: "P2002" });
       });
       await call("/start", { message: MSG, planHash, idempotencyKey: KEY });
       expect(m.releaseQuota).not.toHaveBeenCalled();
