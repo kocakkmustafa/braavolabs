@@ -187,6 +187,34 @@ describe("B-06 outbound gates", () => {
     expect(performance.now() - t1).toBeLessThan(2000);
   });
 
+  it("separator-padded verbs are caught at every window-edge position", () => {
+    const pad = (k: number) => "x ".repeat(Math.ceil(k / 2)).slice(0, k);
+    for (const verb of ["d_e_p_l_o_y", "d e p l o y", "m-e-r-g-e", "d___e___p_l_o_y"]) {
+      for (let k = 3880; k <= 4120; k += 3) {
+        const text = pad(k) + " " + verb + " " + pad(100000);
+        expect(isDeployMergeTool("run", text), verb + "@" + k).toBe(true);
+      }
+    }
+    expect(isDeployMergeTool("run", pad(100000))).toBe(false);
+  });
+
+  it("a very long separator run does not hide or slow the scan", () => {
+    const t0 = performance.now();
+    expect(isDeployMergeTool("run", "d" + "_".repeat(50000) + "e_p_l_o_y")).toBe(true);
+    expect(isDeployMergeTool("run", "x" + "_".repeat(50000) + "deploy")).toBe(true);
+    expect(isDeployMergeTool("run", "_".repeat(200000))).toBe(false);
+    expect(performance.now() - t0).toBeLessThan(500);
+  });
+
+  it("NFKC expansion cannot dodge the size caps (fail closed, fast)", () => {
+    const x = "\ufdfa"; // expands 18x under NFKC
+    const t0 = performance.now();
+    expect(isDeployMergeTool("run", x.repeat(100000))).toBe(true); // description
+    expect(isDeployMergeTool(x.repeat(40))).toBe(true); // name: 40 raw chars -> 720 folded
+    expect(isDeployMergeTool(x.repeat(20))).toBe(false); // 360 folded, under the cap, not a verb
+    expect(performance.now() - t0).toBeLessThan(500);
+  });
+
   it("names over 512 chars fail closed", () => {
     expect(isDeployMergeTool("a".repeat(513))).toBe(true);
     expect(isDeployMergeTool("a".repeat(512))).toBe(false);

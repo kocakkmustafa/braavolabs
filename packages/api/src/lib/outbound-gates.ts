@@ -131,10 +131,15 @@ function stripInvisible(text: string): string {
   return text.replace(/[\p{Cf}\p{M}]/gu, "");
 }
 
-function foldBase(text: string): string {
-  return stripInvisible(text)
-    .normalize("NFKC")
-    .replace(/[^\x00-\x7f]/g, (c) => CONFUSABLES[c.toLowerCase()] ?? c);
+/**
+ * Fold `text` (already length-checked raw). NFKC can expand a string
+ * (ligatures / compatibility chars), so the cap is applied again to the
+ * normalised string BEFORE any further per-char work; null = over the cap.
+ */
+function foldBase(text: string, max: number): string | null {
+  const normalized = stripInvisible(text).normalize("NFKC");
+  if (normalized.length > max) return null;
+  return normalized.replace(/[^\x00-\x7f]/g, (c) => CONFUSABLES[c.toLowerCase()] ?? c);
 }
 
 /** Token lists: camelCase-split and plain, each with `1` read as i and as l. */
@@ -193,7 +198,11 @@ function windowHits(folded: string, isName: boolean): boolean {
 }
 
 /** textHits over the FULL folded text, in overlapping windows (split AFTER folding). */
-function textHits(folded: string, isName: boolean): boolean {
+function textHits(foldedText: string, isName: boolean): boolean {
+  // Collapse every run of separators to ONE space first: padding (`d___e___p`,
+  // 50 000 underscores) can neither push a verb across a window edge nor
+  // bloat the scan; the 64-char overlap then always holds a whole padded verb.
+  const folded = foldedText.replace(/[^A-Za-z0-9]+/g, " ");
   if (folded.length <= WINDOW) return windowHits(folded, isName);
   for (let start = 0; start < folded.length; start += WINDOW - OVERLAP) {
     if (windowHits(folded.slice(start, start + WINDOW), isName)) return true;
@@ -216,9 +225,13 @@ export function isDeployMergeTool(toolName: unknown, remoteDescription?: unknown
   if (remoteDescription !== undefined && typeof remoteDescription !== "string") return true;
   if (toolName.length > MAX_NAME) return true;
   if (typeof remoteDescription === "string" && remoteDescription.length > MAX_DESC) return true;
+  const foldedName = foldBase(toolName, MAX_NAME);
+  if (foldedName === null) return true;
   if (mixesScripts(toolName)) return true;
-  if (textHits(foldBase(toolName), true)) return true;
-  return typeof remoteDescription === "string" && textHits(foldBase(remoteDescription), false);
+  if (textHits(foldedName, true)) return true;
+  if (typeof remoteDescription !== "string") return false;
+  const foldedDesc = foldBase(remoteDescription, MAX_DESC);
+  return foldedDesc === null || textHits(foldedDesc, false);
 }
 
 export interface ToolCallGateOpts {
