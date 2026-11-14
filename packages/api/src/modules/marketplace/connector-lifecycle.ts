@@ -200,37 +200,54 @@ export async function revokeInstall(tenantId: string, actor: string, slug: strin
   if (!install) throw new AppError(404, "Connector not installed");
   if (install.revokedAt) return { revokedAt: install.revokedAt }; // idempotent
   const aad = connectorAad(tenantId, connector.id);
-  // (a) resolve tokens into memory first.
-  const upstream = prepareUpstreamRevoke(connector.slug, install.encryptedCredentials, aad);
-  // (b) commit the local revoke immediately: unusable from this point on.
   const revokedAt = new Date();
-  const won = await tenantTx(async (tx) => {
-    // Conditional claim: a concurrent second revoke gets count 0 → no audit, no upstream.
-    const claimed = await tx.tenantConnector.updateMany({
-      where: { id: install.id, tenantId, revokedAt: null },
-      data: { isEnabled: false, revokedAt, encryptedCredentials: encrypt("{}", aad) },
+  let blob = install.encryptedCredentials;
+  // At most two claim attempts (no loop): a concurrent refresh rotation changes
+  // the blob, so the first CAS may lose; we then re-read once and retry.
+  for (let attempt = 0; attempt < 2; attempt++) {
+    // (a) resolve tokens from the blob we are about to claim, into memory.
+    const upstream = prepareUpstreamRevoke(connector.slug, blob, aad);
+    // (b) commit the local revoke: unusable from this point on. CAS on the blob
+    // so a rotated RT2/AT2 written meanwhile is never left alive.
+    const won = await tenantTx(async (tx) => {
+      // Conditional claim: a losing call gets count 0 -> no audit, no upstream.
+      // If the audit insert throws, the whole tx (claim included) rolls back.
+      const claimed = await tx.tenantConnector.updateMany({
+        where: { id: install.id, tenantId, revokedAt: null, encryptedCredentials: blob },
+        data: { isEnabled: false, revokedAt, encryptedCredentials: encrypt("{}", aad) },
+      });
+      if (claimed.count === 0) return false;
+      await tx.activityLog.create({
+        data: {
+          tenantId,
+          actor,
+          action: "marketplace.revoke",
+          resource: "tenant_connector",
+          resourceId: install.id,
+          details: { slug: connector.slug },
+        },
+      });
+      return true;
     });
-    if (claimed.count === 0) return false;
-    await tx.activityLog.create({
-      data: {
-        tenantId,
-        actor,
-        action: "marketplace.revoke",
-        resource: "tenant_connector",
-        resourceId: install.id,
-        details: { slug: connector.slug },
-      },
-    });
-    return true;
-  });
-  if (!won) {
+    // (c) only the claim winner talks to the provider, once, with the token read
+    // at claim time. Known limits: a crash/SIGTERM between claim and this call
+    // leaves credentials wiped but the provider token un-revoked (no retry); an
+    // RT2/AT2 minted by a refresh before our claim cannot be revoked (by design).
+    if (won) {
+      if (upstream) await sendUpstreamRevoke(connector.slug, upstream);
+      return { revokedAt };
+    }
     const current = await prisma.tenantConnector.findUnique({
       where: { tenantId_connectorId: { tenantId, connectorId: connector.id } },
-      select: { revokedAt: true },
+      select: { revokedAt: true, encryptedCredentials: true },
     });
-    return { revokedAt: current?.revokedAt ?? revokedAt };
+    if (!current) break;
+    if (current.revokedAt) return { revokedAt: current.revokedAt };
+    blob = current.encryptedCredentials;
   }
-  // (c) only the winning call talks to the provider, once.
-  if (upstream) await sendUpstreamRevoke(connector.slug, upstream);
-  return { revokedAt };
+  const final = await prisma.tenantConnector.findUnique({
+    where: { tenantId_connectorId: { tenantId, connectorId: connector.id } },
+    select: { revokedAt: true },
+  });
+  return { revokedAt: final?.revokedAt ?? revokedAt };
 }

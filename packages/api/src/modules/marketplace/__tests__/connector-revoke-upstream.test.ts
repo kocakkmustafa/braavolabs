@@ -17,7 +17,9 @@ const dbMock = {
     findUnique: async ({ where }: any) =>
       where.tenantId_connectorId.tenantId === row.tenantId ? { ...row, connector: connectorRow } : null,
     updateMany: async ({ where, data }: any) => {
-      if (where.tenantId !== undefined && where.tenantId !== row.tenantId) return { count: 0 };
+      if (where.tenantId === undefined) throw new Error("claim must be tenant-scoped");
+      if (where.tenantId !== row.tenantId) return { count: 0 };
+      if (where.encryptedCredentials !== undefined && where.encryptedCredentials !== row.encryptedCredentials) return { count: 0 };
       if (where.revokedAt === null && row.revokedAt) return { count: 0 };
       Object.assign(row, data);
       return { count: 1 };
@@ -27,7 +29,17 @@ const dbMock = {
 };
 vi.mock("../../../lib/db", () => ({
   get prisma() { return dbMock; },
-  tenantTx: async (fn: (tx: unknown) => Promise<unknown>) => fn(dbMock),
+  // Rollback imitation: a throwing tx restores the row.
+  tenantTx: async (fn: (tx: unknown) => Promise<unknown>) => {
+    const snap = { ...row };
+    try {
+      return await fn(dbMock);
+    } catch (e) {
+      Object.keys(row).forEach((k) => delete row[k]);
+      Object.assign(row, snap);
+      throw e;
+    }
+  },
 }));
 vi.mock("../../../lib/encryption", () => ({
   encrypt: (plain: string, aad: string) => `enc:${aad}:${plain}`,
@@ -118,15 +130,17 @@ describe("upstream revoke", () => {
 
   it("local revoke is committed before the upstream call", async () => {
     let seen: Record<string, any> = {};
+    let seenAudits = 0;
     fetchMock.mockImplementation(async () => {
       seen = { ...row };
+      seenAudits = activityCreate.mock.calls.length;
       return { ok: true, status: 200 };
     });
     await revokeInstall("t1", "u1", "acme");
     expect(seen.revokedAt).toBeInstanceOf(Date);
     expect(seen.isEnabled).toBe(false);
     expect(seen.encryptedCredentials).toBe(`enc:${AAD}:{}`);
-    expect(activityCreate).toHaveBeenCalledTimes(1);
+    expect(seenAudits).toBe(1);
   });
 
   it("a losing claim returns the DB revokedAt and never calls upstream", async () => {
@@ -179,5 +193,55 @@ describe("upstream revoke", () => {
     const body = new URLSearchParams(fetchMock.mock.calls[0]![1].body);
     expect(body.get("client_id")).toBe("cid");
     expect(body.get("client_secret")).toBe("csec");
+  });
+
+  it("audit failure rolls the claim back and never calls upstream", async () => {
+    activityCreate.mockRejectedValueOnce(new Error("audit down"));
+    await expect(revokeInstall("t1", "u1", "acme")).rejects.toThrow("audit down");
+    expect(row.revokedAt).toBeNull();
+    expect(row.isEnabled).toBe(true);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("CAS loss from a concurrent rotation: re-read, second attempt wins with the NEW token", async () => {
+    const orig = dbMock.tenantConnector.updateMany;
+    let calls = 0;
+    dbMock.tenantConnector.updateMany = async (a: any) => {
+      calls++;
+      if (calls === 1) {
+        // refresh rotation lands between our read and our claim
+        setCreds({ refreshToken: "RT2-SECRET", revocationUrl: "https://idp.acme.example/revoke" });
+      }
+      return orig(a);
+    };
+    try {
+      await revokeInstall("t1", "u1", "acme");
+    } finally {
+      dbMock.tenantConnector.updateMany = orig;
+    }
+    expect(calls).toBe(2);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(new URLSearchParams(fetchMock.mock.calls[0]![1].body).get("token")).toBe("RT2-SECRET");
+    expect(row.encryptedCredentials).toBe(`enc:${AAD}:{}`);
+    expect(activityCreate).toHaveBeenCalledTimes(1);
+  });
+
+  it("two CAS losses: no upstream call, no endless loop", async () => {
+    const orig = dbMock.tenantConnector.updateMany;
+    let calls = 0;
+    dbMock.tenantConnector.updateMany = async () => {
+      calls++;
+      setCreds({ refreshToken: `RT${calls + 1}`, revocationUrl: "https://idp.acme.example/revoke" });
+      return { count: 0 };
+    };
+    try {
+      const out = await revokeInstall("t1", "u1", "acme");
+      expect(out.revokedAt).toBeInstanceOf(Date);
+    } finally {
+      dbMock.tenantConnector.updateMany = orig;
+    }
+    expect(calls).toBe(2);
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(activityCreate).not.toHaveBeenCalled();
   });
 });
