@@ -40,9 +40,13 @@ async function mockApi(page: Page, opts: MockOpts = {}): Promise<Calls> {
     const json = (status: number, data: unknown) => route.fulfill({ status, headers: { ...cors, "content-type": "application/json" }, body: JSON.stringify(data) });
     if (path === "/companies/c1") return opts.company ? json(opts.company.status, opts.company.body ?? { error: "x" }) : json(200, COMPANY);
     if (path === "/runs") {
+      // BRA-P0-11a: sunucu şirkete süzer ve kova toplamlarını `counts` ile verir.
       const b = url.searchParams.get("bucket") ?? "";
+      const cid = url.searchParams.get("companyId") ?? "";
+      const mine = (k: string) => (BUCKETS[k]?.runs ?? []).filter((r) => (r as any).pipeline.company.id === cid);
+      const counts = Object.fromEntries(Object.keys(BUCKETS).map((k) => [k, mine(k).length]));
       const o = opts.buckets?.[b];
-      return o ? json(o.status, o.body ?? { error: "x" }) : json(200, BUCKETS[b] ?? { runs: [], nextCursor: null });
+      return o ? json(o.status, o.body ?? { error: "x" }) : json(200, { runs: mine(b), nextCursor: BUCKETS[b]?.nextCursor ?? null, counts });
     }
     return json(200, req.method() === "GET" ? [] : {});
   });
@@ -118,6 +122,7 @@ for (const { vp, size, scheme } of COMBOS) {
       await expect(page.getByTestId("company-link-classic")).toHaveAttribute("href", "/companies/c1");
       if (SHOTS) await snap(page, join(SHOTS, `01-durum-${vp}-${scheme}.png`));
       expect(calls.filter((c) => c.path.startsWith("/runs")).length).toBe(4);
+      expect(calls.filter((c) => c.path.startsWith("/runs")).every((c) => c.path.includes("companyId=c1"))).toBe(true);
       expect(calls.filter((c) => c.method !== "GET" && c.method !== "OPTIONS" && !c.path.startsWith("/collaboration/"))).toEqual([]);
       expect(await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth)).toBe(false);
     });
@@ -127,15 +132,15 @@ for (const { vp, size, scheme } of COMBOS) {
 test.describe("bayrak AÇIK: bilinmeyen kova, kısmi sayfa, hata", () => {
   test.use({ viewport: { width: 390, height: 844 } });
 
-  test("okunamayan kova 0 DEĞİL 'Bilinmiyor'; sonraki sayfa varsa 'en az'; uzun ad taşmaz", async ({ page }) => {
+  test("okunamayan kova 0 DEĞİL 'Bilinmiyor'; sunucu toplamı 25'ten büyükse de kesin; uzun ad taşmaz", async ({ page }) => {
     await prepare(page, "dark");
     await mockApi(page, {
       company: { status: 200, body: { ...COMPANY, name: "Çok uzun bir şirket adı: Kuzey Yakası Dış Ticaret ve Lojistik Hizmetleri Anonim Şirketi İstanbul Şubesi", agents: [] } },
-      buckets: { stuck: { status: 500 }, working: { status: 200, body: { runs: BUCKETS.working.runs, nextCursor: "cur-2" } } },
+      buckets: { stuck: { status: 500 }, working: { status: 200, body: { runs: BUCKETS.working.runs.slice(0, 2), nextCursor: "cur-2", counts: { working: 40, stuck: 0, needs_approval: 1, done: 1 } } } },
     });
     await page.goto(`${UI_LAB}/companies/c1/status`);
     const line = page.getByTestId("company-summary-line");
-    await expect(line).toContainText("Çalışan en az 2 · Takılan Bilinmiyor · Onay bekleyen 1");
+    await expect(line).toContainText("Çalışan 40 · Takılan Bilinmiyor · Onay bekleyen 1");
     await expect(page.getByTestId("company-agents-empty")).toBeVisible();
     // Kısmi sayfa/okunamayan kova varken maliyet de "en az"; ekran okuyucu özeti okunamayan kovayı 0 okumaz.
     await expect(line).toContainText(/Maliyet en az /);

@@ -9,7 +9,8 @@ vi.mock("../../../lib/logger", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 const findMany = vi.hoisted(() => vi.fn());
-vi.mock("../../../lib/db", () => ({ prisma: { run: { findMany: (...a: unknown[]) => findMany(...a) } } }));
+const count = vi.hoisted(() => vi.fn());
+vi.mock("../../../lib/db", () => ({ prisma: { run: { findMany: (...a: unknown[]) => findMany(...a), count: (...a: unknown[]) => count(...a) } } }));
 vi.mock("../../../middleware/auth", () => ({
   authMiddleware: (_req: unknown, _res: unknown, next: () => void) => next(),
 }));
@@ -85,7 +86,7 @@ function row(i: number, over: Record<string, unknown> = {}) {
   };
 }
 
-beforeEach(() => { findMany.mockReset(); findMany.mockResolvedValue([]); });
+beforeEach(() => { findMany.mockReset(); findMany.mockResolvedValue([]); count.mockReset(); count.mockResolvedValue(0); });
 
 describe("GET /runs", () => {
   it("/:id'den ÖNCE tanımlı", () => {
@@ -176,5 +177,65 @@ describe("GET /runs", () => {
     findMany.mockResolvedValue([row(1), row(2)]);
     const { res } = await invoke({ limit: "2" });
     expect(res.body.nextCursor).toBeNull();
+  });
+});
+
+describe("GET /runs?companyId= (BRA-P0-11a)", () => {
+  it("companyId yoksa count çağrılmaz ve yanıtta counts yok (eski sözleşme)", async () => {
+    const { res } = await invoke({});
+    expect(count).not.toHaveBeenCalled();
+    expect(res.body).not.toHaveProperty("counts");
+  });
+
+  it.each([[""], [["a", "b"]], ["x".repeat(129)], [{ a: 1 }]])("geçersiz companyId %j -> 400", async (c) => {
+    const { nextErr } = await invoke({ companyId: c });
+    expect(nextErr?.statusCode).toBe(400);
+    expect(findMany).not.toHaveBeenCalled();
+  });
+
+  it("kiracı kapsamı + şirket süzgeci aynı where'de; liste ve her kova sayımı aynı kapsamı taşır", async () => {
+    await invoke({ companyId: "c1" }, "tenant-A");
+    const where = findMany.mock.calls[0][0].where.AND;
+    expect(where[0]).toEqual({ pipeline: { company: { tenantId: "tenant-A" } } });
+    expect(where[1]).toEqual({ pipeline: { companyId: "c1" } });
+    expect(count).toHaveBeenCalledTimes(4);
+    for (const call of count.mock.calls) {
+      expect(call[0].where.AND[0]).toEqual({ pipeline: { company: { tenantId: "tenant-A" } } });
+      expect(call[0].where.AND[1]).toEqual({ pipeline: { companyId: "c1" } });
+    }
+  });
+
+  it("kiracı izolasyonu: başka kiracının şirketi -> 200 boş liste, counts hepsi 0, varlık sızmaz; where kiracıyı daima dayatır", async () => {
+    // Veritabanı iki kısıtın kesişimini uygular: tenant-B'nin şirketi tenant-A kapsamında eşleşmez.
+    const { res, nextErr } = await invoke({ companyId: "foreign-company" }, "tenant-A");
+    expect(nextErr).toBeUndefined();
+    expect(res.statusCode).toBe(200);
+    expect(res.body).toEqual({ runs: [], nextCursor: null, counts: { working: 0, needs_approval: 0, done: 0, stuck: 0 } });
+    const where = findMany.mock.calls[0][0].where.AND;
+    expect(JSON.stringify(where[0])).toContain("tenant-A");
+    expect(JSON.stringify(where)).not.toContain("tenant-B");
+  });
+
+  it("25+ kayıt: sayfa 25'te kesilir ama counts gerçek toplamı verir (kova başına), toplam doğru", async () => {
+    findMany.mockResolvedValue(Array.from({ length: 26 }, (_, i) => row(i + 1)));
+    const totals: Record<string, number> = { working: 31, needs_approval: 4, done: 12, stuck: 3 };
+    count.mockImplementation(async (arg: any) => {
+      // bucketWhere hangi kovaysa onu tanı: where.AND[2] kovaya özgü.
+      const w = JSON.stringify(arg.where.AND[2]);
+      if (w.includes("NEEDS_APPROVAL") || w.includes("WAITING_APPROVAL")) return totals.needs_approval;
+      if (w.includes("COMPLETED")) return totals.done;
+      if (w.includes("FAILED")) return totals.stuck;
+      return totals.working;
+    });
+    const { res } = await invoke({ companyId: "c1" });
+    expect(res.body.runs).toHaveLength(25);
+    expect(res.body.nextCursor).not.toBeNull();
+    expect(res.body.counts).toEqual(totals);
+    expect(Object.values(res.body.counts as Record<string, number>).reduce((a, b) => a + b, 0)).toBe(50);
+  });
+
+  it("counts bucket/cursor'dan bağımsız: bucket=done ile de dört kova sayılır", async () => {
+    await invoke({ companyId: "c1", bucket: "done" });
+    expect(count).toHaveBeenCalledTimes(4);
   });
 });

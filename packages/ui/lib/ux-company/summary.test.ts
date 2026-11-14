@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import type { InboxRun, InboxRunsPage } from "../inbox";
+import { parseRunsPage } from "../inboxParse";
 import { uxCompanyEnabled } from "./flag";
 import { companyName, summarizeCompany, toAgentRows, type BucketPages } from "./summary";
 
@@ -9,8 +10,9 @@ const run = (id: string, companyId: string | null, cost: unknown, bucket = "work
   id, pipelineId: "p", status: "RUNNING", state: null, resultStatus: null, costUsd: cost as any, createdAt: "2026-11-13T00:00:00Z", updatedAt: "2026-11-13T00:00:00Z",
   bucket: bucket as any, pipeline: companyId ? { id: "p", name: "x", company: { id: companyId, name: "C" } } : null,
 });
-const page = (runs: InboxRun[], nextCursor: string | null = null): InboxRunsPage => ({ runs, nextCursor });
-const pages = (over: Partial<BucketPages> = {}): BucketPages => ({ working: page([]), stuck: page([]), needs_approval: page([]), done: page([]), ...over });
+const page = (runs: InboxRun[], nextCursor: string | null = null, counts?: InboxRunsPage["counts"]): InboxRunsPage => ({ runs, nextCursor, ...(counts ? { counts } : {}) });
+const C = (working = 0, stuck = 0, needs_approval = 0, done = 0) => ({ working, stuck, needs_approval, done });
+const pages = (over: Partial<BucketPages> = {}, counts = C()): BucketPages => ({ working: page([], null, counts), stuck: page([], null, counts), needs_approval: page([], null, counts), done: page([], null, counts), ...over });
 
 describe("bayrak", () => {
   it("varsayılan kapalı; yalnız 1/true açar", () => {
@@ -21,39 +23,56 @@ describe("bayrak", () => {
 });
 
 describe("summarizeCompany", () => {
-  it("yalnız bu şirketin işlerini sayar; başka şirket ve şirketsiz işler dışarıda", () => {
-    const s = summarizeCompany("c1", pages({ working: page([run("a", "c1", "1.5"), run("b", "c2", "9"), run("c", null, "9")]), done: page([run("d", "c1", 2, "done")]) }));
+  it("sayılar sunucu `counts` toplamıdır (istemci süzmesi yok); maliyet yüklenen işlerden", () => {
+    const s = summarizeCompany(pages({ working: page([run("a", "c1", "1.5")], null, C(1, 0, 0, 1)), done: page([run("d", "c1", 2, "done")], null, C(1, 0, 0, 1)) }, C(1, 0, 0, 1)));
     expect(s.counts.working).toEqual({ count: 1, partial: false });
     expect(s.counts.done).toEqual({ count: 1, partial: false });
     expect(s.costUsd).toBe(3.5);
     expect(s.costUnknownRuns).toBe(0);
     expect(s.costPartial).toBe(false);
   });
+  it("25+ kayıt: sayfa 25'te kesilse de toplam sunucu sayısıdır (en az DEĞİL kesin)", () => {
+    const runs = Array.from({ length: 25 }, (_, i) => run(`r${i}`, "c1", "1"));
+    const c = C(40, 3, 4, 12);
+    const s = summarizeCompany(pages({ working: page(runs, "cur", c) }, c));
+    expect(s.counts.working).toEqual({ count: 40, partial: false });
+    expect(s.counts.stuck.count! + s.counts.needs_approval.count! + s.counts.done.count! + s.counts.working.count!).toBe(59);
+    expect(s.costPartial).toBe(true); // maliyet yalnız yüklenen 25 işten
+  });
   it("okunamayan kova 0 DEĞİL bilinmiyor (null); maliyet kısmi işaretlenir", () => {
-    const s = summarizeCompany("c1", pages({ stuck: null }));
+    const s = summarizeCompany(pages({ stuck: null }));
     expect(s.counts.stuck).toEqual({ count: null, partial: false });
     expect(s.counts.working.count).toBe(0);
     expect(s.costPartial).toBe(true);
   });
-  it("sonraki sayfa varsa sayı 'en az' (partial)", () => {
-    const s = summarizeCompany("c1", pages({ needs_approval: page([run("a", "c1", null)], "cur") }));
-    expect(s.counts.needs_approval).toEqual({ count: 1, partial: true });
+  it("`counts` gelmediyse (eski sunucu) sayı bilinmiyor; istemci tahmin etmez", () => {
+    const s = summarizeCompany({ working: page([run("a", "c1", null)]), stuck: page([]), needs_approval: page([]), done: page([]) });
+    expect(s.counts.working).toEqual({ count: null, partial: false });
     expect(s.costPartial).toBe(true);
   });
   it("maliyet: bozuk/null değer toplama girmez ve sayılır; hiç okunamazsa costUsd null; 0 maliyet 0'dır", () => {
-    const bad = summarizeCompany("c1", pages({ working: page([run("a", "c1", null), run("b", "c1", "12,5")]) }));
+    const bad = summarizeCompany(pages({ working: page([run("a", "c1", null), run("b", "c1", "12,5")], null, C(2)) }));
     expect(bad.costUsd).toBeNull();
     expect(bad.costUnknownRuns).toBe(2);
-    const zero = summarizeCompany("c1", pages({ working: page([run("a", "c1", "0.000000")]) }));
+    const zero = summarizeCompany(pages({ working: page([run("a", "c1", "0.000000")], null, C(1)) }));
     expect(zero.costUsd).toBe(0);
   });
   it("hiç iş yoksa maliyet 0 (bilinmiyor DEĞİL); kova okunamadıysa bilinmiyor", () => {
-    expect(summarizeCompany("c1", pages()).costUsd).toBe(0);
-    expect(summarizeCompany("c1", pages({ done: null })).costUsd).toBeNull();
+    expect(summarizeCompany(pages()).costUsd).toBe(0);
+    expect(summarizeCompany(pages({ done: null })).costUsd).toBeNull();
   });
   it("ondalık toplam kayan nokta hatası üretmez (0.1+0.2)", () => {
-    const s = summarizeCompany("c1", pages({ working: page([run("a", "c1", "0.1"), run("b", "c1", "0.2")]) }));
+    const s = summarizeCompany(pages({ working: page([run("a", "c1", "0.1"), run("b", "c1", "0.2")], null, C(2)) }));
     expect(s.costUsd).toBe(0.3);
+  });
+});
+
+describe("parseRunsPage counts", () => {
+  it("geçerli counts okunur; bozuk kova atlanır (0 uydurulmaz); counts yoksa alan yok", () => {
+    const base = { runs: [], nextCursor: null };
+    expect(parseRunsPage({ ...base, counts: { working: 3, stuck: -1, done: 2.5, needs_approval: "4" } }).counts).toEqual({ working: 3 });
+    expect(parseRunsPage(base)).not.toHaveProperty("counts");
+    expect(parseRunsPage({ ...base, counts: [1] })).not.toHaveProperty("counts");
   });
 });
 

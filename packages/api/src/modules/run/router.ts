@@ -27,7 +27,7 @@ import { toJobReceiptDto } from "./receipt";
 import { buildCodeSummary, CODE_SUMMARY_TOOL_NAMES, MAX_SUMMARY_CALLS } from "./code-summary";
 import { env } from "../../config/env";
 import { toPublicCompany } from "../company/redact";
-import { jobBucket, type InboxBucket, type RunEvent } from "@ai-company-os/core";
+import { INBOX_BUCKETS, jobBucket, type InboxBucket, type RunEvent } from "@ai-company-os/core";
 import { bucketWhere, isInboxBucket, jobStaleAfterMs } from "./job-bucket-query";
 import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } from "./list-cursor";
 
@@ -86,11 +86,13 @@ async function assertValidTakeoverTarget(
 }
 
 // GET /api/v1/runs — işler gelen kutusu listesi (BRA-P0-04b).
-// ?bucket=working|needs_approval|done|stuck (yoksa hepsi, DRAFT hariç) · ?limit=1..100 (25) · ?cursor=opak.
+// ?bucket=working|needs_approval|done|stuck (yoksa hepsi, DRAFT hariç) · ?limit=1..100 (25) · ?cursor=opak
+// · ?companyId=<id> (BRA-P0-11a: şirkete süzer; başka kiracının şirketi sızdırmadan boş döner ve `counts` hep 0).
+// companyId verilirse yanıta `counts` (kova başına TOPLAM, sayfa/cursor/bucket'tan bağımsız) eklenir.
 // Dar select: ham Run satırı / Company.config DÖNMEZ (BRA-SEC-01).
 runRouter.get("/", async (req, res, next) => {
   try {
-    const { bucket: bucketQ, cursor: cursorQ } = req.query;
+    const { bucket: bucketQ, cursor: cursorQ, companyId: companyQ } = req.query;
     if (bucketQ !== undefined && !isInboxBucket(bucketQ)) {
       throw new AppError(400, "Invalid bucket. Use working, needs_approval, done or stuck.");
     }
@@ -98,13 +100,20 @@ runRouter.get("/", async (req, res, next) => {
     if (limit === null) throw new AppError(400, "Invalid limit. Use an integer between 1 and 100.");
     const cursor = cursorQ === undefined ? undefined : decodeCursor(cursorQ);
     if (cursor === null) throw new AppError(400, "Invalid cursor.");
+    if (companyQ !== undefined && (typeof companyQ !== "string" || companyQ.length === 0 || companyQ.length > 128)) {
+      throw new AppError(400, "Invalid companyId.");
+    }
+    const companyId = companyQ as string | undefined;
 
     const now = new Date();
     const staleAfterMs = jobStaleAfterMs();
+    const tenantScope = { pipeline: { company: { tenantId: req.auth!.tenantId } } };
+    const companyScope = companyId ? [{ pipeline: { companyId } }] : [];
     const rows = await prisma.run.findMany({
       where: {
         AND: [
-          { pipeline: { company: { tenantId: req.auth!.tenantId } } },
+          tenantScope,
+          ...companyScope,
           bucketWhere(bucketQ as InboxBucket | undefined, now, staleAfterMs),
           ...(cursor ? [afterCursorWhere(cursor)] : []),
         ],
@@ -139,7 +148,18 @@ runRouter.get("/", async (req, res, next) => {
         staleAfterMs,
       }),
     }));
-    res.json({ runs, nextCursor: rows.length > limit ? encodeCursor(page[page.length - 1]) : null });
+    const nextCursor = rows.length > limit ? encodeCursor(page[page.length - 1]) : null;
+    if (!companyId) {
+      res.json({ runs, nextCursor });
+      return;
+    }
+    // Kova sayıları: aynı kiracı+şirket kapsamı, bucketWhere ile (SQL tarafı; sayfa kırpmasından etkilenmez).
+    const buckets = INBOX_BUCKETS as readonly InboxBucket[];
+    const totals = await Promise.all(
+      buckets.map((b) => prisma.run.count({ where: { AND: [tenantScope, ...companyScope, bucketWhere(b, now, staleAfterMs)] } })),
+    );
+    const counts = Object.fromEntries(buckets.map((b, i) => [b, totals[i]]));
+    res.json({ runs, nextCursor, counts });
   } catch (err) { next(err); }
 });
 
