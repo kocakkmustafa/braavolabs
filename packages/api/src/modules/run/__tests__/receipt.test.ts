@@ -438,3 +438,21 @@ describe("BRA-P0-06c — adım başına sağlayıcı/model", () => {
     expect(dto.evidence).toEqual([step]);
   });
 });
+
+describe("BRA-P1-03a create_pull_request dry-run vs gercek cikti", () => {
+  const DIFF2 = tc("d1", "git_commit");
+  const OK2 = tc("t1", "run_tests", "COMPLETED", { exitCode: 0 });
+  it("dry-run ciktisi (prUrl:null) pr kaniti uretmez", () => {
+    const dry = tc("p1", "create_pull_request", "COMPLETED", {
+      status: "COMPLETED", dryRun: true, prUrl: null,
+      request: { method: "POST", url: "https://api.github.com/repos/o/r/pulls", body: { title: "T" } },
+    });
+    const r = buildReceipt(run("COMPLETED", [DIFF2, OK2, dry], { goal: "fix" }));
+    expect(r.evidence.some((e) => e.kind === "pr")).toBe(false);
+  });
+  it("gercek github.com pull/N ciktisi pr kaniti uretir", () => {
+    const real = tc("p2", "create_pull_request", "COMPLETED", { url: "https://github.com/o/r/pull/12" });
+    const r = buildReceipt(run("COMPLETED", [DIFF2, OK2, real], { goal: "fix" }));
+    expect(r.evidence.some((e) => e.kind === "pr" && e.ref === "https://github.com/o/r/pull/12")).toBe(true);
+  });
+});

@@ -80,6 +80,9 @@ export function assertOutboundFeatureEnabled(feature: OutboundFeature): void {
 export const OUTBOUND_TOOL_GATES: Readonly<Record<string, readonly OutboundFeature[]>> = {
   email_send_sequence: ["outreach", "email"],
   make_outbound_call: ["voice"],
+  // BRA-P1-03a: PR dry-run tool sits behind the 03c deploy_merge gate
+  // (kurucu onayı şartı: flag stays OFF until founder approval + operator).
+  create_pull_request: ["deploy_merge"],
 };
 
 /**
