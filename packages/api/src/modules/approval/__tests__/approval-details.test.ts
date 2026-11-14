@@ -247,7 +247,43 @@ describe("deriveApprovalDetails", () => {
     expect(d.dataTransfer!.length).toBeLessThanOrEqual(MAX_DETAIL_ITEMS);
   });
 
-  it("çıktı anahtar kümesi kapalı; reversible her zaman null", () => {
+  describe("BRA-UX-API-01e: AIza… / glpat-… önekleri", () => {
+    const AIZA = "AIza" + "Sy" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q"; // 39 karakter
+    const GLPAT = "glpat-" + "aB3dE6gH9jK2mN5pQ8sT"; // 26 karakter
+    it("uzunluklar tam 39 ve 26 (ID_LONG_BLOCK altında)", () => {
+      expect(AIZA).toHaveLength(39);
+      expect(GLPAT).toHaveLength(26);
+    });
+    it.each([AIZA, GLPAT, `id-${AIZA}`, `x.${GLPAT}`])("%s kimlik/araç/sağlayıcı/alan adı hiçbir alana girmez", (v) => {
+      const e = deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: v, action: "PAUSE", connectionId: v, targetId: v });
+      expect(JSON.stringify(e)).not.toContain(v);
+      expect(e.permissions).toBeNull();
+      expect(e.dataTransfer).toBeNull();
+      const s = deriveApprovalDetails("SPEND", { toolName: "send_email", input: { [v]: 1, to: 2 } });
+      expect(s.dataTransfer).toEqual(["send_email ← girdi alanları: to"]);
+      const h = deriveApprovalDetails("HANDOFF", { suggestedProvider: v, suggestedModel: v });
+      expect(h.dataTransfer).toBeNull();
+    });
+    it("yanlış pozitif yok: AIzaWord, glpat-notes, gaiza, kısa gövdeler geçer", () => {
+      for (const ok of ["AIzaWord", "glpat-notes", "gaiza-1", "AIza" + "a".repeat(19), "glpat-" + "a".repeat(19), "aiza_tool", "GLPAT-" + "a".repeat(20)]) {
+        const d = deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "t", action: "PAUSE", connectionId: ok });
+        expect(d.dataTransfer).toEqual([`PAUSE → bağlantı ${ok}`]);
+      }
+    });
+  });
+
+  it("metadata.reversible olumlu: gerçek boolean aynen döner (SPEND ve EXTERNAL_CONTROL)", () => {
+    expect(deriveApprovalDetails("SPEND", { toolName: "pay", reversible: false }).reversible).toBe(false);
+    expect(deriveApprovalDetails("SPEND", { toolName: "pay", reversible: true }).reversible).toBe(true);
+    expect(deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "ec", action: "TRIGGER", reversible: false }).reversible).toBe(false);
+    expect(deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "ec", action: "PAUSE", reversible: true }).reversible).toBe(true);
+    // boolean olmayan şekiller null; step/HANDOFF kaynak yok
+    expect(deriveApprovalDetails("SPEND", { toolName: "pay", reversible: "true" }).reversible).toBeNull();
+    expect(deriveApprovalDetails("SPEND", { gate: "step", tool: "t", reversible: true }).reversible).toBeNull();
+    expect(deriveApprovalDetails("HANDOFF", { suggestedProvider: "openai", reversible: true }).reversible).toBeNull();
+  });
+
+  it("çıktı anahtar kümesi kapalı; reversible kaynak yoksa null", () => {
     for (const [t, m] of [["SPEND", { toolName: "x" }], ["HANDOFF", {}], ["SPEND", { gate: "step", risk: "low" }]] as const) {
       const d = deriveApprovalDetails(t, m);
       expect(Object.keys(d).sort()).toEqual(["dataTransfer", "permissions", "reversible", "risk"]);

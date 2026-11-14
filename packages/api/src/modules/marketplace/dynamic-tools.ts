@@ -29,7 +29,7 @@ import { credentialSecrets, scrubSecrets } from "../../lib/mcp-auth";
 import type { ToolDefinition } from "../agent/registry";
 import { deriveConnectorToolMeta } from "./connector-tool-risk";
 import { AppError } from "../../middleware/error";
-import { checkConnectorCallAllowed, pinAudienceIfUnset } from "./connector-lifecycle";
+import { checkConnectorCallAllowed, isToolInScope, pinAudienceIfUnset } from "./connector-lifecycle";
 import { logger } from "../../lib/logger";
 
 const TOOL_PREFIX = "mcp_";
@@ -61,6 +61,9 @@ export async function listConnectorToolsForTenant(tenantId: string): Promise<Too
   for (const install of installs) {
     const manifest = (install.cachedToolsManifest ?? []) as unknown as McpTool[];
     for (const tool of manifest) {
+      // SEC-BRA-03b: out-of-scope tools are never shown to the agent
+      // (execution is also refused by checkConnectorCallAllowed).
+      if (!isToolInScope(install.scopes, tool.name)) continue;
       // D-005 (E5/T4): DERIVE the risk meta from the remote tool's name +
       // description instead of the old blanket `low / no-approval`. A remote
       // delete/send/charge tool must NOT slip past the approval gate once it

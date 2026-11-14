@@ -53,6 +53,7 @@ vi.mock("../../../middleware/auth", () => ({
 }));
 
 import { marketplaceRouter } from "../marketplace.router";
+import { assertSafeExternalUrl } from "../../../lib/ssrf";
 
 function getHandler(router: Router, method: string, path: string) {
   // The tenantRouter is mounted via router.use(); walk nested stacks.
@@ -243,5 +244,28 @@ describe("POST /publish — plan / quota / admin gate (T6)", () => {
     expect(nextErr).toBeUndefined();
     expect(claimQuotaMock).not.toHaveBeenCalled();
     expect(connectorUpsert).toHaveBeenCalledOnce();
+  });
+});
+
+describe("POST /publish — HTTPS requirement (SEC-BRA-02b)", () => {
+  it("requires https for the MCP URL when authMethod is not NONE", async () => {
+    await invoke(publish, { body: { ...validBody, authMethod: "API_KEY" } });
+    expect(vi.mocked(assertSafeExternalUrl)).toHaveBeenCalledWith(validBody.mcpServerUrl, { requireHttps: true });
+  });
+  it("requires https when the URL carries a query string even with NONE", async () => {
+    const url = "https://mcp.acme.example/rpc?k=v";
+    await invoke(publish, { body: { ...validBody, authMethod: "NONE", mcpServerUrl: url } });
+    expect(vi.mocked(assertSafeExternalUrl)).toHaveBeenCalledWith(url, { requireHttps: true });
+  });
+  it("does not force https for NONE without query", async () => {
+    await invoke(publish, { body: { ...validBody, authMethod: "NONE" } });
+    expect(vi.mocked(assertSafeExternalUrl)).toHaveBeenCalledWith(validBody.mcpServerUrl, { requireHttps: false });
+  });
+  it("a rejected cleartext URL ends in 400 and never upserts", async () => {
+    const { SsrfError } = await import("../../../lib/ssrf");
+    vi.mocked(assertSafeExternalUrl).mockRejectedValueOnce(new SsrfError("HTTPS is required for this destination"));
+    const { nextErr } = await invoke(publish, { body: { ...validBody, mcpServerUrl: "http://mcp.acme.example/rpc" } });
+    expect(nextErr?.statusCode).toBe(400);
+    expect(connectorUpsert).not.toHaveBeenCalled();
   });
 });

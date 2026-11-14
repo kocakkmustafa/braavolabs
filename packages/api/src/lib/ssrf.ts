@@ -248,6 +248,14 @@ export class SsrfError extends Error {
   }
 }
 
+/** Upstream body exceeded the byte ceiling: an upstream fault, not a bad URL. */
+export class SsrfResponseTooLargeError extends SsrfError {
+  constructor(message = "Provider response exceeds safe limit") {
+    super(message);
+    this.name = "SsrfResponseTooLargeError";
+  }
+}
+
 export async function assertSafeExternalUrl(
   url: string,
   options: SsrfGuardOptions = {},
@@ -485,7 +493,7 @@ function requestPinned(
           return;
         }
         if (buffer.length > remaining) {
-          fail(new SsrfError("Provider response exceeds safe limit"));
+          fail(new SsrfResponseTooLargeError());
           return;
         }
         bytes += buffer.length;

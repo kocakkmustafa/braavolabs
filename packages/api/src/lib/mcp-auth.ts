@@ -31,10 +31,13 @@ export function authHeaders(method: string, creds: Record<string, string> | unde
     case "CUSTOM":
       // Custom auth: caller pre-formats headers into `headers` JSON.
       try {
+        // Must be a plain object of string values; "null", arrays, scalars
+        // and malformed JSON all count as "no headers".
         const parsed: unknown = creds.headers ? JSON.parse(creds.headers) : {};
-        return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
-          ? (parsed as Record<string, string>)
-          : {};
+        if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return {};
+        const out: Record<string, string> = {};
+        for (const [k, v] of Object.entries(parsed)) if (typeof v === "string") out[k] = v;
+        return out;
       } catch {
         return {};
       }
@@ -47,8 +50,8 @@ export function authHeaders(method: string, creds: Record<string, string> | unde
 const MIN_SCRUB_LEN = 6;
 export const REDACTED = "[REDACTED]";
 const MAX_DEPTH = 50;
-/** Headers whose values are descriptive, not credentials (avoid masking "application/json" etc). */
-const NON_SECRET_HEADER = /^(content-type|content-length|accept(-[a-z]+)?|user-agent|.*version.*)$/i;
+/** Only these exact standard header names are exempt from masking; every other CUSTOM header value is treated as credential material. */
+const NON_SECRET_HEADER = /^(content-type|content-length|accept|user-agent)$/i;
 
 /**
  * Every string that could echo the credential: raw creds, the header values
@@ -71,6 +74,19 @@ export function credentialSecrets(authMethod: string, creds: Record<string, stri
     /* fall through with raw creds only */
   }
   if (headers === null || typeof headers !== "object" || Array.isArray(headers)) headers = {};
+  if (authMethod === "CUSTOM") {
+    // authHeaders drops non-string values (they are never sent); still mask them if echoed.
+    try {
+      const parsed: unknown = creds.headers ? JSON.parse(creds.headers) : {};
+      if (parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)) {
+        for (const [name, v] of Object.entries(parsed)) {
+          if (typeof v !== "string" && v != null && !NON_SECRET_HEADER.test(name)) base.push(String(v));
+        }
+      }
+    } catch {
+      /* malformed headers JSON: nothing was sent */
+    }
+  }
   for (const [name, v] of Object.entries(headers)) {
     if (typeof v !== "string") continue;
     if (NON_SECRET_HEADER.test(name)) continue;

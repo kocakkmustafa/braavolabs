@@ -225,10 +225,10 @@ describe("secret egress — SEC-BRA-06b hardening", () => {
     expect(apiKey).toContain("key-abcdefgh");
     expect(apiKey).not.toContain("Authorization");
     const custom = credentialSecrets("CUSTOM", {
-      headers: JSON.stringify({ "Content-Type": "application/json", Accept: "application/json", "User-Agent": "braavo-agent/1", "X-Api-Version": "2024-01-01", "X-Token": "tok-secret-123" }),
+      headers: JSON.stringify({ "Content-Type": "application/json", Accept: "application/json", "User-Agent": "braavo-agent/1", "X-Token": "tok-secret-123", "X-Api-Version-Key": "verkey-secret-45", "Accept-Token": "acctok-secret-67", "X-Num": 9876543 }),
     });
-    expect(custom).toContain("tok-secret-123");
-    for (const benign of ["application/json", "braavo-agent/1", "2024-01-01"]) expect(custom).not.toContain(benign);
+    for (const secret of ["tok-secret-123", "verkey-secret-45", "acctok-secret-67", "9876543"]) expect(custom).toContain(secret);
+    for (const benign of ["application/json", "braavo-agent/1"]) expect(custom).not.toContain(benign);
   });
 
   it("credentialSecrets/scrubSecrets: short values kept; trimmed, base64 and URL-encoded forms masked; input not mutated", () => {

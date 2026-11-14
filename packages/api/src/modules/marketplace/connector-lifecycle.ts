@@ -28,6 +28,20 @@ interface GuardInstall {
   connector: { slug: string; mcpServerUrl: string };
 }
 
+/** Empty/omitted scopes or "*" = unrestricted (legacy); else exact tool-name match. */
+export function isToolInScope(scopes: string[] | null | undefined, remoteToolName: string): boolean {
+  const list = scopes ?? [];
+  return list.length === 0 || list.includes("*") || list.includes(remoteToolName);
+}
+
+/** Strip secret material from an install row before it leaves the API. */
+export function toInstalledView<T extends { encryptedCredentials?: unknown }>(
+  install: T,
+): Omit<T, "encryptedCredentials"> {
+  const { encryptedCredentials: _omit, ...rest } = install;
+  return rest;
+}
+
 /** Returns an error message when the call must be refused, else null. */
 export function checkConnectorCallAllowed(
   install: GuardInstall,
@@ -48,8 +62,7 @@ export function checkConnectorCallAllowed(
   }
   // remoteToolName null = lifecycle call (refresh): revoked/audience only.
   if (remoteToolName === null) return null;
-  const scopes = install.scopes ?? [];
-  if (scopes.length > 0 && !scopes.includes("*") && !scopes.includes(remoteToolName)) {
+  if (!isToolInScope(install.scopes, remoteToolName)) {
     return `Tool "${remoteToolName}" is outside the granted scope of connector "${slug}".`;
   }
   return null;

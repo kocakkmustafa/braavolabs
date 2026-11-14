@@ -22,7 +22,7 @@
 import { logger } from "./logger";
 import { AppError } from "../middleware/error";
 import { authHeaders, credentialSecrets, scrubSecrets } from "./mcp-auth";
-import { safeExternalFetch, SsrfError } from "./ssrf";
+import { safeExternalFetch, SsrfError, SsrfResponseTooLargeError } from "./ssrf";
 
 export interface McpTool {
   name: string;
@@ -61,18 +61,39 @@ async function callMcp<T>(
   // gap) and re-validate every redirect hop. The connector credentials must
   // never follow a redirect to another origin or an internal address.
   let res: Response;
+  const auth = authHeaders(authMethod, creds);
+  // A query string can carry a token too, so it also forces HTTPS.
+  let hasQuery = false;
+  try {
+    hasQuery = new URL(baseUrl).search !== "";
+  } catch {
+    /* invalid URL is rejected by safeExternalFetch */
+  }
   try {
     res = await safeExternalFetch(baseUrl, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Accept: "application/json",
-        ...authHeaders(authMethod, creds),
+        ...auth,
       },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    }, {
+      // Credentials must never travel in cleartext: HTTPS is mandatory
+      // (initial URL and every redirect hop) whenever auth headers are sent.
+      requireHttps: Object.keys(auth).length > 0 || hasQuery,
     });
   } catch (err) {
+    if (err instanceof SsrfResponseTooLargeError) {
+      throw new AppError(502, "MCP server response too large");
+    }
+    if (err instanceof SsrfError && /HTTPS is required/.test(err.message)) {
+      throw new AppError(
+        400,
+        "Connector URL rejected: HTTPS is required. Bağlayıcı URL'si HTTPS olmalı; HTTPS gerekli — bağlayıcı sahibi URL'yi https'e çevirmeli.",
+      );
+    }
     if (err instanceof SsrfError) {
       throw new AppError(400, `Connector URL rejected: ${err.message}`);
     }
