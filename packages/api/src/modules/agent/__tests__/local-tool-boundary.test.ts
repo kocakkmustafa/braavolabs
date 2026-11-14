@@ -52,4 +52,12 @@ describe("local platform tool dispatch boundary", () => {
     m.reply = block({companyId: "synthetic-company"}); const result = await run(["synthetic_tool"]);
     expect(result.turns[0].toolCalls[0].error).toContain("tenant-scoped pipeline"); expect(m.handler).not.toHaveBeenCalled();
   });
+  it("SEC-BRA-06c: rejects a registered tool outside the configured toolNames", async () => {
+    m.reply = block({value: "synthetic"}); const result = await run(["other_tool"]);
+    expect(result.turns[0].toolCalls[0].error).toContain("not in this agent's allowed tool list"); expect(m.handler).not.toHaveBeenCalled();
+  });
+  it("SEC-BRA-06c: refuses secondary tenant ids in local mode (no acting tenant)", async () => {
+    m.reply = block({dealId: "victim-deal"}); const result = await run(["synthetic_tool"]);
+    expect(result.turns[0].toolCalls[0].error).toContain("tenant-scoped pipeline"); expect(m.handler).not.toHaveBeenCalled();
+  });
 });

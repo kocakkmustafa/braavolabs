@@ -13,6 +13,12 @@ export interface ToolMeta {
    */
   interrupt?: "INPUT";
   /**
+   * SEC-BRA-06c: the executors (governed AND ungoverned) overwrite
+   * `input.tenantId` with the ACTING tenant after id validation. The handler
+   * then scopes its write by tenant (TOCTOU-safe) and refuses when absent.
+   */
+  injectTenantId?: boolean;
+  /**
    * Graduated autonomy (Feature D6). When true, this tool spends real money
    * (ad budgets, paid telephony, etc.) and ALWAYS requires an approval row —
    * CLAUDE.md rule #3 is inviolable, so even an AUTONOMOUS agent is gated here.
@@ -869,10 +875,14 @@ registerTool({
     },
     required: ["dealId", "stage", "reason"],
   },
-  meta: { requiresApproval: false, riskLevel: "low" },
+  meta: { requiresApproval: false, riskLevel: "low", injectTenantId: true },
   handler: async (input) => {
-    const { dealId, stage, reason } = input as any;
-    const deal = await prisma.deal.update({ where: { id: dealId }, data: { stage } });
+    const { dealId, stage, reason, tenantId } = input as any;
+    if (typeof tenantId !== "string" || !tenantId) throw new Error("Tenant scope required for crm_update_deal_stage");
+    if (typeof dealId !== "string" || !dealId) throw new Error("dealId must be a string");
+    // SEC-BRA-06c: tenant filter is part of the WRITE (no check-then-update gap).
+    const res = await prisma.deal.updateMany({ where: { id: dealId, company: { tenantId } }, data: { stage } });
+    if (res.count === 0) throw new Error("Deal not found for this tenant");
     logger.info({ dealId, stage, reason }, "Deal stage updated");
     return { dealId, stage, reason };
   },
@@ -925,14 +935,24 @@ registerTool({
     },
     required: ["contactId"],
   },
-  meta: { requiresApproval: false, riskLevel: "low" },
+  meta: { requiresApproval: false, riskLevel: "low", injectTenantId: true },
   handler: async (input) => {
-    const { contactId, ...updates } = input as any;
-    const contact = await prisma.contact.update({
-      where: { id: contactId },
+    // SEC-BRA-06c: allowlist — never mass-assign ownership fields
+    // (companyId/tenantId/id/...) from model-controlled input.
+    const raw = input as Record<string, unknown>;
+    const { contactId, tenantId } = raw;
+    if (typeof tenantId !== "string" || !tenantId) throw new Error("Tenant scope required for crm_update_contact");
+    if (typeof contactId !== "string" || !contactId) throw new Error("contactId must be a string");
+    const updates: Record<string, unknown> = {};
+    for (const key of ["name", "status", "tags", "properties"]) {
+      if (raw[key] !== undefined) updates[key] = raw[key];
+    }
+    const res = await prisma.contact.updateMany({
+      where: { id: contactId, company: { tenantId } },
       data: updates as any,
     });
-    return { contactId: contact.id, name: contact.name };
+    if (res.count === 0) throw new Error("Contact not found for this tenant");
+    return { contactId, updated: updates.name !== undefined ? { name: updates.name } : {} };
   },
 });
 

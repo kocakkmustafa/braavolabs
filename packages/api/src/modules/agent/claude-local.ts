@@ -10,7 +10,7 @@
 import { spawn } from "node:child_process";
 import { logger } from "../../lib/logger";
 import { getTool } from "./registry";
-import { requiresGovernedTenantScope } from "./tool-executor";
+import { guardUngovernedTenantScope, withActingTenant } from "./tool-executor";
 import type { AgentTurnResult, AgentLoopResult } from "./claude";
 
 interface ToolSchema {
@@ -162,6 +162,7 @@ async function executeLocalTurn(
   systemPrompt: string,
   conversationHistory: string,
   toolNames: string[],
+  tenantId?: string,
 ): Promise<AgentTurnResult> {
   const start = Date.now();
   const toolsForbidden = toolNames.length === 0;
@@ -181,6 +182,17 @@ async function executeLocalTurn(
   const toolCallResults = await Promise.all(
     parsedCalls.map(async (call, index) => {
       const toolStart = Date.now();
+      // SEC-BRA-06c: only tools the agent was configured with may run.
+      if (!toolNames.includes(call.name)) {
+        return {
+          id: `local_${Date.now()}_${index}`,
+          name: call.name,
+          input: call.input,
+          output: null,
+          durationMs: Date.now() - toolStart,
+          error: `Tool "${call.name}" is not in this agent's allowed tool list`,
+        };
+      }
       const registeredTool = getTool(call.name);
 
       if (!registeredTool) {
@@ -209,19 +221,23 @@ async function executeLocalTurn(
           error: `Tool "${call.name}" requires spend approval and cannot run outside a governed pipeline run`,
         };
       }
-      if (requiresGovernedTenantScope(registeredTool, call.input)) {
+      // Local CLI mode: tenant-scoped ids run only when the caller supplied tenantId.
+      const scopeError = await guardUngovernedTenantScope(registeredTool, call.input, call.name, tenantId);
+      if (scopeError) {
         return {
           id: `local_${Date.now()}_${index}`,
           name: call.name,
           input: call.input,
           output: null,
           durationMs: Date.now() - toolStart,
-          error: `Tool "${call.name}" requires a tenant-scoped pipeline run (companyId in input)`,
+          error: scopeError,
         };
       }
 
       try {
-        const output = await registeredTool.handler(call.input);
+        const output = await registeredTool.handler(
+          registeredTool.meta?.injectTenantId && tenantId ? withActingTenant(call.input, tenantId) : call.input,
+        );
         return {
           id: `local_${Date.now()}_${index}`,
           name: call.name,
@@ -263,6 +279,7 @@ export async function runLocalAgentLoop(config: {
   toolNames: string[];
   maxTurns?: number;
   budgetUsd?: number;
+  tenantId?: string;
 }): Promise<AgentLoopResult> {
   const {
     systemPrompt,
@@ -270,6 +287,7 @@ export async function runLocalAgentLoop(config: {
     toolNames,
     maxTurns = 10,
     budgetUsd = 5.0,
+    tenantId,
   } = config;
 
   const turns: AgentTurnResult[] = [];
@@ -277,7 +295,7 @@ export async function runLocalAgentLoop(config: {
   let conversationHistory = userMessage;
 
   for (let turn = 0; turn < maxTurns; turn++) {
-    const result = await executeLocalTurn(systemPrompt, conversationHistory, toolNames);
+    const result = await executeLocalTurn(systemPrompt, conversationHistory, toolNames, tenantId);
     turns.push(result);
     totalCost += result.costUsd;
 
