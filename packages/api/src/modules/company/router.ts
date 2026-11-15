@@ -423,10 +423,10 @@ companyRouter.get("/:id/summary", async (req, res, next) => {
 });
 
 // PATCH /api/v1/companies/:id/budget — aylık bütçe (Company.config.monthlyBudgetUsd; BRA-P0-11c).
-// Yetki: PATCH /:id (şirket ayarı) ile aynı — authMiddleware; yeni eylem yok.
+// Yetki: requirePermission("billing:budget") (ADMIN+; billing/router.ts tenant bütçe ucuyla aynı izin).
 // config'in diğer anahtarları korunur; eşzamanlı yazma updatedAt iyimser kilidiyle yakalanır.
 const budgetSchema = z.object({ monthlyBudgetUsd: z.unknown().refine((v) => v !== undefined, "monthlyBudgetUsd is required") });
-companyRouter.patch("/:id/budget", async (req, res, next) => {
+companyRouter.patch("/:id/budget", requirePermission("billing:budget"), async (req, res, next) => {
   try {
     const body = budgetSchema.parse(req.body ?? {});
     let value: number | null = null;

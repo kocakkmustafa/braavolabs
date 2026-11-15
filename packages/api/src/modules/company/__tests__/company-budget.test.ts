@@ -6,7 +6,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 type Co = { id: string; tenantId: string; config: any; updatedAt: Date };
 const db = vi.hoisted(() => ({
-  companies: [] as any[], logs: [] as any[], where: [] as any[], raceOnce: false,
+  companies: [] as any[], logs: [] as any[], where: [] as any[], raceOnce: false, alwaysConflict: false,
   runs: [] as { cost: string | null }[],
 }));
 
@@ -22,6 +22,7 @@ vi.mock("../../../lib/db", () => ({
         db.where.push(a.where);
         const c = db.companies.find((x: Co) => x.id === a.where.id && x.tenantId === a.where.tenantId);
         if (!c) return { count: 0 };
+        if (db.alwaysConflict) return { count: 0 };
         if (db.raceOnce) { db.raceOnce = false; c.updatedAt = new Date(c.updatedAt.getTime() + 1); }
         if (a.where.updatedAt && a.where.updatedAt.getTime() !== c.updatedAt.getTime()) return { count: 0 };
         c.config = a.data.config;
@@ -48,7 +49,6 @@ vi.mock("../../../middleware/auth", async () => {
   const actual = await vi.importActual<typeof import("../../../middleware/auth")>("../../../middleware/auth");
   return { ...actual, authMiddleware: (_q: unknown, _s: unknown, n: () => void) => n(), realAuth: actual.authMiddleware };
 });
-vi.mock("../../../middleware/require-permission", () => ({ requirePermission: () => (_q: unknown, _s: unknown, n: () => void) => n() }));
 vi.mock("../../../middleware/rateLimit", () => ({ rateLimit: () => (_q: unknown, _s: unknown, n: () => void) => n() }));
 vi.mock("../../../lib/logger", () => ({ logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
@@ -56,23 +56,34 @@ import { ZodError } from "zod";
 import { companyRouter } from "../router";
 import * as authMod from "../../../middleware/auth";
 
+// Zincir (requirePermission + handler) sırayla çalıştırılır; gerçek rbac kullanılır.
+function chain(layer: any) {
+  const hs = layer.route.stack.map((x: any) => x.handle);
+  return async (req: any, res: any, next: any) => {
+    for (let i = 0; i < hs.length; i++) {
+      let advanced = false;
+      await hs[i](req, res, (e?: any) => { advanced = true; if (e) next(e); else advanced = true; });
+      if (!advanced || res.statusCode >= 400) return;
+    }
+  };
+}
 function handler(path: string, method: "get" | "patch") {
   const l = (companyRouter as any).stack.find((x: any) => x.route?.path === path && x.route.methods[method]);
-  return { layer: l, h: l.route.stack[l.route.stack.length - 1].handle as (q: any, s: any, n: any) => Promise<void> };
+  return { layer: l, h: chain(l) as (q: any, s: any, n: any) => Promise<void> };
 }
 const patch = handler("/:id/budget", "patch");
 const summary = handler("/:id/summary", "get");
 
-async function call(h: any, id: string, body: unknown, tenantId = "t-1") {
+async function call(h: any, id: string, body: unknown, tenantId = "t-1", role = "OWNER") {
   const res: any = { statusCode: 200, body: undefined, status(c: number) { this.statusCode = c; return this; }, json(p: unknown) { this.body = p; return this; } };
   let err: any;
-  await h({ params: { id }, body, auth: { tenantId, userId: "u-1", role: "member" } }, res, (e?: any) => { err = e; });
+  await h({ params: { id }, body, auth: { tenantId, userId: "u-1", role } }, res, (e?: any) => { err = e; });
   return { res, err };
 }
 const status = (e: any) => e?.statusCode ?? e?.status;
 
 beforeEach(() => {
-  db.logs = []; db.where = []; db.raceOnce = false; db.runs = [];
+  db.logs = []; db.where = []; db.raceOnce = false; db.alwaysConflict = false; db.runs = [];
   db.companies = [
     { id: "co-1", tenantId: "t-1", config: { niche: "x", webhookSecret: "keep-me", kpi: { a: 1 } }, updatedAt: new Date(1000) },
     { id: "co-B", tenantId: "t-B", config: { monthlyBudgetUsd: 5 }, updatedAt: new Date(1000) },
@@ -80,6 +91,24 @@ beforeEach(() => {
 });
 
 describe("PATCH /:id/budget", () => {
+  it("MEMBER -> 403, yazma ve log yok", async () => {
+    const { res } = await call(patch.h, "co-1", { monthlyBudgetUsd: 9 }, "t-1", "MEMBER");
+    expect(res.statusCode).toBe(403);
+    expect(db.companies[0].config.monthlyBudgetUsd).toBeUndefined();
+    expect(db.logs).toHaveLength(0);
+  });
+  it.each(["ADMIN", "OWNER"])("%s -> başarılı", async (role) => {
+    const { res, err } = await call(patch.h, "co-1", { monthlyBudgetUsd: 9 }, "t-1", role);
+    expect(err).toBeUndefined();
+    expect(res.body).toEqual({ success: true, monthlyBudgetUsd: 9 });
+  });
+  it("3 deneme tükenince 409", async () => {
+    db.alwaysConflict = true;
+    const { err } = await call(patch.h, "co-1", { monthlyBudgetUsd: 4 });
+    expect(status(err)).toBe(409);
+    expect(db.logs).toHaveLength(0);
+    expect(db.companies[0].config.monthlyBudgetUsd).toBeUndefined();
+  });
   it("geçerli yazma config'in diğer anahtarlarını korur; activity_log yazılır", async () => {
     const { res, err } = await call(patch.h, "co-1", { monthlyBudgetUsd: 250.5 });
     expect(err).toBeUndefined();

@@ -14,6 +14,14 @@ describe("validateBudgetInput", () => {
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.error.length).toBeGreaterThan(0);
   });
+  it("ondalık sınırı: 1e-10, 0.001, 0.005 ret; 0.01 ve artıklı değerler kabul", () => {
+    for (const v of [1e-10, 0.001, 0.005, 0.009]) expect(validateBudgetInput(v).ok).toBe(false);
+    expect(validateBudgetInput(0.01)).toEqual({ ok: true, value: 0.01 });
+    expect(validateBudgetInput(0.1 + 0.2)).toEqual({ ok: true, value: 0.3 });
+    expect(validateBudgetInput(1.1 * 3)).toEqual({ ok: true, value: 3.3 });
+    expect(validateBudgetInput(999999.99)).toEqual({ ok: true, value: 999999.99 });
+    expect(validateBudgetInput(0.57)).toEqual({ ok: true, value: 0.57 });
+  });
   it("3 ondalık ve üst sınır aşımı ret", () => {
     expect(validateBudgetInput(1.234).ok).toBe(false);
     expect(validateBudgetInput(1_000_000.01).ok).toBe(false);
@@ -55,6 +63,16 @@ describe("computeBudgetStatus", () => {
     expect(computeBudgetStatus(10000, 7999).state).toBe("ok");
     expect(computeBudgetStatus(100, 80).state).toBe("warn");
     expect(computeBudgetStatus(100, 99.99).state).toBe("warn");
+  });
+  it("yuvarlanmamış eşik: 99.996/100 warn (usedPct<100), 79.996/100 ok", () => {
+    const w = computeBudgetStatus(100, 99.996);
+    expect(w.state).toBe("warn");
+    expect(w.usedPct).toBeLessThan(100);
+    const o = computeBudgetStatus(100, 79.996);
+    expect(o.state).toBe("ok");
+    expect(o.usedPct).toBeLessThan(80);
+    expect(computeBudgetStatus(100, 80).state).toBe("warn");
+    expect(computeBudgetStatus(100, 100).state).toBe("over");
   });
   it("over eşiği: tam %100 over, kalan 0", () => {
     const s = computeBudgetStatus(100, 100);

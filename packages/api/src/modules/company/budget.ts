@@ -5,8 +5,6 @@
 export const BUDGET_CONFIG_KEY = "monthlyBudgetUsd";
 export const MAX_MONTHLY_BUDGET_USD = 1_000_000;
 export const BUDGET_WARN_PCT = 80;
-export const BUDGET_OVER_PCT = 100;
-
 export type BudgetState = "none" | "ok" | "warn" | "over";
 
 export interface BudgetStatus {
@@ -21,8 +19,12 @@ export type BudgetValidation = { ok: true; value: number } | { ok: false; error:
 
 const round2 = (n: number): number => Math.round(n * 100) / 100;
 
-function hasAtMostTwoDecimals(n: number): boolean {
-  return Math.abs(n * 100 - Math.round(n * 100)) < 1e-7;
+/** 0 ya da ≥0.01 ve tam 2 ondalık; tolerans yalnız kayan nokta artığı için (göreli, EPSILON tabanlı). */
+function isCentAligned(n: number): boolean {
+  if (n === 0) return true;
+  const cents = n * 100;
+  const r = Math.round(cents);
+  return r >= 1 && Math.abs(cents - r) <= r * Number.EPSILON * 8;
 }
 
 /** Gelen (güvenilmeyen) değeri doğrular: number, sonlu, 0..1_000_000, en çok 2 ondalık. */
@@ -33,7 +35,7 @@ export function validateBudgetInput(value: unknown): BudgetValidation {
   if (value > MAX_MONTHLY_BUDGET_USD) {
     return { ok: false, error: `monthlyBudgetUsd must be <= ${MAX_MONTHLY_BUDGET_USD}` };
   }
-  if (!hasAtMostTwoDecimals(value)) return { ok: false, error: "monthlyBudgetUsd allows at most 2 decimal places" };
+  if (!isCentAligned(value)) return { ok: false, error: "monthlyBudgetUsd allows at most 2 decimal places" };
   return { ok: true, value: round2(value) };
 }
 
@@ -60,8 +62,9 @@ export function computeBudgetStatus(limitUsd: number | null, spentUsd: number | 
   if (limit === 0) {
     return { limitUsd: limit, spentUsd: spent, remainingUsd, usedPct: null, state: spent > 0 ? "over" : "ok" };
   }
-  const usedPct = round2((spent / limit) * 100);
+  // Durum yuvarlanmamış değerlerle; usedPct yalnız gösterim (aşağı yuvarlanır, %100 görünümü over'a eşlik eder).
   const state: BudgetState =
-    usedPct >= BUDGET_OVER_PCT ? "over" : usedPct >= BUDGET_WARN_PCT ? "warn" : "ok";
+    spent >= limit ? "over" : spent * 100 >= limit * BUDGET_WARN_PCT ? "warn" : "ok";
+  const usedPct = Math.floor((spent * 100 / limit) * 100 + 1e-9) / 100;
   return { limitUsd: limit, spentUsd: spent, remainingUsd, usedPct, state };
 }
