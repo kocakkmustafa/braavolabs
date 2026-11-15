@@ -566,6 +566,7 @@ test("localized privacy and terms match platform data and billing truth", () => 
   // Apple 3.1.2: the App Store listing links these terms, so every locale
   // carries Apple's standard EULA clause (lawyer-approved A-18 wording).
   assert.match(englishTerms, /For the Braavolabs iOS app, Apple's standard Licensed Application End User License Agreement/);
+  // BRAND-01b-2: "YULA Lab" here is the legal operator name, intentionally not "Yula Lab".
   assert.match(englishTerms, /between you and YULA Lab, the operator of Braavolabs, only; Apple has no obligation for maintenance, support, warranty or claims/);
   assert.match(englishTerms, /Apple and its subsidiaries are third-party beneficiaries of these terms/);
   for (const file of readdirSync(join(ROOT, "packages/ui/messages")).filter((name) => name.endsWith(".json"))) {
@@ -580,6 +581,23 @@ test("localized privacy and terms match platform data and billing truth", () => 
   assert.match(englishFaq, /Manage Apple App Store or Google Play subscriptions in that store/);
   assert.match(englishFaq, /Content may be sent to AI providers you select or connect for requested workflows/);
   assert.match(englishFaq, /Provider handling follows the applicable provider terms and settings/);
+});
+
+test("BRAND-01b-2: legal operator name stays 'YULA Lab' (exempt from the 'Yula Lab' brand spelling)", () => {
+  // Founder 2026-11-15 ("Evet, aynı"): the legal/publisher name is a registered
+  // identity, not product copy. The Apple EULA operator clause, LICENSE and the
+  // operator record keep "YULA Lab"; changing any of them must fail this test.
+  const operator = read("packages/ui/lib/legal-operator.ts");
+  assert.match(operator, /legalName: "YULA Lab",/);
+  assert.match(operator, /controller: "YULA Lab — Mustafa Kaan Koçak",/);
+  assert.match(read("LICENSE"), /^Copyright \(c\) 2026 YULA Lab$/m);
+  for (const file of readdirSync(join(ROOT, "packages/ui/messages")).filter((name) => name.endsWith(".json"))) {
+    const terms = JSON.parse(read(`packages/ui/messages/${file}`)).static.legal.terms;
+    const clause = terms.sections.find(({ body }) => body.includes("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"));
+    assert.ok(clause, `${file}: terms omit Apple's standard EULA`);
+    assert.ok(clause.body.includes("YULA Lab"), `${file}: EULA operator must stay "YULA Lab"`);
+    assert.ok(!clause.body.includes("Yula Lab"), `${file}: EULA operator must not use the brand spelling`);
+  }
 });
 
 test("GDPR transfer copy cannot name unevidenced processors or legal mechanisms", () => {
