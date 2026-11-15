@@ -122,3 +122,25 @@ describe("canonicalManifestPayload", () => {
     expect(base).not.toBe(swapped);
   });
 });
+
+describe("tool capability (BRA-P1-03d)", () => {
+  const withCap = (capability: unknown) =>
+    connectorManifestSchema.safeParse({ ...valid, tools: [{ name: "t", capability }] });
+
+  it("accepts every valid capability and none", () => {
+    for (const c of ["read", "write", "deploy", "merge", "destructive"]) expect(withCap(c).success).toBe(true);
+    expect(connectorManifestSchema.safeParse(valid).success).toBe(true);
+  });
+
+  it("rejects an invalid capability enum value", () => {
+    expect(withCap("admin").success).toBe(false);
+  });
+
+  it("capability changes the canonical payload only when present", () => {
+    const base = { slug: "a", version: "1.0.0" };
+    const none = canonicalManifestPayload({ ...base, tools: [{ name: "t", description: "d" }] });
+    expect(none).not.toContain("capability");
+    const cap = canonicalManifestPayload({ ...base, tools: [{ name: "t", description: "d", capability: "deploy" }] });
+    expect(cap).not.toBe(none);
+  });
+});

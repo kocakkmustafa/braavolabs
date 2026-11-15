@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 vi.mock("../logger", () => ({ logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() } }));
 
 import {
+  isDeployMergeCall,
   isDeployMergeTool,
   OUTBOUND_DISABLED_CODES,
   OUTBOUND_GATE_ENV,
@@ -259,6 +260,37 @@ describe("B-06 outbound gates", () => {
     expect(disabledFeatureForTool("mcp_x_list_items", { ...base, connectorSlug: "x", connectorName: "Deploy Bot" })).toBe("deploy_merge");
     expect(disabledFeatureForTool("mcp_m_list_items", { ...base, connectorSlug: "mergeable-tools", connectorName: "Mergeable Tools" })).toBeNull();
     expect(disabledFeatureForTool("mcp_e_list_items", { ...base, connectorSlug: "emergency-contacts", connectorName: "Emergency Contacts" })).toBeNull();
+  });
+});
+
+describe("BRA-P1-03d declaredCapability", () => {
+  const dyn = { dynamic: true, remoteName: "list_items", remoteDescription: "Lists items" } as const;
+  afterEach(() => vi.unstubAllEnvs());
+
+  it("declared deploy/merge/destructive + harmless name -> gate closed when flag off, open when on", () => {
+    for (const cap of ["deploy", "merge", "destructive"]) {
+      vi.stubEnv("DEPLOY_MERGE_TOOLS_ENABLED", "");
+      expect(disabledFeatureForTool("mcp_x_list_items", { ...dyn, declaredCapability: cap })).toBe("deploy_merge");
+      vi.stubEnv("DEPLOY_MERGE_TOOLS_ENABLED", "true");
+      expect(disabledFeatureForTool("mcp_x_list_items", { ...dyn, declaredCapability: cap })).toBeNull();
+    }
+  });
+
+  it("declared read/write never lowers the classifier (deploy_prod stays closed)", () => {
+    vi.stubEnv("DEPLOY_MERGE_TOOLS_ENABLED", "");
+    for (const cap of ["read", "write"]) {
+      expect(
+        disabledFeatureForTool("mcp_x_deploy_prod", { dynamic: true, remoteName: "deploy_prod", remoteDescription: "x", declaredCapability: cap }),
+      ).toBe("deploy_merge");
+    }
+  });
+
+  it("no capability / read / write -> legacy behaviour unchanged", () => {
+    vi.stubEnv("DEPLOY_MERGE_TOOLS_ENABLED", "");
+    expect(disabledFeatureForTool("mcp_x_list_items", dyn)).toBeNull();
+    expect(disabledFeatureForTool("mcp_x_list_items", { ...dyn, declaredCapability: "read" })).toBeNull();
+    expect(disabledFeatureForTool("mcp_x_list_items", { ...dyn, declaredCapability: "write" })).toBeNull();
+    expect(isDeployMergeCall("mcp_x_list_items", { ...dyn, declaredCapability: "bogus" })).toBe(false);
   });
 });
 

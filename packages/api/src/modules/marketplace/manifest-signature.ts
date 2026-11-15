@@ -103,3 +103,30 @@ export function verifyManifest(
 export function isSignedManifest(storedSignature: string | null | undefined): boolean {
   return !!storedSignature && storedSignature.startsWith(SIG_PREFIX);
 }
+
+/**
+ * BRA-P1-03d: a live probe can never DROP a publisher-declared capability.
+ * For each probed tool whose name matches a publish-time tool carrying a
+ * `capability`, copy that capability onto the probed tool. Unmatched probe
+ * tools stay capability-less (the name/description classifier still guards
+ * them). A probe-supplied capability is discarded: only publish-time
+ * (signed) declarations count.
+ */
+export function carryDeclaredCapabilities<T extends { name: string; capability?: string }>(
+  published: unknown,
+  probed: T[],
+): T[] {
+  const declared = new Map<string, string>();
+  if (Array.isArray(published)) {
+    for (const t of published) {
+      const name = (t as { name?: unknown })?.name;
+      const cap = (t as { capability?: unknown })?.capability;
+      if (typeof name === "string" && typeof cap === "string") declared.set(name, cap);
+    }
+  }
+  return probed.map((t) => {
+    const { capability: _ignored, ...rest } = t;
+    const cap = declared.get(t.name);
+    return (cap ? { ...rest, capability: cap } : rest) as T;
+  });
+}

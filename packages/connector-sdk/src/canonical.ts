@@ -72,6 +72,9 @@ export function canonicalManifestPayload(input: {
       name: String(t.name ?? ""),
       description: String(t.description ?? ""),
       inputSchema: normalizeInputSchema(t.inputSchema),
+      // BRA-P1-03d: only serialized when declared, so legacy (capability-less)
+      // signatures stay byte-identical.
+      ...(typeof t.capability === "string" ? { capability: t.capability } : {}),
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
   return stableStringify({ slug: input.slug, version: input.version, tools });

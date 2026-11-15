@@ -253,6 +253,8 @@ export interface ToolCallGateOpts {
   connectorName?: unknown;
   /** Precomputed isDeployMergeCall result (the executor classifies once). */
   deployMerge?: boolean;
+  /** Publisher-declared capability (BRA-P1-03d). deploy|merge|destructive RAISES to deploy/merge; anything else never changes the classifier. */
+  declaredCapability?: string;
 }
 
 /**
@@ -264,6 +266,8 @@ export interface ToolCallGateOpts {
  */
 export function isDeployMergeCall(toolName: string, opts: ToolCallGateOpts = {}): boolean {
   if (!opts.dynamic) return isDeployMergeTool(toolName);
+  const cap = opts.declaredCapability;
+  if (cap === "deploy" || cap === "merge" || cap === "destructive") return true;
   const name = "remoteName" in opts ? opts.remoteName : toolName;
   if (isDeployMergeTool(name, opts.remoteDescription)) return true;
   return (

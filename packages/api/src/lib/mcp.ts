@@ -28,6 +28,8 @@ export interface McpTool {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  /** Publisher-declared capability (BRA-P1-03d); never set by a live probe. */
+  capability?: string;
 }
 
 export interface McpInvokeResult {
