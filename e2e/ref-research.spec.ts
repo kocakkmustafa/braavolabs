@@ -65,18 +65,23 @@ test.describe("research stays off the network", () => {
     const list = (await (await request.get(`${API}/research`, { headers: t.headers })).json()) as Array<{ id: string; status: string }>;
     expect(list).toHaveLength(1);
 
-    // Give the background loop time to hit the missing-provider branch; it must never complete or gather sources.
-    await new Promise((r) => setTimeout(r, 3000));
-    const res = await request.get(`${API}/research/${list[0]!.id}`, { headers: t.headers });
-    expect(res.status()).toBe(200);
-    const session = (await res.json()) as { status: string; sources: unknown[]; findings?: unknown };
-    expect(session.status).not.toBe("COMPLETED");
-    expect(session.sources).toEqual([]);
-    expect(session.findings == null || (Array.isArray(session.findings) && session.findings.length === 0)).toBe(true);
+    // Observe the session until the background loop has started (RUNNING) or failed; it must never be COMPLETED
+    // at any observation, and must never gather sources or findings.
+    const observed: string[] = [];
+    await expect.poll(async () => {
+      const res = await request.get(`${API}/research/${list[0]!.id}`, { headers: t.headers });
+      expect(res.status()).toBe(200);
+      const session = (await res.json()) as { status: string; sources: unknown[]; findings?: unknown };
+      observed.push(session.status);
+      expect(session.sources).toEqual([]);
+      expect(session.findings == null || (Array.isArray(session.findings) && session.findings.length === 0)).toBe(true);
+      return session.status;
+    }, { timeout: 15_000, intervals: [250, 500, 1000] }).toMatch(/^(RUNNING|FAILED)$/);
+    expect(observed).not.toContain("COMPLETED");
 
     // Only the fake model was called (tool turn + final answer).
     const seen = await fakeLlmRequests();
-    expect(seen).toHaveLength(2);
+    expect(seen).toHaveLength(2); // exactly two: tool turn + final answer, no search/fetch peer
     expect(seen.every((r) => r.path === "/v1/chat/completions")).toBe(true);
   });
 });

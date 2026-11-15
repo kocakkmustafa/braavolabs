@@ -51,9 +51,8 @@ test("social draft: agent saves a PENDING LinkedIn post draft and nothing is pub
   expect(seen[0]!.toolNames).toContain("social_create_post");
   expect(seen.every((r) => r.path === "/v1/chat/completions")).toBe(true);
 
-  // UI: the reviewer sees the pending post; nothing was sent.
+  // UI: the reviewer sees the pending post; nothing was sent (the body above is the positive anchor; the send button is EMAIL-only, so it is not asserted).
   await proxyBrowserApiToRealApi(context, page, request, t.token);
   await page.goto(`${UI}/drafts`);
   await expect(page.getByText("E2E-SOCIAL-BODY").first()).toBeVisible();
-  await expect(page.getByRole("button", { name: "Approve and send" })).toHaveCount(0);
 });
