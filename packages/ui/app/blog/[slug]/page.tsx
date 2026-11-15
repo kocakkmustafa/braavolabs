@@ -118,7 +118,7 @@ export default async function BlogPostPage({
       </nav>
 
       {/* ── Article ── */}
-      <article className="max-w-3xl mx-auto px-6 md:px-10 pt-12 pb-20">
+      <article id="main-content" tabIndex={-1} className="max-w-3xl mx-auto px-6 md:px-10 pt-12 pb-20">
         <Link
           href="/blog"
           className="bv-mono inline-flex items-center gap-2 mb-8"

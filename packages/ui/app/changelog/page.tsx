@@ -107,7 +107,7 @@ export default function ChangelogPage() {
       </header>
 
       {/* ── Timeline ── */}
-      <div className="max-w-[760px] mx-auto px-6 pb-24">
+      <div id="main-content" tabIndex={-1} className="max-w-[760px] mx-auto px-6 pb-24">
         {/* Arc filament spine */}
         <div className="relative">
           {/* Vertical gradient spine line */}

@@ -66,7 +66,7 @@ export default function CostCalculatorPage() {
         </div>
       </nav>
 
-      <main className="mx-auto max-w-5xl px-6 py-16 md:px-10 md:py-24" data-public-surface="cost-calculator">
+      <main id="main-content" tabIndex={-1} className="mx-auto max-w-5xl px-6 py-16 md:px-10 md:py-24" data-public-surface="cost-calculator">
         <header className="max-w-3xl">
           <div className="bv-micro mb-3" style={{ color: "var(--color-primary)" }}>{uiText("m9680189524a4")}</div>
           <h1

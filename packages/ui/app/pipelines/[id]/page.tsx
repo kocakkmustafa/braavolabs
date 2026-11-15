@@ -419,7 +419,6 @@ export default function PipelineDetailPage() {
             { href: "/dashboard", icon: "dashboard", label: runtimeCopy("mc9d5631084a5") },
             { href: "/pipelines", icon: "account_tree", label: runtimeCopy("m596d0616eb4f"), active: true },
             { href: "/runs", icon: "play_circle", label: runtimeCopy("mc8f971fe29fd") },
-            { href: "/agents", icon: "smart_toy", label: runtimeCopy("ma865952c238b") },
             { href: "/companies", icon: "business", label: runtimeCopy("m76c4258af622") },
           ].map((item) => (
             <Link

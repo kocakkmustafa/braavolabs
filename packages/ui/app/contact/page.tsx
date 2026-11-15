@@ -65,7 +65,7 @@ export default function ContactPage() {
       </nav>
 
       {/* Main two-column layout */}
-      <div className="max-w-[1200px] mx-auto px-6 md:px-10 py-14 md:py-20">
+      <div id="main-content" tabIndex={-1} className="max-w-[1200px] mx-auto px-6 md:px-10 py-14 md:py-20">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_1.1fr] gap-12 md:gap-16 items-center min-h-[calc(100vh-120px)] md:min-h-0">
 
           {/* Left: emblem + headline + channels */}

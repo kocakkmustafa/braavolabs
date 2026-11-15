@@ -116,7 +116,7 @@ export default function StatusPage() {
       </nav>
 
       {/* ── Page head ─────────────────────────────────── */}
-      <div className="max-w-[860px] mx-auto px-6 pt-14 pb-4">
+      <div id="main-content" tabIndex={-1} className="max-w-[860px] mx-auto px-6 pt-14 pb-4">
         {/* eyebrow */}
         <p className="bv-micro mb-3 flex items-center gap-2">
           <span className="material-symbols-outlined" style={{ fontSize: 14 }}>monitor_heart</span>{uiText("m20bb133b046a")}</p>

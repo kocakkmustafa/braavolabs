@@ -184,6 +184,8 @@ export default function GdprPage() {
 
       {/* ── Two-column legal layout ── */}
       <div
+        id="main-content"
+        tabIndex={-1}
         style={{
           display: "grid",
           gridTemplateColumns: "230px 1fr",

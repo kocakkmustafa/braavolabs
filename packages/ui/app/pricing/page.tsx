@@ -36,7 +36,7 @@ export default async function PricingPage() {
         </div>
       </nav>
 
-      <main className="max-w-[1080px] mx-auto px-6 py-20">
+      <main id="main-content" tabIndex={-1} className="max-w-[1080px] mx-auto px-6 py-20">
         <header className="text-center max-w-[720px] mx-auto">
           <p className="bv-pill bv-pill-cyan inline-flex mb-5">{t("pricingBadge")}</p>
           <h1 className="font-headline font-bold uppercase text-[clamp(40px,7vw,72px)] leading-none" style={{ overflowWrap: "anywhere" }}>{t("pricingTitle")}</h1>

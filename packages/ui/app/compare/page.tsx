@@ -159,7 +159,7 @@ export default function ComparePage() {
         </div>
       </nav>
 
-      <main>
+      <main id="main-content" tabIndex={-1}>
         {/* ── Page head ── */}
         <header className="max-w-5xl mx-auto px-6 md:px-10 pt-16 pb-10">
           <div className="bv-micro mb-3" style={{ color: "var(--color-primary)" }}>{uiText("m65d72c621640")}</div>

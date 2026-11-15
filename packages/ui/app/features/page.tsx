@@ -58,7 +58,7 @@ export default function FeaturesPage() {
         </div>
       </nav>
 
-      <main className="max-w-[1080px] mx-auto px-6 py-20">
+      <main id="main-content" tabIndex={-1} className="max-w-[1080px] mx-auto px-6 py-20">
         <header className="max-w-[760px]">
           <p className="bv-pill bv-pill-cyan inline-flex mb-5">{uiText("mb92a5ff6a3f6")}</p>
           <h1 className="font-headline font-bold uppercase text-[clamp(40px,7vw,76px)] leading-[0.95]">{uiText("md8d7b7db0cdd")}</h1>

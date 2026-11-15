@@ -188,7 +188,7 @@ export default function SupportPage() {
       </header>
 
       {/* ── Article grid (TOC + prose) ── */}
-      <div className="max-w-[1040px] mx-auto px-6 md:px-8 mt-10 mb-24 grid grid-cols-1 md:grid-cols-[230px_1fr] gap-12">
+      <div id="main-content" tabIndex={-1} className="max-w-[1040px] mx-auto px-6 md:px-8 mt-10 mb-24 grid grid-cols-1 md:grid-cols-[230px_1fr] gap-12">
         {/* Sticky TOC (desktop) */}
         <nav className="hidden md:block sticky top-[72px] self-start" aria-label={uiText("m57cd0c28916e")}>
           <p className="bv-micro mb-[14px]">{uiText("m57cd0c28916e")}</p>
