@@ -21,3 +21,9 @@ export const UI = `http://operator.example:${UI_PORT}`;
 export const UI_LAB = `http://operator.example:${UI_LAB_PORT}`;
 /** Authority of the İşler/iş sayfası-ON, code-change-OFF UI instance (BRA-UX-05e). */
 export const UI_WS = `http://operator.example:${UI_WS_PORT}`;
+
+/** BRA-P0-10: deterministic fake OpenAI-compatible LLM (e2e/support/fake-llm.ts). Loopback only. */
+export const FAKE_LLM_PORT = Number(process.env.E2E_FAKE_LLM_PORT ?? 4314);
+export const FAKE_LLM_ORIGIN = `http://127.0.0.1:${FAKE_LLM_PORT}`;
+/** Base URL a tenant's CUSTOM provider is pointed at (the API appends /chat/completions). */
+export const FAKE_LLM_BASE_URL = `${FAKE_LLM_ORIGIN}/v1`;
