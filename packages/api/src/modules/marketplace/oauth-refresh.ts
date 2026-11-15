@@ -16,6 +16,10 @@ import { encrypt, decrypt } from "../../lib/encryption";
 import { logger } from "../../lib/logger";
 import { safeExternalFetch } from "../../lib/ssrf";
 import { connectorAad } from "./connector-lifecycle";
+import { isSameSiteUrl } from "./same-site";
+
+/** Kept as an alias of the generic helper for existing callers/tests. */
+export const isTokenUrlSameSite = isSameSiteUrl;
 
 /** Refresh slightly early so a token does not expire mid-flight. */
 export const REFRESH_SKEW_MS = 60_000;
@@ -89,6 +93,10 @@ async function doRefresh(
   const { tokenUrl } = creds;
   if (!tokenUrl || !isHttps(tokenUrl) || !isHttps(install.connector.mcpServerUrl)) {
     throw new OAuthRefreshError("OAuth token yenilenemedi: HTTPS gerekli");
+  }
+  // Fail closed before any fetch: refresh token / clientSecret must not leave the connector's domain.
+  if (!isTokenUrlSameSite(tokenUrl, install.connector.mcpServerUrl)) {
+    throw new OAuthRefreshError("OAuth token yenilenemedi: tokenUrl bağlayıcı alanıyla eşleşmiyor");
   }
   const form = new URLSearchParams({ grant_type: "refresh_token", refresh_token: creds.refreshToken! });
   if (creds.clientId) form.set("client_id", creds.clientId);

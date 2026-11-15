@@ -230,6 +230,30 @@ describe("OAuth2 refresh", () => {
     expect(callTool).not.toHaveBeenCalled();
   });
 
+  it("BRA-P1-02a-2: tokenUrl on another domain -> no fetch, refresh fails, secrets go nowhere", async () => {
+    decrypt.mockReturnValue(JSON.stringify({ ...expired, clientSecret: "SECRET-XYZ", tokenUrl: "https://evil.example.net/token" }));
+    const out = await executeMcpTool("t", "acme", "x", {});
+    expect(out).toMatchObject({ error: expect.stringMatching(/OAuth/) });
+    expect(safeFetch).not.toHaveBeenCalled();
+    expect(callTool).not.toHaveBeenCalled();
+    expect(JSON.stringify(out)).not.toMatch(/SECRET-XYZ|REFRESH-TOKEN/);
+  });
+
+  it("BRA-P1-02a-2: look-alike example.com.evil.com is refused without fetch", async () => {
+    findFirst.mockResolvedValue(mkInstall("https://mcp.example.com/rpc"));
+    decrypt.mockReturnValue(JSON.stringify({ ...expired, tokenUrl: "https://example.com.evil.com/token" }));
+    await executeMcpTool("t", "acme", "x", {});
+    expect(safeFetch).not.toHaveBeenCalled();
+  });
+
+  it("BRA-P1-02a-2: sibling subdomain of the connector domain refreshes as before", async () => {
+    decrypt.mockReturnValue(JSON.stringify({ ...expired, tokenUrl: "https://login.acme.example/token" }));
+    safeFetch.mockImplementation(async () => tokenOk());
+    await executeMcpTool("t", "acme", "x", {});
+    expect(safeFetch).toHaveBeenCalledTimes(1);
+    expect(callTool).toHaveBeenCalledTimes(1);
+  });
+
   it("backward compat: OAUTH2 creds without refreshToken are used as-is, even if expired", async () => {
     decrypt.mockReturnValue(JSON.stringify({ accessToken: "LEGACY", expiresAt: "1" }));
     await executeMcpTool("t", "acme", "x", {});
