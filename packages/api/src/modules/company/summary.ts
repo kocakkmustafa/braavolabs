@@ -12,6 +12,7 @@
 import { INBOX_BUCKETS, type InboxBucket } from "@ai-company-os/core";
 import { prisma } from "../../lib/db";
 import { bucketWhere, jobStaleAfterMs } from "../run/job-bucket-query";
+import { computeBudgetStatus, parseMonthlyBudget, type BudgetStatus } from "./budget";
 import { monthStartUtc, toMicro, microToText } from "./models-overview";
 
 export interface CompanySummary {
@@ -21,12 +22,15 @@ export interface CompanySummary {
   buckets: Record<InboxBucket, number>;
   pendingApprovals: number;
   monthCostUsd: string | null;
+  /** BRA-P0-11c: Company.config.monthlyBudgetUsd karşısında bu ayın harcaması. */
+  budget: BudgetStatus;
 }
 
 export async function buildCompanySummary(
   tenantId: string,
   companyId: string,
   now: Date = new Date(),
+  companyConfig?: unknown,
 ): Promise<CompanySummary> {
   const runScope = { pipeline: { companyId, company: { tenantId } } };
   const staleAfterMs = jobStaleAfterMs();
@@ -50,12 +54,14 @@ export async function buildCompanySummary(
 
   const buckets = Object.fromEntries(INBOX_BUCKETS.map((b, i) => [b, counts[i]])) as Record<InboxBucket, number>;
   const sum = cost._sum.costUsd;
+  const monthCostUsd = sum === null || sum === undefined ? null : microToText(toMicro(sum));
   return {
     companyId,
     agents,
     pipelines,
     buckets,
     pendingApprovals,
-    monthCostUsd: sum === null || sum === undefined ? null : microToText(toMicro(sum)),
+    monthCostUsd,
+    budget: computeBudgetStatus(parseMonthlyBudget(companyConfig), monthCostUsd === null ? null : Number(monthCostUsd)),
   };
 }

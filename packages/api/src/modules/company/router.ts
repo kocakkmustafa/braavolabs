@@ -21,6 +21,7 @@ import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { toPublicCompany } from "./redact";
 import { buildModelsOverview } from "./models-overview";
 import { buildCompanySummary } from "./summary";
+import { BUDGET_CONFIG_KEY, validateBudgetInput } from "./budget";
 
 export const companyRouter = Router();
 companyRouter.use(authMiddleware);
@@ -414,10 +415,55 @@ companyRouter.get("/:id/summary", async (req, res, next) => {
   try {
     const company = await prisma.company.findFirst({
       where: { id: req.params.id, tenantId: req.auth!.tenantId },
-      select: { id: true },
+      select: { id: true, config: true },
     });
     if (!company) throw new AppError(404, "Company not found");
-    res.json(await buildCompanySummary(req.auth!.tenantId, company.id));
+    res.json(await buildCompanySummary(req.auth!.tenantId, company.id, new Date(), company.config));
+  } catch (err) { next(err); }
+});
+
+// PATCH /api/v1/companies/:id/budget — aylık bütçe (Company.config.monthlyBudgetUsd; BRA-P0-11c).
+// Yetki: requirePermission("billing:budget") (ADMIN+; billing/router.ts tenant bütçe ucuyla aynı izin).
+// config'in diğer anahtarları korunur; eşzamanlı yazma updatedAt iyimser kilidiyle yakalanır.
+const budgetSchema = z.object({ monthlyBudgetUsd: z.unknown().refine((v) => v !== undefined, "monthlyBudgetUsd is required") });
+companyRouter.patch("/:id/budget", requirePermission("billing:budget"), async (req, res, next) => {
+  try {
+    const body = budgetSchema.parse(req.body ?? {});
+    let value: number | null = null;
+    if (body.monthlyBudgetUsd !== null) {
+      const v = validateBudgetInput(body.monthlyBudgetUsd);
+      if (!v.ok) throw new AppError(400, v.error);
+      value = v.value;
+    }
+    const tenantId = req.auth!.tenantId;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const existing = await prisma.company.findFirst({
+        where: { id: req.params.id, tenantId },
+        select: { config: true, updatedAt: true },
+      });
+      if (!existing) throw new AppError(404, "Company not found");
+      const base = existing.config && typeof existing.config === "object" && !Array.isArray(existing.config)
+        ? { ...(existing.config as Record<string, unknown>) } : {};
+      if (value === null) delete base[BUDGET_CONFIG_KEY]; else base[BUDGET_CONFIG_KEY] = value;
+      const result = await prisma.company.updateMany({
+        where: { id: req.params.id, tenantId, updatedAt: existing.updatedAt },
+        data: { config: base as any },
+      });
+      if (result.count === 0) continue;
+      await prisma.activityLog.create({
+        data: {
+          tenantId,
+          actor: req.auth!.userId,
+          action: "company.budget.update",
+          resource: "company",
+          resourceId: req.params.id,
+          details: { monthlyBudgetUsd: value },
+        },
+      });
+      res.json({ success: true, monthlyBudgetUsd: value });
+      return;
+    }
+    throw new AppError(409, "Company was modified concurrently; retry");
   } catch (err) { next(err); }
 });
 
