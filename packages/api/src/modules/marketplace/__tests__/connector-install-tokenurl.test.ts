@@ -52,4 +52,39 @@ describe("POST /connectors/:slug/install — tokenUrl domain", () => {
     expect(nextErr.message).not.toMatch(/SECRET|evil/);
     expect(listToolsMock).not.toHaveBeenCalled();
   });
+
+  it("400 for a foreign revocationUrl even when tokenUrl is fine", async () => {
+    connectorFindUnique.mockResolvedValue({
+      id: "c1", slug: "acme", visibility: "UNLISTED", isApproved: true, publisherTenantId: "p",
+      mcpServerUrl: "https://mcp.acme.example/rpc", authMethod: "OAUTH2", toolsManifest: [],
+    });
+    let nextErr: any;
+    await install(
+      { auth: { tenantId: "t1", userId: "u1", role: "member" }, params: { slug: "acme" },
+        body: { credentials: { refreshToken: "RT-SECRET", tokenUrl: "https://auth.acme.example/token", revocationUrl: "https://evil.net/revoke" } }, query: {} },
+      { status() { return this; }, json() { return this; } },
+      (e?: any) => { nextErr = e; },
+    );
+    expect(nextErr).toBeInstanceOf(AppError);
+    expect(nextErr.statusCode).toBe(400);
+    expect(nextErr.message).not.toMatch(/SECRET|evil/);
+    expect(listToolsMock).not.toHaveBeenCalled();
+  });
+
+  it("matching tokenUrl + revocationUrl pass the guard (reach the probe)", async () => {
+    listToolsMock.mockReset().mockRejectedValue(new Error("probe stop"));
+    connectorFindUnique.mockResolvedValue({
+      id: "c1", slug: "acme", visibility: "UNLISTED", isApproved: true, publisherTenantId: "p",
+      mcpServerUrl: "https://mcp.acme.example/rpc", authMethod: "OAUTH2", toolsManifest: [],
+    });
+    let nextErr: any;
+    await install(
+      { auth: { tenantId: "t1", userId: "u1", role: "member" }, params: { slug: "acme" },
+        body: { credentials: { refreshToken: "r", tokenUrl: "https://auth.acme.example/token", revocationUrl: "https://idp.acme.example/revoke" } }, query: {} },
+      { status() { return this; }, json() { return this; } },
+      (e?: any) => { nextErr = e; },
+    );
+    expect(listToolsMock).toHaveBeenCalledTimes(1);
+    expect(nextErr?.statusCode).not.toBe(400);
+  });
 });

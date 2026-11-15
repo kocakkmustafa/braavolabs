@@ -34,7 +34,7 @@ import { listTools, type McpTool } from "../../lib/mcp";
 import { connectorManifestSchema } from "@ai-company-os/connector-sdk";
 import { signManifest, verifyManifest, isSignedManifest, carryDeclaredCapabilities } from "./manifest-signature";
 import { refreshInstall, revokeInstall, uninstallInstall, audienceOf, toInstalledView } from "./connector-lifecycle";
-import { isTokenUrlSameSite } from "./oauth-refresh";
+import { firstOffSiteCredentialUrl } from "./same-site";
 import { claimQuota } from "../billing/metering";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { PLAN_LIMITS } from "@ai-company-os/core";
@@ -155,9 +155,9 @@ tenantRouter.post("/connectors/:slug/install", async (req, res, next) => {
 
     // BRA-P1-02a-2: a tokenUrl outside the connector's own domain would receive the
     // refresh token / clientSecret at refresh time. Reject at registration (no credential in the message).
-    const suppliedTokenUrl = body.credentials.tokenUrl;
-    if (suppliedTokenUrl && !isTokenUrlSameSite(suppliedTokenUrl, connector.mcpServerUrl)) {
-      throw new AppError(400, "tokenUrl bağlayıcının alanıyla (alan adı veya alt alanı) eşleşmeli");
+    const offSite = firstOffSiteCredentialUrl(body.credentials, connector.mcpServerUrl);
+    if (offSite) {
+      throw new AppError(400, `${offSite} bağlayıcının alanıyla (alan adı veya alt alanı) eşleşmeli`);
     }
 
     const credsBlob = JSON.stringify(body.credentials);

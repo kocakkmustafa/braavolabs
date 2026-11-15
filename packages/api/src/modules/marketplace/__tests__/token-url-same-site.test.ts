@@ -7,6 +7,7 @@ vi.mock("../../../lib/ssrf", () => ({ safeExternalFetch: vi.fn() }));
 vi.mock("../../../lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
 import { isTokenUrlSameSite as ok } from "../oauth-refresh";
+import { isSameSiteUrl, firstOffSiteCredentialUrl } from "../same-site";
 
 const M = "https://mcp.example.com/rpc";
 
@@ -52,9 +53,24 @@ describe("isTokenUrlSameSite", () => {
     expect(ok("https://auth.example.com/t", "::::")).toBe(false);
     expect(ok("", "")).toBe(false);
   });
+  it("userinfo / fragment / backslash tricks are refused", () => {
+    expect(ok("https://example.com@evil.com/t", M)).toBe(false);
+    expect(ok("https://evil.com#@example.com/t", M)).toBe(false);
+    expect(ok("https://evil.com\\@example.com/t", M)).toBe(false);
+  });
   it("IDN via punycode", () => {
     expect(ok("https://auth.bücher.de/t", "https://mcp.bücher.de/rpc")).toBe(true);
     expect(ok("https://xn--bcher-kva.de/t", "https://mcp.bücher.de/rpc")).toBe(true);
     expect(ok("https://bücher.evil.de/t", "https://mcp.bücher.de/rpc")).toBe(false);
+  });
+});
+
+describe("same-site helpers", () => {
+  it("isTokenUrlSameSite is an alias of isSameSiteUrl", () => expect(isSameSiteUrl("https://auth.example.com/t", M)).toBe(true));
+  it("firstOffSiteCredentialUrl checks tokenUrl, revocationUrl, revokeUrl", () => {
+    expect(firstOffSiteCredentialUrl({ tokenUrl: "https://auth.example.com/t", revocationUrl: "https://idp.example.com/r" }, M)).toBeNull();
+    expect(firstOffSiteCredentialUrl({ tokenUrl: "https://auth.example.com/t", revocationUrl: "https://evil.com/r" }, M)).toBe("revocationUrl");
+    expect(firstOffSiteCredentialUrl({ revokeUrl: "https://evil.com/r" }, M)).toBe("revokeUrl");
+    expect(firstOffSiteCredentialUrl({ apiKey: "k" }, M)).toBeNull();
   });
 });

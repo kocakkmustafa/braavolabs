@@ -121,6 +121,24 @@ describe("upstream revoke", () => {
     expect(row.revokedAt).toBeInstanceOf(Date);
   });
 
+  it("BRA-P1-02a-2: off-site revocationUrl/revokeUrl -> no fetch, local revoke completes, no URL/token in logs", async () => {
+    for (const c of [
+      { refreshToken: "RT-SECRET", clientSecret: "CS-SECRET", revocationUrl: "https://evil.net/revoke" },
+      { accessToken: "AT-SECRET", revokeUrl: "https://acme.example.evil.net/r" },
+    ]) {
+      Object.assign(row, { revokedAt: null, isEnabled: true });
+      setCreds(c);
+      await revokeInstall("t1", "u1", "acme");
+      expect(fetchMock).not.toHaveBeenCalled();
+      expect(row.revokedAt).toBeInstanceOf(Date);
+      expect(row.isEnabled).toBe(false);
+      expect(row.encryptedCredentials).toBe(`enc:${AAD}:{}`);
+    }
+    const dump = JSON.stringify([logSink.warn.mock.calls, logSink.error.mock.calls, activityCreate.mock.calls]);
+    expect(dump).not.toMatch(/SECRET|evil/);
+    expect(activityCreate).toHaveBeenCalledTimes(2);
+  });
+
   it("concurrent and repeated revokes hit the upstream once", async () => {
     await Promise.all([revokeInstall("t1", "u1", "acme"), revokeInstall("t1", "u2", "acme")]);
     await revokeInstall("t1", "u1", "acme");

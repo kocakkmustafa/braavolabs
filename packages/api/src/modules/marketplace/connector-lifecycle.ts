@@ -12,6 +12,7 @@ import { AppError } from "../../middleware/error";
 import { listTools } from "../../lib/mcp";
 import { logger } from "../../lib/logger";
 import { safeExternalFetch } from "../../lib/ssrf";
+import { isSameSiteUrl } from "./same-site";
 import { verifyManifest, isSignedManifest, carryDeclaredCapabilities } from "./manifest-signature";
 
 export function connectorAad(tenantId: string, connectorId: string): string {
@@ -155,7 +156,7 @@ function isHttpsUrl(url: unknown): url is string {
  * Prefers the refresh token, else the access token. Returns null when there is
  * nothing to do (legacy install, no/HTTP URL) or the blob cannot be decrypted.
  */
-function prepareUpstreamRevoke(slug: string, encryptedCredentials: string, aad: string): UpstreamRevoke | null {
+function prepareUpstreamRevoke(slug: string, encryptedCredentials: string, aad: string, mcpServerUrl: string): UpstreamRevoke | null {
   let creds: Record<string, string>;
   try {
     creds = JSON.parse(decrypt(encryptedCredentials, aad));
@@ -166,6 +167,11 @@ function prepareUpstreamRevoke(slug: string, encryptedCredentials: string, aad: 
   const url = creds?.revocationUrl || creds?.revokeUrl;
   const token = creds?.refreshToken || creds?.accessToken;
   if (!token || !isHttpsUrl(url)) return null;
+  // Fail closed: token/clientSecret never go to a host outside the connector's domain.
+  if (!isSameSiteUrl(url, mcpServerUrl)) {
+    logger.warn({ slug }, "revoke: revocation URL not same-site as connector; upstream revoke skipped");
+    return null;
+  }
   const form = new URLSearchParams({
     token,
     token_type_hint: creds.refreshToken ? "refresh_token" : "access_token",
@@ -209,7 +215,7 @@ export async function revokeInstall(tenantId: string, actor: string, slug: strin
   // the blob, so the first CAS may lose; we then re-read once and retry.
   for (let attempt = 0; attempt < 2; attempt++) {
     // (a) resolve tokens from the blob we are about to claim, into memory.
-    const upstream = prepareUpstreamRevoke(connector.slug, blob, aad);
+    const upstream = prepareUpstreamRevoke(connector.slug, blob, aad, connector.mcpServerUrl);
     // (b) commit the local revoke: unusable from this point on. CAS on the blob
     // so a rotated RT2/AT2 written meanwhile is never left alive.
     const won = await tenantTx(async (tx) => {
