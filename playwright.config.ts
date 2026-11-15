@@ -117,6 +117,9 @@ export default defineConfig({
         // here) and keeps cloud providers cut. Gate flags (OUTBOUND_*, OUTREACH_*, VOICE_*, DEPLOY_MERGE_*)
         // are deliberately NOT set: they stay off, as in CI/compose.
         OFFLINE_MODE: "true",
+        // BRA-P0-10b: no web-research search provider may be configured here, even if the developer's shell
+        // exports a key (process.env is spread above): research must never leave the machine in E2E.
+        TAVILY_API_KEY: "", SERPER_API_KEY: "", BRAVE_SEARCH_API_KEY: "",
       },
     },
     // BRA-P0-10: deterministic fake OpenAI-compatible LLM (e2e/support/fake-llm.ts), loopback only.

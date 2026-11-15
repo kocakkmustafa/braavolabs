@@ -114,6 +114,60 @@ function reply(scenario: string, opts: Record<string, string>, toolResult: strin
       }
       return { content: "## Reasoning\nThe spend is paused for human approval.\n\nE2E-OUTBOUND-PAUSED" };
 
+    // BRA-P0-10b: research without any tool — a sourced summary written from the model's own text.
+    case "research-summary":
+      return {
+        content: [
+          "## Reasoning",
+          "Summarising from the briefing only; no web tool is used.",
+          "",
+          "E2E-RESEARCH-SUMMARY: Three planning tools are compared below.",
+          "Sources: [1] https://sources.e2e.invalid/alpha [2] https://sources.e2e.invalid/beta",
+        ].join("\n"),
+      };
+
+    // BRA-P0-10b: the deep-research tool. No search provider is configured in E2E, so it cannot reach the web.
+    case "research-deep":
+      if (toolResult === null) {
+        return {
+          toolCalls: [{
+            name: "web_research_deep",
+            args: { companyId: opts.companyId, query: "E2E research question about planning tools", maxRounds: 1, maxSources: 5 },
+          }],
+        };
+      }
+      return { content: "## Reasoning\nResearch session handed off.\n\nE2E-RESEARCH-STARTED" };
+
+    // BRA-P0-10b: code fix that tries to open a PR. The deploy/merge gate (03c) refuses it while the flag is off.
+    case "code-fix-pr":
+      if (toolResult === null) {
+        return {
+          toolCalls: [{
+            name: "create_pull_request",
+            args: {
+              companyId: opts.companyId, owner: "e2e-org", repo: "e2e-repo", head: "e2e/fix-bug", base: "main",
+              title: "E2E fix: null guard", body: "E2E-PR-BODY: adds the missing null guard.",
+            },
+          }],
+        };
+      }
+      return { content: "## Reasoning\nThe pull request tool was refused.\n\nE2E-CODE-FIX-DONE" };
+
+    // BRA-P0-10b: a LinkedIn post saved as a PENDING draft; nothing is published.
+    case "social-draft":
+      if (toolResult === null) {
+        return {
+          toolCalls: [{
+            name: "social_create_post",
+            args: {
+              companyId: opts.companyId, platform: "linkedin",
+              content: "E2E-SOCIAL-BODY: We shipped something small today.", hashtags: ["e2e", "launch"],
+            },
+          }],
+        };
+      }
+      return { content: "## Reasoning\nPost saved as a draft.\n\nE2E-SOCIAL-DONE" };
+
     default:
       return null;
   }
