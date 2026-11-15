@@ -72,7 +72,7 @@ export function screenHarness(file: string, surface: "web" | "mobile", screen: "
       if (name.endsWith("/theme")) return { radii: {} };
       // These are production decision modules, deliberately NOT mocked.
       if (/(^\.\/|\/components\/approvals\/)ApprovalsStatus$/.test(name)) return load(resolve(dirname(path), name + ".tsx"));
-      if (/\/(approvalDecision|useApprovalDecision|approvalsState)$/.test(name)) {
+      if (/\/(approvalDecision|useApprovalDecision|approvalsState|inboxActions)$/.test(name)) {
         const absolute = resolve(dirname(path), name + ".ts");
         if (!existsSync(absolute)) throw new Error("Missing production helper: " + absolute);
         return load(absolute);

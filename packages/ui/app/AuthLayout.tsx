@@ -14,6 +14,9 @@ import PresenceBar from "../components/PresenceBar";
 // "/" is the cinematic full-bleed stage (promoted from the `/forge-home`
 // prototype on 2026-07-26, along with the retired `/forge`); it must not be
 // squeezed by the dashboard sidebar/breadcrumb chrome.
+import { ownsMain } from "../lib/mainContent";
+export { ownsMain };
+
 const FULL_WIDTH_PATHS = ["/", "/login", "/register", "/reset-password", "/features", "/pricing", "/terms", "/privacy", "/auth/callback"];
 
 export default function AuthLayout({
@@ -47,7 +50,7 @@ export default function AuthLayout({
   }, [mobileOpen]);
 
   if (!hydrated) {
-    return <div className="min-h-screen" style={{ background: "var(--color-background)" }}><main id={pathname === "/terms" ? undefined : "main-content"} tabIndex={-1}>{children}</main></div>;
+    return <div className="min-h-screen" style={{ background: "var(--color-background)" }}><main id={ownsMain(pathname) ? undefined : "main-content"} tabIndex={-1}>{children}</main></div>;
   }
 
   const isFullWidth = FULL_WIDTH_PATHS.includes(pathname);
@@ -101,7 +104,7 @@ export default function AuthLayout({
 
       {/* Main content */}
       <main
-        id={pathname === "/terms" ? undefined : "main-content"}
+        id={ownsMain(pathname) ? undefined : "main-content"}
         tabIndex={-1}
         className={`min-h-screen ${!isFullWidth ? "lg:ms-14" : ""}`}
         style={{ background: "var(--color-background)" }}

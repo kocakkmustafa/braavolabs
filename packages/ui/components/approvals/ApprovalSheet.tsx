@@ -39,18 +39,20 @@ export default function ApprovalSheet({ approval, t, legacyT, locale, usd, when,
   const composing = useRef(false);
   const [typed, setTyped] = useState("");
   const [reason, setReason] = useState("");
+  const [answer, setAnswer] = useState("");
+  const isInput = approval.type === "INPUT";
 
   const details = readDetails(approval);
   const dangerous = isDangerous(approval);
   const phrase = t("app.approvalCenter.danger.phrase");
-  const ok = canApprove(dangerous, typed, phrase, locale);
+  const ok = canApprove(dangerous, typed, phrase, locale) && (!isInput || answer.trim() !== "");
   const tool = toolName(approval);
   const amount = parseAmount(approval.amountUsd);
   const cn = (k: string, v?: Record<string, string | number>) => t(`app.approvalCenter.${k}`, v);
   const unknown = cn("unknown");
 
   useEffect(() => { heading.current?.focus(); }, [approval.id]);
-  useEffect(() => { setTyped(""); setReason(""); }, [approval.id]);
+  useEffect(() => { setTyped(""); setReason(""); setAnswer(""); }, [approval.id]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
@@ -68,7 +70,7 @@ export default function ApprovalSheet({ approval, t, legacyT, locale, usd, when,
     else if (!e.shiftKey && active === last) { e.preventDefault(); first.focus(); }
   };
 
-  const approve = () => { if (ok && !busy) onDecide(approval.id, "APPROVED", decisionNote(reason)); };
+  const approve = () => { if (ok && !busy) onDecide(approval.id, "APPROVED", isInput ? answer.trim() : decisionNote(reason)); };
   const onPhraseKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== "Enter") return;
     e.preventDefault();
@@ -123,6 +125,13 @@ export default function ApprovalSheet({ approval, t, legacyT, locale, usd, when,
             </div>
           )}
         </dl>
+
+        {isInput && (
+          <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
+            <span>{t("app.inbox.answerLabel")}</span>
+            <textarea data-testid="approval-answer" value={answer} rows={3} maxLength={4000} style={{ ...field, minHeight: 64 }} onChange={(e) => setAnswer(e.target.value)} />
+          </label>
+        )}
 
         {dangerous && (
           <div data-testid="approval-danger" style={{ display: "grid", gap: 10, padding: 12, borderRadius: 12, borderWidth: 1, borderStyle: "solid", borderColor: "rgba(255,77,77,0.35)", background: "rgba(255,77,77,0.06)" }}>

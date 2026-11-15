@@ -47,7 +47,7 @@ export default function AboutPage() {
         </div>
       </nav>
 
-      <main>
+      <main id="main-content" tabIndex={-1}>
         {/* ── Hero / Manifesto ── */}
         <header className="pt-24 pb-4 text-center px-6">
           <div className="max-w-[1100px] mx-auto">

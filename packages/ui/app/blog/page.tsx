@@ -114,7 +114,7 @@ export default function BlogPage() {
         >{uiText("m727eff92c28d")}</p>
       </header>
 
-      <div className="max-w-5xl mx-auto px-6 md:px-10 pb-24">
+      <div id="main-content" tabIndex={-1} className="max-w-5xl mx-auto px-6 md:px-10 pb-24">
         {/* ── Featured post ── */}
         <Link
           href={`/blog/${FEATURED.slug}`}

@@ -1,10 +1,12 @@
 
 import { useTranslations as useLegacyTranslations } from "next-intl";
 import Link from "next/link";
+import MainContentTarget from "../components/MainContentTarget";
 
 export default function NotFound() {
   const uiText = useLegacyTranslations("uiCopy");
   return (
+    <MainContentTarget>
     <div
       className="min-h-screen flex items-center justify-center px-6"
       style={{ background: "var(--color-background)" }}
@@ -40,5 +42,6 @@ export default function NotFound() {
         </div>
       </div>
     </div>
+    </MainContentTarget>
   );
 }

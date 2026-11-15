@@ -18,6 +18,7 @@ import { captureAuthSession, isAuthSessionCurrent, useAppStore } from "../../lib
 import { sounds } from "../../lib/sounds";
 import { ApprovalsEmpty, ApprovalsLoadError, ApprovalsLoading } from "./ApprovalsStatus";
 import { approvalsAlert, approvalsFailed, approvalsLoaded, approvalsRemove, approvalsView, initialApprovalsLoad, startApprovalsLoad, type ApprovalsLoad } from "../../lib/approvalsState";
+import { decisionErrorKind, decisionMessageKey } from "../../lib/inboxActions";
 import BrandMotion from "../BrandMotion";
 import { approvalMotion } from "../../lib/brandMotion";
 
@@ -37,13 +38,17 @@ export default function ApprovalsLegacy() {
   const requestSeq = useRef(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
+  const noteRef = useRef<string | undefined>(undefined);
+  // Karara bağlanmış kimlikler: tazeleme yanıtı onları listeye geri getirmesin (ApprovalCenter ile aynı kural).
+  const committed = useRef<Set<string>>(new Set());
 
   const loadApprovals = useCallback(() => {
     if (!hydrated || !token) return;
     const seq = ++requestSeq.current;
     setLoad(startApprovalsLoad);
     api.listApprovals(token)
-      .then((rows) => { if (seq === requestSeq.current) setLoad((prev) => approvalsLoaded<any>(rows, prev)); })
+      .then((rows) => { if (seq === requestSeq.current) setLoad((prev) => approvalsLoaded<any>(Array.isArray(rows) ? rows.filter((r: any) => !committed.current.has(r?.id)) : rows, prev)); })
       .catch(() => { if (seq === requestSeq.current) setLoad(approvalsFailed); });
   }, [token, hydrated]);
 
@@ -53,15 +58,22 @@ export default function ApprovalsLegacy() {
     scopeKey: sessionRevision,
     captureSession: captureAuthSession,
     isSessionCurrent: (session) => !!session.token && isAuthSessionCurrent(session),
-    request: async (id, decision) => ({ ran: true, result: await api.decideApproval(token!, id, decision) }),
+    request: async (id, decision) => ({ ran: true, result: await api.decideApproval(token!, id, decision, noteRef.current) }),
     onBusy: (_id, busy) => { setLoading(busy); if (busy) setError(null); },
-    onCommit: (id) => setLoad((prev) => approvalsRemove(prev, id)),
+    onCommit: (id) => { committed.current.add(id); setLoad((prev) => approvalsRemove(prev, id)); },
     onSuccess: (decision) => decision === "APPROVED" ? sounds.success() : sounds.click(),
     onBlocked: (reason) => {
       setError(t("app.approvals.handoffIncomplete", { reason: reason ?? t("app.approvals.handoffNeedsAttention") }));
+      loadApprovals(); // claimFailed: karar kaydedildi, devir alınamadı → liste sunucudan tazelenir
       sounds.error();
     },
-    onError: (err) => { setError(describeFailure(err)); sounds.error(); },
+    onError: (err) => {
+      const kind = decisionErrorKind(err);
+      // 403 yetki yok, 404/409 başkası aldı/zaten işlendi (liste tazelenir); diğerleri genel hata.
+      setError(kind === "error" ? describeFailure(err) : t(decisionMessageKey(kind)!));
+      if (kind === "stale") loadApprovals();
+      sounds.error();
+    },
   });
 
   if (!hydrated || !token) return (
@@ -195,14 +207,29 @@ export default function ApprovalsLegacy() {
                   (amountUsd above) render without it. */}
               {a.artifact && <ArtifactCard artifact={a.artifact} t={t} />}
 
+              {a.type === "INPUT" && (
+                <div className="mb-4">
+                  <label htmlFor={`answer-${a.id}`} className="bv-caption" style={{ display: "block", marginBottom: 4 }}>{t("app.inbox.answerLabel")}</label>
+                  <textarea
+                    id={`answer-${a.id}`}
+                    data-testid="approval-answer"
+                    value={answers[a.id] ?? ""}
+                    onChange={(e) => setAnswers((m) => ({ ...m, [a.id]: e.target.value }))}
+                    maxLength={4000}
+                    rows={3}
+                    style={{ width: "100%", padding: "6px 10px", borderRadius: 10, fontSize: 16, background: "var(--color-surface)", color: "var(--color-on-surface)", border: "1px solid var(--color-surface-container-highest)" }}
+                  />
+                </div>
+              )}
+
               {/* Divider */}
               <div className="bv-divider mb-4" />
 
               {/* Actions */}
               <div className="flex items-center gap-3">
                 <button
-                  onClick={() => decide(a.id, "APPROVED")}
-                  disabled={loading}
+                  onClick={() => { noteRef.current = a.type === "INPUT" ? (answers[a.id] ?? "").trim() : undefined; return decide(a.id, "APPROVED"); }}
+                  disabled={loading || (a.type === "INPUT" && !(answers[a.id] ?? "").trim())}
                   className="bv-btn bv-btn-primary bv-btn-sm"
                 >
                   <span className="material-symbols-outlined" style={{ fontSize: 15 }}>
@@ -216,7 +243,7 @@ export default function ApprovalsLegacy() {
                   )}
                 </button>
                 <button
-                  onClick={() => decide(a.id, "REJECTED")}
+                  onClick={() => { noteRef.current = undefined; return decide(a.id, "REJECTED"); }}
                   disabled={loading}
                   className="bv-btn bv-btn-danger bv-btn-sm"
                 >

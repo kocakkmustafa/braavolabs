@@ -86,7 +86,7 @@ export default function DocsIndexPage() {
       </header>
 
       {/* ── Category sections ── */}
-      <div className="max-w-[1100px] mx-auto px-6 md:px-10 pb-24">
+      <div id="main-content" tabIndex={-1} className="max-w-[1100px] mx-auto px-6 md:px-10 pb-24">
         {CATEGORY_ORDER.map((cat) => {
           const pages = docs.filter((d) => d.category === cat);
           if (pages.length === 0) return null;

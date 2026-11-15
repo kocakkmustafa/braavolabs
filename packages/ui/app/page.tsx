@@ -52,7 +52,7 @@ export default async function HomePage() {
         </div>
       </nav>
 
-      <main>
+      <main id="main-content" tabIndex={-1}>
         <section className="max-w-[1120px] mx-auto px-6 pt-24 pb-16 text-center">
           <p className="bv-pill bv-pill-cyan inline-flex mb-6">{t("previewBadge")}</p>
           <h1 className="font-headline font-bold uppercase tracking-tight text-[clamp(42px,8vw,88px)] leading-[0.92] break-words" style={{ overflowWrap: "anywhere" }}>

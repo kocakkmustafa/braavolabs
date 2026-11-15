@@ -8,15 +8,20 @@ export type DecisionResult =
   | { kind: "stale" }         // 404/409: başkası karar verdi / değişti → liste yenilenmeli
   | { kind: "error" };
 
+/** Karar hatasını sınıflar (403 yetki, 404/409 bayat, diğer genel). Paylaşımlı: inbox ve onay sayfaları. */
+export function decisionErrorKind(err: unknown): "forbidden" | "stale" | "error" {
+  const status = (err as { status?: unknown } | null)?.status;
+  if (status === 403) return "forbidden";
+  if (status === 404 || status === 409) return "stale";
+  return "error";
+}
+
 export async function decideResult(send: () => Promise<ApprovalDecisionOutcome>): Promise<DecisionResult> {
   try {
     const r = await send();
     return r.claimFailed === true ? { kind: "claimFailed" } : { kind: "ok" };
   } catch (err) {
-    const status = (err as { status?: unknown } | null)?.status;
-    if (status === 403) return { kind: "forbidden" };
-    if (status === 404 || status === 409) return { kind: "stale" };
-    return { kind: "error" };
+    return { kind: decisionErrorKind(err) };
   }
 }
 

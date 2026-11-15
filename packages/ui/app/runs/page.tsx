@@ -23,6 +23,7 @@ import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { timeAgo } from "../../lib/timeAgo";
 import { useTranslations } from "next-intl";
+import { ErrorBox, type T as InboxT } from "../../components/inbox/InboxParts";
 
 type RunStatus =
   | "RUNNING" | "COMPLETED" | "PAUSED" | "FAILED" | "CANCELLED" | "PENDING" | "WAITING_APPROVAL";
@@ -53,17 +54,22 @@ export default function RunsPage() {
   const [total, setTotal] = useState(0);
   const [offset, setOffset] = useState(0);
   const [loaded, setLoaded] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [reloadTick, setReloadTick] = useState(0);
   const [filter, setFilter] = useState<"all" | "running" | "completed" | "pending" | "failed">("all");
   const [query, setQuery] = useState("");
 
   useEffect(() => {
     if (!token) return;
     setLoaded(false);
+    setLoadFailed(false);
+    let live = true;
     api.listRuns(token, PAGE_SIZE, offset)
-      .then((d) => { setRuns(d.runs ?? []); setTotal(d.total ?? 0); })
-      .catch(() => {})
-      .finally(() => setLoaded(true));
-  }, [token, offset]);
+      .then((d) => { if (!live) return; setRuns(d.runs ?? []); setTotal(d.total ?? 0); })
+      .catch(() => { if (live) setLoadFailed(true); })
+      .finally(() => { if (live) setLoaded(true); });
+    return () => { live = false; };
+  }, [token, offset, reloadTick]);
 
   const filtered = useMemo(() => {
     let result = filter === "all" ? runs : runs.filter((r) => (r.status ?? "").toLowerCase() === filter);
@@ -108,7 +114,7 @@ export default function RunsPage() {
             <div className="bv-micro" style={{ marginBottom: 6 }}>{t("app.runsList.activity")}</div>
             <h1 className="bv-display" style={{ margin: 0 }}>{t("app.runsList.title")}</h1>
             <div className="bv-caption" style={{ marginTop: 8 }}>
-              {total > 0 ? t("app.runsList.totalCount", { n: total }) : t("app.runsList.noneYet")}
+              {loadFailed ? "" : total > 0 ? t("app.runsList.totalCount", { n: total }) : t("app.runsList.noneYet")}
             </div>
           </div>
         </div>
@@ -235,6 +241,10 @@ export default function RunsPage() {
                     style={{ height: 44, marginBottom: 6, borderRadius: 10 }}
                   />
                 ))}
+              </div>
+            ) : loadFailed ? (
+              <div style={{ padding: "16px 20px" }} data-testid="runs-load-error">
+                <ErrorBox t={t as unknown as InboxT} title={t("app.inbox.errorTitle")} body={t("app.inbox.errorBody")} onRetry={() => setReloadTick((n) => n + 1)} />
               </div>
             ) : filtered.length === 0 ? (
               <div
