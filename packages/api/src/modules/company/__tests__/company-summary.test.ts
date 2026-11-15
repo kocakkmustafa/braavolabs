@@ -132,6 +132,7 @@ describe("fixture sayı eşleşmesi", () => {
       companyId: "co-1", agents: 2, pipelines: 2,
       buckets: { working: 11, needs_approval: 2, done: 13, stuck: 3 },
       pendingApprovals: 2, monthCostUsd: "1.200000",
+      budget: { limitUsd: null, spentUsd: 1.2, remainingUsd: null, usedPct: null, state: "none" },
     });
   });
 
@@ -143,6 +144,7 @@ describe("fixture sayı eşleşmesi", () => {
       companyId: "co-1", agents: 0, pipelines: 1,
       buckets: { working: 0, needs_approval: 0, done: 1, stuck: 0 },
       pendingApprovals: 0, monthCostUsd: null,
+      budget: { limitUsd: null, spentUsd: null, remainingUsd: null, usedPct: null, state: "none" },
     });
     expect((await invoke("co-2")).res.body.monthCostUsd).toBeNull();
   });
