@@ -14,9 +14,8 @@ import PresenceBar from "../components/PresenceBar";
 // "/" is the cinematic full-bleed stage (promoted from the `/forge-home`
 // prototype on 2026-07-26, along with the retired `/forge`); it must not be
 // squeezed by the dashboard sidebar/breadcrumb chrome.
-// Sayfanın kendisi `id="main-content"` taşıyan yollar: kabuk aynı kimliği ikinci kez vermez (tek hedef).
-export const OWN_MAIN_CONTENT_PATHS = ["/terms", "/privacy", "/kvkk", "/cookies", "/gdpr", "/features", "/pricing", "/security", "/docs", "/status", "/support", "/about", "/blog", "/changelog", "/compare", "/contact", "/cost-calculator", "/legal/account-deletion", "/"];
-const ownsMain = (path: string) => OWN_MAIN_CONTENT_PATHS.includes(path) || path.startsWith("/docs/") || path.startsWith("/blog/");
+import { ownsMain } from "../lib/mainContent";
+export { ownsMain };
 
 const FULL_WIDTH_PATHS = ["/", "/login", "/register", "/reset-password", "/features", "/pricing", "/terms", "/privacy", "/auth/callback"];
 

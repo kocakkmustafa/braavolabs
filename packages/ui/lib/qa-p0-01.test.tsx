@@ -9,7 +9,12 @@ import { decisionErrorKind, decisionMessageKey } from "./inboxActions";
 import { classifySurfacePath } from "./surface-domain";
 import { ErrorBox, type T } from "../components/inbox/InboxParts";
 import ApprovalSheet from "../components/approvals/ApprovalSheet";
+import NotFound from "../app/not-found";
+import GlobalError from "../app/error";
 
+let mockPath = "/";
+vi.mock("next/navigation", () => ({ usePathname: () => mockPath }));
+vi.mock("next-intl", () => ({ useTranslations: () => (k: string) => k, useLocale: () => "en" }));
 vi.mock("next/link", () => ({ default: ({ href, children, ...p }: any) => <a href={href} {...p}>{children}</a> }));
 
 const root = process.cwd();
@@ -133,7 +138,7 @@ describe("(3) var olmayan /agents rotasına bağlantı kalmadı", () => {
 
 describe("(4) skip-link hedefi (#main-content) var ve yinelenmez", () => {
   const layout = read("app/AuthLayout.tsx");
-  const list = [...(/OWN_MAIN_CONTENT_PATHS = \[([^\]]*)\]/.exec(layout)?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+  const list = [...(/OWN_MAIN_CONTENT_PATHS = \[([^\]]*)\]/.exec(read("lib/mainContent.ts"))?.[1] ?? "").matchAll(/"([^"]+)"/g)].map((m) => m[1]);
   const owns = (route: string) => list.includes(route) || route.startsWith("/docs/") || route.startsWith("/blog/");
   const pages = walkFiles(resolve(root, "app")).filter((f) => f.endsWith("/page.tsx"));
   const routeOf = (f: string) => {
@@ -154,6 +159,10 @@ describe("(4) skip-link hedefi (#main-content) var ve yinelenmez", () => {
       expect(owns(route), `${route} sayfa kimliği=${n}`).toBe(n === 1);
     }
   });
+  it("kabuk ownsMain'i mainContent'ten alır ve dışa aktarır", () => {
+    expect(layout).toContain('import { ownsMain } from "../lib/mainContent"');
+    expect(layout).toContain("export { ownsMain }");
+  });
   it("public yüzeydeki her sayfa kendi hedefini taşır (kabuk sarmalamaz)", () => {
     const publicPages = pages.filter((f) => classifySurfacePath(routeOf(f)) === "public");
     expect(publicPages.length).toBeGreaterThan(15);
@@ -170,5 +179,20 @@ describe("(5) Sidebar /runs", () => {
     expect(src).toMatch(/href: "\/runs", labelKey: "runtime\.mc8f971fe29fd", icon: "play_circle", authOnly: true/);
     const en = JSON.parse(read("messages/en.json"));
     expect(en.runtime.mc8f971fe29fd).toBe("Runs");
+  });
+});
+
+describe("(4b) 404 ve hata ekranlarında tek skip-link hedefi", () => {
+  const ids = (html: string) => (html.match(/id="main-content"/g) ?? []).length;
+  const err = new Error("x");
+  it.each(["/docs/x", "/blog/x"])("%s: kabuk id vermez, 404 ve hata ekranı tam bir main-content taşır", (path) => {
+    mockPath = path;
+    expect(ids(renderToStaticMarkup(<NotFound />))).toBe(1);
+    expect(ids(renderToStaticMarkup(<GlobalError error={err} reset={() => {}} />))).toBe(1);
+  });
+  it("/dashboard benzeri yol: kabuk verir, 404 ve hata ekranı id eklemez", () => {
+    mockPath = "/dashboard/x";
+    expect(ids(renderToStaticMarkup(<NotFound />))).toBe(0);
+    expect(ids(renderToStaticMarkup(<GlobalError error={err} reset={() => {}} />))).toBe(0);
   });
 });
