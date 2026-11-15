@@ -29,6 +29,9 @@ misdiagnose.
 | `ref-chat.spec.ts` | chat: greeting classified as chat; tool-less agent run returns the fake model's reply (API + run page) |
 | `ref-draft-email.spec.ts` | agent saves a PENDING EMAIL draft via `create_draft`; nothing is sent (API + `/drafts` UI) |
 | `ref-negative-outbound.spec.ts` | negative: gated outbound tools refused with gate codes, no approval row; money tool stops at a PENDING approval and never runs when rejected |
+| `ref-research.spec.ts` | research stays off the network: tool-less agent returns a sourced summary; `web_research_deep` opens a session that, with no search provider (keys blanked in the config), never completes or gathers sources |
+| `ref-code-fix-pr-dryrun.spec.ts` | code fix: `create_pull_request` (dry-run tool) refused by the 03c deploy/merge gate (`DEPLOY_MERGE_TOOLS_DISABLED`), no approval row, no GitHub egress, receipt absent (receipts need JOB_STATE_DUAL_WRITE, off) so nothing is VERIFIED, code-summary empty. Flag-ON dry-run (`prUrl:null`) is not run here: the flag is API-process-global; it is covered by the tool-executor/outbound-gate unit tests |
+| `ref-social-draft.spec.ts` | agent saves a PENDING LinkedIn `SOCIAL_POST` draft via `social_create_post`; PUBLISHED/APPROVED empty, only the fake model contacted (API + `/drafts` UI) |
 
 ## How the fake LLM works (BRA-P0-10)
 
