@@ -24,7 +24,7 @@ import { ensureFreshCredentials } from "../oauth-refresh";
 describe("oauth refresh — real crypto", () => {
   it("persists a decryptable credential under the connector AAD", async () => {
     const aad = connectorAad("t1", "c1");
-    const creds = { accessToken: "old", refreshToken: "r0", expiresAt: "1", tokenUrl: "https://auth.example/token" };
+    const creds = { accessToken: "old", refreshToken: "r0", expiresAt: "1", tokenUrl: "https://auth.m.example/token" };
     store.value = encrypt(JSON.stringify(creds), aad);
     const out = await ensureFreshCredentials("t1", { id: "i1", connector: { id: "c1", authMethod: "OAUTH2", mcpServerUrl: "https://m.example/rpc" } }, creds);
     expect(out.accessToken).toBe("REAL-NEW-ACCESS");
