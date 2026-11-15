@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { API_PORT, UI_PORT, UI, UI_LAB_PORT, UI_WS_PORT } from "./e2e/ports";
+import { API_PORT, UI_PORT, UI, UI_LAB_PORT, UI_WS_PORT, FAKE_LLM_PORT } from "./e2e/ports";
 
 /**
  * E2E configuration (BR-P0-005).
@@ -113,7 +113,19 @@ export default defineConfig({
         ALLOWED_ORIGINS: UI,
         // Loopback only: the suite never needs the API on other interfaces.
         API_HOST: "127.0.0.1",
+        // BRA-P0-10: lets a CUSTOM provider reach the loopback fake LLM (SSRF guard allows loopback only
+        // here) and keeps cloud providers cut. Gate flags (OUTBOUND_*, OUTREACH_*, VOICE_*, DEPLOY_MERGE_*)
+        // are deliberately NOT set: they stay off, as in CI/compose.
+        OFFLINE_MODE: "true",
       },
+    },
+    // BRA-P0-10: deterministic fake OpenAI-compatible LLM (e2e/support/fake-llm.ts), loopback only.
+    {
+      command: "node e2e/support/fake-llm.ts",
+      port: FAKE_LLM_PORT,
+      reuseExistingServer: !process.env.CI,
+      timeout: 30_000,
+      env: { ...process.env, E2E_FAKE_LLM_PORT: String(FAKE_LLM_PORT) },
     },
     uiServer(UI_PORT, {}),
     // BRA-UX-04: the SAME build served with the prototype flag ON (read at request time, not baked in), so one run proves
