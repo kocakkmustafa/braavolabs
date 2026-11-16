@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Router } from "express";
 
-type Co = { id: string; tenantId: string };
+type Co = { id: string; tenantId: string; config?: unknown };
 type Ag = { id: string; companyId: string; model: string };
 type Cfg = { tenantId: string; provider: string; model: string; isDefault: boolean; encryptedApiKey: string | null; baseUrl?: string };
 type Step = { agentId: string | null; runId: string; costUsd: unknown; createdAt: Date };
@@ -205,7 +205,28 @@ describe("yanıt şekli ve değerler", () => {
     const { res } = await invoke();
     expect(res.body.models).toEqual([]);
     expect(res.body.autoSelection).toEqual({ enabled: null });
-    expect(Object.keys(res.body).sort()).toEqual(["autoSelection", "costWindow", "generatedAt", "models"]);
+    expect(res.body.modelMode).toBeNull();
+    expect(Object.keys(res.body).sort()).toEqual(["autoSelection", "costWindow", "generatedAt", "modelMode", "models"]);
+  });
+
+  it("BRA-P0-06a-2: autoSelection ve modelMode gerçek kaynaktan (Company.config); bozuk kayıt null", async () => {
+    db.companies[0].config = { autoSelection: { enabled: true }, modelMode: "CASCADE" };
+    const a = await invoke("co-1");
+    expect(a.res.body.autoSelection).toEqual({ enabled: true });
+    expect(a.res.body.modelMode).toBe("CASCADE");
+    db.companies[0].config = { autoSelection: { enabled: false }, modelMode: "COMPARE" };
+    const b = await invoke("co-1");
+    expect(b.res.body.autoSelection).toEqual({ enabled: false });
+    expect(b.res.body.modelMode).toBe("COMPARE");
+    db.companies[0].config = { autoSelection: { enabled: "yes" }, modelMode: "AUTO" };
+    const c = await invoke("co-1");
+    expect(c.res.body.autoSelection).toEqual({ enabled: null });
+    expect(c.res.body.modelMode).toBeNull();
+    // başka şirket/kiracı ayarı sızmaz
+    db.companies[0].config = { autoSelection: { enabled: true }, modelMode: "CASCADE" };
+    const d = await invoke("co-2");
+    expect(d.res.body.autoSelection).toEqual({ enabled: null });
+    expect(d.res.body.modelMode).toBeNull();
   });
 
   it("maliyet Decimal METİN; koşu sayısı ajan başına tekil koşuların toplamı", async () => {
