@@ -11,6 +11,7 @@ const prismaMock = vi.hoisted(() => ({
   pipeline: { findUnique: vi.fn(), update: vi.fn() },
   // run.findUnique is used by enqueueRun to snapshot the run's tenantId.
   run: { create: vi.fn(), findUnique: vi.fn() },
+  activityLog: { create: vi.fn() },
 }));
 vi.mock("../../../lib/db", () => ({ prisma: prismaMock }));
 
@@ -79,6 +80,7 @@ beforeEach(() => {
   });
   runQueueMock.add.mockResolvedValue({ id: "job-1" });
   prismaMock.pipeline.update.mockResolvedValue({});
+  prismaMock.activityLog.create.mockResolvedValue({});
   // enqueueRun's tenant snapshot lookup.
   prismaMock.run.findUnique.mockResolvedValue({
     pipeline: { company: { tenantId: "tenant-1" } },
@@ -252,5 +254,97 @@ describe("processScheduledTick — slot dedup (BRA-P1-04c)", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+describe("processScheduledTick — skip activity_log (BRA-P1-04-N1)", () => {
+  const skipRows = () =>
+    prismaMock.activityLog.create.mock.calls
+      .map((c) => c[0].data)
+      .filter((d: any) => d.action === "pipeline.schedule.skip");
+
+  it("paused (disabled) pipeline → tenant-scoped skip row, reason paused, no content", async () => {
+    prismaMock.pipeline.findUnique.mockResolvedValue({ ...activePipeline, enabled: false });
+    await processScheduledTick(makeJob());
+    expect(skipRows()).toEqual([
+      expect.objectContaining({
+        tenantId: "tenant-1",
+        actor: "system",
+        resource: "pipeline",
+        resourceId: "pipe-1",
+        details: { pipelineId: "pipe-1", reason: "paused" },
+      }),
+    ]);
+  });
+
+  it("trigger no longer SCHEDULED → reason not_scheduled", async () => {
+    prismaMock.pipeline.findUnique.mockResolvedValue({ ...activePipeline, trigger: "MANUAL" });
+    await processScheduledTick(makeJob());
+    expect(skipRows()[0].details.reason).toBe("not_scheduled");
+  });
+
+  it("deleted pipeline → no tenant, no row", async () => {
+    prismaMock.pipeline.findUnique.mockResolvedValue(null);
+    await processScheduledTick(makeJob());
+    expect(prismaMock.activityLog.create).not.toHaveBeenCalled();
+  });
+
+  it("company not ACTIVE → reason company_inactive with tenantId", async () => {
+    prismaMock.pipeline.findUnique.mockResolvedValue({
+      ...activePipeline,
+      company: { status: "PAUSED", tenantId: "tenant-1" },
+    });
+    await processScheduledTick(makeJob());
+    const rows = skipRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].tenantId).toBe("tenant-1");
+    expect(rows[0].details).toEqual({
+      pipelineId: "pipe-1",
+      reason: "company_inactive",
+      companyStatus: "PAUSED",
+    });
+  });
+
+  it("quota exhausted → reason quota_exhausted", async () => {
+    prismaMock.pipeline.findUnique.mockResolvedValue(activePipeline);
+    claimQuotaMock.mockResolvedValue({ claimed: false, value: 1, limit: 1 });
+    await processScheduledTick(makeJob());
+    expect(skipRows()[0]).toMatchObject({ tenantId: "tenant-1" });
+    expect(skipRows()[0].details.reason).toBe("quota_exhausted");
+  });
+
+  it("duplicate tick (same slot, delivered 3x) → exactly ONE skip row", async () => {
+    prismaMock.pipeline.findUnique.mockResolvedValue(activePipeline);
+    claimQuotaMock.mockResolvedValue({ claimed: true, value: 1, limit: 100 });
+    await processScheduledTick(makeJob());
+    await processScheduledTick(makeJob());
+    await processScheduledTick(makeJob());
+    expect(prismaMock.run.create).toHaveBeenCalledTimes(1);
+    const rows = skipRows();
+    expect(rows).toHaveLength(1);
+    expect(rows[0].tenantId).toBe("tenant-1");
+    expect(rows[0].details.reason).toBe("duplicate_tick");
+  });
+
+  it("Redis error → dedup_unavailable row written, tick does not throw", async () => {
+    prismaMock.pipeline.findUnique.mockResolvedValue(activePipeline);
+    redisMock.set.mockRejectedValue(new Error("redis down"));
+    await expect(processScheduledTick(makeJob())).resolves.toBeUndefined();
+    expect(skipRows()[0].details.reason).toBe("dedup_unavailable");
+    expect(prismaMock.run.create).not.toHaveBeenCalled();
+  });
+
+  it("activity_log failure is swallowed (warn) and the skip decision is unchanged", async () => {
+    prismaMock.pipeline.findUnique.mockResolvedValue({ ...activePipeline, enabled: false });
+    prismaMock.activityLog.create.mockRejectedValue(new Error("db down"));
+    await expect(processScheduledTick(makeJob())).resolves.toBeUndefined();
+    expect(logger.warn).toHaveBeenCalled();
+    expect(prismaMock.run.create).not.toHaveBeenCalled();
+    expect(claimQuotaMock).not.toHaveBeenCalled();
+
+    prismaMock.pipeline.findUnique.mockResolvedValue(activePipeline);
+    claimQuotaMock.mockResolvedValue({ claimed: false, value: 1, limit: 1 });
+    await expect(processScheduledTick(makeJob("pipe-1", 9_000_000))).resolves.toBeUndefined();
+    expect(prismaMock.run.create).not.toHaveBeenCalled();
   });
 });
