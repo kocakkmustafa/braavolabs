@@ -1382,6 +1382,21 @@
           "started": "Inicio: {time}",
           "ended": "Fin: {time}"
         },
+        "dag": {
+          "title": "Dependencias de los pasos",
+          "noData": "No hay datos de dependencias para este trabajo. Los pasos se listan en orden más abajo.",
+          "sourceOrder": "Deducido del orden de los pasos: los pasos de una misma etapa se ejecutan en paralelo; cada etapa espera a la anterior.",
+          "sourceApi": "Dependencias tal como se informan para cada paso.",
+          "inconsistent": "Los datos de dependencias son incoherentes; se omitieron algunos vínculos.",
+          "truncated": "Se muestran los primeros {shown} de {total} pasos.",
+          "summary": "{steps} pasos en {levels} etapas, {edges} dependencias",
+          "scroll": "Grafo de dependencias de pasos, desplazable",
+          "listLabel": "Pasos con sus dependencias",
+          "dependsOn": "Depende del paso: {steps}",
+          "noDeps": "Sin dependencias",
+          "changed": "El registro del pipeline se actualizó después de esta ejecución; como no se pudo verificar el orden de los pasos, no se dibuja el grafo de dependencias.",
+          "unverified": "Según la definición actual del trabajo (se desconoce cuándo cambió)."
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {

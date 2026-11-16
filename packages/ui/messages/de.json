@@ -1382,6 +1382,21 @@
           "started": "Gestartet: {time}",
           "ended": "Beendet: {time}"
         },
+        "dag": {
+          "title": "Schrittabhängigkeiten",
+          "noData": "Keine Abhängigkeitsdaten für diesen Auftrag. Die Schritte stehen unten der Reihe nach.",
+          "sourceOrder": "Aus der Schrittreihenfolge abgeleitet: Schritte derselben Stufe laufen parallel; jede Stufe wartet auf die vorherige.",
+          "sourceApi": "Abhängigkeiten wie für jeden Schritt gemeldet.",
+          "inconsistent": "Abhängigkeitsdaten sind inkonsistent; einige Verbindungen wurden übersprungen.",
+          "truncated": "Die ersten {shown} von {total} Schritten werden angezeigt.",
+          "summary": "{steps} Schritte in {levels} Stufen, {edges} Abhängigkeiten",
+          "scroll": "Abhängigkeitsgraph der Schritte, scrollbar",
+          "listLabel": "Schritte mit ihren Abhängigkeiten",
+          "dependsOn": "Hängt ab von Schritt: {steps}",
+          "noDeps": "Keine Abhängigkeiten",
+          "changed": "Der Pipeline-Eintrag wurde nach diesem Lauf aktualisiert; die Schrittreihenfolge ließ sich nicht verifizieren, daher wird kein Abhängigkeitsgraph gezeichnet.",
+          "unverified": "Basiert auf der aktuellen Auftragsdefinition (Änderungszeitpunkt unbekannt)."
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {

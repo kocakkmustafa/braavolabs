@@ -1382,6 +1382,21 @@
           "started": "Début : {time}",
           "ended": "Fin : {time}"
         },
+        "dag": {
+          "title": "Dépendances des étapes",
+          "noData": "Aucune donnée de dépendance pour cette tâche. Les étapes sont listées dans l'ordre ci-dessous.",
+          "sourceOrder": "Déduit de l'ordre des étapes : les étapes d'une même phase s'exécutent en parallèle ; chaque phase attend la précédente.",
+          "sourceApi": "Dépendances telles que signalées pour chaque étape.",
+          "inconsistent": "Les données de dépendance sont incohérentes ; certains liens ont été ignorés.",
+          "truncated": "Affichage des {shown} premières étapes sur {total}.",
+          "summary": "{steps} étapes en {levels} phases, {edges} dépendances",
+          "scroll": "Graphe des dépendances des étapes, défilable",
+          "listLabel": "Étapes et leurs dépendances",
+          "dependsOn": "Dépend de l'étape : {steps}",
+          "noDeps": "Aucune dépendance",
+          "changed": "L'enregistrement du pipeline a été mis à jour après cette exécution ; l'ordre des étapes n'ayant pas pu être vérifié, aucun graphe de dépendances n'est tracé.",
+          "unverified": "D'après la définition actuelle de la tâche (date de modification inconnue)."
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {

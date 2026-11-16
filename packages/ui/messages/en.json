@@ -1382,6 +1382,21 @@
           "started": "Started: {time}",
           "ended": "Ended: {time}"
         },
+        "dag": {
+          "title": "Step dependencies",
+          "noData": "No dependency data for this job. Steps are listed in order below.",
+          "sourceOrder": "Derived from the job's step order: steps in the same stage run in parallel; each stage waits for the previous one.",
+          "sourceApi": "Dependencies as reported for each step.",
+          "inconsistent": "Dependency data is inconsistent; some links were skipped.",
+          "truncated": "Showing the first {shown} of {total} steps.",
+          "summary": "{steps} steps in {levels} stages, {edges} dependencies",
+          "scroll": "Step dependency graph, scrollable",
+          "listLabel": "Steps with their dependencies",
+          "dependsOn": "Depends on step: {steps}",
+          "noDeps": "No dependencies",
+          "changed": "The pipeline record was updated after this run, so the step order could not be verified and no dependency graph is drawn.",
+          "unverified": "Based on the job's current definition (change time unknown)."
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {

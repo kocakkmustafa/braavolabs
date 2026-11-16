@@ -1382,6 +1382,21 @@
           "started": "Inizio: {time}",
           "ended": "Fine: {time}"
         },
+        "dag": {
+          "title": "Dipendenze dei passaggi",
+          "noData": "Nessun dato sulle dipendenze per questo lavoro. I passaggi sono elencati in ordine qui sotto.",
+          "sourceOrder": "Dedotto dall'ordine dei passaggi: i passaggi della stessa fase vengono eseguiti in parallelo; ogni fase attende la precedente.",
+          "sourceApi": "Dipendenze come segnalate per ogni passaggio.",
+          "inconsistent": "I dati sulle dipendenze sono incoerenti; alcuni collegamenti sono stati saltati.",
+          "truncated": "Mostrati i primi {shown} passaggi su {total}.",
+          "summary": "{steps} passaggi in {levels} fasi, {edges} dipendenze",
+          "scroll": "Grafo delle dipendenze dei passaggi, scorrevole",
+          "listLabel": "Passaggi con le relative dipendenze",
+          "dependsOn": "Dipende dal passaggio: {steps}",
+          "noDeps": "Nessuna dipendenza",
+          "changed": "Il record della pipeline è stato aggiornato dopo questa esecuzione; poiché non è stato possibile verificare l'ordine dei passaggi, il grafo delle dipendenze non viene disegnato.",
+          "unverified": "Basato sulla definizione attuale del lavoro (momento della modifica sconosciuto)."
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {

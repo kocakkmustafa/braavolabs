@@ -1382,6 +1382,21 @@
           "started": "Mulai: {time}",
           "ended": "Selesai: {time}"
         },
+        "dag": {
+          "title": "Dependensi langkah",
+          "noData": "Tidak ada data dependensi untuk pekerjaan ini. Langkah dicantumkan berurutan di bawah.",
+          "sourceOrder": "Disimpulkan dari urutan langkah: langkah pada tahap yang sama berjalan paralel; tiap tahap menunggu tahap sebelumnya.",
+          "sourceApi": "Dependensi sebagaimana dilaporkan untuk tiap langkah.",
+          "inconsistent": "Data dependensi tidak konsisten; beberapa tautan dilewati.",
+          "truncated": "Menampilkan {shown} langkah pertama dari {total}.",
+          "summary": "{steps} langkah dalam {levels} tahap, {edges} dependensi",
+          "scroll": "Grafik dependensi langkah, dapat digulir",
+          "listLabel": "Langkah beserta dependensinya",
+          "dependsOn": "Bergantung pada langkah: {steps}",
+          "noDeps": "Tanpa dependensi",
+          "changed": "Catatan pipeline diperbarui setelah proses ini; karena urutan langkah tidak dapat diverifikasi, grafik dependensi tidak digambar.",
+          "unverified": "Berdasarkan definisi pekerjaan saat ini (waktu perubahan tidak diketahui)."
+        },
         "seconds": "{value} dtk",
         "millis": "{value} md",
         "stepStatus": {
