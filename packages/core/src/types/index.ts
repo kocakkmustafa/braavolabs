@@ -14,3 +14,4 @@ export * from "./ab-test";
 export * from "./collaboration";
 export * from "./integration-catalog";
 export * from "./job";
+export * from "./model-mode";
