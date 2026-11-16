@@ -1378,6 +1378,13 @@
         "tokensValue": "{input} دخل / {output} خرج",
         "log": "السجل",
         "noLog": "لا توجد بيانات سجل لهذه الخطوة",
+        "activity": {
+          "title": "نشاط المهمة",
+          "actorSystem": "النظام",
+          "actorUser": "عضو الفريق",
+          "more": "يتم عرض آخر {count} أحداث؛ يوجد المزيد.",
+          "truncated": "بعض الأحداث غير مدرجة."
+        },
         "logEvent": {
           "started": "البدء: {time}",
           "ended": "الانتهاء: {time}"

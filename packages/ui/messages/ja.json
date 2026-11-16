@@ -1378,6 +1378,13 @@
         "tokensValue": "入力 {input} / 出力 {output}",
         "log": "ログ",
         "noLog": "このステップのログデータはありません",
+        "activity": {
+          "title": "ジョブのアクティビティ",
+          "actorSystem": "システム",
+          "actorUser": "チームメンバー",
+          "more": "最新の {count} 件を表示しています。さらにあります。",
+          "truncated": "一部のイベントは表示されていません。"
+        },
         "logEvent": {
           "started": "開始: {time}",
           "ended": "終了: {time}"

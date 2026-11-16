@@ -437,6 +437,9 @@ export const api = {
 
   // Runs
   getRun: (token: string, id: string) => apiFetch<any>(`/runs/${id}`, { token }),
+  /** BRA-P2-05: koşu olay günlüğü (newest first). Ham yanıt döner; ayrıştırma `parseActivity`'de. */
+  getRunActivity: (token: string, id: string, limit = 50) =>
+    apiFetch<unknown>(`/runs/${encodeURIComponent(id)}/activity?limit=${limit}`, { token }),
   triggerRun: (token: string, pipelineId: string, input = {}) =>
     apiFetch<any>(`/pipelines/${pipelineId}/run`, { method: "POST", body: JSON.stringify({ input }), token }),
 

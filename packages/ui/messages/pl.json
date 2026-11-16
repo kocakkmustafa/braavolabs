@@ -1378,6 +1378,13 @@
         "tokensValue": "{input} wej. / {output} wyj.",
         "log": "Dziennik",
         "noLog": "Brak danych dziennika dla tego kroku",
+        "activity": {
+          "title": "Aktywność zadania",
+          "actorSystem": "System",
+          "actorUser": "Członek zespołu",
+          "more": "Pokazano ostatnie {count} zdarzeń; są kolejne.",
+          "truncated": "Niektóre zdarzenia nie zostały wyświetlone."
+        },
         "logEvent": {
           "started": "Start: {time}",
           "ended": "Koniec: {time}"

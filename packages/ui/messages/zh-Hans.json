@@ -1378,6 +1378,13 @@
         "tokensValue": "输入 {input} / 输出 {output}",
         "log": "日志",
         "noLog": "此步骤没有日志数据",
+        "activity": {
+          "title": "任务活动",
+          "actorSystem": "系统",
+          "actorUser": "团队成员",
+          "more": "显示最近 {count} 条事件；还有更多。",
+          "truncated": "部分事件未列出。"
+        },
         "logEvent": {
           "started": "开始：{time}",
           "ended": "结束：{time}"
