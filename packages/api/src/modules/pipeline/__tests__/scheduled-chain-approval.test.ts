@@ -22,7 +22,15 @@ const h = vi.hoisted(() => ({
 }));
 
 function match(row: Row, where: Row): boolean {
-  return Object.entries(where).every(([k, v]) => row[k] === v);
+  // Minimal Prisma-where subset: equality, OR, { in }, { gte } (BRA-P2-06 overlap guard).
+  return Object.entries(where).every(([k, v]) => {
+    if (k === "OR") return (v as Row[]).some((w) => match(row, w));
+    if (v && typeof v === "object" && !(v instanceof Date)) {
+      if ("in" in v) return (v as any).in.includes(row[k]);
+      if ("gte" in v) return row[k] instanceof Date && row[k] >= (v as any).gte;
+    }
+    return row[k] === v;
+  });
 }
 
 vi.mock("../../../lib/queue", () => ({
@@ -46,7 +54,7 @@ vi.mock("../../../lib/db", () => ({
     pipeline: { findUnique: async () => pipelineRow(), update: async () => ({}) },
     run: {
       create: async ({ data }: any) => {
-        const r = { id: `run-${++h.seq}`, costUsd: 0, state: null, retryCount: 0, jobBudget: null, input: {}, ...data };
+        const r = { id: `run-${++h.seq}`, costUsd: 0, state: null, retryCount: 0, jobBudget: null, input: {}, updatedAt: new Date(), ...data };
         h.runs[r.id] = r;
         return r;
       },
