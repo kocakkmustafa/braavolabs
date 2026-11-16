@@ -12,6 +12,7 @@ import type { Router } from "express";
 const prismaMock = vi.hoisted(() => ({
   user: { findUnique: vi.fn(), count: vi.fn(), delete: vi.fn() },
   tenant: { delete: vi.fn() },
+  companyMember: { findMany: vi.fn().mockResolvedValue([]) },
   activityLog: { create: vi.fn() },
 }));
 const revokeMock = vi.hoisted(() => vi.fn());

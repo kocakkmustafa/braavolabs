@@ -193,6 +193,28 @@ userRouter.delete("/me", async (req, res, next) => {
     });
     const lastUser = siblingCount === 0;
 
+    // BRA-P2-07: user -> company_members FK'si CASCADE; kullanıcıyı silmek bir şirketin SON OWNER'ını
+    // sessizce düşürür ve "en az 1 OWNER" değişmezini bozardı. En küçük güvenli seçim: engelle (409),
+    // sahiplik devri (members PATCH/POST) kullanıcıya bırakılır; otomatik devir yapılmaz. Tenant'ın tamamı
+    // siliniyorsa (son kullanıcı) şirketler zaten gider, kontrol atlanır. Diğer silme davranışı değişmez.
+    if (!lastUser) {
+      const soleOwned = await prisma.companyMember.findMany({
+        where: {
+          tenantId,
+          userId,
+          role: "OWNER",
+          company: { members: { none: { role: "OWNER", userId: { not: userId } } } },
+        },
+        select: { companyId: true },
+      });
+      if (soleOwned.length > 0) {
+        throw new AppError(
+          409,
+          `You are the only OWNER of ${soleOwned.length} company(ies). Transfer ownership (add another OWNER) before deleting your account.`,
+        );
+      }
+    }
+
     // Audit BEFORE delete — once the user row is gone, the foreign-key
     // reference would be the only proof and that's brittle. We use
     // `actor: "system"` after the fact so the entry survives the cascade.

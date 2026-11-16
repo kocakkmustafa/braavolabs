@@ -32,6 +32,7 @@ import type { ConvertedPipeline } from "./adapters/types";
 import { deriveAgentsFromSteps } from "./agent-synthesis";
 import { maskSecrets } from "./mask-secrets";
 import { assertCompanyCapacity } from "../company/company-capacity";
+import { seedCreatorAsOwner } from "../company/owner-seed";
 
 export const automationImporterRouter = Router();
 automationImporterRouter.use(authMiddleware);
@@ -158,6 +159,7 @@ automationImporterRouter.post("/", async (req, res, next) => {
               status: "ACTIVE" as any,
             },
           });
+          await seedCreatorAsOwner(tx, { tenantId, companyId: created.id, userId: req.auth!.userId });
           companyId = created.id;
         }
       }

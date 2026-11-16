@@ -33,6 +33,7 @@ vi.mock("../../../lib/db", () => {
   const tx = {
     $queryRaw: (...a: unknown[]) => queryRaw(...a),
     entitlementEvent: { findMany: (...a: unknown[]) => entitlementFindMany(...a) },
+    companyMember: { upsert: vi.fn().mockResolvedValue({}) },
     company: {
       findFirst: (...a: unknown[]) => companyFindFirst(...a),
       create: (...a: unknown[]) => companyCreate(...a),

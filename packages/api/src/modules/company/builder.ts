@@ -7,6 +7,7 @@ import { AppError } from "../../middleware/error";
 import { slugify } from "@ai-company-os/core";
 import { PRIMITIVES, PLAN_LIMITS } from "@ai-company-os/core";
 import { assertCompanyCapacity } from "./company-capacity";
+import { seedCreatorAsOwner } from "./owner-seed";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { chatCompletion, type ChatMessage } from "../../services/ai-client";
 // D-013: resolveTenantCompletionLink (not the raw getTenantAIConfig) — this
@@ -443,7 +444,7 @@ export async function continueBuildSession(
 /**
  * Confirm and create the company from a ready session.
  */
-export async function confirmBuild(sessionId: string, tenantId: string): Promise<BuilderSession> {
+export async function confirmBuild(sessionId: string, tenantId: string, userId?: string): Promise<BuilderSession> {
   const session = sessions.get(sessionId);
   if (!session || Date.now() > session.expiresAt) {
     if (session) sessions.delete(sessionId);
@@ -469,6 +470,7 @@ export async function confirmBuild(sessionId: string, tenantId: string): Promise
         config: spec.config as any,
       },
     });
+    await seedCreatorAsOwner(tx, { tenantId: session.tenantId, companyId: created.id, userId });
 
     for (const agentDef of spec.agents) {
       await tx.agent.create({

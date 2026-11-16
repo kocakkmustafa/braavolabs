@@ -29,7 +29,7 @@ vi.mock("../../../lib/db", () => {
     $queryRaw: vi.fn().mockResolvedValue([]),
     agent: { create: (...a: unknown[]) => agentCreate(...a) },
     pipeline: { create: (...a: unknown[]) => pipelineCreate(...a) },
-    company: { create: (...a: unknown[]) => companyCreate(...a), count: vi.fn().mockResolvedValue(0), findFirst: vi.fn() },
+    companyMember: { upsert: vi.fn().mockResolvedValue({}) }, company: { create: (...a: unknown[]) => companyCreate(...a), count: vi.fn().mockResolvedValue(0), findFirst: vi.fn() },
     activityLog: { create: vi.fn() },
     entitlementEvent: { findMany: vi.fn().mockResolvedValue([]) },
   };
