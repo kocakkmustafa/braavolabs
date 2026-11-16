@@ -364,3 +364,27 @@ export function buildCodeSummary(
     generatedAt: now.toISOString(),
   };
 }
+
+/** BRA-P1-03-N3 — makbuza eklenen diff özeti: `JobCodeSummaryDiff` + kırpma bayrağı. */
+export type ReceiptDiffSummary = JobCodeSummaryDiff & { truncated: boolean };
+/** Makbuz test özeti: `truncated` ⇒ en eski çağrılar okunmadı, `ok` fail-closed `false`. */
+export type ReceiptTestSummary = JobCodeSummaryTests & { truncated: boolean };
+
+/**
+ * BRA-P1-03-N3 — makbuz yanıtına eklenen salt-okur bölümler (testSummary/diffSummary). Yeni veri kaynağı
+ * YOK: `buildCodeSummary` çıktısı yeniden kullanılır (yalnız yol + sayı; satır içeriği/komut çıktısı yok).
+ * Veri yoksa ilgili bölüm `null`. `truncated`: araç çağrısı sorgusu sınırı aştı ya da yol listesi kırpıldı.
+ */
+export function buildReceiptSummaries(
+  runId: string,
+  calls: readonly CodeSummaryToolCall[],
+  callsTruncated = false,
+): { testSummary: ReceiptTestSummary | null; diffSummary: ReceiptDiffSummary | null } {
+  const { diff, tests } = buildCodeSummary(runId, calls, new Date(0), callsTruncated);
+  return {
+    testSummary: callsTruncated
+      ? { ...(tests ?? { passed: null, failed: null, skipped: null, total: null, runs: 0 }), ok: false, truncated: true }
+      : tests && { ...tests, truncated: false },
+    diffSummary: diff ? { ...diff, truncated: callsTruncated || diff.fileCount > diff.files.length } : null,
+  };
+}
