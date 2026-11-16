@@ -1365,6 +1365,23 @@
         "reasoning": "Justification",
         "tools": "Appels d'outils",
         "noTools": "Aucun appel d'outil",
+        "model": "Modèle",
+        "noModel": "Aucune donnée de modèle pour cette étape",
+        "mode": "Mode de modèle",
+        "modes": {
+          "DIRECT": "Direct",
+          "CASCADE": "En cascade (le moins cher d'abord)",
+          "COMPARE": "Comparaison"
+        },
+        "tried": "Modèles essayés",
+        "tokens": "Jetons",
+        "tokensValue": "{input} en entrée / {output} en sortie",
+        "log": "Journal",
+        "noLog": "Aucune donnée de journal pour cette étape",
+        "logEvent": {
+          "started": "Début : {time}",
+          "ended": "Fin : {time}"
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {

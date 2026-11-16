@@ -1365,6 +1365,23 @@
         "reasoning": "Begründung",
         "tools": "Werkzeugaufrufe",
         "noTools": "Keine Werkzeugaufrufe",
+        "model": "Modell",
+        "noModel": "Keine Modelldaten für diesen Schritt",
+        "mode": "Modellmodus",
+        "modes": {
+          "DIRECT": "Direkt",
+          "CASCADE": "Kaskade (erst das günstige)",
+          "COMPARE": "Vergleich"
+        },
+        "tried": "Getestete Modelle",
+        "tokens": "Tokens",
+        "tokensValue": "{input} ein / {output} aus",
+        "log": "Protokoll",
+        "noLog": "Keine Protokolldaten für diesen Schritt",
+        "logEvent": {
+          "started": "Gestartet: {time}",
+          "ended": "Beendet: {time}"
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {

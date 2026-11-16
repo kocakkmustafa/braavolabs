@@ -1365,6 +1365,23 @@
         "reasoning": "कारण",
         "tools": "टूल कॉल",
         "noTools": "कोई टूल कॉल नहीं",
+        "model": "मॉडल",
+        "noModel": "इस चरण के लिए मॉडल डेटा नहीं है",
+        "mode": "मॉडल मोड",
+        "modes": {
+          "DIRECT": "सीधा",
+          "CASCADE": "क्रमिक (पहले सस्ता)",
+          "COMPARE": "तुलना"
+        },
+        "tried": "आज़माए गए मॉडल",
+        "tokens": "टोकन",
+        "tokensValue": "{input} इनपुट / {output} आउटपुट",
+        "log": "लॉग",
+        "noLog": "इस चरण के लिए लॉग डेटा नहीं है",
+        "logEvent": {
+          "started": "शुरू: {time}",
+          "ended": "समाप्त: {time}"
+        },
         "seconds": "{value} सेकंड",
         "millis": "{value} मि.से.",
         "stepStatus": {

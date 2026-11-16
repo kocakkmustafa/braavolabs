@@ -1365,6 +1365,23 @@
         "reasoning": "Uzasadnienie",
         "tools": "Wywołania narzędzi",
         "noTools": "Brak wywołań narzędzi",
+        "model": "Model",
+        "noModel": "Brak danych o modelu dla tego kroku",
+        "mode": "Tryb modelu",
+        "modes": {
+          "DIRECT": "Bezpośredni",
+          "CASCADE": "Kaskadowy (najpierw tani)",
+          "COMPARE": "Porównanie"
+        },
+        "tried": "Wypróbowane modele",
+        "tokens": "Tokeny",
+        "tokensValue": "{input} wej. / {output} wyj.",
+        "log": "Dziennik",
+        "noLog": "Brak danych dziennika dla tego kroku",
+        "logEvent": {
+          "started": "Start: {time}",
+          "ended": "Koniec: {time}"
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {

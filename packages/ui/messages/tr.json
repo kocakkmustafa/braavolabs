@@ -1365,6 +1365,23 @@
         "reasoning": "Gerekçe",
         "tools": "Araç çağrıları",
         "noTools": "Araç çağrısı yok",
+        "model": "Model",
+        "noModel": "Bu adım için model verisi yok",
+        "mode": "Model kipi",
+        "modes": {
+          "DIRECT": "Doğrudan",
+          "CASCADE": "Kademeli (önce ucuz)",
+          "COMPARE": "Karşılaştırma"
+        },
+        "tried": "Denenen modeller",
+        "tokens": "Token",
+        "tokensValue": "{input} giriş / {output} çıkış",
+        "log": "Günlük",
+        "noLog": "Bu adım için günlük verisi yok",
+        "logEvent": {
+          "started": "Başladı: {time}",
+          "ended": "Bitti: {time}"
+        },
         "seconds": "{value} sn",
         "millis": "{value} ms",
         "stepStatus": {

@@ -1365,6 +1365,23 @@
         "reasoning": "المبررات",
         "tools": "استدعاءات الأدوات",
         "noTools": "لا توجد استدعاءات أدوات",
+        "model": "النموذج",
+        "noModel": "لا توجد بيانات نموذج لهذه الخطوة",
+        "mode": "وضع النموذج",
+        "modes": {
+          "DIRECT": "مباشر",
+          "CASCADE": "متدرج (الأرخص أولًا)",
+          "COMPARE": "مقارنة"
+        },
+        "tried": "النماذج المجرّبة",
+        "tokens": "الرموز",
+        "tokensValue": "{input} دخل / {output} خرج",
+        "log": "السجل",
+        "noLog": "لا توجد بيانات سجل لهذه الخطوة",
+        "logEvent": {
+          "started": "البدء: {time}",
+          "ended": "الانتهاء: {time}"
+        },
         "seconds": "{value} ث",
         "millis": "{value} م.ث",
         "stepStatus": {

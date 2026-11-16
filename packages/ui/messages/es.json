@@ -1365,6 +1365,23 @@
         "reasoning": "Razonamiento",
         "tools": "Llamadas a herramientas",
         "noTools": "Sin llamadas a herramientas",
+        "model": "Modelo",
+        "noModel": "Sin datos de modelo para este paso",
+        "mode": "Modo de modelo",
+        "modes": {
+          "DIRECT": "Directo",
+          "CASCADE": "En cascada (primero el barato)",
+          "COMPARE": "Comparar"
+        },
+        "tried": "Modelos probados",
+        "tokens": "Tokens",
+        "tokensValue": "{input} de entrada / {output} de salida",
+        "log": "Registro",
+        "noLog": "Sin datos de registro para este paso",
+        "logEvent": {
+          "started": "Inicio: {time}",
+          "ended": "Fin: {time}"
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {

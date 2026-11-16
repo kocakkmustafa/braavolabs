@@ -1365,6 +1365,23 @@
         "reasoning": "Motivazione",
         "tools": "Chiamate agli strumenti",
         "noTools": "Nessuna chiamata agli strumenti",
+        "model": "Modello",
+        "noModel": "Nessun dato del modello per questo passaggio",
+        "mode": "Modalità modello",
+        "modes": {
+          "DIRECT": "Diretta",
+          "CASCADE": "A cascata (prima il più economico)",
+          "COMPARE": "Confronto"
+        },
+        "tried": "Modelli provati",
+        "tokens": "Token",
+        "tokensValue": "{input} in ingresso / {output} in uscita",
+        "log": "Registro",
+        "noLog": "Nessun dato di registro per questo passaggio",
+        "logEvent": {
+          "started": "Inizio: {time}",
+          "ended": "Fine: {time}"
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {

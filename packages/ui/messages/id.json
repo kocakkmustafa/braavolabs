@@ -1365,6 +1365,23 @@
         "reasoning": "Alasan",
         "tools": "Panggilan alat",
         "noTools": "Tidak ada panggilan alat",
+        "model": "Model",
+        "noModel": "Tidak ada data model untuk langkah ini",
+        "mode": "Mode model",
+        "modes": {
+          "DIRECT": "Langsung",
+          "CASCADE": "Bertahap (yang murah dulu)",
+          "COMPARE": "Bandingkan"
+        },
+        "tried": "Model yang dicoba",
+        "tokens": "Token",
+        "tokensValue": "{input} masuk / {output} keluar",
+        "log": "Log",
+        "noLog": "Tidak ada data log untuk langkah ini",
+        "logEvent": {
+          "started": "Mulai: {time}",
+          "ended": "Selesai: {time}"
+        },
         "seconds": "{value} dtk",
         "millis": "{value} md",
         "stepStatus": {

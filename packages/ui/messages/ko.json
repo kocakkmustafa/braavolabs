@@ -1365,6 +1365,23 @@
         "reasoning": "근거",
         "tools": "도구 호출",
         "noTools": "도구 호출 없음",
+        "model": "모델",
+        "noModel": "이 단계의 모델 데이터가 없습니다",
+        "mode": "모델 모드",
+        "modes": {
+          "DIRECT": "직접",
+          "CASCADE": "단계적(저렴한 모델 먼저)",
+          "COMPARE": "비교"
+        },
+        "tried": "시도한 모델",
+        "tokens": "토큰",
+        "tokensValue": "입력 {input} / 출력 {output}",
+        "log": "로그",
+        "noLog": "이 단계의 로그 데이터가 없습니다",
+        "logEvent": {
+          "started": "시작: {time}",
+          "ended": "종료: {time}"
+        },
         "seconds": "{value}초",
         "millis": "{value}ms",
         "stepStatus": {

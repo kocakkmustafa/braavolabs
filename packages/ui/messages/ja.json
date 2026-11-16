@@ -1365,6 +1365,23 @@
         "reasoning": "理由",
         "tools": "ツール呼び出し",
         "noTools": "ツール呼び出しはありません",
+        "model": "モデル",
+        "noModel": "このステップのモデルデータはありません",
+        "mode": "モデルモード",
+        "modes": {
+          "DIRECT": "直接",
+          "CASCADE": "段階的（安価なものを先に）",
+          "COMPARE": "比較"
+        },
+        "tried": "試したモデル",
+        "tokens": "トークン",
+        "tokensValue": "入力 {input} / 出力 {output}",
+        "log": "ログ",
+        "noLog": "このステップのログデータはありません",
+        "logEvent": {
+          "started": "開始: {time}",
+          "ended": "終了: {time}"
+        },
         "seconds": "{value} 秒",
         "millis": "{value} ミリ秒",
         "stepStatus": {

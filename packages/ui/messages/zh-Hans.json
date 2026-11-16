@@ -1365,6 +1365,23 @@
         "reasoning": "依据",
         "tools": "工具调用",
         "noTools": "没有工具调用",
+        "model": "模型",
+        "noModel": "此步骤没有模型数据",
+        "mode": "模型模式",
+        "modes": {
+          "DIRECT": "直接",
+          "CASCADE": "级联（先用便宜的）",
+          "COMPARE": "对比"
+        },
+        "tried": "已尝试的模型",
+        "tokens": "令牌",
+        "tokensValue": "输入 {input} / 输出 {output}",
+        "log": "日志",
+        "noLog": "此步骤没有日志数据",
+        "logEvent": {
+          "started": "开始：{time}",
+          "ended": "结束：{time}"
+        },
         "seconds": "{value} 秒",
         "millis": "{value} 毫秒",
         "stepStatus": {

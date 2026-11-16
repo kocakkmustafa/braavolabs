@@ -1365,6 +1365,23 @@
         "reasoning": "Justificativa",
         "tools": "Chamadas de ferramentas",
         "noTools": "Nenhuma chamada de ferramenta",
+        "model": "Modelo",
+        "noModel": "Sem dados de modelo para esta etapa",
+        "mode": "Modo do modelo",
+        "modes": {
+          "DIRECT": "Direto",
+          "CASCADE": "Em cascata (o barato primeiro)",
+          "COMPARE": "Comparação"
+        },
+        "tried": "Modelos testados",
+        "tokens": "Tokens",
+        "tokensValue": "{input} de entrada / {output} de saída",
+        "log": "Registro",
+        "noLog": "Sem dados de registro para esta etapa",
+        "logEvent": {
+          "started": "Início: {time}",
+          "ended": "Fim: {time}"
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {

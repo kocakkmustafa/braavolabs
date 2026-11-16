@@ -1365,6 +1365,23 @@
         "reasoning": "Rationale",
         "tools": "Tool calls",
         "noTools": "No tool calls",
+        "model": "Model",
+        "noModel": "No model data for this step",
+        "mode": "Model mode",
+        "modes": {
+          "DIRECT": "Direct",
+          "CASCADE": "Cascade (cheap first)",
+          "COMPARE": "Compare"
+        },
+        "tried": "Models tried",
+        "tokens": "Tokens",
+        "tokensValue": "{input} in / {output} out",
+        "log": "Log",
+        "noLog": "No log data for this step",
+        "logEvent": {
+          "started": "Started: {time}",
+          "ended": "Ended: {time}"
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {
