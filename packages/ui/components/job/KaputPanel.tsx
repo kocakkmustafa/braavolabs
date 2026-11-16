@@ -5,7 +5,8 @@
  * maskelenir (`maskKaputText`), sonra kırpılır, düz metin olarak, `overflow-wrap:anywhere`. Sade: kompakt satırlar; Tam: adım kartları.
  */
 import { useId } from "react";
-import type { Kaput, KaputStep, KaputToolCall } from "../../lib/ux-lab/facts";
+import { buildKaputGraph, type Kaput, type KaputStep, type KaputToolCall } from "../../lib/ux-lab/facts";
+import { KaputDag } from "./KaputDag";
 import { clipText, safeText } from "../../lib/ux-kaput/mask";
 import { money, type T } from "../inbox/InboxParts";
 
@@ -94,6 +95,7 @@ export default function KaputPanel({ load, full, t, locale, onRetry }: { load: K
           {ratio > 1 && <strong data-testid="job-kaput-over" style={{ color: "var(--color-error)" }}> · {t("app.jobs.kaput.overBudget")}</strong>}
         </div>
       )}
+      {steps.length > 0 && <KaputDag graph={buildKaputGraph(k)} steps={steps} t={t} rtl={/^(ar|he|fa|ur)(-|$)/i.test(locale)} status={status} statusKey={statusKey} nameMax={NAME_MAX} />}
       {steps.length === 0 ? <span style={muted}>{t("app.jobs.kaput.noSteps")}</span> : full ? (
         <div style={{ display: "grid", gap: 10 }}>
           {steps.map((s, i) => <FullStep key={s.id} s={s} n={i + 1} hid={`${uid}-s${i}`} t={t} locale={locale} total={total} percent={percent} duration={duration} status={status} />)}

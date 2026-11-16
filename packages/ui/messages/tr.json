@@ -1382,6 +1382,19 @@
           "started": "Başladı: {time}",
           "ended": "Bitti: {time}"
         },
+        "dag": {
+          "title": "Adım bağımlılıkları",
+          "noData": "Bu iş için bağımlılık verisi yok. Adımlar aşağıda sırayla listelenir.",
+          "sourceOrder": "İşin adım sırasından çıkarıldı: aynı aşamadaki adımlar paralel çalışır; her aşama öncekini bekler.",
+          "sourceApi": "Bağımlılıklar her adım için bildirildiği gibi.",
+          "inconsistent": "Bağımlılık verisi tutarsız; bazı bağlantılar atlandı.",
+          "truncated": "{total} adımdan ilk {shown} tanesi gösteriliyor.",
+          "summary": "{levels} aşamada {steps} adım, {edges} bağımlılık",
+          "scroll": "Adım bağımlılık grafiği, kaydırılabilir",
+          "listLabel": "Adımlar ve bağımlılıkları",
+          "dependsOn": "Bağlı olduğu adım: {steps}",
+          "noDeps": "Bağımlılık yok"
+        },
         "seconds": "{value} sn",
         "millis": "{value} ms",
         "stepStatus": {

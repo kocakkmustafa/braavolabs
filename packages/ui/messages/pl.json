@@ -1382,6 +1382,19 @@
           "started": "Start: {time}",
           "ended": "Koniec: {time}"
         },
+        "dag": {
+          "title": "Zależności kroków",
+          "noData": "Brak danych o zależnościach dla tego zadania. Kroki są wypisane poniżej po kolei.",
+          "sourceOrder": "Wywnioskowano z kolejności kroków: kroki tego samego etapu działają równolegle; każdy etap czeka na poprzedni.",
+          "sourceApi": "Zależności zgłoszone dla każdego kroku.",
+          "inconsistent": "Dane o zależnościach są niespójne; pominięto niektóre powiązania.",
+          "truncated": "Pokazano pierwsze {shown} z {total} kroków.",
+          "summary": "{steps} kroków w {levels} etapach, zależności: {edges}",
+          "scroll": "Wykres zależności kroków, przewijany",
+          "listLabel": "Kroki wraz z zależnościami",
+          "dependsOn": "Zależy od kroku: {steps}",
+          "noDeps": "Brak zależności"
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {

@@ -1382,6 +1382,19 @@
           "started": "开始：{time}",
           "ended": "结束：{time}"
         },
+        "dag": {
+          "title": "步骤依赖关系",
+          "noData": "此任务没有依赖关系数据。步骤按顺序列在下方。",
+          "sourceOrder": "根据步骤顺序推导：同一阶段的步骤并行运行，每个阶段等待上一阶段。",
+          "sourceApi": "按各步骤上报的依赖关系显示。",
+          "inconsistent": "依赖关系数据不一致，已跳过部分连线。",
+          "truncated": "共 {total} 个步骤，显示前 {shown} 个。",
+          "summary": "{levels} 个阶段中有 {steps} 个步骤，{edges} 条依赖",
+          "scroll": "步骤依赖关系图，可滚动",
+          "listLabel": "步骤及其依赖关系",
+          "dependsOn": "依赖步骤：{steps}",
+          "noDeps": "无依赖"
+        },
         "seconds": "{value} 秒",
         "millis": "{value} 毫秒",
         "stepStatus": {

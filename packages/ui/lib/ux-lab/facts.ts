@@ -97,9 +97,11 @@ export interface KaputModel { provider: string | null; model: string | null; mod
 /** Adım olay günlüğü: yalnız `startedAt`/`completedAt` zaman damgaları (koşu seviyesinde etkinlik günlüğü ucu yok). */
 export interface KaputLogEvent { kind: "started" | "ended"; at: string }
 export interface KaputTokens { input: number | null; output: number | null }
-export interface KaputStep { id: string; index: number; name: string; agentRole: string | null; status: string; costUsd: number | null; durationMs: number | null; reasoning: string | null; toolCalls: KaputToolCall[]; error?: string | null; modelInfo?: KaputModel | null; log?: KaputLogEvent[]; tokens?: KaputTokens | null }
+export interface KaputStep { id: string; index: number; name: string; agentRole: string | null; status: string; costUsd: number | null; durationMs: number | null; reasoning: string | null; toolCalls: KaputToolCall[]; error?: string | null; modelInfo?: KaputModel | null; log?: KaputLogEvent[]; tokens?: KaputTokens | null; dependsOn?: string[] | null }
+/** BRA-P1-01-N2 — işin hattı tanımından yalnız ad ve sıra (`order`); `GET /runs/:id` yanıtındaki `pipeline.steps` + `pipeline.pipelineType`. */
+export interface KaputPipelineDef { name: string; order: number }
 /** `handoffCount` null = okunamadı/yok (uydurulmaz). */
-export interface Kaput { steps: KaputStep[]; totalCostUsd: number | null; toolCallCount: number; handoffCount: number | null; runError?: string | null; budgetUsd?: number | null }
+export interface Kaput { steps: KaputStep[]; totalCostUsd: number | null; toolCallCount: number; handoffCount: number | null; runError?: string | null; budgetUsd?: number | null; pipelineType?: string | null; pipelineDefs?: KaputPipelineDef[] | null }
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v : null);
@@ -152,6 +154,7 @@ export function parseKaput(raw: unknown): Kaput {
       ...(isoTime(s.startedAt) ? [{ kind: "started" as const, at: isoTime(s.startedAt) as string }] : []),
       ...(isoTime(s.completedAt) ? [{ kind: "ended" as const, at: isoTime(s.completedAt) as string }] : []),
     ],
+    dependsOn: Array.isArray(s.dependsOn) ? s.dependsOn.map((d) => (typeof d === "string" ? d : "")) : null,
     tokens: nonNeg(s.promptTokens) === null && nonNeg(s.completionTokens) === null ? null : { input: nonNeg(s.promptTokens), output: nonNeg(s.completionTokens) },
     toolCalls: (Array.isArray(s.toolCalls) ? s.toolCalls : []).filter(isObj).map((c, j) => ({
       id: str(c.id) ?? `call-${i}-${j}`,
@@ -161,5 +164,112 @@ export function parseKaput(raw: unknown): Kaput {
       error: str(c.error),
     })),
   }));
-  return { steps, totalCostUsd: nonNeg(raw.costUsd), toolCallCount: steps.reduce((n, s) => n + s.toolCalls.length, 0), handoffCount: null, runError: str(raw.error), budgetUsd: positive(toNumber(raw.budgetUsd)) };
+  return { steps, totalCostUsd: nonNeg(raw.costUsd), toolCallCount: steps.reduce((n, s) => n + s.toolCalls.length, 0), handoffCount: null, runError: str(raw.error), budgetUsd: positive(toNumber(raw.budgetUsd)), ...parsePipeline(raw.pipeline) };
+}
+
+/** Hat tanımı: `order` yoksa dizi sırası (runner.ts: `s.order ?? idx`). Dizi değilse null (uydurulmaz). */
+function parsePipeline(p: unknown): { pipelineType: string | null; pipelineDefs: KaputPipelineDef[] | null } {
+  if (!isObj(p)) return { pipelineType: null, pipelineDefs: null };
+  const defs = Array.isArray(p.steps)
+    ? p.steps.map((d, i) => ({ name: isObj(d) ? (str(d.name) ?? "") : "", order: isObj(d) ? (nonNeg(d.order) ?? i) : i }))
+    : null;
+  return { pipelineType: str(p.pipelineType)?.toUpperCase() ?? null, pipelineDefs: defs };
+}
+
+/* ── BRA-P1-01-N2 — adım bağımlılık grafiği (DAG) ──
+ * Kaynak bulgusu: `RunStep` satırında dependsOn/parent/dal alanı YOK. Bağımlılık yalnız (a) adım `dependsOn` taşırsa (bugün taşımaz),
+ * ya da (b) `pipelineType=SEQUENTIAL` ve hat tanımı adlarla eşleşirse `order` gruplarından çıkarılır (runner.ts: aynı order = paralel,
+ * bir sonraki grup öncekinin tamamını bekler). HIERARCHICAL, tanım yok ya da ad uyuşmazlığı → "none" (kenar uydurulmaz). */
+export const GRAPH_MAX_NODES = 50;
+export type KaputGraphSource = "api" | "order" | "none";
+export interface KaputGraphNode { id: string; index: number; level: number }
+export interface KaputGraph {
+  source: KaputGraphSource;
+  nodes: KaputGraphNode[];
+  edges: Array<{ from: string; to: string }>;
+  /** level → düğüm kimlikleri */
+  levels: string[][];
+  /** false: bilinmeyen kimlik, kendine/döngü kenarı ya da hat tanımı uyuşmazlığı bulundu (kenar atlandı) */
+  consistent: boolean;
+  total: number;
+  truncated: boolean;
+}
+
+const emptyGraph = (total: number, consistent = true): KaputGraph => ({ source: "none", nodes: [], edges: [], levels: [], consistent, total, truncated: total > GRAPH_MAX_NODES });
+
+/** Kenarlardan (yalnız bilinen kimlikler) topolojik seviye (en uzun yol). Döngüdeki/ona bağlı kalan düğümler arası kenarlar atılır. */
+function layer(ids: string[], edges: Array<{ from: string; to: string }>): { levels: Map<string, number>; edges: Array<{ from: string; to: string }>; cyclic: boolean } {
+  const run = (es: Array<{ from: string; to: string }>) => {
+    const indeg = new Map(ids.map((i) => [i, 0]));
+    for (const e of es) indeg.set(e.to, (indeg.get(e.to) ?? 0) + 1);
+    const level = new Map<string, number>();
+    let queue = ids.filter((i) => indeg.get(i) === 0);
+    queue.forEach((i) => level.set(i, 0));
+    while (queue.length) {
+      const next: string[] = [];
+      for (const id of queue) for (const e of es) if (e.from === id) {
+        level.set(e.to, Math.max(level.get(e.to) ?? 0, (level.get(id) ?? 0) + 1));
+        indeg.set(e.to, (indeg.get(e.to) ?? 0) - 1);
+        if (indeg.get(e.to) === 0) next.push(e.to);
+      }
+      queue = next;
+    }
+    return { level, done: new Set(ids.filter((i) => indeg.get(i) === 0)) };
+  };
+  let { level, done } = run(edges);
+  if (done.size === ids.length) return { levels: level, edges, cyclic: false };
+  const stuck = new Set(ids.filter((i) => !done.has(i)));
+  const kept = edges.filter((e) => !(stuck.has(e.from) && stuck.has(e.to)));
+  level = run(kept).level;
+  return { levels: level, edges: kept, cyclic: true };
+}
+
+export function buildKaputGraph(k: Pick<Kaput, "steps" | "pipelineType" | "pipelineDefs">): KaputGraph {
+  const steps = [...k.steps].sort((a, b) => a.index - b.index);
+  const total = steps.length;
+  if (total === 0) return emptyGraph(0);
+  const shown = steps.slice(0, GRAPH_MAX_NODES);
+  const truncated = total > shown.length;
+  const ids = shown.map((s) => s.id);
+  const known = new Set(ids);
+  let consistent = true;
+  let source: KaputGraphSource = "none";
+  let edges: Array<{ from: string; to: string }> = [];
+  const order = new Map<string, number>();
+
+  if (steps.some((s) => s.dependsOn)) {
+    // (a) API bağımlılık verir; bilinmeyen/kendine kenar atlanır.
+    source = "api";
+    const seen = new Set<string>();
+    for (const s of shown) for (const d of s.dependsOn ?? []) {
+      const key = `${d}\u0000${s.id}`;
+      if (!known.has(d) || d === s.id) { consistent = false; continue; }
+      if (!seen.has(key)) { seen.add(key); edges.push({ from: d, to: s.id }); }
+    }
+  } else if (k.pipelineType === "SEQUENTIAL" && k.pipelineDefs) {
+    // (b) aynı order = paralel grup; her grup bir öncekinin tamamına bağlı.
+    const defs = [...k.pipelineDefs.map((d, i) => ({ ...d, i }))].sort((a, b) => a.order - b.order || a.i - b.i);
+    const ok = steps.every((s) => s.index < defs.length && defs[s.index].name === s.name) && new Set(steps.map((s) => s.index)).size === steps.length;
+    if (!ok) return emptyGraph(total, false);
+    source = "order";
+    for (const s of shown) order.set(s.id, defs[s.index].order);
+    const orders = [...new Set(shown.map((s) => order.get(s.id) as number))].sort((a, b) => a - b);
+    for (let g = 1; g < orders.length; g++) {
+      for (const to of shown.filter((s) => order.get(s.id) === orders[g])) {
+        for (const from of shown.filter((s) => order.get(s.id) === orders[g - 1])) edges.push({ from: from.id, to: to.id });
+      }
+    }
+  } else {
+    return emptyGraph(total);
+  }
+
+  const res = layer(ids, edges);
+  if (res.cyclic) consistent = false;
+  const levels: string[][] = [];
+  const nodes = shown.map((s) => {
+    const level = res.levels.get(s.id) ?? 0;
+    (levels[level] ??= []).push(s.id);
+    return { id: s.id, index: s.index, level };
+  });
+  return { source, nodes, edges: res.edges, levels: Array.from(levels, (l) => l ?? []), consistent, total, truncated };
 }

@@ -1382,6 +1382,19 @@
           "started": "Início: {time}",
           "ended": "Fim: {time}"
         },
+        "dag": {
+          "title": "Dependências das etapas",
+          "noData": "Não há dados de dependência para este trabalho. As etapas estão listadas em ordem abaixo.",
+          "sourceOrder": "Deduzido da ordem das etapas: etapas do mesmo estágio rodam em paralelo; cada estágio espera o anterior.",
+          "sourceApi": "Dependências conforme informadas para cada etapa.",
+          "inconsistent": "Os dados de dependência estão inconsistentes; alguns vínculos foram ignorados.",
+          "truncated": "Mostrando as primeiras {shown} de {total} etapas.",
+          "summary": "{steps} etapas em {levels} estágios, {edges} dependências",
+          "scroll": "Grafo de dependências das etapas, rolável",
+          "listLabel": "Etapas com suas dependências",
+          "dependsOn": "Depende da etapa: {steps}",
+          "noDeps": "Sem dependências"
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {
