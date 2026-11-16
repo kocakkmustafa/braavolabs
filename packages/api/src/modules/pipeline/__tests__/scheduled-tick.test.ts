@@ -5,7 +5,7 @@
  * and the double-billing guard (A2): claimQuota has no rollback, so the tick
  * must run at most one claim per fire and must never be internally retried.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterAll } from "vitest";
 
 const prismaMock = vi.hoisted(() => ({
   pipeline: { findUnique: vi.fn(), update: vi.fn() },
@@ -445,13 +445,12 @@ describe("processScheduledTick — onay bekleyen koşu varken overlap (BRA-P1-04
   });
 
   it("WAITING_APPROVAL koşu varken: koşu açılmaz, kota yenmez, waiting_approval skip loglanır; sorgu tenant+pipeline kapsamlı", async () => {
-    prismaMock.run.findFirst.mockResolvedValue({ id: "run-waiting" });
+    prismaMock.run.findFirst.mockResolvedValue({ id: "run-waiting", status: "WAITING_APPROVAL" });
     await processScheduledTick(makeJob());
-    expect(prismaMock.run.findFirst.mock.calls[0]![0].where).toEqual({
-      pipelineId: "pipe-1",
-      tenantId: "tenant-1",
-      status: "WAITING_APPROVAL",
-    });
+    const where = prismaMock.run.findFirst.mock.calls[0]![0].where;
+    expect(where.pipelineId).toBe("pipe-1");
+    expect(where.tenantId).toBe("tenant-1");
+    expect(where.status).toBe("WAITING_APPROVAL");
     expect(claimQuotaMock).not.toHaveBeenCalled();
     expect(prismaMock.run.create).not.toHaveBeenCalled();
     expect(runQueueMock.add).not.toHaveBeenCalled();
@@ -466,7 +465,7 @@ describe("processScheduledTick — onay bekleyen koşu varken overlap (BRA-P1-04
   });
 
   it("at-most-once: atlanan tick slotu TÜKETİR; aynı slot tekrar gelip bekleyen çözülmüş olsa da koşu açmaz", async () => {
-    prismaMock.run.findFirst.mockResolvedValueOnce({ id: "run-waiting" });
+    prismaMock.run.findFirst.mockResolvedValueOnce({ id: "run-waiting", status: "WAITING_APPROVAL" });
     await processScheduledTick(makeJob());
     expect(slotKeyCalls()).toHaveLength(1);
     prismaMock.run.findFirst.mockResolvedValue(null); // onay çözüldü
@@ -476,7 +475,7 @@ describe("processScheduledTick — onay bekleyen koşu varken overlap (BRA-P1-04
   });
 
   it("skip logu saatlik dedup'lı: art arda iki tick tek satır yazar", async () => {
-    prismaMock.run.findFirst.mockResolvedValue({ id: "run-waiting" });
+    prismaMock.run.findFirst.mockResolvedValue({ id: "run-waiting", status: "WAITING_APPROVAL" });
     await processScheduledTick(makeJob("pipe-1", 1_000_000));
     await processScheduledTick(makeJob("pipe-1", 1_060_000));
     expect(skipRows()).toHaveLength(1);
@@ -485,7 +484,7 @@ describe("processScheduledTick — onay bekleyen koşu varken overlap (BRA-P1-04
   });
 
   it("bekleyen koşu yoksa / çözülünce sonraki tick koşu açar", async () => {
-    prismaMock.run.findFirst.mockResolvedValueOnce({ id: "run-waiting" }).mockResolvedValueOnce(null);
+    prismaMock.run.findFirst.mockResolvedValueOnce({ id: "run-waiting", status: "WAITING_APPROVAL" }).mockResolvedValueOnce(null);
     await processScheduledTick(makeJob("pipe-1", 1_000_000));
     expect(prismaMock.run.create).not.toHaveBeenCalled();
     await processScheduledTick(makeJob("pipe-1", 5_000_000));
@@ -495,7 +494,7 @@ describe("processScheduledTick — onay bekleyen koşu varken overlap (BRA-P1-04
 
   it("başka pipeline/tenant etkilenmez: sorgu her tick'te kendi pipelineId+tenantId'siyle yapılır", async () => {
     prismaMock.run.findFirst.mockImplementation(async ({ where }: any) =>
-      where.pipelineId === "pipe-1" && where.tenantId === "tenant-1" ? { id: "run-waiting" } : null,
+      where.pipelineId === "pipe-1" && where.tenantId === "tenant-1" ? { id: "run-waiting", status: "WAITING_APPROVAL" } : null,
     );
     prismaMock.pipeline.findUnique
       .mockResolvedValueOnce(activePipeline)
@@ -505,7 +504,11 @@ describe("processScheduledTick — onay bekleyen koşu varken overlap (BRA-P1-04
     await processScheduledTick(makeJob("pipe-2"));
     await processScheduledTick(makeJob("pipe-3"));
     expect(prismaMock.run.create).toHaveBeenCalledTimes(2);
-    expect(prismaMock.run.findFirst.mock.calls.map((c) => [c[0].where.pipelineId, c[0].where.tenantId])).toEqual([
+    expect(
+      prismaMock.run.findFirst.mock.calls
+        .filter((c) => c[0].where.status === "WAITING_APPROVAL")
+        .map((c) => [c[0].where.pipelineId, c[0].where.tenantId]),
+    ).toEqual([
       ["pipe-1", "tenant-1"],
       ["pipe-2", "tenant-1"],
       ["pipe-3", "tenant-2"],
@@ -517,5 +520,205 @@ describe("processScheduledTick — onay bekleyen koşu varken overlap (BRA-P1-04
     await expect(processScheduledTick(makeJob())).rejects.toThrow("db down");
     expect(claimQuotaMock).not.toHaveBeenCalled();
     expect(prismaMock.run.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("processScheduledTick — PENDING/RUNNING overlap (BRA-P2-06)", () => {
+  const skipRows = () =>
+    prismaMock.activityLog.create.mock.calls
+      .map((c) => c[0].data)
+      .filter((d: any) => d.action === "pipeline.schedule.skip");
+  const savedFlag = process.env.JOB_STATE_DUAL_WRITE;
+  const DAY = 24 * 60 * 60_000;
+  /** Status-aware fake: independent of query order. */
+  const givenRuns = (waiting: any, active: any) =>
+    prismaMock.run.findFirst.mockImplementation(async ({ where }: any) =>
+      where.status === "WAITING_APPROVAL" ? waiting : active,
+    );
+  const overlapCall = () => prismaMock.run.findFirst.mock.calls.find((c) => c[0].where.status !== "WAITING_APPROVAL")!;
+
+  beforeEach(() => {
+    delete process.env.JOB_STATE_DUAL_WRITE;
+    prismaMock.pipeline.findUnique.mockResolvedValue(activePipeline);
+    claimQuotaMock.mockResolvedValue({ claimed: true, value: 1, limit: 100 });
+    prismaMock.run.create.mockResolvedValue({ id: "run-new" });
+  });
+  afterAll(() => {
+    if (savedFlag === undefined) delete process.env.JOB_STATE_DUAL_WRITE;
+    else process.env.JOB_STATE_DUAL_WRITE = savedFlag;
+  });
+
+  it("PENDING varken: koşu/kota yok, reason overlap, slot tüketilir", async () => {
+    givenRuns(null, { id: "run-p", status: "PENDING" });
+    await processScheduledTick(makeJob());
+    expect(prismaMock.run.create).not.toHaveBeenCalled();
+    expect(claimQuotaMock).not.toHaveBeenCalled();
+    expect(runQueueMock.add).not.toHaveBeenCalled();
+    expect(slotKeyCalls()).toHaveLength(1);
+    expect(skipRows()).toEqual([
+      expect.objectContaining({
+        tenantId: "tenant-1",
+        details: { pipelineId: "pipe-1", reason: "overlap", slotMs: 1_060_000, activeRunId: "run-p", activeRunStatus: "PENDING" },
+      }),
+    ]);
+  });
+
+  it("RUNNING varken: koşu/kota yok, reason overlap", async () => {
+    givenRuns(null, { id: "run-r", status: "RUNNING" });
+    await processScheduledTick(makeJob());
+    expect(prismaMock.run.create).not.toHaveBeenCalled();
+    expect(claimQuotaMock).not.toHaveBeenCalled();
+    expect(skipRows()[0].details.reason).toBe("overlap");
+  });
+
+  it("ikisi birden varken waiting_approval loglanır (sorgu sırasından bağımsız), overlap sorgusu çalışmaz", async () => {
+    givenRuns({ id: "run-w" }, { id: "run-r", status: "RUNNING" });
+    await processScheduledTick(makeJob());
+    expect(skipRows().map((r: any) => r.details.reason)).toEqual(["waiting_approval"]);
+    expect(prismaMock.run.findFirst).toHaveBeenCalledTimes(1);
+    expect(redisMock.set.mock.calls.some((c) => c[0] === "pipeline:tick-skip:pipe-1:waiting_approval")).toBe(true);
+    expect(redisMock.set.mock.calls.some((c) => c[0] === "pipeline:tick-skip:pipe-1:overlap")).toBe(false);
+  });
+
+  it("at-most-once: overlap skip slotu tüketir; aynı slot çözülünce yeniden gelse de koşu açmaz", async () => {
+    givenRuns(null, { id: "run-r", status: "RUNNING" });
+    await processScheduledTick(makeJob());
+    givenRuns(null, null);
+    await processScheduledTick(makeJob());
+    expect(prismaMock.run.create).not.toHaveBeenCalled();
+    expect(claimQuotaMock).not.toHaveBeenCalled();
+  });
+
+  it("sıra: slot claim → waiting guard → overlap guard → kota", async () => {
+    const order: string[] = [];
+    redisMock.set.mockImplementation(async (k: string) => {
+      if (String(k).startsWith("pipeline:tick:")) order.push("slot");
+      return "OK";
+    });
+    prismaMock.run.findFirst.mockImplementation(async ({ where }: any) => {
+      order.push(where.status === "WAITING_APPROVAL" ? "waiting" : "overlap");
+      return null;
+    });
+    claimQuotaMock.mockImplementation(async () => {
+      order.push("quota");
+      return { claimed: true, value: 1, limit: 100 };
+    });
+    await processScheduledTick(makeJob());
+    expect(order).toEqual(["slot", "waiting", "overlap", "quota"]);
+  });
+
+  it("iki sorgu da tenantId + pipelineId kapsamlı", async () => {
+    await processScheduledTick(makeJob());
+    expect(prismaMock.run.findFirst).toHaveBeenCalledTimes(2);
+    for (const c of prismaMock.run.findFirst.mock.calls)
+      expect(c[0].where).toMatchObject({ pipelineId: "pipe-1", tenantId: "tenant-1" });
+    expect(prismaMock.run.findFirst.mock.calls[0]![0].where).toEqual({
+      pipelineId: "pipe-1",
+      tenantId: "tenant-1",
+      status: "WAITING_APPROVAL",
+    });
+  });
+
+  it("bayrak KAPALI: PENDING/RUNNING + updatedAt ≥ now-24sa; heartbeatAt/state adlandırılmaz", async () => {
+    const before = Date.now();
+    await processScheduledTick(makeJob());
+    const where = overlapCall()[0].where;
+    expect(where.status).toEqual({ in: ["PENDING", "RUNNING"] });
+    expect(JSON.stringify(where)).not.toContain("heartbeatAt");
+    expect(JSON.stringify(where)).not.toContain("state");
+    const cutoff = where.updatedAt.gte.getTime();
+    expect(cutoff).toBeGreaterThanOrEqual(before - DAY);
+    expect(cutoff).toBeLessThanOrEqual(Date.now() - DAY);
+  });
+
+  it("bayrak AÇIK: RUNNING heartbeatAt eşiği 15 dk, NULL ise updatedAt 24 sa; PENDING yalnız state null/READY", async () => {
+    process.env.JOB_STATE_DUAL_WRITE = "true";
+    const before = Date.now();
+    await processScheduledTick(makeJob());
+    const where = overlapCall()[0].where;
+    const running = where.OR.find((a: any) => a.status === "RUNNING");
+    const hb = running.OR[0].heartbeatAt.gte.getTime();
+    expect(hb).toBeGreaterThanOrEqual(before - 15 * 60_000);
+    expect(hb).toBeLessThanOrEqual(Date.now() - 15 * 60_000);
+    expect(running.OR[1].heartbeatAt).toBeNull();
+    const pending = where.OR.find((a: any) => a.status === "PENDING");
+    expect(pending.OR).toEqual([{ state: null }, { state: "READY" }]);
+    expect(pending.updatedAt.gte).toBeInstanceOf(Date);
+  });
+
+  it("DRAFT/PLANNED PENDING koşu kümeye girmez", async () => {
+    process.env.JOB_STATE_DUAL_WRITE = "true";
+    await processScheduledTick(makeJob());
+    const pending = overlapCall()[0].where.OR.find((a: any) => a.status === "PENDING");
+    const allowed = pending.OR.map((c: any) => c.state);
+    expect(allowed).not.toContain("DRAFT");
+    expect(allowed).not.toContain("PLANNED");
+  });
+
+  it("stale RUNNING / taslak (sorgu eşleşmez → null) varken yeni koşu açılır ve kota yenir", async () => {
+    givenRuns(null, null);
+    await processScheduledTick(makeJob());
+    expect(claimQuotaMock).toHaveBeenCalledTimes(1);
+    expect(prismaMock.run.create).toHaveBeenCalledTimes(1);
+  });
+
+  it("tazelik eşiği JOB_HEARTBEAT_STALE_MS ile birlikte hareket eder (tek kaynak)", async () => {
+    process.env.JOB_STATE_DUAL_WRITE = "true";
+    process.env.JOB_HEARTBEAT_STALE_MS = "60000";
+    try {
+      const before = Date.now();
+      await processScheduledTick(makeJob());
+      const hb = overlapCall()[0].where.OR.find((a: any) => a.status === "RUNNING").OR[0].heartbeatAt.gte.getTime();
+      expect(hb).toBeGreaterThanOrEqual(before - 60_000);
+      expect(hb).toBeLessThanOrEqual(Date.now() - 60_000);
+    } finally {
+      delete process.env.JOB_HEARTBEAT_STALE_MS;
+    }
+  });
+
+  it("başka pipeline/tenant etkilenmez: yalnız pipe-1/tenant-1 için overlap", async () => {
+    prismaMock.run.findFirst.mockImplementation(async ({ where }: any) =>
+      where.status !== "WAITING_APPROVAL" && where.pipelineId === "pipe-1" && where.tenantId === "tenant-1"
+        ? { id: "run-r", status: "RUNNING" }
+        : null,
+    );
+    prismaMock.pipeline.findUnique
+      .mockResolvedValueOnce(activePipeline)
+      .mockResolvedValueOnce({ ...activePipeline, id: "pipe-2" })
+      .mockResolvedValueOnce({ ...activePipeline, id: "pipe-1", company: { status: "ACTIVE", tenantId: "tenant-2" } });
+    await processScheduledTick(makeJob("pipe-1"));
+    await processScheduledTick(makeJob("pipe-2"));
+    await processScheduledTick(makeJob("pipe-1", 7_000_000));
+    expect(prismaMock.run.create).toHaveBeenCalledTimes(2);
+  });
+
+  it("her iki sorgunun hatası da fail-closed (koşu/kota yok, hata yayılır)", async () => {
+    prismaMock.run.findFirst.mockRejectedValue(new Error("db down"));
+    await expect(processScheduledTick(makeJob())).rejects.toThrow("db down");
+    prismaMock.run.findFirst.mockImplementation(async ({ where }: any) => {
+      if (where.status === "WAITING_APPROVAL") return null;
+      throw new Error("db down 2");
+    });
+    await expect(processScheduledTick(makeJob("pipe-1", 8_000_000))).rejects.toThrow("db down 2");
+    expect(claimQuotaMock).not.toHaveBeenCalled();
+    expect(prismaMock.run.create).not.toHaveBeenCalled();
+  });
+
+  it("skip logu dedup anahtarı reason'lı: overlap ve waiting_approval ayrı saatlik anahtar; log şişmez", async () => {
+    givenRuns(null, { id: "run-r", status: "RUNNING" });
+    for (let i = 0; i < 5; i++) await processScheduledTick(makeJob("pipe-1", 1_000_000 + i * 60_000));
+    expect(skipRows()).toHaveLength(1);
+    const call = redisMock.set.mock.calls.find((c) => c[0] === "pipeline:tick-skip:pipe-1:overlap")!;
+    expect(call).toEqual(["pipeline:tick-skip:pipe-1:overlap", "1", "EX", 3600, "NX"]);
+    givenRuns({ id: "run-w" }, null);
+    await processScheduledTick(makeJob("pipe-1", 9_000_000));
+    expect(skipRows().map((r: any) => r.details.reason)).toEqual(["overlap", "waiting_approval"]);
+  });
+
+  it("paused/disabled pipeline: guard'a hiç girilmez (davranış değişmedi)", async () => {
+    prismaMock.pipeline.findUnique.mockResolvedValue({ ...activePipeline, enabled: false });
+    await processScheduledTick(makeJob());
+    expect(prismaMock.run.findFirst).not.toHaveBeenCalled();
+    expect(slotKeyCalls()).toHaveLength(0);
   });
 });
