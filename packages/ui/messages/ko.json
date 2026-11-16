@@ -1714,6 +1714,31 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "세션이 만료되었습니다. 다시 로그인하세요.",
+        "forbidden": "이 회사를 내보낼 권한이 없습니다.",
+        "notFound": "회사를 찾을 수 없습니다.",
+        "network": "네트워크 문제입니다. 연결을 확인하고 다시 시도하세요.",
+        "generic": "파일럿 패키지를 내보낼 수 없습니다. 다시 시도하세요."
+      },
+      "title": "마이크로 앱 패키지(파일럿)",
+      "description": "이 회사의 구성(에이전트, 파이프라인, 요청된 연결 라벨)과 샘플 데이터를 담은 이식 가능한 패키지입니다.",
+      "syntheticOnly": "샘플 데이터는 합성 데이터입니다.",
+      "export": "파일럿 패키지 내보내기",
+      "exporting": "내보내는 중…",
+      "exported": "파일럿 패키지를 다운로드했습니다.",
+      "previewTitle": "패키지 미리보기",
+      "previewName": "이름",
+      "previewAgents": "에이전트",
+      "previewPipelines": "파이프라인",
+      "previewRecords": "레코드",
+      "previewConnectors": "요청된 연결",
+      "noConnectors": "없음",
+      "moreConnectors": "+{count}개 더",
+      "noData": "아직 데이터가 없습니다. 패키지를 내보내면 미리 볼 수 있습니다.",
+      "connectorsNote": "미리보기에는 패키지가 요청하는 연결이 표시되며, 작업과 범위의 세부 정보는 파일에 있습니다. 발송·쓰기 권한은 커넥터 범위로 제한되며, 이 패키지는 이를 강제하지 않습니다."
+    },
     "codeChange": {
       "title": "변경: {title}",
       "titleGeneric": "코드 변경",

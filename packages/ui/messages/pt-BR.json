@@ -1714,6 +1714,31 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "Sua sessão expirou. Entre novamente.",
+        "forbidden": "Você não tem permissão para exportar esta empresa.",
+        "notFound": "Empresa não encontrada.",
+        "network": "Problema de rede. Verifique sua conexão e tente novamente.",
+        "generic": "Não foi possível exportar o pacote piloto. Tente novamente."
+      },
+      "title": "Pacote de microaplicativo (piloto)",
+      "description": "Um pacote portátil da configuração desta empresa (agentes, pipelines, rótulos de conexões solicitadas) com dados de exemplo.",
+      "syntheticOnly": "Os dados de exemplo são sintéticos.",
+      "export": "Exportar pacote piloto",
+      "exporting": "Exportando…",
+      "exported": "Pacote piloto baixado.",
+      "previewTitle": "Prévia do pacote",
+      "previewName": "Nome",
+      "previewAgents": "Agentes",
+      "previewPipelines": "Pipelines",
+      "previewRecords": "Registros",
+      "previewConnectors": "Conexões solicitadas",
+      "noConnectors": "Nenhuma",
+      "moreConnectors": "+{count} a mais",
+      "noData": "Ainda sem dados. Exporte o pacote para ver a prévia.",
+      "connectorsNote": "A prévia mostra quais conexões o pacote solicita; os detalhes de ações e escopos estão no arquivo. A permissão de envio ou escrita é limitada pelo escopo do conector; este pacote não a impõe."
+    },
     "codeChange": {
       "title": "Alteração: {title}",
       "titleGeneric": "Alteração de código",

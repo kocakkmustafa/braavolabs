@@ -1714,6 +1714,31 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "Sesi Anda telah berakhir. Silakan masuk lagi.",
+        "forbidden": "Anda tidak punya izin untuk mengekspor perusahaan ini.",
+        "notFound": "Perusahaan tidak ditemukan.",
+        "network": "Masalah jaringan. Periksa koneksi Anda lalu coba lagi.",
+        "generic": "Paket pilot tidak dapat diekspor. Coba lagi."
+      },
+      "title": "Paket aplikasi mikro (pilot)",
+      "description": "Paket portabel konfigurasi perusahaan ini (agen, pipeline, label koneksi yang diminta) beserta data contoh.",
+      "syntheticOnly": "Data contoh bersifat sintetis.",
+      "export": "Ekspor paket pilot",
+      "exporting": "Mengekspor…",
+      "exported": "Paket pilot diunduh.",
+      "previewTitle": "Pratinjau paket",
+      "previewName": "Nama",
+      "previewAgents": "Agen",
+      "previewPipelines": "Pipeline",
+      "previewRecords": "Rekaman",
+      "previewConnectors": "Koneksi yang diminta",
+      "noConnectors": "Tidak ada",
+      "moreConnectors": "+{count} lagi",
+      "noData": "Belum ada data. Ekspor paket untuk melihat pratinjau.",
+      "connectorsNote": "Pratinjau menunjukkan koneksi apa yang diminta paket; rincian tindakan dan cakupan ada di file. Izin mengirim atau menulis dibatasi oleh cakupan konektor; paket ini tidak memaksakannya."
+    },
     "codeChange": {
       "title": "Perubahan: {title}",
       "titleGeneric": "Perubahan kode",

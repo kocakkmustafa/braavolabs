@@ -1714,6 +1714,31 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "Sesja wygasła. Zaloguj się ponownie.",
+        "forbidden": "Nie masz uprawnień do eksportu tej firmy.",
+        "notFound": "Nie znaleziono firmy.",
+        "network": "Problem z siecią. Sprawdź połączenie i spróbuj ponownie.",
+        "generic": "Nie udało się wyeksportować pakietu pilotażowego. Spróbuj ponownie."
+      },
+      "title": "Pakiet mikroaplikacji (pilotaż)",
+      "description": "Przenośny pakiet konfiguracji tej firmy (agenci, potoki, etykiety żądanych połączeń) wraz z danymi przykładowymi.",
+      "syntheticOnly": "Dane przykładowe są syntetyczne.",
+      "export": "Eksportuj pakiet pilotażowy",
+      "exporting": "Eksportowanie…",
+      "exported": "Pobrano pakiet pilotażowy.",
+      "previewTitle": "Podgląd pakietu",
+      "previewName": "Nazwa",
+      "previewAgents": "Agenci",
+      "previewPipelines": "Potoki",
+      "previewRecords": "Rekordy",
+      "previewConnectors": "Żądane połączenia",
+      "noConnectors": "Brak",
+      "moreConnectors": "+{count} więcej",
+      "noData": "Brak danych. Wyeksportuj pakiet, aby zobaczyć podgląd.",
+      "connectorsNote": "Podgląd pokazuje, jakich połączeń żąda pakiet; szczegóły działań i zakresów są w pliku. Uprawnienie do wysyłania lub zapisu jest ograniczone zakresem konektora; ten pakiet go nie wymusza."
+    },
     "codeChange": {
       "title": "Zmiana: {title}",
       "titleGeneric": "Zmiana w kodzie",

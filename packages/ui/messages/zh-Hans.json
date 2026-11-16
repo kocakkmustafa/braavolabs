@@ -1714,6 +1714,31 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "您的会话已过期，请重新登录。",
+        "forbidden": "您无权导出此公司。",
+        "notFound": "未找到公司。",
+        "network": "网络问题。请检查连接后重试。",
+        "generic": "无法导出试点包，请重试。"
+      },
+      "title": "微应用包（试点）",
+      "description": "此公司配置（智能体、流水线、请求的连接标签）加示例数据的可移植包。",
+      "syntheticOnly": "示例数据为合成数据。",
+      "export": "导出试点包",
+      "exporting": "正在导出…",
+      "exported": "试点包已下载。",
+      "previewTitle": "包预览",
+      "previewName": "名称",
+      "previewAgents": "智能体",
+      "previewPipelines": "流水线",
+      "previewRecords": "记录",
+      "previewConnectors": "请求的连接",
+      "noConnectors": "无",
+      "moreConnectors": "另有 {count} 项",
+      "noData": "暂无数据。导出试点包后即可预览。",
+      "connectorsNote": "预览显示该包请求了哪些连接；操作和范围的详细信息在文件中。发送或写入权限由连接器范围限制，此包不会强制执行。"
+    },
     "codeChange": {
       "title": "变更：{title}",
       "titleGeneric": "代码变更",

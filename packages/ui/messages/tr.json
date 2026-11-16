@@ -1714,6 +1714,31 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "Oturumunuzun süresi doldu. Lütfen yeniden giriş yapın.",
+        "forbidden": "Bu şirketi dışa aktarma izniniz yok.",
+        "notFound": "Şirket bulunamadı.",
+        "network": "Ağ sorunu. Bağlantınızı kontrol edip yeniden deneyin.",
+        "generic": "Pilot paketi dışa aktarılamadı. Yeniden deneyin."
+      },
+      "title": "Mikro-uygulama paketi (pilot)",
+      "description": "Bu şirketin yapılandırmasının (ajanlar, akışlar, istenen bağlantı etiketleri) taşınabilir paketi ve örnek veri.",
+      "syntheticOnly": "Örnek veri sentetiktir.",
+      "export": "Pilot paketini dışa aktar",
+      "exporting": "Dışa aktarılıyor…",
+      "exported": "Pilot paketi indirildi.",
+      "previewTitle": "Paket önizlemesi",
+      "previewName": "Ad",
+      "previewAgents": "Ajanlar",
+      "previewPipelines": "Akışlar",
+      "previewRecords": "Kayıtlar",
+      "previewConnectors": "İstenen bağlantılar",
+      "noConnectors": "Yok",
+      "moreConnectors": "+{count} daha",
+      "noData": "Henüz veri yok. Önizlemek için paketi dışa aktarın.",
+      "connectorsNote": "Önizleme paketin hangi bağlantıları istediğini gösterir; eylem ve kapsam ayrıntıları dosyadadır. Gönderim/yazma yetkisi bağlayıcı kapsamıyla sınırlanır; bu paket bunu zorlamaz."
+    },
     "codeChange": {
       "title": "Değişiklik: {title}",
       "titleGeneric": "Kod değişikliği",

@@ -1714,6 +1714,31 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "Your session has expired. Please sign in again.",
+        "forbidden": "You do not have permission to export this company.",
+        "notFound": "Company not found.",
+        "network": "Network problem. Check your connection and try again.",
+        "generic": "Could not export the pilot package. Try again."
+      },
+      "title": "Micro-app package (pilot)",
+      "description": "A portable package of this company's setup (agents, pipelines, requested connection labels) plus sample data.",
+      "syntheticOnly": "Sample data is synthetic.",
+      "export": "Export pilot package",
+      "exporting": "Exporting…",
+      "exported": "Pilot package downloaded.",
+      "previewTitle": "Package preview",
+      "previewName": "Name",
+      "previewAgents": "Agents",
+      "previewPipelines": "Pipelines",
+      "previewRecords": "Records",
+      "previewConnectors": "Requested connections",
+      "noConnectors": "None",
+      "moreConnectors": "+{count} more",
+      "noData": "No data yet. Export the package to preview it.",
+      "connectorsNote": "The preview shows which connections the package requests; action and scope details are in the file. Sending or writing permission is limited by the connector scope; this package does not enforce it."
+    },
     "codeChange": {
       "title": "Change: {title}",
       "titleGeneric": "Code change",

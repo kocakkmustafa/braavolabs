@@ -1714,6 +1714,31 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "La sessione è scaduta. Accedi di nuovo.",
+        "forbidden": "Non hai il permesso di esportare questa azienda.",
+        "notFound": "Azienda non trovata.",
+        "network": "Problema di rete. Controlla la connessione e riprova.",
+        "generic": "Impossibile esportare il pacchetto pilota. Riprova."
+      },
+      "title": "Pacchetto micro-app (pilota)",
+      "description": "Un pacchetto portabile della configurazione di questa azienda (agenti, pipeline, etichette delle connessioni richieste) con dati di esempio.",
+      "syntheticOnly": "I dati di esempio sono sintetici.",
+      "export": "Esporta il pacchetto pilota",
+      "exporting": "Esportazione…",
+      "exported": "Pacchetto pilota scaricato.",
+      "previewTitle": "Anteprima del pacchetto",
+      "previewName": "Nome",
+      "previewAgents": "Agenti",
+      "previewPipelines": "Pipeline",
+      "previewRecords": "Record",
+      "previewConnectors": "Connessioni richieste",
+      "noConnectors": "Nessuna",
+      "moreConnectors": "+{count} altre",
+      "noData": "Ancora nessun dato. Esporta il pacchetto per vedere l'anteprima.",
+      "connectorsNote": "L'anteprima mostra quali connessioni richiede il pacchetto; i dettagli di azioni e ambiti sono nel file. L'autorizzazione a inviare o scrivere è limitata dall'ambito del connettore; questo pacchetto non la impone."
+    },
     "codeChange": {
       "title": "Modifica: {title}",
       "titleGeneric": "Modifica del codice",

@@ -22,6 +22,7 @@ import { useToast } from "../../../components/Toast";
 import { useTranslations } from "next-intl";
 import ComparePanel from "../../../components/ComparePanel";
 import CompanySummaryCard from "../../../components/companies/CompanySummaryCard";
+import PilotEntryCard from "../../../components/companies/PilotEntryCard";
 import { captureAuthSession, isAuthSessionCurrent, useAppStore } from "../../../lib/store";
 
 type Tab = "overview" | "pipelines" | "agents" | "runs" | "contacts" | "memory" | "compare";
@@ -325,6 +326,9 @@ export default function CompanyDetailPage() {
 
       {/* ── BRA-P0-11d: tek bakış kartı ── */}
       <CompanySummaryCard companyId={companyId} />
+
+      {/* ── BRA-P1-07-N3: pilot girişi (NEXT_PUBLIC_UX_PILOT kapalıyken çizilmez) ── */}
+      <PilotEntryCard companyId={companyId} />
 
       {/* ── Primitives pills ── */}
       {company.primitives?.length > 0 && (

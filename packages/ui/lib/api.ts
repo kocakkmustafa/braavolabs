@@ -720,6 +720,9 @@ export const api = {
     apiFetch<string>(`/export/${companyId}/claude-md`, { token, headers: { Accept: "text/markdown" } }),
   exportSkills: (token: string, companyId: string) =>
     apiFetch<any>(`/export/${companyId}/skills`, { token }),
+  /** BRA-P1-07-N3 — pilot paketi (mevcut uç: manifest + sentetik veri). */
+  exportMicroApp: (token: string, companyId: string) =>
+    apiFetch<unknown>(`/export/${encodeURIComponent(companyId)}/micro-app`, { token }),
   exportHooks: (token: string, companyId: string) =>
     apiFetch<any>(`/export/${companyId}/hooks`, { token }),
 
