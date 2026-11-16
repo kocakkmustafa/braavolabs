@@ -19,7 +19,10 @@ vi.mock("../../../lib/db", () => ({
       create: (...a: unknown[]) => runStepCreate(...a),
       update: (...a: unknown[]) => runStepUpdate(...a),
     },
-    handoffLedger: { findFirst: (...a: unknown[]) => handoffFindFirst(...a) },
+    handoffLedger: {
+      findFirst: (...a: unknown[]) => handoffFindFirst(...a),
+      update: vi.fn(() => Promise.resolve({})),
+    },
     toolCall: { createMany: vi.fn(), findMany: vi.fn(() => Promise.resolve([])) },
   },
 }));
@@ -35,6 +38,10 @@ const runAgentLoopMock = vi.hoisted(() => vi.fn());
 vi.mock("../../agent/claude", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../../agent/claude")>();
   return { ...actual, runAgentLoop: (...a: unknown[]) => runAgentLoopMock(...a) };
+});
+vi.mock("../../../services/takeover-config", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../services/takeover-config")>();
+  return { ...actual, resolveTakeoverConfig: async () => ({ provider: "OLLAMA", model: "gemma3:4b", apiKey: "", baseUrl: "http://gpu:11434/v1" }) };
 });
 vi.mock("../../run/handoff.trigger", () => ({ maybeOpenAutoHandoff: vi.fn() }));
 
@@ -77,5 +84,69 @@ describe("executor → RunStep.output provider/model", () => {
     const out = completedOutput();
     expect("provider" in out).toBe(false);
     expect("model" in out).toBe(false);
+  });
+});
+
+const completedData = () => runStepUpdate.mock.calls.find((c) => c[0]?.data?.status === "COMPLETED")![0].data;
+
+describe("executor → RunStep.modelMode/modeDetail (BRA-P0-06a-2)", () => {
+  it("varsayılan DIRECT yazılır", async () => {
+    runAgentLoopMock.mockResolvedValue(loopResult({ provider: "ANTHROPIC", model: "claude-x" }));
+    await executeStep("run-1", STEP_DEF, 0, {});
+    const d = completedData();
+    expect(d.modelMode).toBe("DIRECT");
+    expect(d.modeDetail).toMatchObject({ requested: "DIRECT", effective: "DIRECT", source: "default" });
+    expect(runAgentLoopMock).toHaveBeenCalledTimes(1);
+  });
+  it("ajan COMPARE ama araçsız + 2 aday: aday modelleri çalışır, toplam maliyet yazılır, output seçilenin modeli", async () => {
+    const agent = { ...AGENT, modelMode: "COMPARE", modelModeConfig: { compareModels: ["m-a", "m-b"] } };
+    runFindUnique.mockResolvedValue({ ...FULL_RUN, pipeline: { company: { ...FULL_RUN.pipeline.company, agents: [agent] } } });
+    runAgentLoopMock.mockImplementation(async (p: any) => loopResult({ model: p.model, provider: "ANTHROPIC", totalCostUsd: 0.1 }));
+    await executeStep("run-1", STEP_DEF, 0, {});
+    const d = completedData();
+    expect(runAgentLoopMock).toHaveBeenCalledTimes(2);
+    expect(d.modelMode).toBe("COMPARE");
+    expect(d.costUsd).toBeCloseTo(0.2);
+    expect(d.output.model).toBe("m-a");
+  });
+  const withAgent = (a: Record<string, unknown>) =>
+    runFindUnique.mockResolvedValue({ ...FULL_RUN, pipeline: { company: { ...FULL_RUN.pipeline.company, agents: [{ ...AGENT, ...a }] } } });
+
+  it("(a) takeover varken kip DIRECT zorlanır", async () => {
+    withAgent({ modelMode: "COMPARE", modelModeConfig: { compareModels: ["m-a", "m-b"] } });
+    handoffFindFirst.mockImplementation(async (q: any) =>
+      q?.where?.status === "CLAIMED"
+        ? { id: "hl-1", stepIndex: 0, status: "CLAIMED", fromProvider: "ANTHROPIC", contextSummary: "x", checkpoint: { messages: [{ role: "user", content: "p" }], turn: 1 } }
+        : null);
+    runAgentLoopMock.mockResolvedValue(loopResult({ provider: "OLLAMA", model: "gemma3:4b" }));
+    await executeStep("run-1", STEP_DEF, 0, {});
+    const d = completedData();
+    expect(runAgentLoopMock).toHaveBeenCalledTimes(1);
+    expect(runAgentLoopMock.mock.calls[0][0].aiConfigOverride).toBeTruthy();
+    expect(d.modelMode).toBe("DIRECT");
+    expect(d.modeDetail).toMatchObject({ requested: "COMPARE", fallback: "takeover" });
+  });
+  it("(b) CASCADE ajan executor'dan geçer: modelMode CASCADE, costUsd toplam", async () => {
+    withAgent({ model: "claude-sonnet-5-5", modelMode: "CASCADE", modelModeConfig: { cheapModel: "cheap-x" } });
+    runAgentLoopMock.mockImplementation(async (p: any) =>
+      p.model === "cheap-x"
+        ? loopResult({ finalContent: "I cannot answer that.", model: "cheap-x", provider: "ANTHROPIC", totalCostUsd: 0.01 })
+        : loopResult({ model: p.model, provider: "ANTHROPIC", totalCostUsd: 0.05 }));
+    await executeStep("run-1", STEP_DEF, 0, {});
+    const d = completedData();
+    expect(runAgentLoopMock).toHaveBeenCalledTimes(2);
+    expect(d.modelMode).toBe("CASCADE");
+    expect(d.modeDetail).toMatchObject({ escalated: true, cheapModel: "cheap-x" });
+    expect(d.costUsd).toBeCloseTo(0.06);
+    expect(d.output.model).toBe("claude-sonnet-5-5");
+  });
+  it("(c) COMPARE araçlı ajan DIRECT fallback ile geçer", async () => {
+    withAgent({ tools: ["web_search"], modelMode: "COMPARE", modelModeConfig: { compareModels: ["m-a", "m-b"] } });
+    runAgentLoopMock.mockResolvedValue(loopResult({ provider: "ANTHROPIC", model: "claude-x" }));
+    await executeStep("run-1", STEP_DEF, 0, {});
+    const d = completedData();
+    expect(runAgentLoopMock).toHaveBeenCalledTimes(1);
+    expect(d.modelMode).toBe("DIRECT");
+    expect(d.modeDetail).toMatchObject({ requested: "COMPARE", fallback: "compare_requires_toolless_agent" });
   });
 });
