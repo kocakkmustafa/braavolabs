@@ -7,21 +7,35 @@
  *  - dependsOn    : bağımlı olunan adım satır id'leri (string[]) ya da null = bilinmiyor (kenar uydurulmaz).
  *  - parentStepId : HIERARCHICAL'da delegasyonu başlatan manager adımının id'si; aksi null.
  *  - graphSource  : "order" | "manager" | "unavailable".
- *  - graphReason  : yalnız "unavailable": "definition_changed" | "definition_mismatch" | "inconsistent" | "no_definition" | "no_manager".
+ *  - graphReason  : yalnız "unavailable": "definition_changed" | "definition_mismatch" | "inconsistent" | "no_definition" | "no_manager" | "unverifiable".
  *
  * Kaynaklar (RunStep'te bağımlılık sütunu yok):
  *  - SEQUENTIAL: runner.ts aynı `order` = paralel grup, her grup bir öncekinin tamamını bekler. Hat tanımı koşudan sonra
  *    değiştiyse (pipeline.updatedAt > ilk adım createdAt) ya da adlar uyuşmuyorsa çıkarım YAPILMAZ ("unavailable").
  *  - HIERARCHICAL: çalışma anında üretilen `delegate:*` adımlarının gerçek üst-adımı `manager:dispatch` (stepIndex 0) satırıdır.
  *    Delegasyonlar arası sıra manager LLM'inin kararıdır ve kaydedilmez → delegeler arası bağımlılık YOK (yalnız üst-adım).
+ *
+ * Kararlar (reviewer BRA-P2-04):
+ *  - Zaman sezgisi: hat `updatedAt` zamanlanmış tetikte `lastRunAt` yazımıyla (runner.ts, run-claim) da ilerler. Bu yüzden "tanım
+ *    değişti" YALNIZ `updatedAt` > ilk adım createdAt VE (`lastRunAt` yok ya da `updatedAt` > `lastRunAt` + 5 sn) iken verilir;
+ *    yani sadece lastRunAt damgasından doğan güncelleme kapanış sayılmaz. Yapısal denetim (indeks/ad/order) her durumda uygulanır.
+ *    Bilinen sınır: koşudan sonra yapılıp ardından başka bir zamanlanmış tetikle lastRunAt'e eşitlenen düzenleme yalnız yapısal
+ *    denetimle yakalanır (güvenli yön: ad/indeks uyuşmazsa kenar yok).
+ *  - Zaman doğrulanamıyorsa (updatedAt/createdAt null ya da geçersiz) SEQUENTIAL'da "unavailable"/"unverifiable" (kenar uydurulmaz).
+ *  - Hat tanımında `name` yoksa adım satırıyla eşleşme doğrulanamaz → "unverifiable" ("" ile karşılaştırılmaz). Sayı olmayan `order`
+ *    runner'da `a.order - b.order` NaN/tür dönüşümüne düşer (tanımsız davranış) → "no_definition".
+ *  - HIERARCHICAL retry: her denemede yeni `manager:dispatch` (stepIndex 0) satırı yazılır; delegenin üst-adımı, createdAt'i delegeden
+ *    önce/eşit olan EN YENİ manager satırıdır. Zaman karşılaştırılamazsa tek manager satırı varsa o, yoksa null.
+ *  - Geçicilik: aynı gruptan henüz oluşmamış paralel adımlar `dependsOn`'da eksik görünür; satırlar oluştukça tamamlanır (canlı koşuda
+ *    ara görüntü eksik olabilir, fazlası asla uydurulmaz).
  * Aynı stepIndex için birden çok satır (retry/devralma) varsa en yeni satır (createdAt, eşitse büyük id) bağımlılık hedefidir.
  */
 
 export interface GraphStepInput { id: string; stepIndex: number; name: string; createdAt: Date | string | null }
-export interface GraphPipelineInput { pipelineType: string; steps: unknown; updatedAt: Date | string | null }
+export interface GraphPipelineInput { pipelineType: string; steps: unknown; updatedAt: Date | string | null; lastRunAt?: Date | string | null }
 
 export type StepGraphSource = "order" | "manager" | "unavailable";
-export type StepGraphReason = "definition_changed" | "definition_mismatch" | "inconsistent" | "no_definition" | "no_manager";
+export type StepGraphReason = "definition_changed" | "definition_mismatch" | "inconsistent" | "no_definition" | "no_manager" | "unverifiable";
 export interface StepGraphFields {
   order: number | null;
   group: number | null;
@@ -31,6 +45,7 @@ export interface StepGraphFields {
   graphReason?: StepGraphReason;
 }
 
+const LAST_RUN_STAMP_SLACK_MS = 5000;
 const ms = (d: Date | string | null): number | null => {
   if (d === null) return null;
   const t = d instanceof Date ? d.getTime() : Date.parse(d);
@@ -59,12 +74,26 @@ export function deriveStepGraph(steps: GraphStepInput[], pipeline: GraphPipeline
   const fill = (f: (s: GraphStepInput) => StepGraphFields) => { for (const s of steps) out.set(s.id, f(s)); };
 
   if (pipeline.pipelineType === "HIERARCHICAL") {
-    const managerRow = latestByIndex(steps).get(0);
-    const manager = managerRow && managerRow.name === "manager:dispatch" ? managerRow : null;
-    if (!manager) { fill(() => unavailable("no_manager")); return out; }
+    const managers = steps.filter((s) => s.stepIndex === 0 && s.name === "manager:dispatch");
+    if (managers.length === 0) { fill(() => unavailable("no_manager")); return out; }
+    const managerFor = (d: GraphStepInput): GraphStepInput | null => {
+      const dt = ms(d.createdAt);
+      if (dt === null || managers.some((m) => ms(m.createdAt) === null)) return managers.length === 1 ? managers[0] : null;
+      let best: GraphStepInput | null = null;
+      for (const m of managers) {
+        const mt = ms(m.createdAt) as number;
+        if (mt > dt) continue;
+        const bt = best ? (ms(best.createdAt) as number) : -Infinity;
+        if (!best || mt > bt || (mt === bt && m.id > best.id)) best = m;
+      }
+      return best;
+    };
     fill((s) => {
-      if (s.id === manager.id) return { order: null, group: null, dependsOn: [], parentStepId: null, graphSource: "manager" };
-      if (s.name.startsWith("delegate:")) return { order: null, group: null, dependsOn: [manager.id], parentStepId: manager.id, graphSource: "manager" };
+      if (managers.some((m) => m.id === s.id)) return { order: null, group: null, dependsOn: [], parentStepId: null, graphSource: "manager" };
+      if (s.name.startsWith("delegate:")) {
+        const m = managerFor(s);
+        return m ? { order: null, group: null, dependsOn: [m.id], parentStepId: m.id, graphSource: "manager" } : { order: null, group: null, dependsOn: null, parentStepId: null, graphSource: "manager" };
+      }
       return { order: null, group: null, dependsOn: null, parentStepId: null, graphSource: "manager" };
     });
     return out;
@@ -74,18 +103,23 @@ export function deriveStepGraph(steps: GraphStepInput[], pipeline: GraphPipeline
 
   const updated = ms(pipeline.updatedAt);
   const firstAt = steps.map((s) => ms(s.createdAt)).filter((x): x is number => x !== null).sort((a, b) => a - b)[0] ?? null;
-  if (updated !== null && firstAt !== null && updated > firstAt) { fill(() => unavailable("definition_changed")); return out; }
+  if (updated === null || firstAt === null || steps.some((s) => ms(s.createdAt) === null)) { fill(() => unavailable("unverifiable")); return out; }
+  const lastRun = pipeline.lastRunAt == null ? null : ms(pipeline.lastRunAt);
+  // lastRunAt damgası (run-claim) updatedAt'i ilerletir; yalnız ondan doğan güncelleme tanım değişikliği sayılmaz.
+  const claimOnly = lastRun !== null && updated - lastRun <= LAST_RUN_STAMP_SLACK_MS;
+  if (updated > firstAt && !claimOnly) { fill(() => unavailable("definition_changed")); return out; }
 
   // runner.ts: `s.order ?? idx`, order'a göre kararlı sıralama; stepIndex = sıralı dizideki konum.
-  const defs: Array<{ name: string; order: number }> = [];
+  const defs: Array<{ name: string | null; order: number }> = [];
   for (let i = 0; i < pipeline.steps.length; i++) {
     const d = pipeline.steps[i] as { name?: unknown; order?: unknown } | null;
     const o = d && typeof d === "object" ? d.order : undefined;
     const order = o === undefined || o === null ? i : o;
     if (typeof order !== "number" || !Number.isFinite(order)) { fill(() => unavailable("no_definition")); return out; }
-    defs.push({ name: typeof d?.name === "string" ? d.name : "", order });
+    defs.push({ name: typeof d?.name === "string" ? d.name : null, order });
   }
   defs.sort((a, b) => a.order - b.order);
+  if (steps.some((s) => s.stepIndex >= 0 && s.stepIndex < defs.length && defs[s.stepIndex].name === null)) { fill(() => unavailable("unverifiable")); return out; }
   if (!steps.every((s) => s.stepIndex >= 0 && s.stepIndex < defs.length && defs[s.stepIndex].name === s.name)) { fill(() => unavailable("definition_mismatch")); return out; }
 
   const orders = [...new Set(defs.map((d) => d.order))];
