@@ -106,23 +106,28 @@ describe("pilot scenario through the export endpoint", () => {
     expect(() => validatePilotPackage(c.body)).not.toThrow();
   });
 
-  it("no ids or secrets leak and another tenant gets 404", async () => {
+  it("no ids, secrets or system-prompt text leak; another tenant gets a 404 body", async () => {
     const r = await get("?seed=3&count=50");
-    for (const trap of [TENANT, OTHER_TENANT, COMPANY, USER, "agent-id-EEEE", "pipe-id-FFFF", "systemPrompt"]) {
+    const prompts = pilotScenarioSnapshot().agents.map((a) => a.systemPrompt);
+    for (const trap of [TENANT, OTHER_TENANT, COMPANY, USER, "agent-id-EEEE", "pipe-id-FFFF", "systemPrompt", ...prompts]) {
       expect(r.text, trap).not.toContain(trap);
     }
-    expect((await get("", OTHER_TENANT)).status).toBe(404);
+    const other = await get("", OTHER_TENANT);
+    expect(other.status).toBe(404);
+    expect(other.body).toEqual({ error: "Company not found" });
+    expect(other.text).not.toContain(COMPANY);
   });
 
-  it("a tampered exported package is rejected by validation", async () => {
+  it("a tampered exported package is rejected by the intended rule", async () => {
     const r = await get("?seed=1&count=3");
     const bad = JSON.parse(r.text);
-    bad.manifest.agents[0].toolNames = ["sk-live-abcdef1234567890"];
-    // slug-valid but the strict schema still rejects the added field below
-    bad.manifest.agents[0].apiKey = "x";
-    expect(() => validatePilotPackage(bad)).toThrow();
+    bad.manifest.agents[0].toolNames.push("sk-live-abcdef1234567890");
+    expect(() => validatePilotPackage(bad)).toThrow(/^\[manifest-secret\]/);
+    const badScope = JSON.parse(r.text);
+    badScope.manifest.connectorRequests[0].scopes.push("gmail.send");
+    expect(() => validatePilotPackage(badScope)).toThrow(/^\[manifest-pin\]/);
     const badData = JSON.parse(r.text);
     badData.syntheticData[0].name = "Sahte x@y.z";
-    expect(() => validatePilotPackage(badData)).toThrow();
+    expect(() => validatePilotPackage(badData)).toThrow(/^\[data-name\]/);
   });
 });
