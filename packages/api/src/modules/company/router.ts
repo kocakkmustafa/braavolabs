@@ -163,62 +163,87 @@ companyRouter.patch("/:id", async (req, res, next) => {
       sanitizedData = { ...data, config: filteredConfig };
     }
 
-    // Merge over existing config so a partial PATCH doesn't blow away
-    // unrelated allowlisted keys. Read existing first.
-    if (sanitizedData.config && typeof sanitizedData.config === "object") {
-      const existing = await prisma.company.findFirst({
-        where: { id: req.params.id, tenantId: req.auth!.tenantId },
-        select: { config: true },
-      });
-      if (existing?.config && typeof existing.config === "object") {
-        const merged: Record<string, unknown> = { ...(existing.config as Record<string, unknown>) };
-        for (const [k, v] of Object.entries(sanitizedData.config as Record<string, unknown>)) {
-          merged[k] = v;
-        }
-        sanitizedData = { ...sanitizedData, config: merged };
-      }
-    }
+    const tenantId = req.auth!.tenantId;
 
     // Channel enforcement — `config.channels` must be a subset of the
     // tenant's plan-allowed channels. Onboarding hard-codes the right
     // list, but a Free user PATCHing this endpoint directly could
     // otherwise add `instagram` / `youtube` and use paid features.
-    if (sanitizedData.config && typeof sanitizedData.config === "object" && "channels" in sanitizedData.config) {
-      const proposedChannels = sanitizedData.config.channels;
-      if (Array.isArray(proposedChannels)) {
-        const tenant = await prisma.tenant.findUnique({
-          where: { id: req.auth!.tenantId },
-          select: { plan: true },
-        });
-        const plan = await getEffectivePlan(req.auth!.tenantId, tenant?.plan);
-        const allowed = new Set(PLAN_LIMITS[plan].channels);
-        const denied = proposedChannels.filter(
-          (c) => typeof c !== "string" || !allowed.has(c),
-        );
-        if (denied.length > 0) {
-          throw new AppError(
-            403,
-            `Plan "${plan}" does not allow channels: ${denied.join(", ")}. Allowed: ${[...allowed].join(", ")}.`,
+    // NOT: Denetim BİRLEŞİK config üzerinde yapılır (eski kodla aynı): mevcut config'te plan dışı
+    // kanal kalmışsa ilgisiz bir yama da 403 alır — bilinçli, davranış korunur.
+    // Plan/izinli küme ilk ihtiyaçta bir kez hesaplanır; yeniden denemelerde tekrar sorgulanmaz.
+    let planCache: { plan: string; allowed: Set<string> } | undefined;
+    const enforceChannels = async (cfg: unknown) => {
+      if (cfg && typeof cfg === "object" && "channels" in cfg) {
+        const proposedChannels = (cfg as Record<string, unknown>).channels;
+        if (Array.isArray(proposedChannels)) {
+          if (!planCache) {
+            const tenant = await prisma.tenant.findUnique({
+              where: { id: tenantId },
+              select: { plan: true },
+            });
+            const p = await getEffectivePlan(tenantId, tenant?.plan);
+            planCache = { plan: p, allowed: new Set<string>(PLAN_LIMITS[p].channels) };
+          }
+          const { plan, allowed } = planCache;
+          const denied = proposedChannels.filter(
+            (c) => typeof c !== "string" || !allowed.has(c),
           );
+          if (denied.length > 0) {
+            throw new AppError(
+              403,
+              `Plan "${plan}" does not allow channels: ${denied.join(", ")}. Allowed: ${[...allowed].join(", ")}.`,
+            );
+          }
         }
       }
-    }
+    };
 
-    const company = await prisma.company.updateMany({
-      where: { id: req.params.id, tenantId: req.auth!.tenantId },
-      data: { ...sanitizedData, config: sanitizedData.config as any },
-    });
-    if (company.count === 0) throw new AppError(404, "Company not found");
-
-    await prisma.activityLog.create({
+    const logUpdate = () => prisma.activityLog.create({
       data: {
-        tenantId: req.auth!.tenantId,
+        tenantId,
         actor: req.auth!.userId,
         action: "company.update",
         resource: "company",
         resourceId: req.params.id,
       },
     });
+
+    // config yazımı: oku-birleştir-yaz, updatedAt iyimser kilidiyle (bütçe/kip uçlarıyla aynı kalıp).
+    // Eşzamanlı bir yazım config'in başka anahtarını değiştirirse updateMany count 0 döner ve yeniden denenir.
+    if (sanitizedData.config && typeof sanitizedData.config === "object") {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const existing = await prisma.company.findFirst({
+          where: { id: req.params.id, tenantId },
+          select: { config: true, updatedAt: true },
+        });
+        if (!existing) throw new AppError(404, "Company not found");
+        const merged: Record<string, unknown> =
+          existing.config && typeof existing.config === "object" && !Array.isArray(existing.config)
+            ? { ...(existing.config as Record<string, unknown>) } : {};
+        for (const [k, v] of Object.entries(sanitizedData.config as Record<string, unknown>)) {
+          merged[k] = v;
+        }
+        await enforceChannels(merged);
+        const result = await prisma.company.updateMany({
+          where: { id: req.params.id, tenantId, updatedAt: existing.updatedAt },
+          data: { ...sanitizedData, config: merged as any },
+        });
+        if (result.count === 0) continue;
+        await logUpdate();
+        res.json({ success: true });
+        return;
+      }
+      throw new AppError(409, "Company was modified concurrently; retry");
+    }
+
+    const company = await prisma.company.updateMany({
+      where: { id: req.params.id, tenantId },
+      data: { ...sanitizedData, config: sanitizedData.config as any },
+    });
+    if (company.count === 0) throw new AppError(404, "Company not found");
+
+    await logUpdate();
 
     res.json({ success: true });
   } catch (err) { next(err); }
