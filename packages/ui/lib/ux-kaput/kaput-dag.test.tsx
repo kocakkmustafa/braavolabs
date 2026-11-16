@@ -261,3 +261,32 @@ describe("DAG: referans zamanı = ilk adım createdAt", () => {
     expect(buildKaputGraph(k2)).toMatchObject({ source: "order", unverified: true });
   });
 });
+
+describe("buildKaputGraph — BRA-P2-04 sunucu graphSource alanı", () => {
+  it("SEQUENTIAL sunucu dependsOn'u: hat tanımına bakmaz (tanım değişmiş olsa da kapanış yok)", () => {
+    const k = parseKaput({
+      steps: [step(0, { graphSource: "order", dependsOn: [] }), step(1, { graphSource: "order", dependsOn: ["s0"] })],
+      pipeline: { pipelineType: "SEQUENTIAL", updatedAt: "2099-01-01T00:00:00Z", steps: [{ name: "başka", order: 0 }] },
+    });
+    const g = buildKaputGraph(k);
+    expect(g.source).toBe("api");
+    expect(g.changed).toBeUndefined();
+    expect(g.edges).toEqual([{ from: "s0", to: "s1" }]);
+  });
+  it("HIERARCHICAL: delegeler manager adımına bağlı çizilir", () => {
+    const g = buildKaputGraph(parseKaput({
+      steps: [step(0, { graphSource: "manager", dependsOn: [] }), step(1, { graphSource: "manager", dependsOn: ["s0"] }), step(2, { graphSource: "manager", dependsOn: ["s0"] })],
+      pipeline: { pipelineType: "HIERARCHICAL" },
+    }));
+    expect(g.source).toBe("api");
+    expect(g.levels).toEqual([["s0"], ["s1", "s2"]]);
+  });
+  it("sunucu 'unavailable': kenar uydurulmaz; yalnız definition_changed kapanış notu verir", () => {
+    const mk = (reason: string) => buildKaputGraph(parseKaput({ steps: [step(0, { graphSource: "unavailable", graphReason: reason, dependsOn: null })], pipeline: { pipelineType: "SEQUENTIAL", steps: [{ name: "Adım 0", order: 0 }] } }));
+    expect(mk("definition_changed")).toMatchObject({ source: "none", changed: true });
+    expect(mk("no_manager")).toMatchObject({ source: "none", changed: false });
+  });
+  it("alan yoksa eski davranış (hat tanımından çıkarım) korunur", () => {
+    expect(buildKaputGraph(seq([step(0), step(1)], [def(0), def(1)])).source).toBe("order");
+  });
+});

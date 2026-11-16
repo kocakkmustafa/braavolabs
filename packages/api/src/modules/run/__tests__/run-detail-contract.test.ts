@@ -160,3 +160,18 @@ describe("GET /runs/:id — nested include contract (BRA-SEC-01)", () => {
     expect(args.include.steps).toEqual({ include: { toolCalls: true }, orderBy: { stepIndex: "asc" } });
   });
 });
+
+describe("GET /runs/:id — BRA-P2-04 adım grafiği alanları (ek, geriye uyumlu)", () => {
+  it("mevcut adım alanları korunur; order/group/dependsOn/parentStepId/graphSource EK gelir", async () => {
+    const row = fullRow() as any;
+    row.pipeline = { ...row.pipeline, pipelineType: "SEQUENTIAL", updatedAt: new Date("2026-11-01"), steps: [{ name: "a", order: 0 }, { name: "b", order: 1 }] };
+    row.steps = [
+      { id: "s1", stepIndex: 0, name: "a", status: "COMPLETED", createdAt: new Date("2026-11-10"), toolCalls: [] },
+      { id: "s2", stepIndex: 1, name: "b", status: "RUNNING", createdAt: new Date("2026-11-10"), toolCalls: [] },
+    ];
+    runFindUnique.mockResolvedValue(row);
+    const { res } = await invoke({});
+    expect(res.body.steps[1]).toMatchObject({ id: "s2", stepIndex: 1, name: "b", status: "RUNNING", toolCalls: [], order: 1, group: 1, dependsOn: ["s1"], parentStepId: null, graphSource: "order" });
+    expect(res.body.steps[0].dependsOn).toEqual([]);
+  });
+});
