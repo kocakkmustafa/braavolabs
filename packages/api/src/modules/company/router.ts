@@ -24,6 +24,7 @@ import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { toPublicCompany } from "./redact";
 import { buildModelsOverview } from "./models-overview";
 import { buildCompanySummary } from "./summary";
+import { loadCompanyActivity } from "./activity";
 import { BUDGET_CONFIG_KEY, validateBudgetInput } from "./budget";
 import {
   applyCompanyModeSettings,
@@ -868,6 +869,8 @@ companyRouter.post("/:companyId/agents/:agentId/nl-edit/apply", async (req, res,
   } catch (err) { next(err); }
 });
 
+// NOT (BRA-P2-03c): bu uç ham ActivityLog satırı döndürür (logs/total/offset); mobil (companies/[id].tsx, lib/api.ts)
+// buna bağlı, şekli DEĞİŞMEZ. Mobil `activity-feed` `items`'a taşınınca bu uç sanitize/kapatılacak (ayrı bilet).
 // GET /api/v1/companies/:id/activity — company-specific activity timeline
 companyRouter.get("/:id/activity", async (req, res, next) => {
   try {
@@ -903,6 +906,21 @@ companyRouter.get("/:id/activity", async (req, res, next) => {
     const total = await prisma.activityLog.count({ where: whereClause });
 
     res.json({ logs, total, limit, offset });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/companies/:id/activity-feed — BRA-P2-03c: sanitize, salt-okur, imleçli şirket olay günlüğü.
+// Yetki: router düzeyinde authMiddleware (tenant üyesi okur; /summary, /members GET ile aynı); yeni PrivilegedAction yok.
+// `offset` desteklenmez (imleç modeli) → 400. Mantık + maskeleme company/activity.ts'te.
+companyRouter.get("/:id/activity-feed", async (req, res, next) => {
+  try {
+    res.json(await loadCompanyActivity(prisma, {
+      tenantId: req.auth!.tenantId,
+      companyId: req.params.id,
+      limitRaw: req.query.limit,
+      cursorRaw: req.query.cursor,
+      offsetRaw: req.query.offset,
+    }));
   } catch (err) { next(err); }
 });
 
