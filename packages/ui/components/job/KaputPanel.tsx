@@ -8,6 +8,7 @@ import { useId } from "react";
 import { buildKaputGraph, type Kaput, type KaputStep, type KaputToolCall } from "../../lib/ux-lab/facts";
 import { KaputDag } from "./KaputDag";
 import { clipText, safeText } from "../../lib/ux-kaput/mask";
+import { ACTIVITY_MAX_LINES, ACTIVITY_SUMMARY_MAX, type KaputActivity } from "../../lib/ux-kaput/activity";
 import { money, type T } from "../inbox/InboxParts";
 
 export type KaputLoad = { status: "idle" } | { status: "loading" } | { status: "error" } | { status: "ready"; kaput: Kaput };
@@ -95,6 +96,7 @@ export default function KaputPanel({ load, full, t, locale, onRetry }: { load: K
           {ratio > 1 && <strong data-testid="job-kaput-over" style={{ color: "var(--color-error)" }}> · {t("app.jobs.kaput.overBudget")}</strong>}
         </div>
       )}
+      {full && k.activity && k.activity.items.length > 0 && <RunActivity activity={k.activity} t={t} locale={locale} hid={`${uid}-act`} />}
       {steps.length > 0 && <KaputDag graph={buildKaputGraph(k)} steps={steps} t={t} rtl={/^(ar|he|fa|ur)(-|$)/i.test(locale)} status={status} statusKey={statusKey} nameMax={NAME_MAX} />}
       {steps.length === 0 ? <span style={muted}>{t("app.jobs.kaput.noSteps")}</span> : full ? (
         <div style={{ display: "grid", gap: 10 }}>
@@ -120,6 +122,29 @@ export default function KaputPanel({ load, full, t, locale, onRetry }: { load: K
       )}
       <p style={{ ...muted, margin: 0 }}>{t("app.jobs.kaput.later")}</p>
     </div>
+  );
+}
+
+/** BRA-P2-05 — koşu olay günlüğü (sunucudan; en yeni üstte). Sabit biçimli özet de maskelenir/kırpılır; kimlik gösterilmez. */
+function RunActivity({ activity, t, locale, hid }: { activity: KaputActivity; t: T; locale: string; hid: string }) {
+  const shown = activity.items.slice(0, ACTIVITY_MAX_LINES);
+  const more = activity.hasMore || activity.items.length > ACTIVITY_MAX_LINES;
+  const fmtTime = (iso: string) => { try { return new Intl.DateTimeFormat(locale, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "UTC", timeZoneName: "short" }).format(new Date(iso)); } catch { return iso; } };
+  return (
+    <section aria-labelledby={hid} data-testid="job-kaput-activity" style={{ display: "grid", gap: 4, minWidth: 0 }}>
+      <h4 id={hid} style={{ margin: 0, fontSize: 14 }}>{t("app.jobs.kaput.activity.title")}</h4>
+      <ol style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 2 }}>
+        {shown.map((e) => (
+          <li key={e.id} style={wrap}>
+            <time dateTime={e.at} style={muted}>{fmtTime(e.at)}</time>
+            {e.actor && <span style={muted}> · {t(e.actor === "system" ? "app.jobs.kaput.activity.actorSystem" : "app.jobs.kaput.activity.actorUser")}</span>}
+            <span> · </span><span dir="auto" style={wrap}>{safeText(e.summary, ACTIVITY_SUMMARY_MAX)}</span>
+          </li>
+        ))}
+      </ol>
+      {more && <span style={muted} data-testid="job-kaput-activity-more">{t("app.jobs.kaput.activity.more", { count: shown.length })}</span>}
+      {activity.truncated && <span style={muted} data-testid="job-kaput-activity-truncated">{t("app.jobs.kaput.activity.truncated")}</span>}
+    </section>
   );
 }
 

@@ -103,7 +103,7 @@ export interface KaputPipelineDef { name: string; order: number | null }
 /** Hat/koşu zamanları (ISO): hat kaydının koşudan sonra güncellenip güncellenmediğini sınamak için (`pipeline.updatedAt`, koşunun ilk adım satırı createdAt; adım yoksa startedAt ?? createdAt). `updatedAt` tanım dışı yazımlarla (lastRunAt) da ilerler: "güncellendi" ≠ "tanım değişti". */
 export interface KaputTimes { pipelineUpdatedAt: string | null; runStartedAt: string | null }
 /** `handoffCount` null = okunamadı/yok (uydurulmaz). */
-export interface Kaput { steps: KaputStep[]; totalCostUsd: number | null; toolCallCount: number; handoffCount: number | null; runError?: string | null; budgetUsd?: number | null; pipelineType?: string | null; pipelineDefs?: KaputPipelineDef[] | null; times?: KaputTimes | null }
+export interface Kaput { steps: KaputStep[]; totalCostUsd: number | null; toolCallCount: number; handoffCount: number | null; runError?: string | null; budgetUsd?: number | null; pipelineType?: string | null; pipelineDefs?: KaputPipelineDef[] | null; times?: KaputTimes | null; activity?: import("../ux-kaput/activity").KaputActivity | null }
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v : null);

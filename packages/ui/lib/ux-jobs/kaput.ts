@@ -4,12 +4,15 @@
  */
 import { api } from "../api";
 import { parseKaput, type Kaput } from "../ux-lab/facts";
+import { ACTIVITY_MAX_LINES, parseActivity } from "../ux-kaput/activity";
 
 export async function loadKaput(token: string, runId: string, signal?: AbortSignal): Promise<Kaput> {
-  const [run, handoffCount] = await Promise.all([
+  const [run, handoffCount, activity] = await Promise.all([
     api.getRun(token, runId),
     api.listHandoffs(token, runId).then((h: { handoffs?: unknown[] } | null) => (Array.isArray(h?.handoffs) ? h!.handoffs!.length : null)).catch(() => null),
+    // Uç yok/hata → null: panel mevcut adım başlangıç/bitiş zamanına düşer (geri uyumlu).
+    (async () => parseActivity(await api.getRunActivity(token, runId, ACTIVITY_MAX_LINES + 1)))().catch(() => null),
   ]);
   if (signal?.aborted) throw new DOMException("aborted", "AbortError");
-  return { ...parseKaput(run), handoffCount };
+  return { ...parseKaput(run), handoffCount, activity };
 }

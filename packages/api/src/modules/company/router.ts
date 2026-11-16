@@ -18,6 +18,7 @@ import {
 import { updateAgentWithHistory } from "./agent-update";
 import { composeAgent } from "../agent/composer";
 import { assertCompanyCapacity } from "./company-capacity";
+import { seedCreatorAsOwner } from "./owner-seed";
 import { companyMembersRouter } from "./members";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { toPublicCompany } from "./redact";
@@ -115,6 +116,7 @@ companyRouter.post("/", async (req, res, next) => {
       const created = await tx.company.create({
         data: { ...data, config: data.config as any, tenantId },
       });
+      await seedCreatorAsOwner(tx, { tenantId, companyId: created.id, userId: req.auth!.userId });
       await tx.activityLog.create({
         data: {
           tenantId,
@@ -373,7 +375,7 @@ companyRouter.post("/build/:sessionId/answer", buildAnswerLimiter, async (req, r
 // POST /api/v1/companies/build/:sessionId/confirm — confirm and create the company
 companyRouter.post("/build/:sessionId/confirm", async (req, res, next) => {
   try {
-    const session = await confirmBuild(req.params.sessionId, req.auth!.tenantId);
+    const session = await confirmBuild(req.params.sessionId, req.auth!.tenantId, req.auth!.userId);
 
     res.status(201).json({
       sessionId: session.sessionId,

@@ -1378,6 +1378,13 @@
         "tokensValue": "{input} giriş / {output} çıkış",
         "log": "Günlük",
         "noLog": "Bu adım için günlük verisi yok",
+        "activity": {
+          "title": "İş etkinliği",
+          "actorSystem": "Sistem",
+          "actorUser": "Ekip üyesi",
+          "more": "Son {count} olay gösteriliyor; daha fazlası var.",
+          "truncated": "Bazı olaylar listelenmedi."
+        },
         "logEvent": {
           "started": "Başladı: {time}",
           "ended": "Bitti: {time}"

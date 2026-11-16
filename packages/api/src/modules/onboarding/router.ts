@@ -22,6 +22,7 @@ import {
 import { classifyProviderError } from "../../services/provider-chain";
 import { isKnownProvider } from "../settings/provider-models";
 import { assertCompanyCapacity } from "../company/company-capacity";
+import { seedCreatorAsOwner } from "../company/owner-seed";
 
 export const onboardingRouter = Router();
 onboardingRouter.use(authMiddleware);
@@ -110,6 +111,7 @@ onboardingRouter.post("/hero-company", async (req, res, next) => {
           },
         },
       });
+      await seedCreatorAsOwner(tx, { tenantId, companyId: company.id, userId: req.auth!.userId });
 
       // Create agents
       const contentAgent = await tx.agent.create({

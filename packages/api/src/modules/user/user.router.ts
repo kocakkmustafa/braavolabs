@@ -26,7 +26,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
+import { transferSoleOwnerships } from "./owner-transfer";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { getTrialStatus } from "../../services/trial-llm";
@@ -193,6 +194,7 @@ userRouter.delete("/me", async (req, res, next) => {
     });
     const lastUser = siblingCount === 0;
 
+
     // Audit BEFORE delete — once the user row is gone, the foreign-key
     // reference would be the only proof and that's brittle. We use
     // `actor: "system"` after the fact so the entry survives the cascade.
@@ -232,7 +234,12 @@ userRouter.delete("/me", async (req, res, next) => {
       await prisma.tenant.delete({ where: { id: tenantId } });
       logger.info({ userId, tenantId, email: user.email }, "DSR: user + last-tenant erased");
     } else {
-      await prisma.user.delete({ where: { id: userId } });
+      // BRA-P2-07: silme ASLA bloke olmaz; tek-OWNER olunan şirketlerin sahipliği aynı tx'te devredilir
+      // (owner-transfer.ts), ardından kullanıcı aynı tx'te silinir (yarış kapanır).
+      await tenantTx(async (tx: any) => {
+        await transferSoleOwnerships(tx, { tenantId, userId });
+        await tx.user.delete({ where: { id: userId } });
+      });
       logger.info({ userId, tenantId, email: user.email }, "DSR: user erased (tenant kept)");
     }
 

@@ -31,6 +31,7 @@ import { env } from "../../config/env";
 import { toPublicCompany } from "../company/redact";
 import { INBOX_BUCKETS, jobBucket, type InboxBucket, type RunEvent } from "@ai-company-os/core";
 import { bucketWhere, isInboxBucket, jobStaleAfterMs } from "./job-bucket-query";
+import { loadRunActivity } from "./activity";
 import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } from "./list-cursor";
 import { deriveStepGraph } from "./step-graph";
 
@@ -835,6 +836,19 @@ runRouter.get("/:id/handoffs", async (req, res, next) => {
       },
     });
     res.json({ handoffs: ledgers });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/runs/:id/activity — BRA-P2-05: koşunun olay günlüğü (salt-okur, newest first, imleçli).
+// Mantık run/activity.ts'te; yanıtta yalnız {id, action, at, actor?, summary} (ham details YOK).
+runRouter.get("/:id/activity", async (req, res, next) => {
+  try {
+    res.json(await loadRunActivity(prisma, {
+      tenantId: req.auth!.tenantId,
+      runId: req.params.id as string,
+      limitRaw: req.query.limit,
+      cursorRaw: req.query.cursor,
+    }));
   } catch (err) { next(err); }
 });
 

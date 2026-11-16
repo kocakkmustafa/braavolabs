@@ -25,6 +25,7 @@
 import crypto from "node:crypto";
 import { prisma, tenantTx } from "../../lib/db";
 import { assertCompanyCapacity } from "../company/company-capacity";
+import { seedCreatorAsOwner } from "../company/owner-seed";
 import { AppError } from "../../middleware/error";
 
 // ── Snapshot shape ──────────────────────────────────────────
@@ -139,6 +140,7 @@ export async function installTemplate(
   templateId: string,
   tenantId: string,
   opts: { companyNameOverride?: string } = {},
+  userId?: string,
 ): Promise<{ companyId: string; slug: string }> {
   const template = await prisma.companyTemplate.findUnique({ where: { id: templateId } });
   if (!template) throw new AppError(404, "Template not found");
@@ -154,7 +156,7 @@ export async function installTemplate(
   }
 
   const snapshot = template.snapshot as unknown as CompanyTemplateSnapshot;
-  return materialiseTemplate(template.id, tenantId, snapshot, opts);
+  return materialiseTemplate(template.id, tenantId, snapshot, opts, userId);
 }
 
 export async function materialiseTemplate(
@@ -162,6 +164,7 @@ export async function materialiseTemplate(
   tenantId: string,
   snapshot: CompanyTemplateSnapshot,
   opts: { companyNameOverride?: string } = {},
+  userId?: string, // oluşturan; yoksa (sistem yolu) OWNER eklenmez
 ): Promise<{ companyId: string; slug: string }> {
   const name = opts.companyNameOverride ?? snapshot.name;
   const slug =
@@ -182,6 +185,7 @@ export async function materialiseTemplate(
         status: "DRAFT",
       },
     });
+    await seedCreatorAsOwner(tx, { tenantId, companyId: company.id, userId });
 
     const handleToNewId = new Map<string, string>();
     for (const a of snapshot.agents) {

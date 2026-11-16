@@ -17,7 +17,15 @@ const prismaMock = vi.hoisted(() => ({
 const revokeMock = vi.hoisted(() => vi.fn());
 const tombstoneMock = vi.hoisted(() => vi.fn());
 
-vi.mock("../../lib/db", () => ({ prisma: prismaMock }));
+vi.mock("../../lib/db", () => ({
+  prisma: prismaMock,
+  // BRA-P2-07: silme tenantTx içinde; sahte tx aynı mock'lara yönlenir, devir adayı/sahiplik yok.
+  tenantTx: (fn: (tx: unknown) => unknown) => fn({
+    $queryRaw: vi.fn().mockResolvedValue([]),
+    companyMember: { findMany: vi.fn().mockResolvedValue([]) },
+    user: { delete: (...a: unknown[]) => prismaMock.user.delete(...a) },
+  }),
+}));
 vi.mock("../../middleware/auth", () => ({ authMiddleware: (_req: unknown, _res: unknown, next: () => void) => next() }));
 vi.mock("../../lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock("../../services/trial-llm", () => ({ getTrialStatus: vi.fn() }));

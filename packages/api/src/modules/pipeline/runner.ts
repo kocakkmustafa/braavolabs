@@ -1,4 +1,5 @@
 import type { Job } from "bullmq";
+import type { Prisma } from "@prisma/client";
 import * as cron from "node-cron";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
@@ -13,6 +14,8 @@ import { writeLifecycle } from "../run/write-lifecycle";
 import { beatRun, forgetBeat } from "../run/heartbeat";
 import { isHierarchicalPipeline } from "../run/retry";
 import { recoverCrashedRun } from "../run/crash-recovery";
+import { PENDING_MAX_AGE_MS } from "../run/pending-sweeper";
+import { jobStaleAfterMs } from "../run/job-bucket-query";
 import { parseJobBudget } from "../run/job-budget";
 import { incrementMeter, checkQuota, claimQuota } from "../billing/metering";
 import {
@@ -854,7 +857,8 @@ export type TickSkipReason =
   | "duplicate_tick"
   | "dedup_unavailable"
   | "quota_exhausted"
-  | "waiting_approval";
+  | "waiting_approval"
+  | "overlap";
 
 /**
  * Persist a deliberate tick skip to activity_log (rule #9). Best-effort: a log
@@ -912,6 +916,51 @@ async function logTickSkip(
   } finally {
     if (timer) clearTimeout(timer);
   }
+}
+
+/**
+ * BRA-P2-06 — freshness filter for the overlap guard's PENDING/RUNNING arm. A
+ * stuck run (dead worker, lost job) must not lock the pipeline forever, so only
+ * runs with recent liveness count. Thresholds are derived from the run module's
+ * own constants (no new magic numbers):
+ *  - PENDING: fresh while younger than PENDING_MAX_AGE_MS (the sweeper requeues
+ *    it, then fails it as pending_orphaned past that age).
+ *  - RUNNING, dual-write ON: heartbeatAt within jobStaleAfterMs() (the inbox
+ *    "stuck" threshold, so a long step/hierarchical run that keeps beating is
+ *    never stale); heartbeatAt NULL falls back to updatedAt within
+ *    PENDING_MAX_AGE_MS.
+ *  - RUNNING, dual-write OFF: no heartbeat is written and the column is not even
+ *    named (pre-migration schema safe) → updatedAt within PENDING_MAX_AGE_MS, the
+ *    same generous bound, so a normal long run is never mistaken for stale.
+ *  - Dual-write ON, PENDING arm: only state NULL or READY (a real run waiting to
+ *    start). DRAFT/PLANNED also map to legacy PENDING (job-state.ts TO_LEGACY) but
+ *    are not started by the sweeper/worker, so they must not block ticks.
+ *  - Known trade-off: with the flag ON a single step longer than jobStaleAfterMs()
+ *    stops heartbeating → the run turns stale and the guard lifts (same as the
+ *    inbox "stuck" definition).
+ */
+function liveRunFreshness(nowMs: number): Prisma.RunWhereInput {
+  const maxAgeCutoff = new Date(nowMs - PENDING_MAX_AGE_MS);
+  if (!isJobStateDualWriteEnabled()) {
+    return { status: { in: ["PENDING", "RUNNING"] }, updatedAt: { gte: maxAgeCutoff } };
+  }
+  const hbCutoff = new Date(nowMs - jobStaleAfterMs());
+  return {
+    OR: [
+      {
+        status: "PENDING",
+        OR: [{ state: null }, { state: "READY" }],
+        updatedAt: { gte: maxAgeCutoff },
+      },
+      {
+        status: "RUNNING",
+        OR: [
+          { heartbeatAt: { gte: hbCutoff } },
+          { heartbeatAt: null, updatedAt: { gte: maxAgeCutoff } },
+        ],
+      },
+    ],
+  };
 }
 
 /**
@@ -1004,19 +1053,18 @@ export async function processScheduledTick(job: Job<ScheduledTickData>): Promise
     return;
   }
 
-  // BRA-P1-04-N2 overlap guard: the same pipeline already has a run parked in
-  // WAITING_APPROVAL (step approval gate) → do NOT open a second run and do NOT
-  // burn quota. Placed AFTER the slot claim and BEFORE the quota claim: the slot
-  // stays consumed (at-most-once per slot — a redelivered/duplicate tick can
-  // never start a late run once the approval resolves) and a skipped tick costs
-  // no quota. Tenant-scoped; a query error propagates (tick never retried, no
-  // run is created = fail-closed).
+  // BRA-P1-04-N2 / BRA-P2-06 overlap guard: the same pipeline already has a run
+  // parked in WAITING_APPROVAL (reason waiting_approval) or an unfinished
+  // PENDING/RUNNING run that is not stale (reason overlap) → do NOT open a second
+  // run and do NOT burn quota. Placed AFTER the slot claim and BEFORE the quota
+  // claim: the slot stays consumed (at-most-once per slot — a redelivered/
+  // duplicate tick can never start a late run once the run resolves) and a skipped
+  // tick costs no quota. Tenant-scoped; a query error propagates (tick never
+  // retried, no run is created = fail-closed).
+  // Two ordered queries so the reason is deterministic: WAITING_APPROVAL first
+  // (approval-parked run is the operator-actionable cause), then PENDING/RUNNING.
   const waitingRun = await prisma.run.findFirst({
-    where: {
-      pipelineId: pipeline.id,
-      tenantId: pipeline.company.tenantId,
-      status: "WAITING_APPROVAL",
-    },
+    where: { pipelineId: pipeline.id, tenantId: pipeline.company.tenantId, status: "WAITING_APPROVAL" },
     select: { id: true },
   });
   if (waitingRun) {
@@ -1027,6 +1075,26 @@ export async function processScheduledTick(job: Job<ScheduledTickData>): Promise
     await logTickSkip(pipeline.company.tenantId, pipelineId, "waiting_approval", {
       slotMs,
       waitingRunId: waitingRun.id,
+    });
+    return;
+  }
+  const activeRun = await prisma.run.findFirst({
+    where: {
+      pipelineId: pipeline.id,
+      tenantId: pipeline.company.tenantId,
+      ...liveRunFreshness(Date.now()),
+    },
+    select: { id: true, status: true },
+  });
+  if (activeRun) {
+    logger.info(
+      { pipelineId, activeRunId: activeRun.id, status: activeRun.status, slotMs },
+      "Scheduled tick skipped — previous run still PENDING/RUNNING (overlap)",
+    );
+    await logTickSkip(pipeline.company.tenantId, pipelineId, "overlap", {
+      slotMs,
+      activeRunId: activeRun.id,
+      activeRunStatus: activeRun.status,
     });
     return;
   }
