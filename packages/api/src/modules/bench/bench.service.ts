@@ -134,6 +134,7 @@ async function recordNonCompletedRun(
   status: typeof BENCH_RUN_STATUS.FAILED | typeof BENCH_RUN_STATUS.SKIPPED,
   errorCode: BenchErrorCode,
   durationMs: number,
+  costUsd = 0,
 ): Promise<void> {
   try {
     const suite = await prisma.benchSuite.findUnique({ where: { slug: opts.suiteSlug } });
@@ -145,7 +146,7 @@ async function recordNonCompletedRun(
         model,
         scoresByTask: [] as any,
         scoreNormalised: 0,
-        costUsd: 0,
+        costUsd,
         durationMs: Math.max(0, Math.round(durationMs)),
         notes: opts.notes,
         status,
@@ -264,7 +265,7 @@ export async function runBenchSuite(opts: RunBenchOptions): Promise<RunBenchResu
     // Keep the trace (code only — the raw error stays out of the row) and
     // rethrow so callers see the original failure unchanged.
     await recordNonCompletedRun(
-      opts, actualModel, BENCH_RUN_STATUS.FAILED, BENCH_ERROR_CODE.RUN_ERROR, Date.now() - startedAt,
+      opts, actualModel, BENCH_RUN_STATUS.FAILED, BENCH_ERROR_CODE.RUN_ERROR, Date.now() - startedAt, totalCost,
     );
     throw err;
   }

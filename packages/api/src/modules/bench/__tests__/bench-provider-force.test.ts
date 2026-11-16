@@ -286,6 +286,23 @@ describe("runBenchSuite — FAILED audit row", () => {
     expect(JSON.stringify(benchRunCreate.mock.calls[0][0])).not.toContain("sk-secret");
   });
 
+  it("FAILED row carries the cost spent before the failure", async () => {
+    process.env.BENCH_GROQ_KEY = "gsk-bench";
+    let n = 0;
+    runAgentLoopMock.mockImplementation(async (cfg: { aiConfigOverride?: { provider: string } }) => {
+      if (++n > 2) throw new Error("boom");
+      return cfg.aiConfigOverride?.provider === "ANTHROPIC"
+        ? loopResult({ finalContent: '{"score": 6, "notes": "ok"}', totalCostUsd: 0.002 })
+        : loopResult();
+    });
+    await expect(
+      runBenchSuite({ suiteSlug: "agent-reasoning", provider: "GROQ", model: "m" }),
+    ).rejects.toThrow("boom");
+    const row = benchRunCreate.mock.calls[0][0].data;
+    expect(row.status).toBe("FAILED");
+    expect(row.costUsd).toBeCloseTo(0.012, 9);
+  });
+
   it("a failing audit-row write never masks the original error", async () => {
     process.env.BENCH_GROQ_KEY = "gsk-bench";
     runAgentLoopMock.mockRejectedValue(new Error("boom"));

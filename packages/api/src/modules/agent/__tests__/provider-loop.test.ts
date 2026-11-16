@@ -740,6 +740,12 @@ describe("implicit zero-capability requests", () => {
     benchRunCreate.mockResolvedValue({id: "synthetic-bench"});
     await expect(runBenchSuite({suiteSlug: "synthetic-suite", provider: "OLLAMA", model: "synthetic-local-model"})).rejects.toThrow("Tool calls are not allowed");
     expect(chatCompletionMock).toHaveBeenCalledTimes(stage === "judge" ? 2 : 1);
-    expect(benchRunCreate).not.toHaveBeenCalled(); expect(registryToolHandler).not.toHaveBeenCalled(); expect(executeToolMock).not.toHaveBeenCalled();
+    // BRA-P1-05-N2: the failed run leaves exactly one FAILED audit row (constant code, no raw error).
+    expect(benchRunCreate).toHaveBeenCalledTimes(1);
+    const row = benchRunCreate.mock.calls[0][0].data;
+    expect(row).toMatchObject({status: "FAILED", errorCode: "RUN_ERROR", scoresByTask: [], scoreNormalised: 0});
+    expect(JSON.stringify(row)).not.toContain("Tool calls are not allowed");
+    expect(row.notes).toBeUndefined();
+    expect(registryToolHandler).not.toHaveBeenCalled(); expect(executeToolMock).not.toHaveBeenCalled();
   });
 });
