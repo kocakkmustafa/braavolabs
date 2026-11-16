@@ -18,7 +18,10 @@ const PROVIDERS = [
   "DEEPSEEK", "KIMI", "QWEN", "OLLAMA", "LMSTUDIO",
 ] as const;
 
-const limiter = rateLimit({ windowMs: 60 * 60 * 1000, maxRequests: 20, keyPrefix: "rl:bench:compare" });
+// TODO(real provider): rateLimit's Redis-outage fail-closed list does not
+// include "rl:bench:compare"; once a real (paid) provider is wired in, add it
+// there (separate work item, intentionally untouched here).
+const limiter =rateLimit({ windowMs: 60 * 60 * 1000, maxRequests: 20, keyPrefix: "rl:bench:compare" });
 
 const bodySchema = z.object({
   suite: z.string().refine((s) => BENCH_COMPARE_SUITE_SLUGS.includes(s), "Unknown bench suite"),

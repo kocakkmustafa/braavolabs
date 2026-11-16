@@ -97,10 +97,54 @@ describe("validation", () => {
   ])("400 for %s", async (_l, body) => {
     expect((await post(body)).status).toBe(400);
   });
+  it.each([
+    ["below lower bound 0.0009", 0.0009],
+    ["string", "0.5"],
+    ["null (NaN serialises to null)", null],
+    ["negative", -1],
+  ])("400 for maxCostUsd %s", async (_l, v) => {
+    expect((await post({ suite: SUITE, selections: sel("a", "b"), maxCostUsd: v })).status).toBe(400);
+  });
+  it.each([
+    ["selections object", { suite: SUITE, selections: { provider: "OPENAI", model: "a" } }],
+    ["selections string", { suite: SUITE, selections: "a,b" }],
+    ["body is array", [1, 2]],
+    ["empty body", {}],
+  ])("400 for %s", async (_l, body) => {
+    expect((await post(body)).status).toBe(400);
+  });
+});
+
+describe("token and limiter edge cases", () => {
+  const valid = { suite: SUITE, selections: sel("a-1", "b-1") };
+  it("401 for garbage token", async () => {
+    expect((await post(valid, "not.a.jwt")).status).toBe(401);
+  });
+  it("401 for expired token", async () => {
+    const expired = jwt.sign({ userId: "u-ADMIN", tenantId: "t-a", role: "ADMIN" }, SECRET, { expiresIn: -10 });
+    expect((await post(valid, expired)).status).toBe(401);
+  });
+  it("401 for token signed with another secret", async () => {
+    const forged = jwt.sign({ userId: "u-ADMIN", tenantId: "t-a", role: "ADMIN" }, "x".repeat(40), { expiresIn: "1h" });
+    expect((await post(valid, forged)).status).toBe(401);
+  });
+  it("403 does not increment the limiter counter", async () => {
+    expect((await post(valid, tok("MEMBER"))).status).toBe(403);
+    expect(m.incr).not.toHaveBeenCalled();
+  });
+  it("401 does not increment the limiter counter", async () => {
+    await post(valid, null);
+    expect(m.incr).not.toHaveBeenCalled();
+  });
 });
 
 describe("failure, budget, leakage, determinism", () => {
-  it("error/skip/timeout rows are reported skipped, endpoint stays 200", async () => {
+  it("every row and the top level are marked simulated", async () => {
+    const r = await post({ suite: SUITE, selections: sel("a-1", "fake-error-x", "fake-skip-x") });
+    expect(r.body.simulated).toBe(true);
+    for (const c of r.body.candidates) expect(c.simulated).toBe(true);
+  });
+  it("HTTP: error and skip rows are reported, endpoint stays 200 (timeout is covered at service level below)", async () => {
     const r = await post({ suite: SUITE, selections: sel("fake-error-x", "fake-skip-x", "ok-model") });
     expect(r.status).toBe(200);
     expect(r.body.candidates.map((c: any) => c.status)).toEqual(["error", "skipped", "ok"]);

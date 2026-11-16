@@ -18,6 +18,8 @@ import type { ModelSelection } from "../../services/multi-model";
 import { BUILTIN_SUITES } from "./suites";
 
 export const BENCH_COMPARE_SUITE_SLUGS = BUILTIN_SUITES.map((s) => s.slug);
+/** Flip to false (derive per run) when a real provider replaces the fake. */
+const SIMULATED = true;
 export const DEFAULT_COMPARE_TIMEOUT_MS = 5_000;
 export const DEFAULT_COMPARE_MAX_COST_USD = 0.25;
 
@@ -34,7 +36,12 @@ function hash(s: string): number {
 export interface BenchCompareResponse {
   suite: string;
   provider: "fake";
+  /** Always true while the provider is the deterministic fake; becomes false
+   * only when a real provider is wired in (separate work item). */
+  simulated: boolean;
   candidates: Array<{
+    /** Same flag per row: scores/costs/latencies are NOT real measurements. */
+    simulated: boolean;
     provider: string;
     model: string;
     status: AccuracyRecord["status"];
@@ -130,10 +137,12 @@ export async function runBenchCompare(opts: {
   return {
     suite: result.suiteSlug,
     provider: "fake",
+    simulated: SIMULATED,
     candidates: result.records.map((r) => {
       const t = tokensByModel.get(key(r.provider, r.model));
       const ok = r.status === "ok";
       return {
+        simulated: SIMULATED,
         provider: r.provider,
         model: r.model,
         status: r.status,
