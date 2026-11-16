@@ -18,6 +18,7 @@ import { AppError } from "../../middleware/error";
 import {
   exportCompanyToTemplate,
   installTemplate,
+  listPublicTemplates,
   rateTemplate,
 } from "./templates.service";
 
@@ -27,30 +28,11 @@ export const templatesRouter = Router();
 
 templatesRouter.get("/", systemScope("route:templates-public"), async (req, res, next) => {
   try {
-    const q = (req.query.q as string | undefined)?.trim();
-    const where: any = { visibility: "PUBLIC", isApproved: true };
-    if (q) where.OR = [{ name: { contains: q, mode: "insensitive" } }, { description: { contains: q, mode: "insensitive" } }];
-    const list = await prisma.companyTemplate.findMany({
-      where,
-      orderBy: [{ ratingAvg: "desc" }, { installCount: "desc" }, { name: "asc" }],
-      select: {
-        id: true,
-        slug: true,
-        name: true,
-        version: true,
-        vendor: true,
-        description: true,
-        iconUrl: true,
-        screenshotUrls: true,
-        primitives: true,
-        pricing: true,
-        priceUsd: true,
-        installCount: true,
-        ratingAvg: true,
-        ratingCount: true,
-      },
-    });
-    res.json(list);
+    const page = await listPublicTemplates(req.query);
+    // Body stays a bare array (backwards compatible); the next page token
+    // travels in a header so existing consumers are not broken.
+    if (page.nextCursor) res.setHeader("X-Next-Cursor", page.nextCursor);
+    res.json(page.items);
   } catch (err) { next(err); }
 });
 

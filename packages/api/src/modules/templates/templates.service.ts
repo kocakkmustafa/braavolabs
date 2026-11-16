@@ -26,7 +26,9 @@ import crypto from "node:crypto";
 import { prisma, tenantTx } from "../../lib/db";
 import { assertCompanyCapacity } from "../company/company-capacity";
 import { seedCreatorAsOwner } from "../company/owner-seed";
+import { z } from "zod";
 import { AppError } from "../../middleware/error";
+import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } from "../run/list-cursor";
 
 // ── Snapshot shape ──────────────────────────────────────────
 
@@ -304,4 +306,72 @@ export async function rateTemplate(
       },
     });
   });
+}
+
+// ── Public catalog listing ──────────────────────────────────
+
+export const TEMPLATE_LIST_DEFAULT_LIMIT = 24;
+export const TEMPLATE_LIST_MAX_LIMIT = 100;
+const PRIMITIVE_VALUES = [
+  "ACQUISITION", "SALES", "DELIVERY", "CONTENT", "OPERATIONS",
+  "FINANCE", "ANALYTICS", "MEMORY", "GOVERNANCE",
+] as const;
+const primitiveEnum = z.enum(PRIMITIVE_VALUES);
+
+/**
+ * Query contract. Everything is a plain string (Express gives strings or
+ * arrays); repeated params / unknown keys fail `.strict()` -> 400.
+ *   category   one primitive (the catalog has no separate category column;
+ *              a template's category is the primitive it touches)
+ *   primitives comma list, ALL must be present on the template
+ *   pricing    FREE | PAID
+ */
+export const templateListQuerySchema = z.object({
+  q: z.string().max(200).optional(),
+  category: primitiveEnum.optional(),
+  primitives: z.string().max(200).optional(),
+  pricing: z.enum(["FREE", "PAID"]).optional(),
+  limit: z.string().optional(),
+  cursor: z.string().optional(),
+}).strict();
+
+export async function listPublicTemplates(rawQuery: unknown): Promise<{ items: unknown[]; nextCursor: string | null }> {
+  const q = templateListQuerySchema.parse(rawQuery ?? {});
+  const limit = parseLimit(q.limit, TEMPLATE_LIST_DEFAULT_LIMIT, TEMPLATE_LIST_MAX_LIMIT);
+  if (limit === null) throw new AppError(400, `Invalid limit. Use an integer between 1 and ${TEMPLATE_LIST_MAX_LIMIT}.`);
+  const cursor = q.cursor === undefined ? undefined : decodeCursor(q.cursor);
+  if (cursor === null) throw new AppError(400, "Invalid cursor.");
+
+  const wanted = new Set<string>();
+  if (q.category) wanted.add(q.category);
+  if (q.primitives !== undefined) {
+    for (const raw of q.primitives.split(",")) {
+      const parsed = primitiveEnum.safeParse(raw.trim());
+      if (!parsed.success) throw new AppError(400, "Invalid primitives filter.");
+      wanted.add(parsed.data);
+    }
+  }
+
+  const and: any[] = [];
+  const text = q.q?.trim();
+  if (text) and.push({ OR: [{ name: { contains: text, mode: "insensitive" } }, { description: { contains: text, mode: "insensitive" } }] });
+  for (const p of wanted) and.push({ primitives: { array_contains: [p] } });
+  if (cursor) and.push(afterCursorWhere(cursor));
+  // PUBLIC + approved only: UNLISTED is slug-only, PRIVATE never listed.
+  const where: any = { visibility: "PUBLIC", isApproved: true, ...(q.pricing ? { pricing: q.pricing } : {}), ...(and.length ? { AND: and } : {}) };
+
+  const rows = await prisma.companyTemplate.findMany({
+    where,
+    orderBy: LIST_ORDER,
+    take: limit + 1,
+    select: {
+      id: true, slug: true, name: true, version: true, vendor: true, description: true,
+      iconUrl: true, screenshotUrls: true, primitives: true, pricing: true, priceUsd: true,
+      installCount: true, ratingAvg: true, ratingCount: true, createdAt: true,
+    },
+  });
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  const last = items[items.length - 1];
+  return { items, nextCursor: hasMore && last ? encodeCursor(last) : null };
 }
