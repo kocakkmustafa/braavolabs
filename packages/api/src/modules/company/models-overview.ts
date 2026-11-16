@@ -18,7 +18,7 @@ import {
   type AIProviderType,
 } from "../../services/ai-client";
 
-import { parseAutoSelectionEnabled, parseCompanyModelMode } from "./model-mode-settings";
+import { isSecretLike, parseAutoSelectionEnabled, parseCompanyModelMode } from "./model-mode-settings";
 
 const SCALE = 6;
 
@@ -58,16 +58,8 @@ export function microToText(n: bigint): string {
 }
 
 const SAFE_MODEL_ID = /^[\w.:/-]{1,100}$/;
-/** Anahtar benzeri önekler (ayraçlı: sk-, gsk_, csk-, xai-, pplx-, nvapi-, gh*_, rk/pk) ve sabit biçimler. */
-const SECRET_PREFIX =
-  /^((g?sk|csk|xai|pplx|nvapi|rk|pk|ghp|gho|ghu|ghs|ghr)[-_]|xox[abprs]|AKIA[0-9A-Z]{8,}|AIza[\w-]{10,}|eyJ)/i;
-
-/** Model alanına yapıştırılmış anahtar benzeri değer mi? (≥32 karışık harf+rakam dizisi dahil) */
-export function isSecretLike(id: string): boolean {
-  if (SECRET_PREFIX.test(id)) return true;
-  const run = /[A-Za-z0-9]{32,}/.exec(id);
-  return !!run && /[A-Za-z]/.test(run[0]) && /\d/.test(run[0]);
-}
+// isSecretLike model-mode-settings.ts'e taşındı (kip ayar doğrulaması da kullanır); geriye uyum için yeniden dışa aktarılır.
+export { isSecretLike };
 
 function inferProvider(model: string): AIProviderType | null {
   for (const p of Object.keys(PROVIDER_MODELS) as AIProviderType[]) {

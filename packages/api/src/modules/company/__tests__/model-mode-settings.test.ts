@@ -29,6 +29,20 @@ describe("validateModelModeConfigInput (ajan)", () => {
     }
     expect(validateModelModeConfigInput({ cheapModel: "meta-llama/llama-3.1:8b" }).ok).toBe(true);
   });
+  it("URL, yol ve anahtar benzeri model adları reddedilir (cheapModel ve compareModels)", () => {
+    const bad = [
+      "http://x", "https://evil.example/m", "//evil.com/k", "../etc", "a/../b", "a//b",
+      "sk-abcdefghijklmnop", "gsk_abcdefghijklmnop", "AKIAABCDEFGHIJKL", "ghp_abcdefghijkl",
+      "abcdefghijklmnopqrstuvwxyz0123456789",
+    ];
+    for (const v of bad) {
+      expect(validateModelModeConfigInput({ cheapModel: v }).ok, v).toBe(false);
+      expect(validateModelModeConfigInput({ compareModels: ["ok-model", v] }).ok, v).toBe(false);
+    }
+    for (const v of ["claude-haiku-5-5", "gpt-4o-mini", "meta-llama/llama-3.1:8b", "gemini-1.5-flash"]) {
+      expect(validateModelModeConfigInput({ cheapModel: v }).ok, v).toBe(true);
+    }
+  });
   it("compareModels: 2–3 tekil geçerli ad", () => {
     expect(err(validateModelModeConfigInput({ compareModels: ["a"] }) as any)).toMatch(/2-3/);
     expect(err(validateModelModeConfigInput({ compareModels: ["a", "b", "c", "d"] }) as any)).toMatch(/2-3/);
