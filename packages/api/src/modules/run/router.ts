@@ -32,6 +32,7 @@ import { toPublicCompany } from "../company/redact";
 import { INBOX_BUCKETS, jobBucket, type InboxBucket, type RunEvent } from "@ai-company-os/core";
 import { bucketWhere, isInboxBucket, jobStaleAfterMs } from "./job-bucket-query";
 import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } from "./list-cursor";
+import { deriveStepGraph } from "./step-graph";
 
 export const runRouter = Router();
 runRouter.use(authMiddleware);
@@ -183,7 +184,10 @@ runRouter.get("/:id", async (req, res, next) => {
       throw new AppError(404, "Run not found");
     }
     // BRA-SEC-01: tenant check above used the raw row; strip company secrets from the response.
-    res.json({ ...run, pipeline: { ...run.pipeline, company: toPublicCompany(run.pipeline.company) } });
+    // BRA-P2-04: adımlara order/group/dependsOn/parentStepId ek alanları (saf türetme, migration yok).
+    const graph = deriveStepGraph(run.steps, run.pipeline);
+    const steps = run.steps.map((s) => ({ ...s, ...graph.get(s.id) }));
+    res.json({ ...run, steps, pipeline: { ...run.pipeline, company: toPublicCompany(run.pipeline.company) } });
   } catch (err) { next(err); }
 });
 

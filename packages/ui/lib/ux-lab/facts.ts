@@ -97,7 +97,7 @@ export interface KaputModel { provider: string | null; model: string | null; mod
 /** Adım olay günlüğü: yalnız `startedAt`/`completedAt` zaman damgaları (koşu seviyesinde etkinlik günlüğü ucu yok). */
 export interface KaputLogEvent { kind: "started" | "ended"; at: string }
 export interface KaputTokens { input: number | null; output: number | null }
-export interface KaputStep { id: string; index: number; name: string; agentRole: string | null; status: string; costUsd: number | null; durationMs: number | null; reasoning: string | null; toolCalls: KaputToolCall[]; error?: string | null; modelInfo?: KaputModel | null; log?: KaputLogEvent[]; tokens?: KaputTokens | null; dependsOn?: string[] | null; createdAt?: string | null }
+export interface KaputStep { id: string; index: number; name: string; agentRole: string | null; status: string; costUsd: number | null; durationMs: number | null; reasoning: string | null; toolCalls: KaputToolCall[]; error?: string | null; modelInfo?: KaputModel | null; log?: KaputLogEvent[]; tokens?: KaputTokens | null; dependsOn?: string[] | null; createdAt?: string | null; graphSource?: string | null; graphReason?: string | null }
 /** BRA-P1-01-N2 — işin hattı tanımından yalnız ad ve sıra (`order`); `GET /runs/:id` yanıtındaki `pipeline.steps` + `pipeline.pipelineType`. */
 export interface KaputPipelineDef { name: string; order: number | null }
 /** Hat/koşu zamanları (ISO): hat kaydının koşudan sonra güncellenip güncellenmediğini sınamak için (`pipeline.updatedAt`, koşunun ilk adım satırı createdAt; adım yoksa startedAt ?? createdAt). `updatedAt` tanım dışı yazımlarla (lastRunAt) da ilerler: "güncellendi" ≠ "tanım değişti". */
@@ -157,6 +157,8 @@ export function parseKaput(raw: unknown): Kaput {
       ...(isoTime(s.completedAt) ? [{ kind: "ended" as const, at: isoTime(s.completedAt) as string }] : []),
     ],
     createdAt: isoTime(s.createdAt),
+    graphSource: str(s.graphSource),
+    graphReason: str(s.graphReason),
     dependsOn: Array.isArray(s.dependsOn) ? s.dependsOn.map((d) => (typeof d === "string" ? d : "")) : null,
     tokens: nonNeg(s.promptTokens) === null && nonNeg(s.completionTokens) === null ? null : { input: nonNeg(s.promptTokens), output: nonNeg(s.completionTokens) },
     toolCalls: (Array.isArray(s.toolCalls) ? s.toolCalls : []).filter(isObj).map((c, j) => ({
@@ -190,7 +192,8 @@ function parsePipeline(p: unknown): { pipelineType: string | null; pipelineDefs:
 }
 
 /* ── BRA-P1-01-N2 — adım bağımlılık grafiği (DAG) ──
- * Kaynak bulgusu: `RunStep` satırında dependsOn/parent/dal alanı YOK. Bağımlılık yalnız (a) adım `dependsOn` taşırsa (bugün taşımaz),
+ * BRA-P2-04: API artık adım başına `dependsOn`/`graphSource` döndürür (sunucu türetir; tanım-değişti denetimi sunucuda). Alan yoksa eski yol:
+ * `RunStep` satırında dependsOn/parent/dal alanı YOK. Bağımlılık yalnız (a) adım `dependsOn` taşırsa,
  * ya da (b) `pipelineType=SEQUENTIAL` ve hat tanımı adlarla eşleşirse `order` gruplarından çıkarılır (runner.ts: aynı order = paralel,
  * bir sonraki grup öncekinin tamamını bekler). HIERARCHICAL, tanım yok ya da ad uyuşmazlığı → "none" (kenar uydurulmaz). */
 export const GRAPH_MAX_NODES = 50;
@@ -257,6 +260,11 @@ export function buildKaputGraph(k: Pick<Kaput, "steps" | "pipelineType" | "pipel
   let steps = [...k.steps].sort((a, b) => a.index - b.index);
   if (steps.length === 0) return emptyGraph(0);
   const usesApi = steps.some((s) => s.dependsOn);
+  // BRA-P2-04: API `graphSource` taşıyorsa grafik sunucudan gelir; hat tanımına BAKILMAZ (tanım-değişti çıkarımı sunucuda).
+  // API "unavailable" derse kenar uydurulmaz; yalnız sunucu "definition_changed" dediyse kapanış notu gösterilir.
+  const apiGraph = steps.some((s) => s.graphSource);
+  if (apiGraph && !usesApi) return { ...emptyGraph(steps.length), changed: steps.some((s) => s.graphReason === "definition_changed") };
+  if (apiGraph) steps = latestPerIndex(steps);
   if (!usesApi && k.pipelineType === "SEQUENTIAL" && k.pipelineDefs) {
     // Çıkarım güncel hat tanımına dayanır: koşudan sonra değişmişse kapat. Zaman yoksa doğrulanamaz (unverified).
     const u = k.times?.pipelineUpdatedAt ?? null, r = k.times?.runStartedAt ?? null;
