@@ -1394,7 +1394,7 @@
           "listLabel": "Kroki wraz z zależnościami",
           "dependsOn": "Zależy od kroku: {steps}",
           "noDeps": "Brak zależności",
-          "changed": "Definicja zadania zmieniła się po rozpoczęciu tego przebiegu, dlatego zależności kroków nie są pokazywane.",
+          "changed": "Rekord pipeline'u został zaktualizowany po tym przebiegu; ponieważ nie można zweryfikować kolejności kroków, wykres zależności nie został narysowany.",
           "unverified": "Na podstawie aktualnej definicji zadania (czas zmiany nieznany)."
         },
         "seconds": "{value} s",

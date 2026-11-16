@@ -1394,7 +1394,7 @@
           "listLabel": "Passaggi con le relative dipendenze",
           "dependsOn": "Dipende dal passaggio: {steps}",
           "noDeps": "Nessuna dipendenza",
-          "changed": "La definizione del lavoro è cambiata dopo l'avvio di questa esecuzione, quindi le dipendenze dei passaggi non vengono mostrate.",
+          "changed": "Il record della pipeline è stato aggiornato dopo questa esecuzione; poiché non è stato possibile verificare l'ordine dei passaggi, il grafo delle dipendenze non viene disegnato.",
           "unverified": "Basato sulla definizione attuale del lavoro (momento della modifica sconosciuto)."
         },
         "seconds": "{value} s",

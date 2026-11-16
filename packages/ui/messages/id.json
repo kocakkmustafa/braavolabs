@@ -1394,7 +1394,7 @@
           "listLabel": "Langkah beserta dependensinya",
           "dependsOn": "Bergantung pada langkah: {steps}",
           "noDeps": "Tanpa dependensi",
-          "changed": "Definisi pekerjaan berubah setelah proses ini dimulai, sehingga dependensi langkah tidak ditampilkan.",
+          "changed": "Catatan pipeline diperbarui setelah proses ini; karena urutan langkah tidak dapat diverifikasi, grafik dependensi tidak digambar.",
           "unverified": "Berdasarkan definisi pekerjaan saat ini (waktu perubahan tidak diketahui)."
         },
         "seconds": "{value} dtk",

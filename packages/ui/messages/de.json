@@ -1394,7 +1394,7 @@
           "listLabel": "Schritte mit ihren Abhängigkeiten",
           "dependsOn": "Hängt ab von Schritt: {steps}",
           "noDeps": "Keine Abhängigkeiten",
-          "changed": "Die Auftragsdefinition wurde nach dem Start dieses Laufs geändert; Schrittabhängigkeiten werden daher nicht angezeigt.",
+          "changed": "Der Pipeline-Eintrag wurde nach diesem Lauf aktualisiert; die Schrittreihenfolge ließ sich nicht verifizieren, daher wird kein Abhängigkeitsgraph gezeichnet.",
           "unverified": "Basiert auf der aktuellen Auftragsdefinition (Änderungszeitpunkt unbekannt)."
         },
         "seconds": "{value} s",

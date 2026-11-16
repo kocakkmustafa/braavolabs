@@ -1394,7 +1394,7 @@
           "listLabel": "Étapes et leurs dépendances",
           "dependsOn": "Dépend de l'étape : {steps}",
           "noDeps": "Aucune dépendance",
-          "changed": "La définition de la tâche a changé après le début de cette exécution ; les dépendances des étapes ne sont donc pas affichées.",
+          "changed": "L'enregistrement du pipeline a été mis à jour après cette exécution ; l'ordre des étapes n'ayant pas pu être vérifié, aucun graphe de dépendances n'est tracé.",
           "unverified": "D'après la définition actuelle de la tâche (date de modification inconnue)."
         },
         "seconds": "{value} s",

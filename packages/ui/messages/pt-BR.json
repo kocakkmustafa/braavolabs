@@ -1394,7 +1394,7 @@
           "listLabel": "Etapas com suas dependências",
           "dependsOn": "Depende da etapa: {steps}",
           "noDeps": "Sem dependências",
-          "changed": "A definição do trabalho mudou depois que esta execução começou, então as dependências das etapas não são exibidas.",
+          "changed": "O registro do pipeline foi atualizado depois desta execução; como não foi possível verificar a ordem das etapas, o grafo de dependências não foi desenhado.",
           "unverified": "Com base na definição atual do trabalho (momento da alteração desconhecido)."
         },
         "seconds": "{value} s",

@@ -1394,7 +1394,7 @@
           "listLabel": "Pasos con sus dependencias",
           "dependsOn": "Depende del paso: {steps}",
           "noDeps": "Sin dependencias",
-          "changed": "La definición del trabajo cambió después de iniciar esta ejecución, por lo que no se muestran las dependencias de los pasos.",
+          "changed": "El registro del pipeline se actualizó después de esta ejecución; como no se pudo verificar el orden de los pasos, no se dibuja el grafo de dependencias.",
           "unverified": "Según la definición actual del trabajo (se desconoce cuándo cambió)."
         },
         "seconds": "{value} s",

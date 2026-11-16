@@ -1394,7 +1394,7 @@
           "listLabel": "Adımlar ve bağımlılıkları",
           "dependsOn": "Bağlı olduğu adım: {steps}",
           "noDeps": "Bağımlılık yok",
-          "changed": "İş tanımı bu koşu başladıktan sonra değişti; bu yüzden adım bağımlılıkları gösterilmiyor.",
+          "changed": "Hat kaydı bu koşudan sonra güncellenmiş; adım sırası doğrulanamadığı için bağımlılık grafiği çizilmedi.",
           "unverified": "İşin güncel tanımına göre (değişiklik zamanı bilinmiyor)."
         },
         "seconds": "{value} sn",

@@ -100,7 +100,7 @@ export interface KaputTokens { input: number | null; output: number | null }
 export interface KaputStep { id: string; index: number; name: string; agentRole: string | null; status: string; costUsd: number | null; durationMs: number | null; reasoning: string | null; toolCalls: KaputToolCall[]; error?: string | null; modelInfo?: KaputModel | null; log?: KaputLogEvent[]; tokens?: KaputTokens | null; dependsOn?: string[] | null; createdAt?: string | null }
 /** BRA-P1-01-N2 — işin hattı tanımından yalnız ad ve sıra (`order`); `GET /runs/:id` yanıtındaki `pipeline.steps` + `pipeline.pipelineType`. */
 export interface KaputPipelineDef { name: string; order: number | null }
-/** Hat/koşu zamanları (ISO): hat tanımının koşudan sonra değişip değişmediğini sınamak için (`pipeline.updatedAt`, `startedAt ?? createdAt`). */
+/** Hat/koşu zamanları (ISO): hat kaydının koşudan sonra güncellenip güncellenmediğini sınamak için (`pipeline.updatedAt`, koşunun ilk adım satırı createdAt; adım yoksa startedAt ?? createdAt). `updatedAt` tanım dışı yazımlarla (lastRunAt) da ilerler: "güncellendi" ≠ "tanım değişti". */
 export interface KaputTimes { pipelineUpdatedAt: string | null; runStartedAt: string | null }
 /** `handoffCount` null = okunamadı/yok (uydurulmaz). */
 export interface Kaput { steps: KaputStep[]; totalCostUsd: number | null; toolCallCount: number; handoffCount: number | null; runError?: string | null; budgetUsd?: number | null; pipelineType?: string | null; pipelineDefs?: KaputPipelineDef[] | null; times?: KaputTimes | null }
@@ -167,7 +167,13 @@ export function parseKaput(raw: unknown): Kaput {
       error: str(c.error),
     })),
   }));
-  return { steps, totalCostUsd: nonNeg(raw.costUsd), toolCallCount: steps.reduce((n, s) => n + s.toolCalls.length, 0), handoffCount: null, runError: str(raw.error), budgetUsd: positive(toNumber(raw.budgetUsd)), ...parsePipeline(raw.pipeline), times: { pipelineUpdatedAt: isObj(raw.pipeline) ? isoTime(raw.pipeline.updatedAt) : null, runStartedAt: isoTime(raw.startedAt) ?? isoTime(raw.createdAt) } };
+  return { steps, totalCostUsd: nonNeg(raw.costUsd), toolCallCount: steps.reduce((n, s) => n + s.toolCalls.length, 0), handoffCount: null, runError: str(raw.error), budgetUsd: positive(toNumber(raw.budgetUsd)), ...parsePipeline(raw.pipeline), times: { pipelineUpdatedAt: isObj(raw.pipeline) ? isoTime(raw.pipeline.updatedAt) : null, runStartedAt: firstStepAt(steps) ?? isoTime(raw.startedAt) ?? isoTime(raw.createdAt) } };
+}
+
+/** Koşunun referans zamanı: ilk adım satırının createdAt'i (run.startedAt resume/rerun'da yeniden yazılır, güvenilmez; adım yoksa geri düşülür). */
+function firstStepAt(steps: KaputStep[]): string | null {
+  const ts = steps.map((s) => s.createdAt).filter((x): x is string => !!x).sort();
+  return ts[0] ?? null;
 }
 
 /** Hat tanımı: `order` yoksa dizi sırası (runner.ts: `s.order ?? idx`). Dizi değilse null (uydurulmaz). */

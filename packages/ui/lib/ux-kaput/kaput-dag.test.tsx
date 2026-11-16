@@ -219,4 +219,45 @@ describe("DAG i18n", () => {
     expect(new Set(sets).size).toBe(1);
     expect(sets[0].split(",")).toHaveLength(13);
   });
+  it("en dışındaki dillerde dag değerleri boş değil ve İngilizceyle aynı değil; changed nötr (değişti iddiası yok) ", () => {
+    const dir = join(__dirname, "../../messages");
+    const load = (f: string) => JSON.parse(readFileSync(join(dir, `${f}.json`), "utf8")).app.jobs.kaput.dag as Record<string, string>;
+    const en = load("en");
+    for (const f of ["ar", "de", "es-419", "es", "fr", "hi", "id", "it", "ja", "ko", "pl", "pt-BR", "tr", "zh-Hans"]) {
+      const d = load(f);
+      for (const [k, v] of Object.entries(en)) {
+        expect(typeof d[k] === "string" && d[k].trim().length > 0, `${f}.${k} boş`).toBe(true);
+        expect(d[k], `${f}.${k} İngilizce kalmış`).not.toBe(v);
+      }
+    }
+    expect(load("es-419")).toEqual(load("es"));
+    expect(en.changed).not.toMatch(/changed after/i);
+  });
+});
+
+describe("DAG: referans zamanı = ilk adım createdAt", () => {
+  const defs = [def(0), def(1)];
+  const at = (iso: string, extra: Record<string, unknown> = {}) => ({ createdAt: iso, ...extra });
+  it("resume sonrası startedAt ileri alınmış; ilk adım createdAt hat güncellemesinden önce → kapanır", () => {
+    const k = seqT([step(0, at("2026-11-01T10:00:00Z")), step(1, at("2026-11-01T10:01:00Z"))], defs, { startedAt: "2026-11-05T10:00:00Z", updatedAt: "2026-11-03T10:00:00Z" });
+    expect(k.times?.runStartedAt).toBe("2026-11-01T10:00:00.000Z");
+    expect(buildKaputGraph(k)).toMatchObject({ source: "none", changed: true });
+  });
+  it("u === r sınırı: kapanmaz", () => {
+    const k = seqT([step(0, at("2026-11-01T10:00:00Z")), step(1, at("2026-11-01T10:01:00Z"))], defs, { updatedAt: "2026-11-01T10:00:00Z" });
+    expect(buildKaputGraph(k)).toMatchObject({ source: "order", unverified: false });
+    expect(buildKaputGraph(k).changed).toBeUndefined();
+  });
+  it("adım createdAt yoksa startedAt ?? createdAt'e düşer", () => {
+    const k = seqT([step(0), step(1)], defs, { startedAt: "2026-11-01T10:00:00Z", updatedAt: "2026-11-02T10:00:00Z" });
+    expect(k.times?.runStartedAt).toBe("2026-11-01T10:00:00.000Z");
+    expect(buildKaputGraph(k).changed).toBe(true);
+  });
+  it("geçersiz ISO: referans yok → unverified, kapanmaz", () => {
+    const k = seqT([step(0, at("bozuk")), step(1, at("bozuk"))], defs, { startedAt: "yok", updatedAt: "2026-11-02T10:00:00Z" });
+    expect(k.times?.runStartedAt).toBeNull();
+    expect(buildKaputGraph(k)).toMatchObject({ source: "order", unverified: true });
+    const k2 = seqT([step(0, at("2026-11-01T10:00:00Z")), step(1)], defs, { updatedAt: "geçersiz" });
+    expect(buildKaputGraph(k2)).toMatchObject({ source: "order", unverified: true });
+  });
 });

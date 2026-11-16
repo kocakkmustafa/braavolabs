@@ -1394,7 +1394,7 @@
           "listLabel": "Steps with their dependencies",
           "dependsOn": "Depends on step: {steps}",
           "noDeps": "No dependencies",
-          "changed": "The job definition changed after this run started, so step dependencies are not shown.",
+          "changed": "The pipeline record was updated after this run, so the step order could not be verified and no dependency graph is drawn.",
           "unverified": "Based on the job's current definition (change time unknown)."
         },
         "seconds": "{value} s",
