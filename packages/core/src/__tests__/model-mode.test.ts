@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   COMPARE_MAX_MODELS,
+  isCompareConfigValid,
   isModelMode,
   normalizeModelModeConfig,
   resolveEffectiveModelMode,
@@ -51,5 +52,43 @@ describe("normalizeModelModeConfig", () => {
     expect(normalizeModelModeConfig({ confidenceThreshold: 1.5, budgetUsdCap: 0, cheapModel: "" })).toEqual({});
     expect(normalizeModelModeConfig({ confidenceThreshold: -0.1, budgetUsdCap: Infinity, cheapModel: "x".repeat(201) })).toEqual({});
     expect(normalizeModelModeConfig({ compareModels: [1, null, "", "ok"] })).toEqual({ compareModels: ["ok"] });
+  });
+});
+
+describe("normalizeModelModeConfig — sınırlar ve kırpma", () => {
+  it("önce kırpar, sonra uzunluğu denetler; kırpma sonrası tekilleştirir", () => {
+    expect(normalizeModelModeConfig({ cheapModel: `${"x".repeat(190)}${" ".repeat(20)}` }).cheapModel).toBe("x".repeat(190));
+    expect(normalizeModelModeConfig({ cheapModel: "x".repeat(200) }).cheapModel).toHaveLength(200);
+    expect(normalizeModelModeConfig({ cheapModel: "   " })).toEqual({});
+    expect(normalizeModelModeConfig({ compareModels: [" a", "a", "a "] }).compareModels).toEqual(["a"]);
+  });
+  it("confidenceThreshold 0 ve 1 geçerli; NaN/string geçersiz", () => {
+    expect(normalizeModelModeConfig({ confidenceThreshold: 0 }).confidenceThreshold).toBe(0);
+    expect(normalizeModelModeConfig({ confidenceThreshold: 1 }).confidenceThreshold).toBe(1);
+    expect(normalizeModelModeConfig({ confidenceThreshold: NaN })).toEqual({});
+    expect(normalizeModelModeConfig({ confidenceThreshold: "0.5" })).toEqual({});
+  });
+  it("negatif budgetUsdCap ve dizi olmayan compareModels düşer", () => {
+    expect(normalizeModelModeConfig({ budgetUsdCap: -1 })).toEqual({});
+    expect(normalizeModelModeConfig({ compareModels: "a" })).toEqual({});
+    expect(normalizeModelModeConfig({ compareModels: { 0: "a" } })).toEqual({});
+  });
+});
+
+describe("isCompareConfigValid", () => {
+  it("yalnız 2–3 aday geçerli", () => {
+    expect(isCompareConfigValid({})).toBe(false);
+    expect(isCompareConfigValid({ compareModels: ["a"] })).toBe(false);
+    expect(isCompareConfigValid({ compareModels: ["a", "b"] })).toBe(true);
+    expect(isCompareConfigValid({ compareModels: ["a", "b", "c"] })).toBe(true);
+  });
+});
+
+describe("resolveEffectiveModelMode — ek dallar", () => {
+  it("açık agentMode DIRECT, şirket ve autoSelection'ı ezer", () => {
+    expect(resolveEffectiveModelMode({ agentMode: "DIRECT", companyMode: "COMPARE", autoSelectionEnabled: true })).toEqual({ mode: "DIRECT", source: "agent" });
+  });
+  it("geçersiz companyMode + autoSelection true -> CASCADE/auto", () => {
+    expect(resolveEffectiveModelMode({ companyMode: "bogus", autoSelectionEnabled: true })).toEqual({ mode: "CASCADE", source: "auto" });
   });
 });

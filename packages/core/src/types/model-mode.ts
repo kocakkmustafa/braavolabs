@@ -39,8 +39,11 @@ export function normalizeModelModeConfig(raw: unknown): ModelModeConfig {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) return {};
   const r = raw as Record<string, unknown>;
   const out: ModelModeConfig = {};
-  const name = (v: unknown): string | null =>
-    typeof v === "string" && v.trim().length > 0 && v.length <= 200 ? v.trim() : null;
+  const name = (v: unknown): string | null => {
+    if (typeof v !== "string") return null;
+    const t = v.trim();
+    return t.length > 0 && t.length <= 200 ? t : null;
+  };
 
   const cheap = name(r.cheapModel);
   if (cheap) out.cheapModel = cheap;
@@ -62,6 +65,12 @@ export function normalizeModelModeConfig(raw: unknown): ModelModeConfig {
     out.budgetUsdCap = r.budgetUsdCap;
   }
   return out;
+}
+
+/** COMPARE ancak 2–3 tekil adayla anlamlıdır; eksikse çalışma zamanı DIRECT'e düşer. */
+export function isCompareConfigValid(config: ModelModeConfig): boolean {
+  const n = config.compareModels?.length ?? 0;
+  return n >= COMPARE_MIN_MODELS && n <= COMPARE_MAX_MODELS;
 }
 
 export type ModelModeSource = "agent" | "company" | "auto" | "default";
