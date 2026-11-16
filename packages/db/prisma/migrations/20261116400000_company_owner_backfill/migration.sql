@@ -1,11 +1,11 @@
 -- BRA-P2-07 — mevcut sirketler icin idempotent OWNER backfill.
--- YALNIZ INSERT ... SELECT ... WHERE NOT EXISTS / ON CONFLICT DO NOTHING; DROP/ALTER YOK.
+-- YALNIZ INSERT ... SELECT ... WHERE NOT EXISTS / ON CONFLICT DO UPDATE (role -> OWNER); DROP/ALTER YOK.
 -- Kural: OWNER'i olmayan her sirket icin, o tenant'in en eski (created_at) tenant-OWNER/ADMIN
 -- kullanicisi sirketin OWNER'i olur (tenant OWNER'lari ADMIN'den ustun oldugu icin once onlar;
 -- sonra ADMIN; esitlikte en eski created_at, sonra id). Tenant'ta OWNER/ADMIN kullanici yoksa o
 -- sirket ATLANIR (sahipsiz kalir; elle uye eklemeyle kapatilir).
--- Tekrar calistirmak guvenlidir: sirkette zaten OWNER varsa satir uretilmez; (company_id,user_id)
--- unique cakismasi ON CONFLICT DO NOTHING ile yutulur.
+-- Tekrar calistirmak guvenlidir (ikinci calistirmada sirkette OWNER vardir, satir uretilmez). Secilen aday
+-- o sirkette zaten MEMBER ise unique cakismasi DO UPDATE ile onu OWNER yukseltir (DO NOTHING sirketi sahipsiz birakirdi). Mevcut OWNER ezilmez: WHERE NOT EXISTS OWNER filtresi zaten onlari eler.
 --
 -- RLS: company_members'ta tenant_rls politikasi var (current_tenant_id() IS NULL OR tenant_id = ...).
 -- Migration bagli tenant olmadan (current_tenant_id() NULL => fail-open) ve superuser/tablo sahibi
@@ -34,4 +34,4 @@ JOIN LATERAL (
 WHERE NOT EXISTS (
   SELECT 1 FROM "company_members" m WHERE m."company_id" = c."id" AND m."role" = 'OWNER'
 )
-ON CONFLICT ("company_id", "user_id") DO NOTHING;
+ON CONFLICT ("company_id", "user_id") DO UPDATE SET "role" = 'OWNER'::"CompanyMemberRole";

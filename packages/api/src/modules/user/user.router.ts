@@ -26,7 +26,8 @@
 import { Router } from "express";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
+import { transferSoleOwnerships } from "./owner-transfer";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { getTrialStatus } from "../../services/trial-llm";
@@ -193,27 +194,6 @@ userRouter.delete("/me", async (req, res, next) => {
     });
     const lastUser = siblingCount === 0;
 
-    // BRA-P2-07: user -> company_members FK'si CASCADE; kullanıcıyı silmek bir şirketin SON OWNER'ını
-    // sessizce düşürür ve "en az 1 OWNER" değişmezini bozardı. En küçük güvenli seçim: engelle (409),
-    // sahiplik devri (members PATCH/POST) kullanıcıya bırakılır; otomatik devir yapılmaz. Tenant'ın tamamı
-    // siliniyorsa (son kullanıcı) şirketler zaten gider, kontrol atlanır. Diğer silme davranışı değişmez.
-    if (!lastUser) {
-      const soleOwned = await prisma.companyMember.findMany({
-        where: {
-          tenantId,
-          userId,
-          role: "OWNER",
-          company: { members: { none: { role: "OWNER", userId: { not: userId } } } },
-        },
-        select: { companyId: true },
-      });
-      if (soleOwned.length > 0) {
-        throw new AppError(
-          409,
-          `You are the only OWNER of ${soleOwned.length} company(ies). Transfer ownership (add another OWNER) before deleting your account.`,
-        );
-      }
-    }
 
     // Audit BEFORE delete — once the user row is gone, the foreign-key
     // reference would be the only proof and that's brittle. We use
@@ -254,7 +234,12 @@ userRouter.delete("/me", async (req, res, next) => {
       await prisma.tenant.delete({ where: { id: tenantId } });
       logger.info({ userId, tenantId, email: user.email }, "DSR: user + last-tenant erased");
     } else {
-      await prisma.user.delete({ where: { id: userId } });
+      // BRA-P2-07: silme ASLA bloke olmaz; tek-OWNER olunan şirketlerin sahipliği aynı tx'te devredilir
+      // (owner-transfer.ts), ardından kullanıcı aynı tx'te silinir (yarış kapanır).
+      await tenantTx(async (tx: any) => {
+        await transferSoleOwnerships(tx, { tenantId, userId });
+        await tx.user.delete({ where: { id: userId } });
+      });
       logger.info({ userId, tenantId, email: user.email }, "DSR: user erased (tenant kept)");
     }
 

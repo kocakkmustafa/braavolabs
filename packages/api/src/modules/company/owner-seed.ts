@@ -15,6 +15,10 @@ export async function seedCreatorAsOwner(
 ): Promise<void> {
   const { tenantId, companyId, userId } = args;
   if (!userId) return; // sistem/seed yolu: oluşturan yok → OWNER eklenmez (bilinçli)
+  // JWT'deki userId, token ömrü içinde silinmiş olabilir: FK ihlali şirket oluşturmayı 500'e düşürmesin.
+  // Kullanıcı yok ya da başka tenant'ta ise OWNER eklenmez; şirket yine oluşur.
+  const user = await tx.user.findFirst({ where: { id: userId, tenantId }, select: { id: true } });
+  if (!user) return;
   await tx.companyMember.upsert({
     where: { companyId_userId: { companyId, userId } },
     create: { tenantId, companyId, userId, role: "OWNER", createdById: userId },

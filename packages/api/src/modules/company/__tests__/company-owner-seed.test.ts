@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Router } from "express";
 
 type Member = { tenantId: string; companyId: string; userId: string; role: string; createdById?: string };
-const state = vi.hoisted(() => ({ members: [] as any[], seq: 0, failActivity: false }));
+const state = vi.hoisted(() => ({ members: [] as any[], users: [] as Array<{ id: string; tenantId: string }>, seq: 0, failActivity: false }));
 
 vi.mock("../../../lib/db", () => {
   const tx = {
@@ -27,6 +27,9 @@ vi.mock("../../../lib/db", () => {
     companyTemplate: { update: vi.fn() },
     templateInstall: { create: vi.fn() },
     entitlementEvent: { findMany: vi.fn().mockResolvedValue([]) },
+    user: {
+      findFirst: vi.fn(async ({ where }: any) => state.users.find((u) => u.id === where.id && u.tenantId === where.tenantId) ?? null),
+    },
     companyMember: {
       upsert: vi.fn(async ({ where, create }: any) => {
         const { companyId, userId } = where.companyId_userId;
@@ -77,6 +80,10 @@ const snapshot = { name: "T", description: null, primitives: ["CONTENT"], agents
 
 beforeEach(() => {
   state.members = [];
+  state.users = [
+    { id: "user-1", tenantId: "tenant-1" }, { id: "user-9", tenantId: "tenant-9" },
+    { id: "uA", tenantId: "tenant-A" }, { id: "uB", tenantId: "tenant-B" }, { id: "u", tenantId: "t" },
+  ];
   state.seq = 0;
   state.failActivity = false;
 });
@@ -165,5 +172,20 @@ describe("aynı transaction / idempotent / izolasyon", () => {
   it("createdById oluşturanı gösterir", async () => {
     await invoke(handler(companyRouter, "/"), { name: "A", slug: "a", primitives: ["CONTENT"] });
     expect(state.members[0].createdById).toBe("user-1");
+  });
+
+  it("kullanıcı silinmişse OWNER eklenmez ama şirket yine oluşur (500 yok)", async () => {
+    state.users = [];
+    const { res, error } = await invoke(handler(companyRouter, "/"), { name: "A", slug: "a", primitives: ["CONTENT"] });
+    expect(error).toBeUndefined();
+    expect(res.statusCode).toBe(201);
+    expect(state.members).toEqual([]);
+  });
+
+  it("kullanıcı başka tenant'ta ise OWNER eklenmez", async () => {
+    state.users = [{ id: "user-1", tenantId: "baska-tenant" }];
+    const { error } = await invoke(handler(companyRouter, "/"), { name: "A", slug: "a", primitives: ["CONTENT"] });
+    expect(error).toBeUndefined();
+    expect(state.members).toEqual([]);
   });
 });

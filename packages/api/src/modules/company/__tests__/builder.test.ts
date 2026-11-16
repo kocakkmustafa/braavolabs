@@ -29,6 +29,8 @@ const agentCreate = vi.hoisted(() => vi.fn());
 const pipelineCreate = vi.hoisted(() => vi.fn());
 const activityLogCreate = vi.hoisted(() => vi.fn());
 const entitlementFindMany = vi.hoisted(() => vi.fn());
+const memberUpsert = vi.hoisted(() => vi.fn());
+const userFindFirst = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/db", () => ({
   prisma: {
     tenant: { findUnique: (...a: unknown[]) => tenantFindUnique(...a) },
@@ -43,6 +45,8 @@ vi.mock("../../../lib/db", () => ({
     agent: { create: (...a: unknown[]) => agentCreate(...a) },
     pipeline: { create: (...a: unknown[]) => pipelineCreate(...a) },
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
+    companyMember: { upsert: (...a: unknown[]) => memberUpsert(...a) },
+    user: { findFirst: (...a: unknown[]) => userFindFirst(...a) },
     entitlementEvent: { findMany: (...a: unknown[]) => entitlementFindMany(...a) },
   }),
 }));
@@ -273,9 +277,14 @@ describe("startBuildSession — provider resolution honesty (D-013)", () => {
     companyCount.mockResolvedValue(4);
     companyCreate.mockResolvedValue({ id: "co-1", name: "Test Studio" });
     activityLogCreate.mockResolvedValue({});
-    const created = await confirmBuild(session.sessionId, "tenant-1");
+    userFindFirst.mockResolvedValue({ id: "user-1" });
+    memberUpsert.mockResolvedValue({});
+    const created = await confirmBuild(session.sessionId, "tenant-1", "user-1");
     expect(created.status).toBe("created");
     expect(created.companyId).toBe("co-1");
     expect(companyCreate).toHaveBeenCalledOnce();
+    // BRA-P2-07: oluşturan aynı tx'te OWNER
+    expect(memberUpsert).toHaveBeenCalledOnce();
+    expect(memberUpsert.mock.calls[0][0].create).toMatchObject({ tenantId: "tenant-1", companyId: "co-1", userId: "user-1", role: "OWNER" });
   });
 });
