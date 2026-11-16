@@ -24,6 +24,7 @@ import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { toPublicCompany } from "./redact";
 import { buildModelsOverview } from "./models-overview";
 import { buildCompanySummary } from "./summary";
+import { loadCompanyActivity } from "./activity";
 import { BUDGET_CONFIG_KEY, validateBudgetInput } from "./budget";
 import {
   applyCompanyModeSettings,
@@ -868,41 +869,17 @@ companyRouter.post("/:companyId/agents/:agentId/nl-edit/apply", async (req, res,
   } catch (err) { next(err); }
 });
 
-// GET /api/v1/companies/:id/activity — company-specific activity timeline
+// GET /api/v1/companies/:id/activity — BRA-P2-03c: şirket olay günlüğü (salt-okur, newest first, imleçli).
+// Yetki: okuma = kimliği doğrulanmış kiracı üyesi (router düzeyinde authMiddleware; /summary ve /members GET ile aynı);
+// yeni PrivilegedAction yok. Mantık + maskeleme company/activity.ts'te; ham `details` yanıta girmez.
 companyRouter.get("/:id/activity", async (req, res, next) => {
   try {
-    const company = await prisma.company.findFirst({
-      where: { id: req.params.id, tenantId: req.auth!.tenantId },
-    });
-    if (!company) throw new AppError(404, "Company not found");
-
-    const limit = Math.min(Number(req.query.limit) || 50, 100);
-    const offset = Number(req.query.offset) || 0;
-
-    // Filter strictly by resourceId. Earlier this OR'd against a JSONB
-    // path-equality on `details.companyId` — that branch is fragile
-    // (any future writer that puts an attacker-controlled companyId
-    // into the JSON blob without a tenant check would leak rows) and
-    // it's also a planner pessimist: pgsql ends up sequential-scanning
-    // activity_log because no GIN index covers the path expression.
-    // The resourceId column is indexed and tenant-scoped — that's all
-    // we need for the per-company timeline. Anything still writing
-    // activity to `details.companyId` instead of `resourceId` is a
-    // bug at the writer, not a query we should paper over here.
-    const whereClause = {
+    res.json(await loadCompanyActivity(prisma, {
       tenantId: req.auth!.tenantId,
-      resourceId: company.id,
-    };
-    const logs = await prisma.activityLog.findMany({
-      where: whereClause,
-      orderBy: { createdAt: "desc" },
-      take: limit,
-      skip: offset,
-    });
-
-    const total = await prisma.activityLog.count({ where: whereClause });
-
-    res.json({ logs, total, limit, offset });
+      companyId: req.params.id,
+      limitRaw: req.query.limit,
+      cursorRaw: req.query.cursor,
+    }));
   } catch (err) { next(err); }
 });
 
