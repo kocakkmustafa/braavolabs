@@ -1707,12 +1707,9 @@
         "network": "Problema de red. Revisa tu conexión e inténtalo de nuevo.",
         "generic": "No se pudo exportar el paquete piloto. Inténtalo de nuevo."
       },
-      "title": "Piloto",
-      "scenarioName": "Borrador semanal de correo a clientes",
-      "description": "Un piloto para pequeños negocios que prepara un borrador semanal de correo a clientes a partir de datos de clientes sintéticos.",
-      "draftOnly": "Solo borradores: no se envía nada.",
-      "syntheticOnly": "Usa solo datos de ejemplo sintéticos.",
-      "noSecrets": "Sin secretos ni datos reales de clientes.",
+      "title": "Paquete de microaplicación (piloto)",
+      "description": "Un paquete portátil de la configuración de esta empresa (agentes, flujos, etiquetas de conexiones solicitadas) con datos de ejemplo.",
+      "syntheticOnly": "Los datos de ejemplo son sintéticos.",
       "export": "Exportar paquete piloto",
       "exporting": "Exportando…",
       "exported": "Paquete piloto descargado.",
@@ -1724,7 +1721,8 @@
       "previewConnectors": "Conexiones solicitadas",
       "noConnectors": "Ninguna",
       "moreConnectors": "+{count} más",
-      "noData": "Aún no hay datos. Exporta el paquete para previsualizarlo."
+      "noData": "Aún no hay datos. Exporta el paquete para previsualizarlo.",
+      "connectorsNote": "Las etiquetas de conexión de la vista previa muestran las acciones que solicita el paquete. El permiso de envío o escritura lo limita el alcance del conector; este paquete no lo impone."
     },
     "codeChange": {
       "title": "Cambio: {title}",

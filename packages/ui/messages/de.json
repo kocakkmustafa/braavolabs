@@ -1707,12 +1707,9 @@
         "network": "Netzwerkproblem. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
         "generic": "Das Pilotpaket konnte nicht exportiert werden. Versuchen Sie es erneut."
       },
-      "title": "Pilot",
-      "scenarioName": "Wöchentlicher Kunden-E-Mail-Entwurf",
-      "description": "Ein Pilot für kleine Unternehmen, der aus synthetischen Kundendaten einen wöchentlichen Kunden-E-Mail-Entwurf erstellt.",
-      "draftOnly": "Nur Entwürfe: Es wird nichts gesendet.",
-      "syntheticOnly": "Nutzt nur synthetische Beispieldaten.",
-      "noSecrets": "Keine Geheimnisse und keine echten Kundendaten.",
+      "title": "Mikro-App-Paket (Pilot)",
+      "description": "Ein portables Paket der Konfiguration dieses Unternehmens (Agenten, Pipelines, angeforderte Verbindungsbezeichnungen) samt Beispieldaten.",
+      "syntheticOnly": "Die Beispieldaten sind synthetisch.",
       "export": "Pilotpaket exportieren",
       "exporting": "Wird exportiert…",
       "exported": "Pilotpaket heruntergeladen.",
@@ -1724,7 +1721,8 @@
       "previewConnectors": "Angeforderte Verbindungen",
       "noConnectors": "Keine",
       "moreConnectors": "+{count} weitere",
-      "noData": "Noch keine Daten. Exportieren Sie das Paket für die Vorschau."
+      "noData": "Noch keine Daten. Exportieren Sie das Paket für die Vorschau.",
+      "connectorsNote": "Die Verbindungsbezeichnungen in der Vorschau zeigen die vom Paket angeforderten Aktionen. Sende- oder Schreibrechte werden durch den Connector-Scope begrenzt; dieses Paket erzwingt das nicht."
     },
     "codeChange": {
       "title": "Änderung: {title}",

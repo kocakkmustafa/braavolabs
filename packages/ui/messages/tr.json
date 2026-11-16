@@ -1707,12 +1707,9 @@
         "network": "Ağ sorunu. Bağlantınızı kontrol edip yeniden deneyin.",
         "generic": "Pilot paketi dışa aktarılamadı. Yeniden deneyin."
       },
-      "title": "Pilot",
-      "scenarioName": "Haftalık müşteri e-postası taslağı",
-      "description": "Sentetik müşteri verisinden haftalık müşteri e-postası taslağı hazırlayan küçük işletme pilotu.",
-      "draftOnly": "Yalnız taslak: hiçbir şey gönderilmez.",
-      "syntheticOnly": "Yalnızca sentetik örnek veri kullanır.",
-      "noSecrets": "Sır ya da gerçek müşteri verisi yok.",
+      "title": "Mikro-uygulama paketi (pilot)",
+      "description": "Bu şirketin yapılandırmasının (ajanlar, akışlar, istenen bağlantı etiketleri) taşınabilir paketi ve örnek veri.",
+      "syntheticOnly": "Örnek veri sentetiktir.",
       "export": "Pilot paketini dışa aktar",
       "exporting": "Dışa aktarılıyor…",
       "exported": "Pilot paketi indirildi.",
@@ -1724,7 +1721,8 @@
       "previewConnectors": "İstenen bağlantılar",
       "noConnectors": "Yok",
       "moreConnectors": "+{count} daha",
-      "noData": "Henüz veri yok. Önizlemek için paketi dışa aktarın."
+      "noData": "Henüz veri yok. Önizlemek için paketi dışa aktarın.",
+      "connectorsNote": "Önizlemedeki bağlantı etiketleri paketin istediği eylemleri gösterir. Gönderim/yazma yetkisi bağlayıcı kapsamıyla sınırlanır; bu paket bunu zorlamaz."
     },
     "codeChange": {
       "title": "Değişiklik: {title}",

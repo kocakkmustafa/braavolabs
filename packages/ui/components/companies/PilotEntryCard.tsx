@@ -1,14 +1,15 @@
 "use client";
 /**
  * BRA-P1-07-N3 — Şirket sayfasında "Pilot" giriş kartı. Bayrak (NEXT_PUBLIC_UX_PILOT) kapalıyken hiçbir şey çizmez.
- * Senaryo: haftalık müşteri e-postası taslağı (yalnız taslak; gönderim yok; sentetik veri). Eylem: mevcut micro-app ucunu çağırıp JSON'u indirir.
+ * Mikro-uygulama paketi (pilot): bu şirketin yapılandırması + sentetik örnek veri; mevcut micro-app ucu çağrılır, JSON indirilir.
+ * Gönderim/yazma yetkisini paket değil bağlayıcı kapsamı sınırlar; kart bunu zorlama olarak sunmaz.
  */
 import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { api } from "../../lib/api";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { uxPilotEnabled } from "../../lib/pilot-entry/flag";
-import { downloadJsonFile, runPilotExport, type PilotExportState } from "../../lib/pilot-entry/export";
+import { downloadJsonFile, shouldFocusResult, triggerPilotExport, type PilotExportState } from "../../lib/pilot-entry/export";
 
 const card: React.CSSProperties = {
   display: "grid", gap: 12, padding: 16, borderRadius: 14, background: "var(--color-surface-container)", color: "var(--color-on-surface)",
@@ -32,14 +33,13 @@ export default function PilotEntryCard({ companyId, enabled, initialState }: {
   const resultRef = useRef<HTMLDivElement | null>(null);
   useEffect(() => { cancelled.current = false; return () => { cancelled.current = true; }; }, []);
   // Sonuç/hata görününce odak sonuç bölgesine taşınır (klavye ve ekran okuyucu için).
-  useEffect(() => { if (state.status === "done" || state.status === "error") resultRef.current?.focus(); }, [state.status]);
+  useEffect(() => { if (shouldFocusResult(state.status)) resultRef.current?.focus(); }, [state.status]);
 
   if (!on) return null;
   const busy = state.status === "loading";
   const onExport = () => {
-    if (!hydrated || !token || !companyId) return;
-    void runPilotExport({
-      fetchPackage: () => api.exportMicroApp(token, companyId),
+    triggerPilotExport({
+      hydrated, token, companyId, busy, fetchPackage: () => api.exportMicroApp(token as string, companyId),
       download: downloadJsonFile, setState, lock, isCancelled: () => cancelled.current,
     });
   };
@@ -49,12 +49,10 @@ export default function PilotEntryCard({ companyId, enabled, initialState }: {
     <section aria-labelledby="pilot-entry-h" data-testid="pilot-entry-card" className="mb-6" style={card} aria-busy={busy}>
       <h2 id="pilot-entry-h" className="bv-title" style={{ margin: 0 }}>{pt("title")}</h2>
       <div style={{ display: "grid", gap: 4 }}>
-        <strong data-testid="pilot-entry-scenario">{pt("scenarioName")}</strong>
         <p style={muted}>{pt("description")}</p>
         <ul style={{ ...muted, paddingInlineStart: 18, margin: 0 }} data-testid="pilot-entry-notes">
-          <li>{pt("draftOnly")}</li>
           <li>{pt("syntheticOnly")}</li>
-          <li>{pt("noSecrets")}</li>
+          <li>{pt("connectorsNote")}</li>
         </ul>
       </div>
       <div>

@@ -1707,12 +1707,9 @@
         "network": "网络问题。请检查连接后重试。",
         "generic": "无法导出试点包，请重试。"
       },
-      "title": "试点",
-      "scenarioName": "每周客户邮件草稿",
-      "description": "一个小型企业试点，根据合成客户数据准备每周客户邮件草稿。",
-      "draftOnly": "仅生成草稿：不会发送任何内容。",
-      "syntheticOnly": "仅使用合成示例数据。",
-      "noSecrets": "不含密钥或真实客户数据。",
+      "title": "微应用包（试点）",
+      "description": "此公司配置（智能体、流水线、请求的连接标签）加示例数据的可移植包。",
+      "syntheticOnly": "示例数据为合成数据。",
       "export": "导出试点包",
       "exporting": "正在导出…",
       "exported": "试点包已下载。",
@@ -1724,7 +1721,8 @@
       "previewConnectors": "请求的连接",
       "noConnectors": "无",
       "moreConnectors": "另有 {count} 项",
-      "noData": "暂无数据。导出试点包后即可预览。"
+      "noData": "暂无数据。导出试点包后即可预览。",
+      "connectorsNote": "预览中的连接标签显示该包请求的操作。发送或写入权限由连接器范围限制，此包不会强制执行。"
     },
     "codeChange": {
       "title": "变更：{title}",

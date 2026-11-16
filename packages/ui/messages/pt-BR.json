@@ -1707,12 +1707,9 @@
         "network": "Problema de rede. Verifique sua conexão e tente novamente.",
         "generic": "Não foi possível exportar o pacote piloto. Tente novamente."
       },
-      "title": "Piloto",
-      "scenarioName": "Rascunho semanal de e-mail para clientes",
-      "description": "Um piloto para pequenas empresas que prepara um rascunho semanal de e-mail para clientes a partir de dados sintéticos de clientes.",
-      "draftOnly": "Apenas rascunhos: nada é enviado.",
-      "syntheticOnly": "Usa apenas dados de exemplo sintéticos.",
-      "noSecrets": "Sem segredos nem dados reais de clientes.",
+      "title": "Pacote de microaplicativo (piloto)",
+      "description": "Um pacote portátil da configuração desta empresa (agentes, pipelines, rótulos de conexões solicitadas) com dados de exemplo.",
+      "syntheticOnly": "Os dados de exemplo são sintéticos.",
       "export": "Exportar pacote piloto",
       "exporting": "Exportando…",
       "exported": "Pacote piloto baixado.",
@@ -1724,7 +1721,8 @@
       "previewConnectors": "Conexões solicitadas",
       "noConnectors": "Nenhuma",
       "moreConnectors": "+{count} a mais",
-      "noData": "Ainda sem dados. Exporte o pacote para ver a prévia."
+      "noData": "Ainda sem dados. Exporte o pacote para ver a prévia.",
+      "connectorsNote": "Os rótulos de conexão na prévia mostram as ações que o pacote solicita. A permissão de envio ou escrita é limitada pelo escopo do conector; este pacote não a impõe."
     },
     "codeChange": {
       "title": "Alteração: {title}",

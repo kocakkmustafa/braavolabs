@@ -1707,12 +1707,9 @@
         "network": "Problema di rete. Controlla la connessione e riprova.",
         "generic": "Impossibile esportare il pacchetto pilota. Riprova."
       },
-      "title": "Pilota",
-      "scenarioName": "Bozza settimanale dell'e-mail ai clienti",
-      "description": "Un pilota per piccole imprese che prepara una bozza settimanale di e-mail ai clienti da dati cliente sintetici.",
-      "draftOnly": "Solo bozze: non viene inviato nulla.",
-      "syntheticOnly": "Usa solo dati di esempio sintetici.",
-      "noSecrets": "Nessun segreto né dato reale dei clienti.",
+      "title": "Pacchetto micro-app (pilota)",
+      "description": "Un pacchetto portabile della configurazione di questa azienda (agenti, pipeline, etichette delle connessioni richieste) con dati di esempio.",
+      "syntheticOnly": "I dati di esempio sono sintetici.",
       "export": "Esporta il pacchetto pilota",
       "exporting": "Esportazione…",
       "exported": "Pacchetto pilota scaricato.",
@@ -1724,7 +1721,8 @@
       "previewConnectors": "Connessioni richieste",
       "noConnectors": "Nessuna",
       "moreConnectors": "+{count} altre",
-      "noData": "Ancora nessun dato. Esporta il pacchetto per vedere l'anteprima."
+      "noData": "Ancora nessun dato. Esporta il pacchetto per vedere l'anteprima.",
+      "connectorsNote": "Le etichette di connessione nell'anteprima mostrano le azioni richieste dal pacchetto. L'autorizzazione a inviare o scrivere è limitata dall'ambito del connettore; questo pacchetto non la impone."
     },
     "codeChange": {
       "title": "Modifica: {title}",

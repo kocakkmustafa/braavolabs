@@ -1707,12 +1707,9 @@
         "network": "Problem z siecią. Sprawdź połączenie i spróbuj ponownie.",
         "generic": "Nie udało się wyeksportować pakietu pilotażowego. Spróbuj ponownie."
       },
-      "title": "Pilotaż",
-      "scenarioName": "Cotygodniowy szkic e-maila do klientów",
-      "description": "Pilotaż dla małych firm, który przygotowuje cotygodniowy szkic e-maila do klientów z syntetycznych danych klientów.",
-      "draftOnly": "Tylko szkice: nic nie jest wysyłane.",
-      "syntheticOnly": "Używa wyłącznie syntetycznych danych przykładowych.",
-      "noSecrets": "Bez sekretów i prawdziwych danych klientów.",
+      "title": "Pakiet mikroaplikacji (pilotaż)",
+      "description": "Przenośny pakiet konfiguracji tej firmy (agenci, potoki, etykiety żądanych połączeń) wraz z danymi przykładowymi.",
+      "syntheticOnly": "Dane przykładowe są syntetyczne.",
       "export": "Eksportuj pakiet pilotażowy",
       "exporting": "Eksportowanie…",
       "exported": "Pobrano pakiet pilotażowy.",
@@ -1724,7 +1721,8 @@
       "previewConnectors": "Żądane połączenia",
       "noConnectors": "Brak",
       "moreConnectors": "+{count} więcej",
-      "noData": "Brak danych. Wyeksportuj pakiet, aby zobaczyć podgląd."
+      "noData": "Brak danych. Wyeksportuj pakiet, aby zobaczyć podgląd.",
+      "connectorsNote": "Etykiety połączeń w podglądzie pokazują działania żądane przez pakiet. Uprawnienie do wysyłania lub zapisu jest ograniczone zakresem konektora; ten pakiet go nie wymusza."
     },
     "codeChange": {
       "title": "Zmiana: {title}",

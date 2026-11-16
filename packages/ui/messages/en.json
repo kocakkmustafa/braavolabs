@@ -1707,12 +1707,9 @@
         "network": "Network problem. Check your connection and try again.",
         "generic": "Could not export the pilot package. Try again."
       },
-      "title": "Pilot",
-      "scenarioName": "Weekly customer email draft",
-      "description": "A small-business pilot that prepares a weekly customer email draft from synthetic customer data.",
-      "draftOnly": "Drafts only: nothing is sent.",
-      "syntheticOnly": "Uses synthetic sample data only.",
-      "noSecrets": "No secrets or real customer data.",
+      "title": "Micro-app package (pilot)",
+      "description": "A portable package of this company's setup (agents, pipelines, requested connection labels) plus sample data.",
+      "syntheticOnly": "Sample data is synthetic.",
       "export": "Export pilot package",
       "exporting": "Exporting…",
       "exported": "Pilot package downloaded.",
@@ -1724,7 +1721,8 @@
       "previewConnectors": "Requested connections",
       "noConnectors": "None",
       "moreConnectors": "+{count} more",
-      "noData": "No data yet. Export the package to preview it."
+      "noData": "No data yet. Export the package to preview it.",
+      "connectorsNote": "Connection labels in the preview show the actions the package requests. Sending or writing permission is limited by the connector scope; this package does not enforce it."
     },
     "codeChange": {
       "title": "Change: {title}",

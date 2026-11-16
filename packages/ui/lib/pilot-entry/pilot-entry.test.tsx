@@ -15,7 +15,7 @@ vi.mock("../store", () => ({
 import PilotEntryCard from "../../components/companies/PilotEntryCard";
 import { uxPilotEnabled } from "./flag";
 import { toPilotPreview } from "./preview";
-import { classifyPilotError, runPilotExport, PILOT_FILE_NAME, downloadJsonFile, type PilotExportState } from "./export";
+import { classifyPilotError, runPilotExport, pilotFileName, triggerPilotExport, shouldFocusResult, downloadJsonFile, type PilotExportState } from "./export";
 import { MASK } from "../ux-kaput/mask";
 
 const pkg = (over: Record<string, unknown> = {}) => ({
@@ -33,7 +33,7 @@ function deps(fetchPackage: () => Promise<unknown>) {
   const states: PilotExportState[] = [];
   const download = vi.fn();
   const lock = { current: false };
-  return { states, download, lock, d: { fetchPackage, download, setState: (s: PilotExportState) => states.push(s), lock } };
+  return { states, download, lock, d: { fileName: "f.json", fetchPackage, download, setState: (s: PilotExportState) => states.push(s), lock } };
 }
 
 describe("bayrak ve görünürlük", () => {
@@ -47,8 +47,7 @@ describe("bayrak ve görünürlük", () => {
   it("açıkken kart, senaryo ve notlar görünür", () => {
     const h = html();
     expect(h).toContain('data-testid="pilot-entry-card"');
-    expect(h).toContain("app.pilotEntry.scenarioName");
-    for (const k of ["draftOnly", "syntheticOnly", "noSecrets"]) expect(h).toContain(`app.pilotEntry.${k}`);
+    for (const k of ["description", "syntheticOnly", "connectorsNote"]) expect(h).toContain(`app.pilotEntry.${k}`);
   });
 });
 
@@ -59,7 +58,7 @@ describe("dışa aktarma", () => {
     expect(f.states.map((s) => s.status)).toEqual(["loading", "done"]);
     expect(f.download).toHaveBeenCalledTimes(1);
     const [name, json] = f.download.mock.calls[0] as unknown as [string, string];
-    expect(name).toBe(PILOT_FILE_NAME);
+    expect(name).toBe("f.json");
     expect(name).not.toMatch(/c1|tenant/);
     expect(JSON.parse(json)).toEqual(pkg());
     expect(f.lock.current).toBe(false);
@@ -158,6 +157,83 @@ describe("erişilebilirlik", () => {
   it("RTL: yön-bağımsız mantıksal stil, adlar bdi içinde", () => {
     const h = html({ initialState: { status: "done", preview: toPilotPreview(pkg())! } });
     expect(h).toContain("<bdi>"); expect(h).not.toMatch(/margin-?left|padding-?left|text-align:\s*left/i);
+  });
+});
+
+describe("dosya adı, oturum hatası, tetikleyici, odak, revoke", () => {
+  it("dosya adı: ilk 8 güvenli karakter, yol/kontrol karakteri atılır, boşsa yedek", () => {
+    expect(pilotFileName("ABCDEF12-3456-7890")).toBe("braavolabs-micro-app-abcdef12.json");
+    expect(pilotFileName("../../etc/passwd")).toBe("braavolabs-micro-app-etcpassw.json");
+    expect(pilotFileName("a\u0000b\n/c.d")).toBe("braavolabs-micro-app-abcd.json");
+    expect(pilotFileName("---")).toBe("braavolabs-micro-app-company.json");
+    expect(pilotFileName("")).toMatch(/^braavolabs-micro-app-company\.json$/);
+    expect(pilotFileName("c1")).not.toBe(pilotFileName("c2"));
+    expect(pilotFileName("x".repeat(40))).toMatch(/^braavolabs-micro-app-[a-z0-9-]{1,8}\.json$/);
+  });
+  it("SessionChangedError → auth", async () => {
+    const { SessionChangedError } = await import("../api");
+    expect(classifyPilotError(new SessionChangedError())).toBe("auth");
+  });
+  it("tıklama → istek: hazırken bir kez başlar, dosya adı şirketten gelir", async () => {
+    const f = deps(async () => pkg());
+    const fetchPackage = vi.fn(f.d.fetchPackage);
+    const ctx = { hydrated: true, token: "t", companyId: "company-12345", busy: false, ...f.d, fetchPackage };
+    expect(triggerPilotExport(ctx)).toBe(true);
+    await vi.waitFor(() => expect(f.download).toHaveBeenCalledTimes(1));
+    expect(f.download.mock.calls[0][0]).toBe("braavolabs-micro-app-company-.json");
+    expect(fetchPackage).toHaveBeenCalledTimes(1);
+  });
+  it("aria-disabled düğmede (meşgul/kilitli/oturumsuz) tıklama ikinci istek başlatmaz", () => {
+    const fetchPackage = vi.fn(async () => pkg());
+    const f = deps(fetchPackage);
+    const base = { hydrated: true, token: "t", companyId: "c1", busy: false, ...f.d };
+    expect(triggerPilotExport({ ...base, busy: true })).toBe(false);
+    expect(triggerPilotExport({ ...base, hydrated: false })).toBe(false);
+    expect(triggerPilotExport({ ...base, token: null })).toBe(false);
+    expect(triggerPilotExport({ ...base, companyId: "" })).toBe(false);
+    f.lock.current = true;
+    expect(triggerPilotExport(base)).toBe(false);
+    expect(fetchPackage).not.toHaveBeenCalled();
+  });
+  it("art arda iki tetik: tek istek", () => {
+    const fetchPackage = vi.fn(() => new Promise<unknown>(() => {}));
+    const f = deps(fetchPackage);
+    const base = { hydrated: true, token: "t", companyId: "c1", busy: false, ...f.d };
+    expect(triggerPilotExport(base)).toBe(true);
+    expect(triggerPilotExport(base)).toBe(false);
+    expect(fetchPackage).toHaveBeenCalledTimes(1);
+  });
+  it("odak yalnız sonuç/hata durumunda; bileşen effect'i bu kararı kullanır", () => {
+    expect(shouldFocusResult("done")).toBe(true); expect(shouldFocusResult("error")).toBe(true);
+    expect(shouldFocusResult("idle")).toBe(false); expect(shouldFocusResult("loading")).toBe(false);
+    const src = readFileSync(resolve(process.cwd(), "components/companies/PilotEntryCard.tsx"), "utf8");
+    expect(src).toMatch(/if \(shouldFocusResult\(state\.status\)\) resultRef\.current\?\.focus\(\)/);
+    expect(src).toMatch(/onClick=\{onExport\}/); expect(src).toContain("triggerPilotExport(");
+  });
+  it("downloadJsonFile: object URL zamanlayıcıdan sonra serbest bırakılır", () => {
+    vi.useFakeTimers();
+    const a: any = { click: vi.fn(), remove: vi.fn() };
+    const revoke = vi.fn();
+    vi.stubGlobal("document", { createElement: () => a, body: { appendChild: vi.fn() } });
+    vi.stubGlobal("URL", { createObjectURL: () => "blob:y", revokeObjectURL: revoke });
+    downloadJsonFile("f.json", "{}");
+    expect(revoke).not.toHaveBeenCalled();
+    vi.runAllTimers();
+    expect(revoke).toHaveBeenCalledWith("blob:y");
+    vi.useRealTimers(); vi.unstubAllGlobals();
+  });
+  it("dürüst metin: 15 dilde e-posta/taslak/gönderilmez/gerçek-müşteri iddiası yok; kalan bayrak kopyası en.json", () => {
+    const dir = resolve(process.cwd(), "messages");
+    const en = JSON.parse(readFileSync(resolve(dir, "en.json"), "utf8")).app.pilotEntry;
+    expect(en.scenarioName).toBeUndefined(); expect(en.draftOnly).toBeUndefined(); expect(en.noSecrets).toBeUndefined();
+    const text = JSON.stringify(en).toLowerCase();
+    for (const bad of ["email", "draft", "nothing is sent", "real customer"]) expect(text.replace(/"error":\{[^}]*\}/, "")).not.toContain(bad);
+    expect(en.connectorsNote).toMatch(/does not enforce/);
+    for (const f of readdirSync(dir).filter((n) => n.endsWith(".json"))) {
+      const p = JSON.parse(readFileSync(resolve(dir, f), "utf8")).app.pilotEntry;
+      expect(p.scenarioName, f).toBeUndefined(); expect(p.draftOnly, f).toBeUndefined(); expect(p.noSecrets, f).toBeUndefined();
+      expect(typeof p.connectorsNote, f).toBe("string");
+    }
   });
 });
 

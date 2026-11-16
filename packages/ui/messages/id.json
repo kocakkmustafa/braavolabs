@@ -1707,12 +1707,9 @@
         "network": "Masalah jaringan. Periksa koneksi Anda lalu coba lagi.",
         "generic": "Paket pilot tidak dapat diekspor. Coba lagi."
       },
-      "title": "Pilot",
-      "scenarioName": "Draf email pelanggan mingguan",
-      "description": "Pilot usaha kecil yang menyiapkan draf email pelanggan mingguan dari data pelanggan sintetis.",
-      "draftOnly": "Hanya draf: tidak ada yang dikirim.",
-      "syntheticOnly": "Hanya memakai data contoh sintetis.",
-      "noSecrets": "Tanpa rahasia atau data pelanggan asli.",
+      "title": "Paket aplikasi mikro (pilot)",
+      "description": "Paket portabel konfigurasi perusahaan ini (agen, pipeline, label koneksi yang diminta) beserta data contoh.",
+      "syntheticOnly": "Data contoh bersifat sintetis.",
       "export": "Ekspor paket pilot",
       "exporting": "Mengekspor…",
       "exported": "Paket pilot diunduh.",
@@ -1724,7 +1721,8 @@
       "previewConnectors": "Koneksi yang diminta",
       "noConnectors": "Tidak ada",
       "moreConnectors": "+{count} lagi",
-      "noData": "Belum ada data. Ekspor paket untuk melihat pratinjau."
+      "noData": "Belum ada data. Ekspor paket untuk melihat pratinjau.",
+      "connectorsNote": "Label koneksi di pratinjau menunjukkan tindakan yang diminta paket. Izin mengirim atau menulis dibatasi oleh cakupan konektor; paket ini tidak memaksakannya."
     },
     "codeChange": {
       "title": "Perubahan: {title}",
