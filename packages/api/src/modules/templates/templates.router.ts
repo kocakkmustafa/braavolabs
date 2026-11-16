@@ -32,6 +32,8 @@ templatesRouter.get("/", systemScope("route:templates-public"), async (req, res,
     // Body stays a bare array (backwards compatible); the next page token
     // travels in a header so existing consumers are not broken.
     if (page.nextCursor) res.setHeader("X-Next-Cursor", page.nextCursor);
+    // Legacy mode cut at LEGACY_LIST_HARD_MAX rows: signal it (page via sort=newest).
+    if (page.truncated) res.setHeader("X-Truncated", "true");
     res.json(page.items);
   } catch (err) { next(err); }
 });

@@ -81,7 +81,7 @@ describe("GET /templates filters", () => {
     expect(r.status).toBe(200);
     expect(Array.isArray(r.body)).toBe(true);
     expect(lastArgs.orderBy).toEqual([{ ratingAvg: "desc" }, { installCount: "desc" }, { name: "asc" }]);
-    expect(lastArgs.take).toBeUndefined();
+    expect(lastArgs.take).toBe(501);
     expect(r.body.map((x: any) => x.slug)).toEqual(["s2", "s4", "s3", "s1"]);
     expect(r.next).toBeNull();
     expect(lastArgs.where).toMatchObject({ visibility: "PUBLIC", isApproved: true });
@@ -111,6 +111,25 @@ describe("GET /templates filters", () => {
     for (const qs of ["?pricing=free", "?sort=oldest", "?category=NOPE", "?primitives=SALES,BAD", "?bogus=1", "?pricing=FREE&pricing=PAID"]) {
       expect((await get(qs)).status).toBe(400);
     }
+  });
+});
+
+describe("legacy hard cap", () => {
+  it("501 templates -> 500 rows, X-Truncated, legacy order kept", async () => {
+    rows = Array.from({ length: 501 }, (_, i) => mk(i + 1, { ratingAvg: i }));
+    const res = await fetch(base + "/t/");
+    const body: any[] = await res.json();
+    expect(lastArgs.take).toBe(501);
+    expect(lastArgs.orderBy).toEqual([{ ratingAvg: "desc" }, { installCount: "desc" }, { name: "asc" }]);
+    expect(body).toHaveLength(500);
+    expect(body[0].slug).toBe("s501");
+    expect(res.headers.get("x-truncated")).toBe("true");
+  });
+  it("exactly 500 -> not truncated", async () => {
+    rows = Array.from({ length: 500 }, (_, i) => mk(i + 1));
+    const res = await fetch(base + "/t/");
+    expect((await res.json()).length).toBe(500);
+    expect(res.headers.get("x-truncated")).toBeNull();
   });
 });
 

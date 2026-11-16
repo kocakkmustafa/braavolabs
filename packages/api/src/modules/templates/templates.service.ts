@@ -341,9 +341,18 @@ export const templateListQuerySchema = z.object({
   cursor: z.string().optional(),
 }).strict();
 
+/**
+ * Server-side hard cap for the legacy (sort=rating, no limit) listing. The
+ * pre-filter endpoint was unbounded and the catalog is small, so existing
+ * callers keep working; but an unbounded read is a resource-exhaustion
+ * vector as the catalog grows. Anything past this is only reachable through
+ * sort=newest + cursor paging.
+ */
+export const LEGACY_LIST_HARD_MAX = 500;
+
 const LEGACY_ORDER = [{ ratingAvg: "desc" as const }, { installCount: "desc" as const }, { name: "asc" as const }];
 
-export async function listPublicTemplates(rawQuery: unknown): Promise<{ items: unknown[]; nextCursor: string | null }> {
+export async function listPublicTemplates(rawQuery: unknown): Promise<{ items: unknown[]; nextCursor: string | null; truncated: boolean }> {
   const q = templateListQuerySchema.parse(rawQuery ?? {});
   const newest = q.sort === "newest";
   // Keyset paging needs a total order made of IMMUTABLE columns. The legacy
@@ -351,10 +360,11 @@ export async function listPublicTemplates(rawQuery: unknown): Promise<{ items: u
   // cursor over it would skip/duplicate rows between pages. Hence cursors
   // exist only for sort=newest (createdAt desc, id desc).
   if (!newest && q.cursor !== undefined) throw new AppError(400, "cursor sort=newest gerektirir");
-  // newest: default 24 / max 100. rating: unbounded unless limit given (cap only).
+  // newest: default 24 / max 100. rating: limit (max 100) is a plain cap;
+  // without limit the hard cap LEGACY_LIST_HARD_MAX applies (take = cap + 1 to detect truncation).
   const limit = parseLimit(q.limit, TEMPLATE_LIST_DEFAULT_LIMIT, TEMPLATE_LIST_MAX_LIMIT);
   if (limit === null) throw new AppError(400, "Invalid limit. Use an integer between 1 and " + TEMPLATE_LIST_MAX_LIMIT + ".");
-  const take = newest ? limit + 1 : q.limit === undefined ? undefined : limit;
+  const take = newest ? limit + 1 : q.limit === undefined ? LEGACY_LIST_HARD_MAX + 1 : limit;
   const cursor = q.cursor === undefined ? undefined : decodeCursor(q.cursor);
   if (cursor === null) throw new AppError(400, "Invalid cursor.");
 
@@ -386,9 +396,12 @@ export async function listPublicTemplates(rawQuery: unknown): Promise<{ items: u
       installCount: true, ratingAvg: true, ratingCount: true, createdAt: true,
     },
   });
-  if (!newest) return { items: rows, nextCursor: null };
+  if (!newest) {
+    const truncated = q.limit === undefined && rows.length > LEGACY_LIST_HARD_MAX;
+    return { items: truncated ? rows.slice(0, LEGACY_LIST_HARD_MAX) : rows, nextCursor: null, truncated };
+  }
   const hasMore = rows.length > limit;
   const items = hasMore ? rows.slice(0, limit) : rows;
   const last = items[items.length - 1];
-  return { items, nextCursor: hasMore && last ? encodeCursor(last) : null };
+  return { items, nextCursor: hasMore && last ? encodeCursor(last) : null, truncated: false };
 }
