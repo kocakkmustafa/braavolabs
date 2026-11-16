@@ -180,7 +180,7 @@ describe("manifest hardening", () => {
 
   it("padding cannot push a secret across the cut line (leaves no prefix behind)", () => {
     const rnd = "Zq9Xw3Lm7Rt2Vb8Nc4Hd6Jf1Kg5Ps0Yu3Ae7Ox";
-    const secrets = ["sk-live-" + rnd, "ghp_" + rnd, "AKIAZQ9XW3LM7RT2VB8N", "eyJ" + rnd];
+    const secrets = ["sk-live-" + rnd, "ghp_" + rnd, "AKIAIOSFODNN7EXAMPLE", "eyJ" + rnd];
     const leftovers = ["sk-l", "ghp_", "AKIA", "eyJ"];
     const pads = [" ", "\t", "\n", " \t\n"];
     const MAX = 200; // agent name limit
