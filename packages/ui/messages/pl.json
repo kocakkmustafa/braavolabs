@@ -1699,6 +1699,33 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "Sesja wygasła. Zaloguj się ponownie.",
+        "forbidden": "Nie masz uprawnień do eksportu tej firmy.",
+        "notFound": "Nie znaleziono firmy.",
+        "network": "Problem z siecią. Sprawdź połączenie i spróbuj ponownie.",
+        "generic": "Nie udało się wyeksportować pakietu pilotażowego. Spróbuj ponownie."
+      },
+      "title": "Pilotaż",
+      "scenarioName": "Cotygodniowy szkic e-maila do klientów",
+      "description": "Pilotaż dla małych firm, który przygotowuje cotygodniowy szkic e-maila do klientów z syntetycznych danych klientów.",
+      "draftOnly": "Tylko szkice: nic nie jest wysyłane.",
+      "syntheticOnly": "Używa wyłącznie syntetycznych danych przykładowych.",
+      "noSecrets": "Bez sekretów i prawdziwych danych klientów.",
+      "export": "Eksportuj pakiet pilotażowy",
+      "exporting": "Eksportowanie…",
+      "exported": "Pobrano pakiet pilotażowy.",
+      "previewTitle": "Podgląd pakietu",
+      "previewName": "Nazwa",
+      "previewAgents": "Agenci",
+      "previewPipelines": "Potoki",
+      "previewRecords": "Rekordy",
+      "previewConnectors": "Żądane połączenia",
+      "noConnectors": "Brak",
+      "moreConnectors": "+{count} więcej",
+      "noData": "Brak danych. Wyeksportuj pakiet, aby zobaczyć podgląd."
+    },
     "codeChange": {
       "title": "Zmiana: {title}",
       "titleGeneric": "Zmiana w kodzie",

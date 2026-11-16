@@ -1699,6 +1699,33 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "세션이 만료되었습니다. 다시 로그인하세요.",
+        "forbidden": "이 회사를 내보낼 권한이 없습니다.",
+        "notFound": "회사를 찾을 수 없습니다.",
+        "network": "네트워크 문제입니다. 연결을 확인하고 다시 시도하세요.",
+        "generic": "파일럿 패키지를 내보낼 수 없습니다. 다시 시도하세요."
+      },
+      "title": "파일럿",
+      "scenarioName": "주간 고객 이메일 초안",
+      "description": "합성 고객 데이터로 주간 고객 이메일 초안을 준비하는 소규모 비즈니스 파일럿입니다.",
+      "draftOnly": "초안만 작성되며 아무것도 발송되지 않습니다.",
+      "syntheticOnly": "합성 샘플 데이터만 사용합니다.",
+      "noSecrets": "비밀 정보나 실제 고객 데이터가 없습니다.",
+      "export": "파일럿 패키지 내보내기",
+      "exporting": "내보내는 중…",
+      "exported": "파일럿 패키지를 다운로드했습니다.",
+      "previewTitle": "패키지 미리보기",
+      "previewName": "이름",
+      "previewAgents": "에이전트",
+      "previewPipelines": "파이프라인",
+      "previewRecords": "레코드",
+      "previewConnectors": "요청된 연결",
+      "noConnectors": "없음",
+      "moreConnectors": "+{count}개 더",
+      "noData": "아직 데이터가 없습니다. 패키지를 내보내면 미리 볼 수 있습니다."
+    },
     "codeChange": {
       "title": "변경: {title}",
       "titleGeneric": "코드 변경",

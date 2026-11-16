@@ -1699,6 +1699,33 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "Tu sesión ha caducado. Inicia sesión de nuevo.",
+        "forbidden": "No tienes permiso para exportar esta empresa.",
+        "notFound": "Empresa no encontrada.",
+        "network": "Problema de red. Revisa tu conexión e inténtalo de nuevo.",
+        "generic": "No se pudo exportar el paquete piloto. Inténtalo de nuevo."
+      },
+      "title": "Piloto",
+      "scenarioName": "Borrador semanal de correo a clientes",
+      "description": "Un piloto para pequeñas empresas que prepara un borrador semanal de correo a clientes a partir de datos de clientes sintéticos.",
+      "draftOnly": "Solo borradores: no se envía nada.",
+      "syntheticOnly": "Usa solo datos de ejemplo sintéticos.",
+      "noSecrets": "Sin secretos ni datos reales de clientes.",
+      "export": "Exportar paquete piloto",
+      "exporting": "Exportando…",
+      "exported": "Paquete piloto descargado.",
+      "previewTitle": "Vista previa del paquete",
+      "previewName": "Nombre",
+      "previewAgents": "Agentes",
+      "previewPipelines": "Flujos",
+      "previewRecords": "Registros",
+      "previewConnectors": "Conexiones solicitadas",
+      "noConnectors": "Ninguna",
+      "moreConnectors": "+{count} más",
+      "noData": "Aún no hay datos. Exporta el paquete para previsualizarlo."
+    },
     "codeChange": {
       "title": "Cambio: {title}",
       "titleGeneric": "Cambio de código",

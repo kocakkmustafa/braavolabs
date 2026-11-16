@@ -1699,6 +1699,33 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "Sua sessão expirou. Entre novamente.",
+        "forbidden": "Você não tem permissão para exportar esta empresa.",
+        "notFound": "Empresa não encontrada.",
+        "network": "Problema de rede. Verifique sua conexão e tente novamente.",
+        "generic": "Não foi possível exportar o pacote piloto. Tente novamente."
+      },
+      "title": "Piloto",
+      "scenarioName": "Rascunho semanal de e-mail para clientes",
+      "description": "Um piloto para pequenas empresas que prepara um rascunho semanal de e-mail para clientes a partir de dados sintéticos de clientes.",
+      "draftOnly": "Apenas rascunhos: nada é enviado.",
+      "syntheticOnly": "Usa apenas dados de exemplo sintéticos.",
+      "noSecrets": "Sem segredos nem dados reais de clientes.",
+      "export": "Exportar pacote piloto",
+      "exporting": "Exportando…",
+      "exported": "Pacote piloto baixado.",
+      "previewTitle": "Prévia do pacote",
+      "previewName": "Nome",
+      "previewAgents": "Agentes",
+      "previewPipelines": "Pipelines",
+      "previewRecords": "Registros",
+      "previewConnectors": "Conexões solicitadas",
+      "noConnectors": "Nenhuma",
+      "moreConnectors": "+{count} a mais",
+      "noData": "Ainda sem dados. Exporte o pacote para ver a prévia."
+    },
     "codeChange": {
       "title": "Alteração: {title}",
       "titleGeneric": "Alteração de código",

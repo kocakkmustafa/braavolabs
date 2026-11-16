@@ -1699,6 +1699,33 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "Oturumunuzun süresi doldu. Lütfen yeniden giriş yapın.",
+        "forbidden": "Bu şirketi dışa aktarma izniniz yok.",
+        "notFound": "Şirket bulunamadı.",
+        "network": "Ağ sorunu. Bağlantınızı kontrol edip yeniden deneyin.",
+        "generic": "Pilot paketi dışa aktarılamadı. Yeniden deneyin."
+      },
+      "title": "Pilot",
+      "scenarioName": "Haftalık müşteri e-postası taslağı",
+      "description": "Sentetik müşteri verisinden haftalık müşteri e-postası taslağı hazırlayan küçük işletme pilotu.",
+      "draftOnly": "Yalnız taslak: hiçbir şey gönderilmez.",
+      "syntheticOnly": "Yalnızca sentetik örnek veri kullanır.",
+      "noSecrets": "Sır ya da gerçek müşteri verisi yok.",
+      "export": "Pilot paketini dışa aktar",
+      "exporting": "Dışa aktarılıyor…",
+      "exported": "Pilot paketi indirildi.",
+      "previewTitle": "Paket önizlemesi",
+      "previewName": "Ad",
+      "previewAgents": "Ajanlar",
+      "previewPipelines": "Akışlar",
+      "previewRecords": "Kayıtlar",
+      "previewConnectors": "İstenen bağlantılar",
+      "noConnectors": "Yok",
+      "moreConnectors": "+{count} daha",
+      "noData": "Henüz veri yok. Önizlemek için paketi dışa aktarın."
+    },
     "codeChange": {
       "title": "Değişiklik: {title}",
       "titleGeneric": "Kod değişikliği",

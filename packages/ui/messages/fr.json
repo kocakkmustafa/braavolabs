@@ -1699,6 +1699,33 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "Votre session a expiré. Veuillez vous reconnecter.",
+        "forbidden": "Vous n'avez pas l'autorisation d'exporter cette entreprise.",
+        "notFound": "Entreprise introuvable.",
+        "network": "Problème réseau. Vérifiez votre connexion et réessayez.",
+        "generic": "Impossible d'exporter le paquet pilote. Réessayez."
+      },
+      "title": "Pilote",
+      "scenarioName": "Brouillon hebdomadaire d'e-mail client",
+      "description": "Un pilote pour petites entreprises qui prépare un brouillon hebdomadaire d'e-mail client à partir de données clients synthétiques.",
+      "draftOnly": "Brouillons uniquement : rien n'est envoyé.",
+      "syntheticOnly": "Utilise uniquement des données d'exemple synthétiques.",
+      "noSecrets": "Aucun secret ni donnée client réelle.",
+      "export": "Exporter le paquet pilote",
+      "exporting": "Exportation…",
+      "exported": "Paquet pilote téléchargé.",
+      "previewTitle": "Aperçu du paquet",
+      "previewName": "Nom",
+      "previewAgents": "Agents",
+      "previewPipelines": "Pipelines",
+      "previewRecords": "Enregistrements",
+      "previewConnectors": "Connexions demandées",
+      "noConnectors": "Aucune",
+      "moreConnectors": "+{count} de plus",
+      "noData": "Pas encore de données. Exportez le paquet pour l'aperçu."
+    },
     "codeChange": {
       "title": "Modification : {title}",
       "titleGeneric": "Modification de code",

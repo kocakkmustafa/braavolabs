@@ -1699,6 +1699,33 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "Your session has expired. Please sign in again.",
+        "forbidden": "You do not have permission to export this company.",
+        "notFound": "Company not found.",
+        "network": "Network problem. Check your connection and try again.",
+        "generic": "Could not export the pilot package. Try again."
+      },
+      "title": "Pilot",
+      "scenarioName": "Weekly customer email draft",
+      "description": "A small-business pilot that prepares a weekly customer email draft from synthetic customer data.",
+      "draftOnly": "Drafts only: nothing is sent.",
+      "syntheticOnly": "Uses synthetic sample data only.",
+      "noSecrets": "No secrets or real customer data.",
+      "export": "Export pilot package",
+      "exporting": "Exporting…",
+      "exported": "Pilot package downloaded.",
+      "previewTitle": "Package preview",
+      "previewName": "Name",
+      "previewAgents": "Agents",
+      "previewPipelines": "Pipelines",
+      "previewRecords": "Records",
+      "previewConnectors": "Requested connections",
+      "noConnectors": "None",
+      "moreConnectors": "+{count} more",
+      "noData": "No data yet. Export the package to preview it."
+    },
     "codeChange": {
       "title": "Change: {title}",
       "titleGeneric": "Code change",

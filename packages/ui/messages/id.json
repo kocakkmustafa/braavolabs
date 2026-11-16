@@ -1699,6 +1699,33 @@
         }
       }
     },
+    "pilotEntry": {
+      "error": {
+        "auth": "Sesi Anda telah berakhir. Silakan masuk lagi.",
+        "forbidden": "Anda tidak punya izin untuk mengekspor perusahaan ini.",
+        "notFound": "Perusahaan tidak ditemukan.",
+        "network": "Masalah jaringan. Periksa koneksi Anda lalu coba lagi.",
+        "generic": "Paket pilot tidak dapat diekspor. Coba lagi."
+      },
+      "title": "Pilot",
+      "scenarioName": "Draf email pelanggan mingguan",
+      "description": "Pilot usaha kecil yang menyiapkan draf email pelanggan mingguan dari data pelanggan sintetis.",
+      "draftOnly": "Hanya draf: tidak ada yang dikirim.",
+      "syntheticOnly": "Hanya memakai data contoh sintetis.",
+      "noSecrets": "Tanpa rahasia atau data pelanggan asli.",
+      "export": "Ekspor paket pilot",
+      "exporting": "Mengekspor…",
+      "exported": "Paket pilot diunduh.",
+      "previewTitle": "Pratinjau paket",
+      "previewName": "Nama",
+      "previewAgents": "Agen",
+      "previewPipelines": "Pipeline",
+      "previewRecords": "Rekaman",
+      "previewConnectors": "Koneksi yang diminta",
+      "noConnectors": "Tidak ada",
+      "moreConnectors": "+{count} lagi",
+      "noData": "Belum ada data. Ekspor paket untuk melihat pratinjau."
+    },
     "codeChange": {
       "title": "Perubahan: {title}",
       "titleGeneric": "Perubahan kode",
