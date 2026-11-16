@@ -17,6 +17,7 @@ import { withSpan, toolCallCounter, stepDurationHistogram } from "../../lib/tele
 import { listConnectorToolsForTenant } from "../marketplace/dynamic-tools";
 import type { ToolDefinition } from "../agent/registry";
 import { requireStepApproval } from "./step-approval";
+import { runStepWithModelMode } from "./model-mode-runner";
 
 /**
  * E3/T6 takeover plan (§2.5): a CLAIMED handoff for THIS run+stepIndex means the
@@ -308,29 +309,37 @@ export async function executeStep(
     // up "from where the leaving provider stopped". Everything else — govContext,
     // tools, budget — is identical, so tool governance still applies to the
     // takeover leg.
-    const result = await runAgentLoop({
-      systemPrompt: agent.systemPrompt,
-      userMessage: stepPrompt,
-      toolNames: agent.tools as string[],
-      model: agent.model,
-      maxTokens: agent.maxTokens,
-      maxTurns: 10,
-      budgetUsd: Number(run.budgetUsd ?? 1),
-      tenantId: run.pipeline.company.tenantId,
-      ...(extraTools ? { extraTools } : {}),
-      ...(takeover
-        ? { aiConfigOverride: takeover.aiConfig, resumeMessages: takeover.resumeMessages }
-        : {}),
-      govContext: {
+    const modeRun = await runStepWithModelMode({
+      agent,
+      companyConfig: run.pipeline.company.config,
+      runLoop: (p) => runAgentLoop(p),
+      // Koşunun toplam bütçesi (loop budgetUsd ile aynı değer); runner denemelere min() ile paylaştırır.
+      runBudgetUsd: Number(run.budgetUsd ?? 1),
+      ...(takeover ? { forceDirectReason: "takeover" } : {}),
+      loopParams: {
+        systemPrompt: agent.systemPrompt,
+        userMessage: stepPrompt,
+        toolNames: agent.tools as string[],
+        maxTokens: agent.maxTokens,
+        maxTurns: 10,
+        budgetUsd: Number(run.budgetUsd ?? 1),
         tenantId: run.pipeline.company.tenantId,
-        companyId: run.pipeline.company.id,
-        runId: run.id,
-        runStepId: runStep.id,
-        // Graduated autonomy (D6): the agent's own setting decides whether
-        // non-money tool calls pause for approval. Money tools stay gated.
-        autonomy: agent.autonomy,
+        ...(extraTools ? { extraTools } : {}),
+        ...(takeover
+          ? { aiConfigOverride: takeover.aiConfig, resumeMessages: takeover.resumeMessages }
+          : {}),
+        govContext: {
+          tenantId: run.pipeline.company.tenantId,
+          companyId: run.pipeline.company.id,
+          runId: run.id,
+          runStepId: runStep.id,
+          // Graduated autonomy (D6): the agent's own setting decides whether
+          // non-money tool calls pause for approval. Money tools stay gated.
+          autonomy: agent.autonomy,
+        },
       },
     });
+    const result = modeRun.result;
 
     // Extract reasoning from agent response (MANDATORY)
     const reasoning = extractReasoning(result);
@@ -360,6 +369,9 @@ export async function executeStep(
           ...(result.model ? { model: result.model } : {}),
         } as any,
         costUsd: result.totalCostUsd,
+        // BRA-P0-06a-2: fiilen uygulanan model kipi + gerekçe (JSON-güvenli, sır yok).
+        modelMode: modeRun.modelMode,
+        modeDetail: modeRun.modeDetail as any,
         // Forge P1: real per-call token counts alongside the cost they
         // produced — same call site, so cost_usd and the token split can
         // never drift apart. AgentLoopResult always reports these (0 for a
