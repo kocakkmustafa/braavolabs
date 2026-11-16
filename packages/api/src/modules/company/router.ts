@@ -5,7 +5,8 @@ import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { rateLimit } from "../../middleware/rateLimit";
-import { PLAN_LIMITS } from "@ai-company-os/core";
+import { PLAN_LIMITS, MODEL_MODES, type ModelMode } from "@ai-company-os/core";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { applyNaturalLanguageEdit, AgentConfig } from "../agent/nl-editor";
 import {
@@ -22,6 +23,11 @@ import { toPublicCompany } from "./redact";
 import { buildModelsOverview } from "./models-overview";
 import { buildCompanySummary } from "./summary";
 import { BUDGET_CONFIG_KEY, validateBudgetInput } from "./budget";
+import {
+  applyCompanyModeSettings,
+  validateCompanyModeSettingsInput,
+  validateModelModeConfigInput,
+} from "./model-mode-settings";
 
 export const companyRouter = Router();
 companyRouter.use(authMiddleware);
@@ -467,6 +473,49 @@ companyRouter.patch("/:id/budget", requirePermission("billing:budget"), async (r
   } catch (err) { next(err); }
 });
 
+// PATCH /api/v1/companies/:id/model-mode — şirket model kipi + autoSelection (BRA-P0-06a-2).
+// Body: { modelMode?: "DIRECT"|"CASCADE"|"COMPARE"|null, autoSelection?: { enabled: boolean }|null }; null = ayarı sil.
+// Yetki: şirket PATCH'iyle aynı kapı (kimliği doğrulanmış kiracı üyesi; kurucu kararı 2026-11-15 "mevcut kapı kalır").
+// Genel PATCH /:id bu anahtarları KABUL ETMEZ (allowlist dışı); tek doğrulanmış yazma yolu burası.
+// config'in diğer anahtarları korunur; eşzamanlı yazma updatedAt iyimser kilidiyle yakalanır.
+companyRouter.patch("/:id/model-mode", async (req, res, next) => {
+  try {
+    const v = validateCompanyModeSettingsInput(req.body ?? {});
+    if (!v.ok) throw new AppError(400, v.error);
+    const tenantId = req.auth!.tenantId;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const existing = await prisma.company.findFirst({
+        where: { id: req.params.id, tenantId },
+        select: { config: true, updatedAt: true },
+      });
+      if (!existing) throw new AppError(404, "Company not found");
+      const merged = applyCompanyModeSettings(existing.config, v.value);
+      const result = await prisma.company.updateMany({
+        where: { id: req.params.id, tenantId, updatedAt: existing.updatedAt },
+        data: { config: merged as any },
+      });
+      if (result.count === 0) continue;
+      await prisma.activityLog.create({
+        data: {
+          tenantId,
+          actor: req.auth!.userId,
+          action: "company.model_mode.update",
+          resource: "company",
+          resourceId: req.params.id,
+          details: v.value as any,
+        },
+      });
+      res.json({
+        success: true,
+        modelMode: (merged.modelMode as ModelMode | undefined) ?? null,
+        autoSelection: (merged.autoSelection as { enabled: boolean } | undefined) ?? null,
+      });
+      return;
+    }
+    throw new AppError(409, "Company was modified concurrently; retry");
+  } catch (err) { next(err); }
+});
+
 // POST /api/v1/companies/:id/agents — create agent for a company
 const agentCreateSchema = z.object({
   name: z.string().min(1),
@@ -474,7 +523,26 @@ const agentCreateSchema = z.object({
   systemPrompt: z.string().optional(),
   tools: z.array(z.string()).optional(),
   config: z.record(z.string(), z.unknown()).optional(),
+  // BRA-P0-06a-2: ajan model kipi; null/yok = şirket ayarını miras al.
+  modelMode: z.enum(MODEL_MODES).nullable().optional(),
+  modelModeConfig: z.unknown().optional(),
 });
+
+/** Kip alanlarını Prisma verisine çevirir; geçersiz modelModeConfig -> 400. null = temizle. */
+function agentModeFields(input: { modelMode?: ModelMode | null; modelModeConfig?: unknown }) {
+  const out: { modelMode?: ModelMode | null; modelModeConfig?: Prisma.InputJsonValue | typeof Prisma.DbNull } = {};
+  if (input.modelMode !== undefined) out.modelMode = input.modelMode;
+  if (input.modelModeConfig !== undefined) {
+    if (input.modelModeConfig === null) {
+      out.modelModeConfig = Prisma.DbNull;
+    } else {
+      const v = validateModelModeConfigInput(input.modelModeConfig);
+      if (!v.ok) throw new AppError(400, v.error);
+      out.modelModeConfig = v.value as Prisma.InputJsonValue;
+    }
+  }
+  return out;
+}
 
 const agentUpdateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -492,6 +560,9 @@ const agentUpdateSchema = z.object({
   // Graduated autonomy (Feature D6) — how eager this agent is to pause for
   // approval on non-money tools. Money always needs approval regardless.
   autonomy: z.enum(["SUPERVISED", "BALANCED", "AUTONOMOUS"]).optional(),
+  // BRA-P0-06a-2: model kipi (DIRECT/CASCADE/COMPARE) ve kip ayarı; null = temizle (şirketi miras al).
+  modelMode: z.enum(MODEL_MODES).nullable().optional(),
+  modelModeConfig: z.unknown().optional(),
 });
 
 companyRouter.post("/:id/agents", async (req, res, next) => {
@@ -509,6 +580,7 @@ companyRouter.post("/:id/agents", async (req, res, next) => {
         role: data.role,
         systemPrompt: data.systemPrompt ?? "",
         tools: (data.tools ?? []) as any,
+        ...agentModeFields(data),
       },
     });
 
@@ -615,13 +687,13 @@ companyRouter.post("/:id/agents/compose", agentComposeLimiter, async (req, res, 
 // PATCH /api/v1/companies/:companyId/agents/:agentId — update agent
 companyRouter.patch("/:companyId/agents/:agentId", async (req, res, next) => {
   try {
-    const updateData = agentUpdateSchema.parse(req.body);
+    const { modelMode, modelModeConfig, ...updateData } = agentUpdateSchema.parse(req.body);
     const { agent: updated } = await updateAgentWithHistory({
       tenantId: req.auth!.tenantId,
       companyId: req.params.companyId,
       agentId: req.params.agentId,
       actor: req.auth!.userId,
-      data: { ...updateData, tools: updateData.tools as any },
+      data: { ...updateData, tools: updateData.tools as any, ...agentModeFields({ modelMode, modelModeConfig }) },
       kind: "update",
     });
 

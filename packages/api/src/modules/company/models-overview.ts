@@ -18,6 +18,8 @@ import {
   type AIProviderType,
 } from "../../services/ai-client";
 
+import { parseAutoSelectionEnabled, parseCompanyModelMode } from "./model-mode-settings";
+
 const SCALE = 6;
 
 /** UTC ay başı (00:00:00.000). */
@@ -90,7 +92,9 @@ export async function buildModelsOverview(
 
   // Sonuç satır sayısı ajan sayısıyla sınırlı; parametreli ($1..$4), enjeksiyon yok.
   // Önerilen indeks run_steps(agent_id, created_at) ayrı onaylı migration ile (bu bilet yapmaz).
-  const [agents, configs, stepRows] = await Promise.all([
+  const [company, agents, configs, stepRows] = await Promise.all([
+    // BRA-P0-06a-2: autoSelection/kip gerçek kaynağı Company.config (kiracı kapsamlı).
+    prisma.company.findFirst({ where: { id: companyId, tenantId }, select: { config: true } }),
     prisma.agent.findMany({
       where: { companyId, company: { tenantId } },
       select: { id: true, model: true },
@@ -164,7 +168,8 @@ export async function buildModelsOverview(
     });
 
   return {
-    autoSelection: { enabled: null },
+    autoSelection: { enabled: parseAutoSelectionEnabled(company?.config) },
+    modelMode: parseCompanyModelMode(company?.config),
     models,
     generatedAt: now.toISOString(),
     costWindow: { from: from.toISOString(), to: now.toISOString() },

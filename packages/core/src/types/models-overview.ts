@@ -24,7 +24,10 @@ export interface ModelOverviewItem {
 }
 
 export interface ModelsOverview {
+  /** Company.config.autoSelection.enabled; ayar yoksa null (uydurma yok). */
   autoSelection: { enabled: boolean | null };
+  /** Company.config.modelMode (şirket varsayılan kipi); ayar yoksa null/yok. */
+  modelMode?: "DIRECT" | "CASCADE" | "COMPARE" | null;
   models: ModelOverviewItem[];
   generatedAt: string;
   costWindow: { from: string; to: string };
