@@ -32,9 +32,18 @@ vi.mock("../../../lib/db", () => ({
       findUnique: async () => null,
       findMany: async (args: any) => {
         lastArgs = args;
-        const out = rows.filter((r) => matches(r, args.where))
-          .sort((a, b) => b.createdAt - a.createdAt || (a.id < b.id ? 1 : -1));
-        return out.slice(0, args.take);
+        const out = rows.filter((r) => matches(r, args.where));
+        const ob = args.orderBy as any[];
+        out.sort((a, b) => {
+          for (const o of ob) {
+            const [k, d] = Object.entries<string>(o)[0];
+            const av = a[k], bv = b[k];
+            if (av < bv) return d === "asc" ? -1 : 1;
+            if (av > bv) return d === "asc" ? 1 : -1;
+          }
+          return 0;
+        });
+        return args.take === undefined ? out : out.slice(0, args.take);
       },
     },
   },
@@ -56,7 +65,7 @@ afterAll(() => new Promise<void>((r) => server.close(() => r())));
 
 const mk = (i: number, o: Row = {}): Row => ({
   id: `id${String(i).padStart(3, "0")}`, slug: `s${i}`, name: `T${i}`, description: `d${i}`,
-  primitives: ["CONTENT"], pricing: "FREE", visibility: "PUBLIC", isApproved: true,
+  ratingAvg: 0, installCount: 0, primitives: ["CONTENT"], pricing: "FREE", visibility: "PUBLIC", isApproved: true,
   createdAt: new Date(Date.UTC(2026, 0, 1, 0, 0, i)), ...o,
 });
 const get = async (qs = "") => {
@@ -66,18 +75,26 @@ const get = async (qs = "") => {
 beforeEach(() => { rows = []; lastArgs = undefined; });
 
 describe("GET /templates filters", () => {
-  it("no params: bare array, default limit, visibility pinned in where", async () => {
-    rows = [mk(1), mk(2)];
+  it("no params: legacy order, no take, bare array, no header", async () => {
+    rows = [mk(1, { ratingAvg: 3 }), mk(2, { ratingAvg: 5 }), mk(3, { ratingAvg: 3, installCount: 9 }), mk(4, { ratingAvg: 3, installCount: 9, name: "A" })];
     const r = await get();
     expect(r.status).toBe(200);
     expect(Array.isArray(r.body)).toBe(true);
-    expect(r.body.map((x: any) => x.slug)).toEqual(["s2", "s1"]);
+    expect(lastArgs.orderBy).toEqual([{ ratingAvg: "desc" }, { installCount: "desc" }, { name: "asc" }]);
+    expect(lastArgs.take).toBeUndefined();
+    expect(r.body.map((x: any) => x.slug)).toEqual(["s2", "s4", "s3", "s1"]);
     expect(r.next).toBeNull();
     expect(lastArgs.where).toMatchObject({ visibility: "PUBLIC", isApproved: true });
   });
   it("UNLISTED, PRIVATE and unapproved never listed", async () => {
     rows = [mk(1), mk(2, { visibility: "UNLISTED" }), mk(3, { visibility: "PRIVATE" }), mk(4, { isApproved: false })];
     expect((await get()).body.map((x: any) => x.slug)).toEqual(["s1"]);
+    expect((await get("?sort=newest")).body.map((x: any) => x.slug)).toEqual(["s1"]);
+  });
+  it("q passes percent and underscore through unescaped (same as legacy endpoint)", async () => {
+    rows = [mk(1, { name: "100% real" }), mk(2, { name: "plain" })];
+    await get("?q=%25");
+    expect(lastArgs.where.AND[0].OR[0].name).toEqual({ contains: "%", mode: "insensitive" });
   });
   it("category / primitives / pricing / q combine", async () => {
     rows = [
@@ -91,20 +108,32 @@ describe("GET /templates filters", () => {
     expect((await get("?category=CONTENT&pricing=PAID&q=alpha")).body.map((x: any) => x.slug)).toEqual(["s3"]);
   });
   it("invalid filter values -> 400", async () => {
-    for (const qs of ["?pricing=free", "?category=NOPE", "?primitives=SALES,BAD", "?bogus=1", "?pricing=FREE&pricing=PAID"]) {
+    for (const qs of ["?pricing=free", "?sort=oldest", "?category=NOPE", "?primitives=SALES,BAD", "?bogus=1", "?pricing=FREE&pricing=PAID"]) {
       expect((await get(qs)).status).toBe(400);
     }
   });
 });
 
-describe("GET /templates pagination", () => {
+describe("GET /templates pagination (sort=newest)", () => {
+  it("cursor with default/rating sort -> 400", async () => {
+    rows = [mk(1)];
+    expect((await get("?cursor=abc")).status).toBe(400);
+    expect((await get("?sort=rating&cursor=abc")).status).toBe(400);
+  });
+  it("sort=rating with limit: take is a plain cap, no header", async () => {
+    rows = [mk(1), mk(2), mk(3)];
+    const r = await get("?limit=2");
+    expect(lastArgs.take).toBe(2);
+    expect(r.body).toHaveLength(2);
+    expect(r.next).toBeNull();
+  });
   it("walks pages with stable order, no dup/skip, ties on createdAt broken by id", async () => {
     const same = new Date(Date.UTC(2026, 0, 2));
     rows = [...[1, 2, 3, 4, 5].map((i) => mk(i)), mk(6, { createdAt: same }), mk(7, { createdAt: same })];
     const seen: string[] = [];
     let cur: string | null = null;
     for (let n = 0; n < 10; n++) {
-      const r: any = await get(`?limit=3${cur ? `&cursor=${cur}` : ""}`);
+      const r: any = await get(`?sort=newest&limit=3${cur ? `&cursor=${cur}` : ""}`);
       expect(r.status).toBe(200);
       seen.push(...r.body.map((x: any) => x.slug));
       cur = r.next;
@@ -114,14 +143,17 @@ describe("GET /templates pagination", () => {
   });
   it("limit bounds: 1 and 100 ok; 0, 101, abc, -1 -> 400; take is limit+1", async () => {
     rows = [mk(1)];
-    expect((await get("?limit=100")).status).toBe(200);
+    expect((await get("?sort=newest&limit=100")).status).toBe(200);
     expect(lastArgs.take).toBe(101);
+    expect(lastArgs.orderBy).toEqual([{ createdAt: "desc" }, { id: "desc" }]);
+    expect((await get("?sort=newest")).status).toBe(200);
+    expect(lastArgs.take).toBe(25);
     expect((await get("?limit=1")).status).toBe(200);
     for (const l of ["0", "101", "abc", "-1", "1.5"]) expect((await get(`?limit=${l}`)).status).toBe(400);
   });
   it("malformed cursor -> 400", async () => {
     for (const c of ["garbage", Buffer.from("{}").toString("base64url"), "a".repeat(300)]) {
-      expect((await get(`?cursor=${c}`)).status).toBe(400);
+      expect((await get(`?sort=newest&cursor=${c}`)).status).toBe(400);
     }
   });
 });

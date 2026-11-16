@@ -325,20 +325,36 @@ const primitiveEnum = z.enum(PRIMITIVE_VALUES);
  *              a template's category is the primitive it touches)
  *   primitives comma list, ALL must be present on the template
  *   pricing    FREE | PAID
+ * category and primitives are ANDed: category=X&primitives=Y,Z requires
+ * X, Y and Z all on the template.
+ * q is a Prisma contains (insensitive) match: percent and underscore are NOT
+ * escaped, exactly as the pre-filter endpoint behaved (LIKE wildcards pass).
  */
 export const templateListQuerySchema = z.object({
   q: z.string().max(200).optional(),
   category: primitiveEnum.optional(),
   primitives: z.string().max(200).optional(),
   pricing: z.enum(["FREE", "PAID"]).optional(),
+  // sort=rating (default) is the legacy order; sort=newest enables keyset paging.
+  sort: z.enum(["rating", "newest"]).default("rating"),
   limit: z.string().optional(),
   cursor: z.string().optional(),
 }).strict();
 
+const LEGACY_ORDER = [{ ratingAvg: "desc" as const }, { installCount: "desc" as const }, { name: "asc" as const }];
+
 export async function listPublicTemplates(rawQuery: unknown): Promise<{ items: unknown[]; nextCursor: string | null }> {
   const q = templateListQuerySchema.parse(rawQuery ?? {});
+  const newest = q.sort === "newest";
+  // Keyset paging needs a total order made of IMMUTABLE columns. The legacy
+  // order (ratingAvg, installCount) changes on every rating/install, so a
+  // cursor over it would skip/duplicate rows between pages. Hence cursors
+  // exist only for sort=newest (createdAt desc, id desc).
+  if (!newest && q.cursor !== undefined) throw new AppError(400, "cursor sort=newest gerektirir");
+  // newest: default 24 / max 100. rating: unbounded unless limit given (cap only).
   const limit = parseLimit(q.limit, TEMPLATE_LIST_DEFAULT_LIMIT, TEMPLATE_LIST_MAX_LIMIT);
-  if (limit === null) throw new AppError(400, `Invalid limit. Use an integer between 1 and ${TEMPLATE_LIST_MAX_LIMIT}.`);
+  if (limit === null) throw new AppError(400, "Invalid limit. Use an integer between 1 and " + TEMPLATE_LIST_MAX_LIMIT + ".");
+  const take = newest ? limit + 1 : q.limit === undefined ? undefined : limit;
   const cursor = q.cursor === undefined ? undefined : decodeCursor(q.cursor);
   if (cursor === null) throw new AppError(400, "Invalid cursor.");
 
@@ -362,14 +378,15 @@ export async function listPublicTemplates(rawQuery: unknown): Promise<{ items: u
 
   const rows = await prisma.companyTemplate.findMany({
     where,
-    orderBy: LIST_ORDER,
-    take: limit + 1,
+    orderBy: newest ? LIST_ORDER : LEGACY_ORDER,
+    ...(take !== undefined ? { take } : {}),
     select: {
       id: true, slug: true, name: true, version: true, vendor: true, description: true,
       iconUrl: true, screenshotUrls: true, primitives: true, pricing: true, priceUsd: true,
       installCount: true, ratingAvg: true, ratingCount: true, createdAt: true,
     },
   });
+  if (!newest) return { items: rows, nextCursor: null };
   const hasMore = rows.length > limit;
   const items = hasMore ? rows.slice(0, limit) : rows;
   const last = items[items.length - 1];
