@@ -51,6 +51,7 @@ import { researchRouter } from "./modules/research/research.router";
 import { marketplaceRouter } from "./modules/marketplace/marketplace.router";
 import { templatesRouter } from "./modules/templates/templates.router";
 import { benchRouter } from "./modules/bench/bench.router";
+import { benchCompareRouter } from "./modules/bench/bench-compare.router";
 import { opsRouter } from "./modules/ops/router";
 import { seedBenchSuites } from "./modules/bench/bench.service";
 import { userRouter } from "./modules/user/user.router";
@@ -287,6 +288,8 @@ api.use("/media", mediaRouter);
 api.use("/marketplace/templates", templatesRouter);
 // Connector marketplace (public catalog + tenant install surface).
 api.use("/marketplace", marketplaceRouter);
+// BRA-P1-05-N1: ADMIN+ compare measurement (fake provider). BEFORE the public router.
+api.use("/bench/compare", benchCompareRouter);
 // Public Braavolabs Bench leaderboard.
 api.use("/bench", benchRouter);
 // BRA-OPS-02: platform-admin-only, read-only server flag state.

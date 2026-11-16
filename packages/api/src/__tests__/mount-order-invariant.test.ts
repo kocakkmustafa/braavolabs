@@ -70,7 +70,20 @@ describe("index.ts mount order", () => {
     // Pinned exactly, not as a floor: if index.ts is reformatted and the parser
     // silently stops seeing mounts, every assertion below would pass vacuously.
     // Update this number deliberately when a mount is genuinely added/removed.
-    expect(mounts().length).toBe(45);
+    // 45 → 46: BRA-P1-05-N1 added `/bench/compare` (benchCompareRouter).
+    expect(mounts().length).toBe(46);
+  });
+
+  it("mounts /bench/compare before the public /bench router (BRA-P1-05-N1)", () => {
+    // The ADMIN-gated compare router must win over the public leaderboard
+    // router at `/bench`; the generic prefix check below covers it too, but
+    // pin it by name so a removal of either mount cannot pass silently.
+    const all = mounts();
+    const compare = all.findIndex((m) => m.path === "/bench/compare");
+    const bench = all.findIndex((m) => m.path === "/bench");
+    expect(compare).toBeGreaterThanOrEqual(0);
+    expect(bench).toBeGreaterThanOrEqual(0);
+    expect(compare).toBeLessThan(bench);
   });
 
   it("refuses a mount path it cannot statically read", () => {
