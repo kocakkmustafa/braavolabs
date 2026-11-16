@@ -1650,6 +1650,38 @@
         }
       }
     },
+    "companySummary": {
+      "title": "ひと目で確認",
+      "loading": "会社の概要を読み込み中…",
+      "error": "会社の概要を読み込めませんでした。",
+      "retry": "再試行",
+      "empty": "この会社の概要はありません。",
+      "unknown": "不明",
+      "bucket": {
+        "working": "実行中",
+        "needs_approval": "承認待ち",
+        "stuck": "停止中",
+        "done": "完了"
+      },
+      "pendingApprovals": "保留中の承認",
+      "agents": "エージェント",
+      "pipelines": "パイプライン",
+      "monthCost": "今月のコスト",
+      "budget": {
+        "title": "月次予算",
+        "noneHint": "この会社には月次予算が設定されていません。",
+        "spent": "使用済み",
+        "limit": "上限",
+        "remaining": "残り",
+        "used": "{pct}% 使用",
+        "state": {
+          "none": "予算なし",
+          "ok": "順調",
+          "warn": "上限に近い",
+          "over": "予算超過"
+        }
+      }
+    },
     "codeChange": {
       "title": "変更: {title}",
       "titleGeneric": "コードの変更",

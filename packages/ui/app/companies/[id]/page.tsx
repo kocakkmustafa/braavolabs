@@ -21,6 +21,7 @@ import { useAuthGuard } from "../../../lib/useAuthGuard";
 import { useToast } from "../../../components/Toast";
 import { useTranslations } from "next-intl";
 import ComparePanel from "../../../components/ComparePanel";
+import CompanySummaryCard from "../../../components/companies/CompanySummaryCard";
 import { captureAuthSession, isAuthSessionCurrent, useAppStore } from "../../../lib/store";
 
 type Tab = "overview" | "pipelines" | "agents" | "runs" | "contacts" | "memory" | "compare";
@@ -321,6 +322,9 @@ export default function CompanyDetailPage() {
             <span className="material-symbols-outlined" style={{ fontSize: 14 }}>archive</span>{uiText("m4aff80e9ddd2")}</button>
         </div>
       </div>
+
+      {/* ── BRA-P0-11d: tek bakış kartı ── */}
+      <CompanySummaryCard companyId={companyId} />
 
       {/* ── Primitives pills ── */}
       {company.primitives?.length > 0 && (

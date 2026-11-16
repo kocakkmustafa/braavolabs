@@ -1650,6 +1650,38 @@
         }
       }
     },
+    "companySummary": {
+      "title": "一览",
+      "loading": "正在加载公司概览…",
+      "error": "无法加载公司概览。",
+      "retry": "重试",
+      "empty": "此公司暂无概览。",
+      "unknown": "未知",
+      "bucket": {
+        "working": "运行中",
+        "needs_approval": "等待审批",
+        "stuck": "卡住",
+        "done": "已完成"
+      },
+      "pendingApprovals": "待审批",
+      "agents": "智能体",
+      "pipelines": "流水线",
+      "monthCost": "本月成本",
+      "budget": {
+        "title": "月度预算",
+        "noneHint": "此公司未设置月度预算。",
+        "spent": "已花费",
+        "limit": "额度",
+        "remaining": "剩余",
+        "used": "已使用 {pct}%",
+        "state": {
+          "none": "无预算",
+          "ok": "正常",
+          "warn": "接近额度",
+          "over": "已超预算"
+        }
+      }
+    },
     "codeChange": {
       "title": "变更：{title}",
       "titleGeneric": "代码变更",

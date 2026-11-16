@@ -1650,6 +1650,38 @@
         }
       }
     },
+    "companySummary": {
+      "title": "At a glance",
+      "loading": "Loading company summary…",
+      "error": "Could not load the company summary.",
+      "retry": "Try again",
+      "empty": "No summary available for this company.",
+      "unknown": "Unknown",
+      "bucket": {
+        "working": "Running",
+        "needs_approval": "Awaiting approval",
+        "stuck": "Stuck",
+        "done": "Done"
+      },
+      "pendingApprovals": "Pending approvals",
+      "agents": "Agents",
+      "pipelines": "Pipelines",
+      "monthCost": "Cost this month",
+      "budget": {
+        "title": "Monthly budget",
+        "noneHint": "No monthly budget is set for this company.",
+        "spent": "Spent",
+        "limit": "Limit",
+        "remaining": "Remaining",
+        "used": "{pct}% used",
+        "state": {
+          "none": "No budget",
+          "ok": "On track",
+          "warn": "Near limit",
+          "over": "Over budget"
+        }
+      }
+    },
     "codeChange": {
       "title": "Change: {title}",
       "titleGeneric": "Code change",

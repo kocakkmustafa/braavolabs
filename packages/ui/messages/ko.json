@@ -1650,6 +1650,38 @@
         }
       }
     },
+    "companySummary": {
+      "title": "한눈에 보기",
+      "loading": "회사 요약을 불러오는 중…",
+      "error": "회사 요약을 불러오지 못했습니다.",
+      "retry": "다시 시도",
+      "empty": "이 회사의 요약이 없습니다.",
+      "unknown": "알 수 없음",
+      "bucket": {
+        "working": "실행 중",
+        "needs_approval": "승인 대기",
+        "stuck": "멈춤",
+        "done": "완료"
+      },
+      "pendingApprovals": "대기 중인 승인",
+      "agents": "에이전트",
+      "pipelines": "파이프라인",
+      "monthCost": "이번 달 비용",
+      "budget": {
+        "title": "월 예산",
+        "noneHint": "이 회사에는 월 예산이 설정되어 있지 않습니다.",
+        "spent": "사용액",
+        "limit": "한도",
+        "remaining": "남음",
+        "used": "{pct}% 사용",
+        "state": {
+          "none": "예산 없음",
+          "ok": "정상",
+          "warn": "한도 근접",
+          "over": "예산 초과"
+        }
+      }
+    },
     "codeChange": {
       "title": "변경: {title}",
       "titleGeneric": "코드 변경",
