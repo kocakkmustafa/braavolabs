@@ -196,6 +196,26 @@ describe("summary.budget", () => {
     expect(res.body.budget.state).toBe("none");
     expect(Object.keys(res.body)).toEqual(expect.arrayContaining(["companyId", "agents", "pipelines", "buckets", "pendingApprovals", "monthCostUsd", "budget"]));
   });
+  it("BRA-P2-03d: MEMBER summary'yi 200 okur (mevcut davranış); yazma yok", async () => {
+    db.companies[0].config = { monthlyBudgetUsd: 10 };
+    db.runs = [{ cost: "1.000000" }];
+    const logs0 = db.logs.length;
+    const before = JSON.stringify(db.companies);
+    const { res, err } = await call(summary.h, "co-1", undefined, "t-1", "MEMBER");
+    expect(err).toBeUndefined();
+    expect(res.statusCode).toBe(200);
+    expect(res.body.budget.limitUsd).toBe(10);
+    expect(db.logs.length).toBe(logs0);
+    expect(JSON.stringify(db.companies)).toBe(before);
+  });
+  it("BRA-P2-03d: /summary updateMany/activityLog.create ÇAĞIRMAZ", async () => {
+    const { prisma } = await import("../../../lib/db");
+    const um = vi.spyOn((prisma as any).company, "updateMany");
+    const al = vi.spyOn((prisma as any).activityLog, "create");
+    await call(summary.h, "co-1", undefined);
+    expect(um).not.toHaveBeenCalled();
+    expect(al).not.toHaveBeenCalled();
+  });
   it("BRA-P2-03d: aşılmış bütçe >%100, sıfır bütçe; yanıt yalnız toplam (ham satır/sır yok)", async () => {
     db.companies[0].config = { monthlyBudgetUsd: 10, apiKey: "sk-secret-123" };
     db.runs = [{ cost: "12.340000" }, { cost: "13.160000" }];

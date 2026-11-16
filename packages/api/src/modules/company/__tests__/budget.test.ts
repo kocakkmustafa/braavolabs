@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { computeBudgetStatus, parseMonthlyBudget, validateBudgetInput } from "../budget";
+import { BUDGET_SUGGESTED_ALERT_AT_PCT, BUDGET_WARN_PCT, computeBudgetStatus, parseMonthlyBudget, validateBudgetInput } from "../budget";
 
 describe("validateBudgetInput", () => {
   it.each([[100], [0], [0.5], [12.34], [1_000_000], [1e-2]])("kabul %s", (v) => {
@@ -101,8 +101,18 @@ describe("computeBudgetStatus", () => {
 describe("computeBudgetStatus — BRA-P2-03d tam sayı para kuralı", () => {
   it("suggestedAlertAtPct yalnız öneri: sabit 80, durum eşiğiyle aynı değer, her durumda var", () => {
     for (const [l, s] of [[null, null], [100, 0], [100, 80], [100, 150], [0, 0]] as const) {
-      expect(computeBudgetStatus(l, s).suggestedAlertAtPct).toBe(80);
+      expect(computeBudgetStatus(l, s).suggestedAlertAtPct).toBe(BUDGET_WARN_PCT);
     }
+    expect(BUDGET_SUGGESTED_ALERT_AT_PCT).toBe(BUDGET_WARN_PCT);
+  });
+  it("alt-cent limit 0.004 -> 0 cente iner (limit-0 dalı; canlıda ulaşılamaz)", () => {
+    expect(computeBudgetStatus(0.004, 0)).toMatchObject({ usedPct: null, state: "ok", remainingUsd: 0 });
+    expect(computeBudgetStatus(0.004, 1)).toMatchObject({ usedPct: null, state: "over", remainingUsd: -1 });
+  });
+  it("büyük değer (≈1e9) over; MAX_SAFE yakını throw etmez", () => {
+    expect(computeBudgetStatus(1_000_000, 1e9)).toMatchObject({ state: "over", usedPct: 100000, remainingUsd: -999000000 });
+    expect(computeBudgetStatus(1_000_000, 1e9 + 0.5).state).toBe("over");
+    expect(() => computeBudgetStatus(1_000_000, Number.MAX_SAFE_INTEGER / 1e6)).not.toThrow();
   });
   it("float birikim hatası yok: 0.3 - 0.1 = 0.2 tam; 10.1 - 0.1 = 10", () => {
     expect(computeBudgetStatus(0.3, 0.1).remainingUsd).toBe(0.2);

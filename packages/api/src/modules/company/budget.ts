@@ -1,12 +1,16 @@
 /**
  * BRA-P0-11c — şirket aylık bütçesi: Company.config.monthlyBudgetUsd (migration yok).
  * Saf yardımcılar; DB/IO yok, asla throw etmez.
+ *
+ * NOT (BRA-P2-03d, bilgi): GET /companies/:id/summary `billing:budget` guard'ı TAŞIMAZ; router-wide
+ * authMiddleware ile tüm tenant üyeleri (MEMBER dahil) okur. Limiti DEĞİŞTİREN PATCH /:id/budget ADMIN+
+ * kalır. Okuma erişimini daraltmak rbac eylemi/kurucu kararıdır; burada değiştirilmedi.
  */
 export const BUDGET_CONFIG_KEY = "monthlyBudgetUsd";
 export const MAX_MONTHLY_BUDGET_USD = 1_000_000;
 export const BUDGET_WARN_PCT = 80;
 /** Yalnız öneri (uyarı eşiği); enforcement yok, karar kurucuda. */
-export const BUDGET_SUGGESTED_ALERT_AT_PCT = 80;
+export const BUDGET_SUGGESTED_ALERT_AT_PCT = BUDGET_WARN_PCT; // tek kaynak
 export type BudgetState = "none" | "ok" | "warn" | "over";
 
 export interface BudgetStatus {
@@ -62,6 +66,8 @@ export function parseMonthlyBudget(config: unknown): number | null {
  * Limit -> cent (tam sayı); harcama -> mikro-USD (1e-6, Run.costUsd ölçeği). remainingUsd =
  * limit_cent - harcama_cent / 100 (harcama cente YARIM-YUKARI yuvarlanır). usedPct = harcama/limit*100,
  * 2 ondalığa AŞAĞI yuvarlanır (gösterim; >100 olabilir). Durum (warn/over) yuvarlanmamış mikro değerle.
+ * Alt-cent limit (ör. 0.004) Math.round ile 0 cente iner -> limit-0 dalı; canlıda parseMonthlyBudget
+ * 2 ondalık dayattığı için ULAŞILAMAZ, yalnız saf fonksiyon davranışı olarak sabitlenmiştir.
  * `suggestedAlertAtPct` yalnız ÖNERİDİR: uygulama/enforcement/yazma yok; eşik kararı kurucuda.
  */
 export function computeBudgetStatus(limitUsd: number | null, spentUsd: number | null): BudgetStatus {
