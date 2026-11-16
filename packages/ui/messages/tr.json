@@ -1382,7 +1382,8 @@
           "title": "İş etkinliği",
           "actorSystem": "Sistem",
           "actorUser": "Ekip üyesi",
-          "more": "Son {count} olay gösteriliyor; daha fazlası var."
+          "more": "Son {count} olay gösteriliyor; daha fazlası var.",
+          "truncated": "Bazı olaylar listelenmedi."
         },
         "logEvent": {
           "started": "Başladı: {time}",

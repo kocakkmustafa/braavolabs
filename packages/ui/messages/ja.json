@@ -1382,7 +1382,8 @@
           "title": "ジョブのアクティビティ",
           "actorSystem": "システム",
           "actorUser": "チームメンバー",
-          "more": "最新の {count} 件を表示しています。さらにあります。"
+          "more": "最新の {count} 件を表示しています。さらにあります。",
+          "truncated": "一部のイベントは表示されていません。"
         },
         "logEvent": {
           "started": "開始: {time}",

@@ -1382,7 +1382,8 @@
           "title": "Aktywność zadania",
           "actorSystem": "System",
           "actorUser": "Członek zespołu",
-          "more": "Pokazano ostatnie {count} zdarzeń; są kolejne."
+          "more": "Pokazano ostatnie {count} zdarzeń; są kolejne.",
+          "truncated": "Niektóre zdarzenia nie zostały wyświetlone."
         },
         "logEvent": {
           "started": "Start: {time}",

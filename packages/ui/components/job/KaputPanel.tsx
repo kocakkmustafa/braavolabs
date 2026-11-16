@@ -143,6 +143,7 @@ function RunActivity({ activity, t, locale, hid }: { activity: KaputActivity; t:
         ))}
       </ol>
       {more && <span style={muted} data-testid="job-kaput-activity-more">{t("app.jobs.kaput.activity.more", { count: shown.length })}</span>}
+      {activity.truncated && <span style={muted} data-testid="job-kaput-activity-truncated">{t("app.jobs.kaput.activity.truncated")}</span>}
     </section>
   );
 }

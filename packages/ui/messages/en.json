@@ -1382,7 +1382,8 @@
           "title": "Job activity",
           "actorSystem": "System",
           "actorUser": "Team member",
-          "more": "Showing the latest {count} events; more exist."
+          "more": "Showing the latest {count} events; more exist.",
+          "truncated": "Some events are not listed."
         },
         "logEvent": {
           "started": "Started: {time}",

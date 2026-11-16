@@ -1382,7 +1382,8 @@
           "title": "Activité de la tâche",
           "actorSystem": "Système",
           "actorUser": "Membre de l'équipe",
-          "more": "Affichage des {count} derniers événements ; il y en a d'autres."
+          "more": "Affichage des {count} derniers événements ; il y en a d'autres.",
+          "truncated": "Certains événements ne sont pas listés."
         },
         "logEvent": {
           "started": "Début : {time}",

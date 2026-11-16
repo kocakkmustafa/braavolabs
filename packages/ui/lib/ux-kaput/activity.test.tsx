@@ -31,7 +31,7 @@ describe("parseActivity", () => {
   it("bozuk kalemler atlanır; biçim tutmazsa null", () => {
     expect(parseActivity({ items: [item(1), null, { id: 5 }, item(2, { at: "nope" }), item(3, { summary: 7 })], nextCursor: null })!.items).toHaveLength(1);
     for (const bad of [null, [], "x", {}, { items: "x" }]) expect(parseActivity(bad)).toBeNull();
-    expect(parseActivity({ items: [], nextCursor: null })).toEqual({ items: [], hasMore: false });
+    expect(parseActivity({ items: [], nextCursor: null })).toEqual({ items: [], hasMore: false, truncated: false });
   });
 });
 
@@ -70,12 +70,19 @@ describe("KaputPanel olay günlüğü", () => {
     expect(h).toContain("…");
   });
   it("geri uyum: activity yok/null/boş → bölüm yok; adım başlangıç/bitiş günlüğü korunur", () => {
-    for (const a of [undefined, null, { items: [], hasMore: false }]) {
+    for (const a of [undefined, null, { items: [], hasMore: false, truncated: false }]) {
       const h = render(kaput(a as Kaput["activity"]));
       expect(h).not.toContain("job-kaput-activity");
       expect(h).toContain("app.jobs.kaput.logEvent.started");
       expect(h).toContain("app.jobs.kaput.logEvent.ended");
     }
+  });
+});
+
+describe("truncated notu", () => {
+  it("truncated:true → not görünür; yoksa görünmez", () => {
+    expect(render(kaput(parseActivity({ items: [item(1)], nextCursor: null, truncated: true })))).toContain("app.jobs.kaput.activity.truncated");
+    expect(render(kaput(parseActivity({ items: [item(1)], nextCursor: null })))).not.toContain("job-kaput-activity-truncated");
   });
 });
 
@@ -96,7 +103,7 @@ describe("loadKaput + 15 dil", () => {
     expect(files).toHaveLength(15);
     for (const f of files) {
       const a = JSON.parse(readFileSync(join(dir, f), "utf8")).app.jobs.kaput.activity;
-      for (const k of ["title", "actorSystem", "actorUser", "more"]) expect(typeof a[k] === "string" && a[k].length > 0, `${f}:${k}`).toBe(true);
+      for (const k of ["title", "actorSystem", "actorUser", "more", "truncated"]) expect(typeof a[k] === "string" && a[k].length > 0, `${f}:${k}`).toBe(true);
       expect(a.more).toContain("{count}");
     }
   });

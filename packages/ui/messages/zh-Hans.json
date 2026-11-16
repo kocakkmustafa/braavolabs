@@ -1382,7 +1382,8 @@
           "title": "任务活动",
           "actorSystem": "系统",
           "actorUser": "团队成员",
-          "more": "显示最近 {count} 条事件；还有更多。"
+          "more": "显示最近 {count} 条事件；还有更多。",
+          "truncated": "部分事件未列出。"
         },
         "logEvent": {
           "started": "开始：{time}",

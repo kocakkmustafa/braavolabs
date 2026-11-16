@@ -6,7 +6,7 @@ export const ACTIVITY_MAX_LINES = 20;
 export const ACTIVITY_SUMMARY_MAX = 160;
 
 export interface KaputActivityItem { id: string; action: string; at: string; actor: "system" | "user" | null; summary: string }
-export interface KaputActivity { items: KaputActivityItem[]; hasMore: boolean }
+export interface KaputActivity { items: KaputActivityItem[]; hasMore: boolean; truncated: boolean }
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 
@@ -24,5 +24,5 @@ export function parseActivity(raw: unknown): KaputActivity | null {
       summary: r.summary,
     });
   }
-  return { items, hasMore: typeof raw.nextCursor === "string" && raw.nextCursor.length > 0 };
+  return { items, hasMore: typeof raw.nextCursor === "string" && raw.nextCursor.length > 0, truncated: raw.truncated === true };
 }

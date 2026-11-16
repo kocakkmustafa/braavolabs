@@ -1382,7 +1382,8 @@
           "title": "Atividade do trabalho",
           "actorSystem": "Sistema",
           "actorUser": "Membro da equipe",
-          "more": "Mostrando os últimos {count} eventos; há mais."
+          "more": "Mostrando os últimos {count} eventos; há mais.",
+          "truncated": "Alguns eventos não foram listados."
         },
         "logEvent": {
           "started": "Início: {time}",

@@ -1382,7 +1382,8 @@
           "title": "Auftragsaktivität",
           "actorSystem": "System",
           "actorUser": "Teammitglied",
-          "more": "Die letzten {count} Ereignisse werden angezeigt; es gibt weitere."
+          "more": "Die letzten {count} Ereignisse werden angezeigt; es gibt weitere.",
+          "truncated": "Einige Ereignisse werden nicht aufgeführt."
         },
         "logEvent": {
           "started": "Gestartet: {time}",

@@ -5,8 +5,10 @@
  *   - resource "run"      + resourceId = koşu id'si (stop/resume/retry/handoff/steer/delivery/…),
  *   - resource "run_step" + resourceId = adım id'si (rollback/rerun),
  *   - resource "approval" + resourceId = onay id'si (karar/süre aşımı/tüketim),
- *   - istisna: "approval.requested" (adım kapısı) resourceId taşımaz; koşu id'si details.runId'dedir → yalnız bu eylem için
- *     JSON yol eşitliği (tenantId her zaman where'de).
+ *   - BİLİNEN BOŞLUK: adım kapısının "approval.requested" kaydı (pipeline/step-approval.ts) resourceId taşımaz (koşu id'si yalnız
+ *     details.runId'de); agent/tool-executor.ts'teki "approval.requested" ise resource "tool_call" ve runId'siz. Bunlar listede YOK:
+ *     JSON-path eşitliğini destekleyen (tenant_id, action, created_at) indeksi yok ve SEC-019 bu deseni bilerek kaldırmıştı.
+ *     Kalıcı çözüm: yazıcıya resourceId=approvalId (ayrı bilet adayı). Onayın kararı/süre aşımı/tüketimi yine görünür.
  *
  * Yanıt kalemi: {id, action, at, actor?, summary}. `summary` SABİT BİÇİMLİ: eylem → sabit İngilizce etiket + yalnız
  * allowlist'li alanlardan (tamsayı/enum/bool) türetilmiş ekler. Ham `details`, gerekçe, hata metni, araç çıktısı,
@@ -86,7 +88,8 @@ export function safeActor(actor: unknown): string | undefined {
 }
 
 export interface ActivityItem { id: string; action: string; at: string; actor?: string; summary: string }
-export interface ActivityPage { items: ActivityItem[]; nextCursor: string | null }
+/** truncated: koşunun adım/onay sayısı ACTIVITY_MAX_LINKED_IDS'i aştı; bazı olaylar listelenmedi. */
+export interface ActivityPage { items: ActivityItem[]; nextCursor: string | null; truncated: boolean }
 
 interface ActivityRow { id: string; action: string; actor: string; details: unknown; createdAt: Date }
 
@@ -121,17 +124,17 @@ export async function loadRunActivity(
     where: { id: runId, pipeline: { company: { tenantId } } },
     select: {
       id: true,
-      steps: { select: { id: true }, take: ACTIVITY_MAX_LINKED_IDS },
-      approvals: { select: { id: true }, take: ACTIVITY_MAX_LINKED_IDS },
+      steps: { select: { id: true }, orderBy: [{ createdAt: "desc" }, { id: "asc" }], take: ACTIVITY_MAX_LINKED_IDS + 1 },
+      approvals: { select: { id: true }, orderBy: [{ createdAt: "desc" }, { id: "asc" }], take: ACTIVITY_MAX_LINKED_IDS + 1 },
     },
   });
   if (!run) throw new AppError(404, "Run not found");
 
-  const stepIds = run.steps.map((s: { id: string }) => s.id);
-  const approvalIds = run.approvals.map((a: { id: string }) => a.id);
+  const truncated = run.steps.length > ACTIVITY_MAX_LINKED_IDS || run.approvals.length > ACTIVITY_MAX_LINKED_IDS;
+  const stepIds = run.steps.slice(0, ACTIVITY_MAX_LINKED_IDS).map((s: { id: string }) => s.id);
+  const approvalIds = run.approvals.slice(0, ACTIVITY_MAX_LINKED_IDS).map((a: { id: string }) => a.id);
   const links: unknown[] = [
     { resource: "run", resourceId: run.id },
-    { action: "approval.requested", resource: "run_step", details: { path: ["runId"], equals: run.id } },
   ];
   if (stepIds.length) links.push({ resource: "run_step", resourceId: { in: stepIds } });
   if (approvalIds.length) links.push({ resource: "approval", resourceId: { in: approvalIds } });
@@ -146,5 +149,6 @@ export async function loadRunActivity(
   return {
     items: page.map(toActivityItem),
     nextCursor: rows.length > limit ? encodeCursor(page[page.length - 1]) : null,
+    truncated,
   };
 }

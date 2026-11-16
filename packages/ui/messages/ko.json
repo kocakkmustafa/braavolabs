@@ -1382,7 +1382,8 @@
           "title": "작업 활동",
           "actorSystem": "시스템",
           "actorUser": "팀원",
-          "more": "최근 {count}개 이벤트를 표시합니다. 더 있습니다."
+          "more": "최근 {count}개 이벤트를 표시합니다. 더 있습니다.",
+          "truncated": "일부 이벤트는 표시되지 않았습니다."
         },
         "logEvent": {
           "started": "시작: {time}",

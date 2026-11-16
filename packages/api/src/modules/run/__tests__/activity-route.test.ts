@@ -22,7 +22,7 @@ vi.mock("../../../config/env", () => ({ env: { NODE_ENV: "development", OFFLINE_
 
 import { runRouter } from "../router";
 import { decodeCursor, encodeCursor } from "../list-cursor";
-import { ACTION_LABELS, actionLabel, safeActor, summarize, toActivityItem } from "../activity";
+import { ACTIVITY_MAX_LINKED_IDS, ACTION_LABELS, actionLabel, safeActor, summarize, toActivityItem } from "../activity";
 
 const layer = (runRouter as Router as any).stack.find((l: any) => l.route?.path === "/:id/activity" && l.route.methods.get);
 const handler = layer.route.stack[layer.route.stack.length - 1].handle;
@@ -56,25 +56,26 @@ describe("GET /runs/:id/activity", () => {
     expect(where.AND[0]).toEqual({ tenantId: "t1" });
     expect(JSON.stringify(where)).toContain('"tenantId":"t1"');
   });
-  it("koşu + adım + onay bağları ve approval.requested yol eşitliği sorguya girer", async () => {
+  it("koşu + adım + onay bağları sorguya girer; JSON-path kolu YOK", async () => {
     await call();
     const or = logFindMany.mock.calls[0][0].where.AND[1].OR;
     expect(or).toContainEqual({ resource: "run", resourceId: "run-1" });
     expect(or).toContainEqual({ resource: "run_step", resourceId: { in: ["st1", "st2"] } });
     expect(or).toContainEqual({ resource: "approval", resourceId: { in: ["ap1"] } });
-    expect(or).toContainEqual({ action: "approval.requested", resource: "run_step", details: { path: ["runId"], equals: "run-1" } });
+    expect(or).toHaveLength(3);
+    expect(JSON.stringify(or)).not.toContain("path");
   });
-  it("boş koşu (adım/onay yok): yalnız koşu ve requested bağı; yanıt boş, nextCursor null", async () => {
+  it("boş koşu (adım/onay yok): yalnız koşu bağı; yanıt boş, nextCursor null, truncated false", async () => {
     runFindFirst.mockResolvedValue({ id: "run-1", steps: [], approvals: [] });
     const { res } = await call();
-    expect(res.body).toEqual({ items: [], nextCursor: null });
-    expect(logFindMany.mock.calls[0][0].where.AND[1].OR).toHaveLength(2);
+    expect(res.body).toEqual({ items: [], nextCursor: null, truncated: false });
+    expect(logFindMany.mock.calls[0][0].where.AND[1].OR).toHaveLength(1);
   });
   it("yanıt kalemi biçimi: {id, action, at, actor, summary}; başka anahtar yok", async () => {
     logFindMany.mockResolvedValue([row("a1", 5)]);
     const { res } = await call();
     expect(res.body.items).toEqual([{ id: "a1", action: "run.stop", at: "2026-11-16T10:00:05.000Z", actor: "cmabcdefghijklmnopqrstuvw", summary: "Run stopped" }]);
-    expect(Object.keys(res.body)).toEqual(["items", "nextCursor"]);
+    expect(Object.keys(res.body)).toEqual(["items", "nextCursor", "truncated"]);
   });
   it("sayfalama: limit+1 çekilir, fazlası kırpılır, imleç son kalemden (createdAt+id)", async () => {
     logFindMany.mockResolvedValue([row("c", 3), row("b", 2), row("a", 1)]);
@@ -124,6 +125,24 @@ describe("GET /runs/:id/activity", () => {
     expect(res.body.items[1]).not.toHaveProperty("actor");
     expect(res.body.items[2]).toMatchObject({ action: "unknown", summary: "Event" });
     expect(Object.keys(logFindMany.mock.calls[0][0].select).sort()).toEqual(["action", "actor", "createdAt", "details", "id"]);
+  });
+});
+
+describe("bağlı id sınırı", () => {
+  const mk = (p: string, n: number) => Array.from({ length: n }, (_, i) => ({ id: p + i }));
+  it("steps/approvals take MAX+1 + sabit orderBy; sınır aşılırsa truncated ve IN listesi MAX ile kırpılır", async () => {
+    runFindFirst.mockResolvedValue({ id: "run-1", steps: mk("s", ACTIVITY_MAX_LINKED_IDS + 1), approvals: mk("a", 2) });
+    const { res } = await call();
+    const sel = runFindFirst.mock.calls[0][0].select;
+    expect(sel.steps.take).toBe(ACTIVITY_MAX_LINKED_IDS + 1);
+    expect(sel.approvals.orderBy).toEqual([{ createdAt: "desc" }, { id: "asc" }]);
+    expect(res.body.truncated).toBe(true);
+    const or = logFindMany.mock.calls[0][0].where.AND[1].OR;
+    expect(or.find((o: any) => o.resource === "run_step").resourceId.in).toHaveLength(ACTIVITY_MAX_LINKED_IDS);
+  });
+  it("tam sınırda (MAX) truncated false", async () => {
+    runFindFirst.mockResolvedValue({ id: "run-1", steps: mk("s", ACTIVITY_MAX_LINKED_IDS), approvals: [] });
+    expect((await call()).res.body.truncated).toBe(false);
   });
 });
 
