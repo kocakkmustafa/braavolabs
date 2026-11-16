@@ -186,6 +186,20 @@ describe("bütçe sınırı: budgetUsd = min(kalan, cap - harcanan)", () => {
     expect(run).toHaveBeenCalledTimes(1);
     expect(r.modeDetail).toMatchObject({ escalation: "skipped_budget" });
   });
+  it("kalan bütçe koşu bütçesinin %5'inin altındaysa (0.03/1) CASCADE yükseltmez, COMPARE sonraki adayı atlar", async () => {
+    const cheap = mk(() => res({ model: "claude-haiku-5-5", finalContent: BAD, totalCostUsd: 0.97 }));
+    const r1 = await runStepWithModelMode({ agent: { model: STRONG, tools: [], modelMode: "CASCADE" }, companyConfig: {}, loopParams: params, runLoop: cheap, runBudgetUsd: 1 });
+    expect(cheap).toHaveBeenCalledTimes(1);
+    expect(r1.modeDetail).toMatchObject({ escalation: "skipped_budget" });
+    const cmp = mk((p) => res({ model: p.model, totalCostUsd: 0.97 }));
+    const r2 = await runStepWithModelMode({ agent: { model: STRONG, tools: [], modelMode: "COMPARE", modelModeConfig: { compareModels: ["m-a", "m-b"] } }, companyConfig: {}, loopParams: params, runLoop: cmp, runBudgetUsd: 1 });
+    expect(cmp).toHaveBeenCalledTimes(1);
+    expect((r2.modeDetail.candidates as any[])[1].skipped).toBe("budget");
+    // tam eşikte (0.05 kaldı) ek deneme hâlâ başlar
+    const edge = mk((p) => p.model === STRONG ? res({ model: STRONG }) : res({ model: "claude-haiku-5-5", finalContent: BAD, totalCostUsd: 0.95 }));
+    await runStepWithModelMode({ agent: { model: STRONG, tools: [], modelMode: "CASCADE" }, companyConfig: {}, loopParams: params, runLoop: edge, runBudgetUsd: 1 });
+    expect(edge).toHaveBeenCalledTimes(2);
+  });
   it("COMPARE: sonraki aday min() ile çağrılır; <=0 ise atlanır (budget)", async () => {
     const run = mk((p) => res({ model: p.model, totalCostUsd: 0.6 }));
     const r = await runStepWithModelMode({ agent: { model: STRONG, tools: [], modelMode: "COMPARE", modelModeConfig: { compareModels: ["m-a", "m-b", "m-c"], budgetUsdCap: 0.9 } }, companyConfig: {}, loopParams: params, runLoop: run, runBudgetUsd: 1 });

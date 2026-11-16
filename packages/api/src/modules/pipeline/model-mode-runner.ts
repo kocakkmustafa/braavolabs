@@ -27,6 +27,9 @@ import { PROVIDER_MODELS, LOCAL_PROVIDERS, isModelCompatibleWithProvider, type A
 import { deriveTier } from "../../lib/routing";
 import { priceForModel } from "../../lib/modelPricing";
 
+/** Ek denemenin başlayabilmesi için koşu bütçesinin en az bu oranı kalmış olmalı (tur sonu denetimi → taşma payı). */
+const MIN_ATTEMPT_BUDGET_FRACTION = 0.05;
+
 type LoopParams = Parameters<typeof runAgentLoop>[0];
 export type ModeLoopParams = Omit<LoopParams, "model">;
 export type RunLoopFn = (params: LoopParams) => Promise<AgentLoopResult>;
@@ -127,8 +130,11 @@ export async function runStepWithModelMode(opts: RunStepWithModelModeOptions): P
   function allowance(spent: number): { usd: number; reason?: "budget" | "budget_cap" } {
     const remaining = runBudgetUsd - spent;
     const capLeft = config.budgetUsdCap !== undefined ? config.budgetUsdCap - spent : Infinity;
-    if (capLeft <= 0) return { usd: capLeft, reason: "budget_cap" };
-    if (remaining <= 0) return { usd: remaining, reason: "budget" };
+    // Döngü bütçeyi tur SONUNDA denetler: çok küçük kalanla başlayan deneme yine de en az bir tam tur
+    // harcar (kural #8: >%20 aşım). Bu yüzden koşu bütçesinin %5'inin altı "yetersiz" sayılır.
+    const floor = runBudgetUsd * MIN_ATTEMPT_BUDGET_FRACTION;
+    if (capLeft <= 0 || capLeft < floor) return { usd: capLeft, reason: "budget_cap" };
+    if (remaining <= 0 || remaining < floor) return { usd: remaining, reason: "budget" };
     return { usd: Math.min(remaining, capLeft) };
   }
 
