@@ -809,13 +809,15 @@ const TICK_DEDUP_TIMEOUT_MS = 3_000;
  * before run.create, that slot is lost. No DEL on failure paths, because
  * claimQuota has no rollback.
  */
-async function claimTickSlot(pipelineId: string, slotMs: number | null): Promise<boolean> {
+type TickSlotClaim = "claimed" | "duplicate" | "unavailable";
+
+async function claimTickSlot(pipelineId: string, slotMs: number | null): Promise<TickSlotClaim> {
   if (slotMs === null) {
     logger.warn(
       { pipelineId },
       "Scheduled tick has no stable slot (job.timestamp missing) — running WITHOUT dedup",
     );
-    return true;
+    return "claimed";
   }
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
@@ -828,14 +830,84 @@ async function claimTickSlot(pipelineId: string, slotMs: number | null): Promise
         );
       }),
     ]);
-    return res === "OK";
+    return res === "OK" ? "claimed" : "duplicate";
   } catch (err) {
     tickDedupErrorCount += 1;
     logger.warn(
       { pipelineId, slotMs, err, tickDedupErrors: tickDedupErrorCount },
       "Scheduled tick skipped — Redis dedup unavailable (fail-closed)",
     );
-    return false;
+    return "unavailable";
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** Coarse skip-log dedup window: at most 1 row per (pipeline, reason) per hour. */
+const TICK_SKIP_LOG_TTL_SECONDS = 3600;
+
+/** Reasons a scheduled tick is deliberately skipped (activity_log details.reason). */
+export type TickSkipReason =
+  | "paused"
+  | "not_scheduled"
+  | "company_inactive"
+  | "duplicate_tick"
+  | "dedup_unavailable"
+  | "quota_exhausted";
+
+/**
+ * Persist a deliberate tick skip to activity_log (rule #9). Best-effort: a log
+ * failure is swallowed (warn) and never changes the skip decision or throws
+ * into the scheduler. details carry ids/reason only — no prompt/content/secrets.
+ * Log dedup via Redis SET NX (key carries no tenant info): duplicate_tick ->
+ * one row per (pipelineId, slot); every other reason -> coarse key
+ * (pipelineId, reason) with a 1h TTL, so a persistent skip cause (paused
+ * company, exhausted quota) writes at most 1 row/hour/reason instead of one per
+ * tick. dedup_unavailable skips dedup (Redis is the thing that is down). A
+ * failing/slow dedup key fails OPEN for the log only (the row is written anyway).
+ */
+async function logTickSkip(
+  tenantId: string,
+  pipelineId: string,
+  reason: TickSkipReason,
+  extra: Record<string, unknown> = {},
+  dedupSlotMs: number | null = null,
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    let dedupKey: string | null = null;
+    let dedupTtl = TICK_SKIP_LOG_TTL_SECONDS;
+    if (reason === "duplicate_tick" && dedupSlotMs !== null) {
+      dedupKey = `pipeline:tick-skip:${pipelineId}:${dedupSlotMs}`;
+      dedupTtl = TICK_SLOT_TTL_SECONDS;
+    } else if (reason !== "dedup_unavailable" && reason !== "duplicate_tick") {
+      dedupKey = `pipeline:tick-skip:${pipelineId}:${reason}`;
+    }
+    if (dedupKey !== null) {
+      try {
+        const res = await Promise.race([
+          redis.set(dedupKey, "1", "EX", dedupTtl, "NX"),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error("tick-skip log dedup timed out")), TICK_DEDUP_TIMEOUT_MS);
+          }),
+        ]);
+        if (res !== "OK") return; // this skip is already logged (slot / hour window)
+      } catch (err) {
+        logger.warn({ pipelineId, err }, "Tick-skip log dedup unavailable — logging anyway");
+      }
+    }
+    await prisma.activityLog.create({
+      data: {
+        tenantId,
+        actor: "system",
+        action: "pipeline.schedule.skip",
+        resource: "pipeline",
+        resourceId: pipelineId,
+        details: { pipelineId, reason, ...extra },
+      },
+    });
+  } catch (err) {
+    logger.warn({ pipelineId, reason, err }, "Failed to write pipeline.schedule.skip activity log");
   } finally {
     if (timer) clearTimeout(timer);
   }
@@ -876,6 +948,14 @@ export async function processScheduledTick(job: Job<ScheduledTickData>): Promise
     pipeline.trigger !== "SCHEDULED" ||
     !pipeline.schedule
   ) {
+    // A deleted pipeline has no tenant to scope a row to: logger only.
+    if (pipeline?.company?.tenantId) {
+      await logTickSkip(
+        pipeline.company.tenantId,
+        pipelineId,
+        pipeline.enabled ? "not_scheduled" : "paused",
+      );
+    }
     logger.info(
       {
         pipelineId,
@@ -891,6 +971,11 @@ export async function processScheduledTick(job: Job<ScheduledTickData>): Promise
   // Re-check company status at fire time — a paused/archived workspace
   // shouldn't keep burning scheduled runs.
   if (!pipeline.company || pipeline.company.status !== "ACTIVE") {
+    if (pipeline.company?.tenantId) {
+      await logTickSkip(pipeline.company.tenantId, pipelineId, "company_inactive", {
+        companyStatus: pipeline.company.status,
+      });
+    }
     logger.info(
       { pipelineId, companyStatus: pipeline.company?.status ?? "missing" },
       "Scheduled run skipped — company not active",
@@ -901,10 +986,19 @@ export async function processScheduledTick(job: Job<ScheduledTickData>): Promise
   // Idempotency (BRA-P1-04c): one run per (pipeline, planned slot). Taken
   // before the quota claim so a duplicate tick never burns quota.
   const slotMs = tickSlotMs(job);
-  if (!(await claimTickSlot(pipelineId, slotMs))) {
+  const slotClaim = await claimTickSlot(pipelineId, slotMs);
+  if (slotClaim !== "claimed") {
     logger.info(
       { pipelineId, slotMs },
       "Scheduled tick skipped — slot already claimed or dedup unavailable",
+    );
+    await logTickSkip(
+      pipeline.company.tenantId,
+      pipelineId,
+      slotClaim === "duplicate" ? "duplicate_tick" : "dedup_unavailable",
+      { slotMs },
+      // Redis is the thing that is down for "unavailable": no NX key to use.
+      slotClaim === "duplicate" ? slotMs : null,
     );
     return;
   }
@@ -918,6 +1012,7 @@ export async function processScheduledTick(job: Job<ScheduledTickData>): Promise
       { pipelineId, tenantId: pipeline.company.tenantId, value: claim.value, limit: claim.limit },
       "Scheduled run skipped — quota exhausted",
     );
+    await logTickSkip(pipeline.company.tenantId, pipelineId, "quota_exhausted", { slotMs });
     return;
   }
 
