@@ -1393,7 +1393,9 @@
           "scroll": "Grafo delle dipendenze dei passaggi, scorrevole",
           "listLabel": "Passaggi con le relative dipendenze",
           "dependsOn": "Dipende dal passaggio: {steps}",
-          "noDeps": "Nessuna dipendenza"
+          "noDeps": "Nessuna dipendenza",
+          "changed": "La definizione del lavoro è cambiata dopo l'avvio di questa esecuzione, quindi le dipendenze dei passaggi non vengono mostrate.",
+          "unverified": "Basato sulla definizione attuale del lavoro (momento della modifica sconosciuto)."
         },
         "seconds": "{value} s",
         "millis": "{value} ms",

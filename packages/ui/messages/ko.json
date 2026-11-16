@@ -1393,7 +1393,9 @@
           "scroll": "단계 의존 관계 그래프, 스크롤 가능",
           "listLabel": "단계와 의존 관계",
           "dependsOn": "의존하는 단계: {steps}",
-          "noDeps": "의존 관계 없음"
+          "noDeps": "의존 관계 없음",
+          "changed": "이 실행이 시작된 후 작업 정의가 변경되어 단계 의존 관계를 표시하지 않습니다.",
+          "unverified": "작업의 현재 정의 기준입니다(변경 시점을 알 수 없음)."
         },
         "seconds": "{value}초",
         "millis": "{value}ms",

@@ -1393,7 +1393,9 @@
           "scroll": "Grafo de dependencias de pasos, desplazable",
           "listLabel": "Pasos con sus dependencias",
           "dependsOn": "Depende del paso: {steps}",
-          "noDeps": "Sin dependencias"
+          "noDeps": "Sin dependencias",
+          "changed": "La definición del trabajo cambió después de iniciar esta ejecución, por lo que no se muestran las dependencias de los pasos.",
+          "unverified": "Según la definición actual del trabajo (se desconoce cuándo cambió)."
         },
         "seconds": "{value} s",
         "millis": "{value} ms",

@@ -1393,7 +1393,9 @@
           "scroll": "Graphe des dépendances des étapes, défilable",
           "listLabel": "Étapes et leurs dépendances",
           "dependsOn": "Dépend de l'étape : {steps}",
-          "noDeps": "Aucune dépendance"
+          "noDeps": "Aucune dépendance",
+          "changed": "La définition de la tâche a changé après le début de cette exécution ; les dépendances des étapes ne sont donc pas affichées.",
+          "unverified": "D'après la définition actuelle de la tâche (date de modification inconnue)."
         },
         "seconds": "{value} s",
         "millis": "{value} ms",

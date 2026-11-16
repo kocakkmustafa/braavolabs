@@ -1393,7 +1393,9 @@
           "scroll": "Grafo de dependências das etapas, rolável",
           "listLabel": "Etapas com suas dependências",
           "dependsOn": "Depende da etapa: {steps}",
-          "noDeps": "Sem dependências"
+          "noDeps": "Sem dependências",
+          "changed": "A definição do trabalho mudou depois que esta execução começou, então as dependências das etapas não são exibidas.",
+          "unverified": "Com base na definição atual do trabalho (momento da alteração desconhecido)."
         },
         "seconds": "{value} s",
         "millis": "{value} ms",

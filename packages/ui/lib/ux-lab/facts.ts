@@ -97,11 +97,13 @@ export interface KaputModel { provider: string | null; model: string | null; mod
 /** Adım olay günlüğü: yalnız `startedAt`/`completedAt` zaman damgaları (koşu seviyesinde etkinlik günlüğü ucu yok). */
 export interface KaputLogEvent { kind: "started" | "ended"; at: string }
 export interface KaputTokens { input: number | null; output: number | null }
-export interface KaputStep { id: string; index: number; name: string; agentRole: string | null; status: string; costUsd: number | null; durationMs: number | null; reasoning: string | null; toolCalls: KaputToolCall[]; error?: string | null; modelInfo?: KaputModel | null; log?: KaputLogEvent[]; tokens?: KaputTokens | null; dependsOn?: string[] | null }
+export interface KaputStep { id: string; index: number; name: string; agentRole: string | null; status: string; costUsd: number | null; durationMs: number | null; reasoning: string | null; toolCalls: KaputToolCall[]; error?: string | null; modelInfo?: KaputModel | null; log?: KaputLogEvent[]; tokens?: KaputTokens | null; dependsOn?: string[] | null; createdAt?: string | null }
 /** BRA-P1-01-N2 — işin hattı tanımından yalnız ad ve sıra (`order`); `GET /runs/:id` yanıtındaki `pipeline.steps` + `pipeline.pipelineType`. */
-export interface KaputPipelineDef { name: string; order: number }
+export interface KaputPipelineDef { name: string; order: number | null }
+/** Hat/koşu zamanları (ISO): hat tanımının koşudan sonra değişip değişmediğini sınamak için (`pipeline.updatedAt`, `startedAt ?? createdAt`). */
+export interface KaputTimes { pipelineUpdatedAt: string | null; runStartedAt: string | null }
 /** `handoffCount` null = okunamadı/yok (uydurulmaz). */
-export interface Kaput { steps: KaputStep[]; totalCostUsd: number | null; toolCallCount: number; handoffCount: number | null; runError?: string | null; budgetUsd?: number | null; pipelineType?: string | null; pipelineDefs?: KaputPipelineDef[] | null }
+export interface Kaput { steps: KaputStep[]; totalCostUsd: number | null; toolCallCount: number; handoffCount: number | null; runError?: string | null; budgetUsd?: number | null; pipelineType?: string | null; pipelineDefs?: KaputPipelineDef[] | null; times?: KaputTimes | null }
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v : null);
@@ -154,6 +156,7 @@ export function parseKaput(raw: unknown): Kaput {
       ...(isoTime(s.startedAt) ? [{ kind: "started" as const, at: isoTime(s.startedAt) as string }] : []),
       ...(isoTime(s.completedAt) ? [{ kind: "ended" as const, at: isoTime(s.completedAt) as string }] : []),
     ],
+    createdAt: isoTime(s.createdAt),
     dependsOn: Array.isArray(s.dependsOn) ? s.dependsOn.map((d) => (typeof d === "string" ? d : "")) : null,
     tokens: nonNeg(s.promptTokens) === null && nonNeg(s.completionTokens) === null ? null : { input: nonNeg(s.promptTokens), output: nonNeg(s.completionTokens) },
     toolCalls: (Array.isArray(s.toolCalls) ? s.toolCalls : []).filter(isObj).map((c, j) => ({
@@ -164,14 +167,18 @@ export function parseKaput(raw: unknown): Kaput {
       error: str(c.error),
     })),
   }));
-  return { steps, totalCostUsd: nonNeg(raw.costUsd), toolCallCount: steps.reduce((n, s) => n + s.toolCalls.length, 0), handoffCount: null, runError: str(raw.error), budgetUsd: positive(toNumber(raw.budgetUsd)), ...parsePipeline(raw.pipeline) };
+  return { steps, totalCostUsd: nonNeg(raw.costUsd), toolCallCount: steps.reduce((n, s) => n + s.toolCalls.length, 0), handoffCount: null, runError: str(raw.error), budgetUsd: positive(toNumber(raw.budgetUsd)), ...parsePipeline(raw.pipeline), times: { pipelineUpdatedAt: isObj(raw.pipeline) ? isoTime(raw.pipeline.updatedAt) : null, runStartedAt: isoTime(raw.startedAt) ?? isoTime(raw.createdAt) } };
 }
 
 /** Hat tanımı: `order` yoksa dizi sırası (runner.ts: `s.order ?? idx`). Dizi değilse null (uydurulmaz). */
 function parsePipeline(p: unknown): { pipelineType: string | null; pipelineDefs: KaputPipelineDef[] | null } {
   if (!isObj(p)) return { pipelineType: null, pipelineDefs: null };
   const defs = Array.isArray(p.steps)
-    ? p.steps.map((d, i) => ({ name: isObj(d) ? (str(d.name) ?? "") : "", order: isObj(d) ? (nonNeg(d.order) ?? i) : i }))
+    // runner.ts: `s.order ?? idx` (ham değer; negatif geçerli). Sayı olmayan/sonlu olmayan order → null (çıkarım kapanır).
+    ? p.steps.map((d, i) => {
+      const o = isObj(d) ? d.order : undefined;
+      return { name: isObj(d) ? (str(d.name) ?? "") : "", order: o === undefined || o === null ? i : typeof o === "number" && Number.isFinite(o) ? o : null };
+    })
     : null;
   return { pipelineType: str(p.pipelineType)?.toUpperCase() ?? null, pipelineDefs: defs };
 }
@@ -193,6 +200,10 @@ export interface KaputGraph {
   consistent: boolean;
   total: number;
   truncated: boolean;
+  /** true: hat tanımı koşuyla karşılaştırılamadı (updatedAt/başlangıç zamanı yok); grafik GÜNCEL tanıma göre */
+  unverified?: boolean;
+  /** true: hat tanımı koşudan sonra değişti → çıkarım kapatıldı */
+  changed?: boolean;
 }
 
 const emptyGraph = (total: number, consistent = true): KaputGraph => ({ source: "none", nodes: [], edges: [], levels: [], consistent, total, truncated: total > GRAPH_MAX_NODES });
@@ -224,10 +235,29 @@ function layer(ids: string[], edges: Array<{ from: string; to: string }>): { lev
   return { levels: level, edges: kept, cyclic: true };
 }
 
-export function buildKaputGraph(k: Pick<Kaput, "steps" | "pipelineType" | "pipelineDefs">): KaputGraph {
-  const steps = [...k.steps].sort((a, b) => a.index - b.index);
+/** Aynı stepIndex için birden çok satır (retry/devralma): en yeni createdAt, eşitse büyük id. */
+function latestPerIndex(steps: KaputStep[]): KaputStep[] {
+  const best = new Map<number, KaputStep>();
+  for (const s of steps) {
+    const cur = best.get(s.index);
+    if (!cur) { best.set(s.index, s); continue; }
+    const a = s.createdAt ?? "", b = cur.createdAt ?? "";
+    if (a > b || (a === b && s.id > cur.id)) best.set(s.index, s);
+  }
+  return [...best.values()].sort((x, y) => x.index - y.index);
+}
+
+export function buildKaputGraph(k: Pick<Kaput, "steps" | "pipelineType" | "pipelineDefs" | "times">): KaputGraph {
+  let steps = [...k.steps].sort((a, b) => a.index - b.index);
+  if (steps.length === 0) return emptyGraph(0);
+  const usesApi = steps.some((s) => s.dependsOn);
+  if (!usesApi && k.pipelineType === "SEQUENTIAL" && k.pipelineDefs) {
+    // Çıkarım güncel hat tanımına dayanır: koşudan sonra değişmişse kapat. Zaman yoksa doğrulanamaz (unverified).
+    const u = k.times?.pipelineUpdatedAt ?? null, r = k.times?.runStartedAt ?? null;
+    if (u && r && u > r) return { ...emptyGraph(steps.length), changed: true };
+    steps = latestPerIndex(steps);
+  }
   const total = steps.length;
-  if (total === 0) return emptyGraph(0);
   const shown = steps.slice(0, GRAPH_MAX_NODES);
   const truncated = total > shown.length;
   const ids = shown.map((s) => s.id);
@@ -236,8 +266,9 @@ export function buildKaputGraph(k: Pick<Kaput, "steps" | "pipelineType" | "pipel
   let source: KaputGraphSource = "none";
   let edges: Array<{ from: string; to: string }> = [];
   const order = new Map<string, number>();
+  let unverified = false;
 
-  if (steps.some((s) => s.dependsOn)) {
+  if (usesApi) {
     // (a) API bağımlılık verir; bilinmeyen/kendine kenar atlanır.
     source = "api";
     const seen = new Set<string>();
@@ -248,11 +279,17 @@ export function buildKaputGraph(k: Pick<Kaput, "steps" | "pipelineType" | "pipel
     }
   } else if (k.pipelineType === "SEQUENTIAL" && k.pipelineDefs) {
     // (b) aynı order = paralel grup; her grup bir öncekinin tamamına bağlı.
-    const defs = [...k.pipelineDefs.map((d, i) => ({ ...d, i }))].sort((a, b) => a.order - b.order || a.i - b.i);
-    const ok = steps.every((s) => s.index < defs.length && defs[s.index].name === s.name) && new Set(steps.map((s) => s.index)).size === steps.length;
-    if (!ok) return emptyGraph(total, false);
+    if (k.pipelineDefs.some((d) => d.order === null)) return emptyGraph(total, false);
+    const defs = k.pipelineDefs.map((d, i) => ({ name: d.name, order: d.order as number, i })).sort((a, b) => a.order - b.order || a.i - b.i);
+    if (!steps.every((s) => s.index < defs.length && defs[s.index].name === s.name)) return emptyGraph(total, false);
     source = "order";
-    for (const s of shown) order.set(s.id, defs[s.index].order);
+    for (const s of steps) order.set(s.id, defs[s.index].order);
+    // Ara grubun (tanımda var, kayıtta yok ama sonraki grubun kaydı var) boşluğu = kapı hatası/tutarsız: çıkarım yok.
+    const present = new Set(steps.map((s) => order.get(s.id) as number));
+    const defOrders = [...new Set(defs.map((d) => d.order))];
+    const lastPresent = Math.max(...present);
+    if (defOrders.some((o) => o < lastPresent && !present.has(o))) return emptyGraph(total, false);
+    unverified = !(k.times?.pipelineUpdatedAt && k.times?.runStartedAt);
     const orders = [...new Set(shown.map((s) => order.get(s.id) as number))].sort((a, b) => a - b);
     for (let g = 1; g < orders.length; g++) {
       for (const to of shown.filter((s) => order.get(s.id) === orders[g])) {
@@ -271,5 +308,5 @@ export function buildKaputGraph(k: Pick<Kaput, "steps" | "pipelineType" | "pipel
     (levels[level] ??= []).push(s.id);
     return { id: s.id, index: s.index, level };
   });
-  return { source, nodes, edges: res.edges, levels: Array.from(levels, (l) => l ?? []), consistent, total, truncated };
+  return { source, nodes, edges: res.edges, levels: Array.from(levels, (l) => l ?? []), consistent, total, truncated, unverified };
 }

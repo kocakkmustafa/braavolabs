@@ -1393,7 +1393,9 @@
           "scroll": "Adım bağımlılık grafiği, kaydırılabilir",
           "listLabel": "Adımlar ve bağımlılıkları",
           "dependsOn": "Bağlı olduğu adım: {steps}",
-          "noDeps": "Bağımlılık yok"
+          "noDeps": "Bağımlılık yok",
+          "changed": "İş tanımı bu koşu başladıktan sonra değişti; bu yüzden adım bağımlılıkları gösterilmiyor.",
+          "unverified": "İşin güncel tanımına göre (değişiklik zamanı bilinmiyor)."
         },
         "seconds": "{value} sn",
         "millis": "{value} ms",

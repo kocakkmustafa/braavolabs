@@ -1393,7 +1393,9 @@
           "scroll": "Step dependency graph, scrollable",
           "listLabel": "Steps with their dependencies",
           "dependsOn": "Depends on step: {steps}",
-          "noDeps": "No dependencies"
+          "noDeps": "No dependencies",
+          "changed": "The job definition changed after this run started, so step dependencies are not shown.",
+          "unverified": "Based on the job's current definition (change time unknown)."
         },
         "seconds": "{value} s",
         "millis": "{value} ms",

@@ -1393,7 +1393,9 @@
           "scroll": "Grafik dependensi langkah, dapat digulir",
           "listLabel": "Langkah beserta dependensinya",
           "dependsOn": "Bergantung pada langkah: {steps}",
-          "noDeps": "Tanpa dependensi"
+          "noDeps": "Tanpa dependensi",
+          "changed": "Definisi pekerjaan berubah setelah proses ini dimulai, sehingga dependensi langkah tidak ditampilkan.",
+          "unverified": "Berdasarkan definisi pekerjaan saat ini (waktu perubahan tidak diketahui)."
         },
         "seconds": "{value} dtk",
         "millis": "{value} md",

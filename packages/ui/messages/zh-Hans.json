@@ -1393,7 +1393,9 @@
           "scroll": "步骤依赖关系图，可滚动",
           "listLabel": "步骤及其依赖关系",
           "dependsOn": "依赖步骤：{steps}",
-          "noDeps": "无依赖"
+          "noDeps": "无依赖",
+          "changed": "此运行开始后任务定义发生了变化，因此不显示步骤依赖关系。",
+          "unverified": "基于任务当前的定义（变更时间未知）。"
         },
         "seconds": "{value} 秒",
         "millis": "{value} 毫秒",

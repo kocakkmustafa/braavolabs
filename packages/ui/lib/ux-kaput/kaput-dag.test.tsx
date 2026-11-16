@@ -4,6 +4,7 @@ import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import KaputPanel from "../../components/job/KaputPanel";
+import { clipWide } from "../../components/job/KaputDag";
 import type { T } from "../../components/inbox/InboxParts";
 import { buildKaputGraph, parseKaput, GRAPH_MAX_NODES, type Kaput } from "../ux-lab/facts";
 
@@ -132,6 +133,83 @@ describe("Kaput DAG görünümü", () => {
   });
 });
 
+const seqT = (steps: unknown[], defs: unknown[], times: { updatedAt?: string; startedAt?: string; createdAt?: string }) =>
+  parseKaput({ steps, startedAt: times.startedAt, createdAt: times.createdAt, pipeline: { pipelineType: "SEQUENTIAL", steps: defs, updatedAt: times.updatedAt } });
+
+describe("DAG: tanım değişimi, retry, order, kapı boşluğu", () => {
+  const defs = [def(0), def(1), def(2)];
+  const rows = () => [step(0), step(1), step(2)];
+  it("hat koşudan sonra değiştiyse çıkarım kapanır ve not görünür", () => {
+    const k = seqT(rows(), defs, { startedAt: "2026-11-01T10:00:00Z", updatedAt: "2026-11-02T10:00:00Z" });
+    const g = buildKaputGraph(k);
+    expect(g).toMatchObject({ source: "none", changed: true, nodes: [], edges: [] });
+    const h = render(k);
+    expect(h).toContain('data-testid="job-kaput-dag-changed"');
+    expect(h).not.toContain("<svg");
+  });
+  it("hat koşudan önce güncellenmişse doğrulanmış grafik; startedAt yoksa createdAt kullanılır", () => {
+    const g = buildKaputGraph(seqT(rows(), defs, { startedAt: "2026-11-02T10:00:00Z", updatedAt: "2026-11-01T10:00:00Z" }));
+    expect(g).toMatchObject({ source: "order", unverified: false });
+    expect(buildKaputGraph(seqT(rows(), defs, { createdAt: "2026-11-02T10:00:00Z", updatedAt: "2026-11-03T10:00:00Z" })).changed).toBe(true);
+  });
+  it("zaman alanları yoksa grafik 'güncel tanıma göre' notuyla gelir", () => {
+    const k = seqT(rows(), defs, {});
+    expect(buildKaputGraph(k).unverified).toBe(true);
+    expect(render(k)).toContain('data-testid="job-kaput-dag-unverified"');
+    expect(render(seqT(rows(), defs, { startedAt: "2026-11-02T10:00:00Z", updatedAt: "2026-11-01T10:00:00Z" }))).not.toContain("job-kaput-dag-unverified");
+  });
+  it("retry: aynı stepIndex için en yeni satır seçilir, graf tutarlı kalır", () => {
+    const g = buildKaputGraph(seqT([step(0), step(1, { id: "eski", createdAt: "2026-11-01T10:00:00Z", status: "FAILED" }), step(1, { id: "yeni", createdAt: "2026-11-01T10:05:00Z" }), step(2)], defs, {}));
+    expect(g.consistent).toBe(true);
+    expect(g.nodes.map((n) => n.id)).toEqual(["s0", "yeni", "s2"]);
+    expect(g.total).toBe(3);
+    const h = render(seqT([step(0), step(1, { id: "eski", createdAt: "2026-11-01T10:00:00Z", status: "FAILED" }), step(1, { id: "yeni", createdAt: "2026-11-01T10:05:00Z" }), step(2)], defs, {}));
+    expect(h.match(/data-testid="job-kaput-dag-node"/g)).toHaveLength(3);
+    expect(h).not.toContain("✕");
+  });
+  it("retry: createdAt eşitse büyük id kazanır", () => {
+    const g = buildKaputGraph(seqT([step(0), step(0, { id: "z9" })], [def(0)], {}));
+    expect(g.nodes.map((n) => n.id)).toEqual(["z9"]);
+  });
+  it("stepIndex >= tanım sayısı: çıkarım yok, tutarsız", () => {
+    const g = buildKaputGraph(seqT([step(0), step(1), step(2), step(3)], defs, {}));
+    expect(g).toMatchObject({ source: "none", consistent: false });
+  });
+  it("order sayı değilse (metin/NaN) çıkarım kapanır; negatif order runner gibi ham değerle sıralanır", () => {
+    expect(buildKaputGraph(seqT([step(0), step(1)], [def(0), { name: "Adım 1", order: "2" }], {}))).toMatchObject({ source: "none", consistent: false });
+    const g = buildKaputGraph(seqT([step(0), step(1)], [def(0, 5), def(1, -3)], {}));
+    // order sırası: Adım 1 (-3) önce, Adım 0 (5) sonra → stepIndex 0 = Adım 1; ad eşleşmez → kapanır
+    expect(g.source).toBe("none");
+    const ok = buildKaputGraph(seqT([step(0, { name: "Adım 1" }), step(1, { name: "Adım 0" })], [def(0, 5), def(1, -3)], {}));
+    expect(ok.source).toBe("order");
+    expect(ok.edges).toEqual([{ from: "s0", to: "s1" }]);
+  });
+  it("ara grubun hiç satırı yoksa tutarsız sayılır (bağlama yok); sondaki eksik grup normal", () => {
+    expect(buildKaputGraph(seqT([step(0), step(2)], [def(0), def(1), def(2)], {}))).toMatchObject({ source: "none", consistent: false });
+    expect(buildKaputGraph(seqT([step(0)], [def(0), def(1), def(2)], {}))).toMatchObject({ source: "order", consistent: true });
+  });
+  it("ok ucu: tüm kenarlarda marker-end; RTL'de kenar sağdan sola, LTR'de soldan sağa", () => {
+    const k = seqT(rows(), defs, {});
+    const xs = (h: string) => [...h.matchAll(/data-testid="job-kaput-dag-edge" d="M([\d.]+) [\d.]+ C[^"]*? ([\d.]+) [\d.]+"/g)].map((m) => [Number(m[1]), Number(m[2])]);
+    const ltr = render(k, "en"), rtl = render(k, "ar");
+    expect(ltr.match(/marker-end="url\(#[A-Za-z0-9]+arrow\)"/g)).toHaveLength(2);
+    expect(ltr).toContain("<marker");
+    expect(xs(ltr).every(([a, b]) => a < b)).toBe(true);
+    expect(xs(rtl)).toHaveLength(2);
+    expect(xs(rtl).every(([a, b]) => a > b)).toBe(true);
+  });
+  it("geniş harf/CJK ad düğümden taşmaz: görsel genişliğe göre kırpılır, clipPath var", () => {
+    const long = "日本語のとても長いステップ名前です。さらに長く";
+    const out = clipWide(`1. ${long}`, 18);
+    expect(out.endsWith("…")).toBe(true);
+    expect(Array.from(out.replace("…", "")).reduce((n, c) => n + ((c.codePointAt(0) ?? 0) > 0x2e80 ? 2 : 1), 0)).toBeLessThanOrEqual(18);
+    const h = render(seq([step(0, { name: long })], [{ name: long, order: 0 }]));
+    expect(h).toContain("<clipPath");
+    expect(h).toContain('clip-path="url(#');
+    expect(clipWide("kısa", 18)).toBe("kısa");
+  });
+});
+
 describe("DAG i18n", () => {
   it("15 dilde dag anahtar kümesi eşit", () => {
     const dir = join(__dirname, "../../messages");
@@ -139,6 +217,6 @@ describe("DAG i18n", () => {
     const sets = files.map((f) => Object.keys(JSON.parse(readFileSync(join(dir, `${f}.json`), "utf8")).app.jobs.kaput.dag).sort().join(","));
     expect(files).toHaveLength(15);
     expect(new Set(sets).size).toBe(1);
-    expect(sets[0].split(",")).toHaveLength(11);
+    expect(sets[0].split(",")).toHaveLength(13);
   });
 });

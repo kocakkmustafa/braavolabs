@@ -1393,7 +1393,9 @@
           "scroll": "Wykres zależności kroków, przewijany",
           "listLabel": "Kroki wraz z zależnościami",
           "dependsOn": "Zależy od kroku: {steps}",
-          "noDeps": "Brak zależności"
+          "noDeps": "Brak zależności",
+          "changed": "Definicja zadania zmieniła się po rozpoczęciu tego przebiegu, dlatego zależności kroków nie są pokazywane.",
+          "unverified": "Na podstawie aktualnej definicji zadania (czas zmiany nieznany)."
         },
         "seconds": "{value} s",
         "millis": "{value} ms",

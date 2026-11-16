@@ -1393,7 +1393,9 @@
           "scroll": "Abhängigkeitsgraph der Schritte, scrollbar",
           "listLabel": "Schritte mit ihren Abhängigkeiten",
           "dependsOn": "Hängt ab von Schritt: {steps}",
-          "noDeps": "Keine Abhängigkeiten"
+          "noDeps": "Keine Abhängigkeiten",
+          "changed": "Die Auftragsdefinition wurde nach dem Start dieses Laufs geändert; Schrittabhängigkeiten werden daher nicht angezeigt.",
+          "unverified": "Basiert auf der aktuellen Auftragsdefinition (Änderungszeitpunkt unbekannt)."
         },
         "seconds": "{value} s",
         "millis": "{value} ms",
