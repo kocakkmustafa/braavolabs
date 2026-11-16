@@ -38,6 +38,7 @@ model Tenant {
 
   users               User[]
   companies           Company[]
+  companyMembers      CompanyMember[]
   usageMeters         UsageMeter[]
   activityLog         ActivityLog[]
   // Multi-key BYOK (E2/T6): one row per (tenant, provider) — the old
@@ -184,6 +185,7 @@ model User {
   // Prisma cannot model partial indexes, so it is not declared here.
   @@map("users")
   pushSessions PushSession[]
+  companyMemberships CompanyMember[]
 }
 
 // ─── PUSH NOTIFICATIONS ─────────────────────────────────
@@ -436,6 +438,7 @@ model Company {
   abTests            AbTest[]
   voiceAgents        VoiceAgent[]
   mediaAssets        MediaAsset[]
+  members            CompanyMember[]
 
   @@unique([tenantId, slug])
   @@index([tenantId])
@@ -1771,6 +1774,32 @@ enum UserRole {
   OWNER
   ADMIN
   MEMBER
+}
+
+// BRA-P1-06-N1 — şirket düzeyi üyelik rolü (tenant düzeyi UserRole'den AYRI).
+// Bilgilendirici/temel model: bu dilimde hiçbir erişim kontrolü üyeliğe bakmaz.
+enum CompanyMemberRole {
+  OWNER
+  MEMBER
+}
+
+model CompanyMember {
+  id          String            @id @default(cuid())
+  tenantId    String            @map("tenant_id")
+  companyId   String            @map("company_id")
+  userId      String            @map("user_id")
+  role        CompanyMemberRole @default(MEMBER)
+  createdAt   DateTime          @default(now()) @map("created_at")
+  createdById String?           @map("created_by_id")
+
+  tenant  Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, userId])
+  @@index([tenantId, companyId])
+  @@index([userId])
+  @@map("company_members")
 }
 
 enum CompanyStatus {

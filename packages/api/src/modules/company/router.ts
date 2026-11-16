@@ -18,6 +18,7 @@ import {
 import { updateAgentWithHistory } from "./agent-update";
 import { composeAgent } from "../agent/composer";
 import { assertCompanyCapacity } from "./company-capacity";
+import { companyMembersRouter } from "./members";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { toPublicCompany } from "./redact";
 import { buildModelsOverview } from "./models-overview";
@@ -32,6 +33,8 @@ import {
 
 export const companyRouter = Router();
 companyRouter.use(authMiddleware);
+// BRA-P1-06-N1: şirket üyeleri (bilgilendirici model; erişim kontrolünü değiştirmez).
+companyRouter.use("/:id/members", companyMembersRouter);
 
 // Expensive: freeform builder triggers Claude clarification loop (expensive tokens).
 const buildStartLimiter = rateLimit({ windowMs: 60_000, maxRequests: 5, keyPrefix: "rl:company:build" });
