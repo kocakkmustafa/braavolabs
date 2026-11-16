@@ -843,6 +843,9 @@ async function claimTickSlot(pipelineId: string, slotMs: number | null): Promise
   }
 }
 
+/** Coarse skip-log dedup window: at most 1 row per (pipeline, reason) per hour. */
+const TICK_SKIP_LOG_TTL_SECONDS = 3600;
+
 /** Reasons a scheduled tick is deliberately skipped (activity_log details.reason). */
 export type TickSkipReason =
   | "paused"
@@ -856,9 +859,12 @@ export type TickSkipReason =
  * Persist a deliberate tick skip to activity_log (rule #9). Best-effort: a log
  * failure is swallowed (warn) and never changes the skip decision or throws
  * into the scheduler. details carry ids/reason only — no prompt/content/secrets.
- * `dedupSlotMs`: when set, at most ONE row per (pipelineId, slot) via Redis NX
- * (stops duplicate-tick delivery from bloating the log). A failing/slow dedup
- * key fails OPEN for the log only (the row is written anyway).
+ * Log dedup via Redis SET NX (key carries no tenant info): duplicate_tick ->
+ * one row per (pipelineId, slot); every other reason -> coarse key
+ * (pipelineId, reason) with a 1h TTL, so a persistent skip cause (paused
+ * company, exhausted quota) writes at most 1 row/hour/reason instead of one per
+ * tick. dedup_unavailable skips dedup (Redis is the thing that is down). A
+ * failing/slow dedup key fails OPEN for the log only (the row is written anyway).
  */
 async function logTickSkip(
   tenantId: string,
@@ -869,21 +875,23 @@ async function logTickSkip(
 ): Promise<void> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    if (dedupSlotMs !== null) {
+    let dedupKey: string | null = null;
+    let dedupTtl = TICK_SKIP_LOG_TTL_SECONDS;
+    if (reason === "duplicate_tick" && dedupSlotMs !== null) {
+      dedupKey = `pipeline:tick-skip:${pipelineId}:${dedupSlotMs}`;
+      dedupTtl = TICK_SLOT_TTL_SECONDS;
+    } else if (reason !== "dedup_unavailable" && reason !== "duplicate_tick") {
+      dedupKey = `pipeline:tick-skip:${pipelineId}:${reason}`;
+    }
+    if (dedupKey !== null) {
       try {
         const res = await Promise.race([
-          redis.set(
-            `pipeline:tick-skip:${pipelineId}:${dedupSlotMs}`,
-            "1",
-            "EX",
-            TICK_SLOT_TTL_SECONDS,
-            "NX",
-          ),
+          redis.set(dedupKey, "1", "EX", dedupTtl, "NX"),
           new Promise<never>((_, reject) => {
             timer = setTimeout(() => reject(new Error("tick-skip log dedup timed out")), TICK_DEDUP_TIMEOUT_MS);
           }),
         ]);
-        if (res !== "OK") return; // this slot's skip is already logged
+        if (res !== "OK") return; // this skip is already logged (slot / hour window)
       } catch (err) {
         logger.warn({ pipelineId, err }, "Tick-skip log dedup unavailable — logging anyway");
       }

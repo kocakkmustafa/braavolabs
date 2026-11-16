@@ -56,6 +56,10 @@ vi.mock("../../../config/env", () => ({ env: { SCHEDULER_TZ: "UTC" } }));
 import { logger } from "../../../lib/logger";
 import { processScheduledTick, getTickDedupErrorCount } from "../runner";
 
+// Slot-claim SETs only (excludes the tick-skip log dedup keys).
+const slotKeyCalls = () =>
+  redisMock.set.mock.calls.filter((c) => String(c[0]).startsWith("pipeline:tick:"));
+
 function makeJob(pipelineId = "pipe-1", timestamp = 1_000_000, delay = 60_000) {
   return { name: "scheduled-run", data: { pipelineId }, timestamp, opts: { delay } } as any;
 }
@@ -93,7 +97,7 @@ describe("processScheduledTick — fire-time guards (G3)", () => {
     await processScheduledTick(makeJob());
     expect(claimQuotaMock).not.toHaveBeenCalled();
     expect(prismaMock.run.create).not.toHaveBeenCalled();
-    expect(redisMock.set).not.toHaveBeenCalled();
+    expect(slotKeyCalls()).toHaveLength(0);
   });
 
   it("trigger no longer SCHEDULED → no run created", async () => {
@@ -122,7 +126,7 @@ describe("processScheduledTick — fire-time guards (G3)", () => {
     await processScheduledTick(makeJob());
     expect(claimQuotaMock).not.toHaveBeenCalled();
     expect(prismaMock.run.create).not.toHaveBeenCalled();
-    expect(redisMock.set).not.toHaveBeenCalled();
+    expect(slotKeyCalls()).toHaveLength(0);
   });
 
   it("quota exhausted → no run created, slot key WAS taken (at-most-once)", async () => {
@@ -130,7 +134,7 @@ describe("processScheduledTick — fire-time guards (G3)", () => {
     claimQuotaMock.mockResolvedValue({ claimed: false, value: 100, limit: 100 });
     await processScheduledTick(makeJob());
     expect(prismaMock.run.create).not.toHaveBeenCalled();
-    expect(redisMock.set).toHaveBeenCalledTimes(1);
+    expect(slotKeyCalls()).toHaveLength(1);
   });
 });
 
@@ -346,5 +350,82 @@ describe("processScheduledTick — skip activity_log (BRA-P1-04-N1)", () => {
     claimQuotaMock.mockResolvedValue({ claimed: false, value: 1, limit: 1 });
     await expect(processScheduledTick(makeJob("pipe-1", 9_000_000))).resolves.toBeUndefined();
     expect(prismaMock.run.create).not.toHaveBeenCalled();
+  });
+});
+
+describe("processScheduledTick — skip log rate limit (BRA-P1-04-N1)", () => {
+  const skipRows = () =>
+    prismaMock.activityLog.create.mock.calls
+      .map((c) => c[0].data)
+      .filter((d: any) => d.action === "pipeline.schedule.skip");
+  const pausedCompany = {
+    ...activePipeline,
+    company: { status: "PAUSED", tenantId: "tenant-1" },
+  };
+
+  it("same reason over 3 ticks (different slots) -> 1 row", async () => {
+    prismaMock.pipeline.findUnique.mockResolvedValue(pausedCompany);
+    for (const ts of [1_000_000, 1_060_000, 1_120_000]) {
+      await processScheduledTick(makeJob("pipe-1", ts));
+    }
+    expect(skipRows()).toHaveLength(1);
+  });
+
+  it("different reasons -> separate rows", async () => {
+    prismaMock.pipeline.findUnique
+      .mockResolvedValueOnce(pausedCompany)
+      .mockResolvedValueOnce({ ...activePipeline, enabled: false })
+      .mockResolvedValueOnce({ ...activePipeline, trigger: "MANUAL" });
+    await processScheduledTick(makeJob("pipe-1", 1_000_000));
+    await processScheduledTick(makeJob("pipe-1", 1_060_000));
+    await processScheduledTick(makeJob("pipe-1", 1_120_000));
+    expect(skipRows().map((r: any) => r.details.reason)).toEqual([
+      "company_inactive",
+      "paused",
+      "not_scheduled",
+    ]);
+  });
+
+  it("rewrites after the key expires (deleted in mock)", async () => {
+    prismaMock.pipeline.findUnique.mockResolvedValue({ ...activePipeline, enabled: false });
+    await processScheduledTick(makeJob("pipe-1", 1_000_000));
+    await processScheduledTick(makeJob("pipe-1", 1_060_000));
+    expect(skipRows()).toHaveLength(1);
+    // Simulate TTL expiry: fresh store.
+    const fresh = new Set<string>();
+    redisMock.set.mockImplementation(async (k: string) => {
+      if (fresh.has(k)) return null;
+      fresh.add(k);
+      return "OK";
+    });
+    await processScheduledTick(makeJob("pipe-1", 5_000_000));
+    expect(skipRows()).toHaveLength(2);
+  });
+
+  it("coarse key: tenant-free name, SET NX EX 3600", async () => {
+    prismaMock.pipeline.findUnique.mockResolvedValue({ ...activePipeline, enabled: false });
+    await processScheduledTick(makeJob());
+    const call = redisMock.set.mock.calls.find((c) => String(c[0]).startsWith("pipeline:tick-skip:"))!;
+    expect(call).toEqual(["pipeline:tick-skip:pipe-1:paused", "1", "EX", 3600, "NX"]);
+    expect(String(call[0])).not.toContain("tenant");
+  });
+
+  it("duplicate_tick keeps the per-slot key (25h TTL)", async () => {
+    prismaMock.pipeline.findUnique.mockResolvedValue(activePipeline);
+    claimQuotaMock.mockResolvedValue({ claimed: true, value: 1, limit: 100 });
+    await processScheduledTick(makeJob());
+    await processScheduledTick(makeJob());
+    const call = redisMock.set.mock.calls.find((c) => String(c[0]).startsWith("pipeline:tick-skip:"))!;
+    expect(call[0]).toBe("pipeline:tick-skip:pipe-1:1060000");
+    expect(call[3]).toBe(25 * 3600);
+  });
+
+  it("Redis error on the dedup key -> fail-open: row still written, skip unchanged", async () => {
+    prismaMock.pipeline.findUnique.mockResolvedValue(pausedCompany);
+    redisMock.set.mockRejectedValue(new Error("redis down"));
+    await expect(processScheduledTick(makeJob())).resolves.toBeUndefined();
+    expect(skipRows()).toHaveLength(1);
+    expect(prismaMock.run.create).not.toHaveBeenCalled();
+    expect(claimQuotaMock).not.toHaveBeenCalled();
   });
 });
