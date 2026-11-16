@@ -1354,7 +1354,7 @@
         "summary": "Étapes ({steps}) · Appels d'outils : {tools} · Coût : {cost} · Transferts : {handoffs}",
         "noSteps": "Cette tâche n'a pas encore d'étapes enregistrées.",
         "unknown": "n/d",
-        "later": "Le détail du modèle, du routage et des autorisations arrivera dans une version ultérieure.",
+        "later": "Le détail du routage et des autorisations arrivera dans une version ultérieure.",
         "runErrorTitle": "Ce travail s'est arrêté sur une erreur",
         "runErrorPlain": "Tu peux réessayer avec le bouton Réessayer sous le travail.",
         "budget": "Budget utilisé : {cost} / {budget} ({percent})",
@@ -1365,6 +1365,23 @@
         "reasoning": "Justification",
         "tools": "Appels d'outils",
         "noTools": "Aucun appel d'outil",
+        "model": "Modèle",
+        "noModel": "Aucune donnée de modèle pour cette étape",
+        "mode": "Mode de modèle",
+        "modes": {
+          "DIRECT": "Direct",
+          "CASCADE": "En cascade (le moins cher d'abord)",
+          "COMPARE": "Comparaison"
+        },
+        "tried": "Modèles essayés",
+        "tokens": "Jetons",
+        "tokensValue": "{input} en entrée / {output} en sortie",
+        "log": "Journal",
+        "noLog": "Aucune donnée de journal pour cette étape",
+        "logEvent": {
+          "started": "Début : {time}",
+          "ended": "Fin : {time}"
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {

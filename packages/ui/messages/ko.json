@@ -1354,7 +1354,7 @@
         "summary": "단계 ({steps}) · 도구 호출: {tools} · 비용: {cost} · 인계: {handoffs}",
         "noSteps": "이 작업에는 아직 단계 기록이 없습니다.",
         "unknown": "정보 없음",
-        "later": "모델, 라우팅, 권한 상세는 이후 버전에서 제공됩니다.",
+        "later": "라우팅과 권한 상세는 이후 버전에서 제공됩니다.",
         "runErrorTitle": "이 작업은 오류로 중단되었습니다",
         "runErrorPlain": "작업 아래의 다시 시도 버튼으로 다시 실행할 수 있습니다.",
         "budget": "사용한 예산: {cost} / {budget} ({percent})",
@@ -1365,6 +1365,23 @@
         "reasoning": "근거",
         "tools": "도구 호출",
         "noTools": "도구 호출 없음",
+        "model": "모델",
+        "noModel": "이 단계의 모델 데이터가 없습니다",
+        "mode": "모델 모드",
+        "modes": {
+          "DIRECT": "직접",
+          "CASCADE": "단계적(저렴한 모델 먼저)",
+          "COMPARE": "비교"
+        },
+        "tried": "시도한 모델",
+        "tokens": "토큰",
+        "tokensValue": "입력 {input} / 출력 {output}",
+        "log": "로그",
+        "noLog": "이 단계의 로그 데이터가 없습니다",
+        "logEvent": {
+          "started": "시작: {time}",
+          "ended": "종료: {time}"
+        },
         "seconds": "{value}초",
         "millis": "{value}ms",
         "stepStatus": {

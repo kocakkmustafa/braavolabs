@@ -128,6 +128,11 @@ function FullStep({ s, n, hid, t, locale, total, percent, duration, status }: {
   const failed = statusKey(s.status) === "failed";
   const unknown = t("app.jobs.kaput.unknown");
   const share = s.costUsd !== null && total !== null && total > 0 ? percent(s.costUsd / total) : null;
+  const mi = s.modelInfo ?? null;
+  const modelLabel = mi && (mi.provider || mi.model) ? [mi.provider, mi.model].filter((x): x is string => !!x).map((x) => safeText(x, NAME_MAX)).join(" / ") : null;
+  const log = s.log ?? [];
+  const fmtNum = (n: number) => { try { return new Intl.NumberFormat(locale).format(n); } catch { return String(n); } };
+  const fmtTime = (iso: string) => { try { return new Intl.DateTimeFormat(locale, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "UTC", timeZoneName: "short" }).format(new Date(iso)); } catch { return iso; } };
   const row = (label: string, value: React.ReactNode) => (
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", ...wrap }}><span style={muted}>{label}:</span><span dir="auto" style={wrap}>{value}</span></div>
   );
@@ -137,10 +142,20 @@ function FullStep({ s, n, hid, t, locale, total, percent, duration, status }: {
         <span style={muted}>{n}.</span><span dir="auto" style={wrap}>{safeText(s.name, NAME_MAX)}</span><span style={badgeStyle(failed)}>{status(s.status)}</span>
       </h4>
       {row(t("app.jobs.kaput.agent"), s.agentRole ? safeText(s.agentRole, NAME_MAX) : unknown)}
+      {row(t("app.jobs.kaput.model"), modelLabel ?? t("app.jobs.kaput.noModel"))}
+      {mi?.mode && row(t("app.jobs.kaput.mode"), t(`app.jobs.kaput.modes.${mi.mode}`))}
+      {mi && mi.tried.length > 1 && row(t("app.jobs.kaput.tried"), <span dir="ltr">{mi.tried.map((m) => safeText(m, NAME_MAX)).join(", ")}</span>)}
+      {row(t("app.jobs.kaput.tokens"), s.tokens ? t("app.jobs.kaput.tokensValue", { input: s.tokens.input === null ? unknown : fmtNum(s.tokens.input), output: s.tokens.output === null ? unknown : fmtNum(s.tokens.output) }) : unknown)}
       {row(t("app.jobs.kaput.duration"), duration(s.durationMs))}
       {row(t("app.jobs.kaput.stepCost"), s.costUsd !== null ? `${money(s.costUsd, locale) ?? unknown}${share ? ` · ${t("app.jobs.kaput.share", { percent: share })}` : ""}` : unknown)}
       {s.error && row(t("app.jobs.kaput.errorLabel"), <span style={{ color: "var(--color-error)" }}>{safeText(s.error, STEP_ERROR_MAX)}</span>)}
       {s.reasoning && row(t("app.jobs.kaput.reasoning"), safeText(s.reasoning, REASONING_MAX))}
+      <div style={muted}>{t("app.jobs.kaput.log")}</div>
+      {log.length === 0 ? <span style={muted} data-testid="job-kaput-nolog">{t("app.jobs.kaput.noLog")}</span> : (
+        <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 2 }} data-testid="job-kaput-log">
+          {log.map((e) => <li key={e.kind} style={wrap}>{t(`app.jobs.kaput.logEvent.${e.kind}`, { time: fmtTime(e.at) })}</li>)}
+        </ul>
+      )}
       <div style={muted}>{t("app.jobs.kaput.tools")}</div>
       {s.toolCalls.length === 0 ? <span style={muted}>{t("app.jobs.kaput.noTools")}</span> : (
         <ul style={{ margin: 0, padding: 0, listStyle: "none", display: "grid", gap: 6 }}>

@@ -1354,7 +1354,7 @@
         "summary": "Pasos ({steps}) · Llamadas a herramientas: {tools} · Costo: {cost} · Traspasos: {handoffs}",
         "noSteps": "Este trabajo todavía no tiene registros de pasos.",
         "unknown": "n/d",
-        "later": "El detalle de modelo, enrutamiento y permisos llegará en una versión posterior.",
+        "later": "El detalle de enrutamiento y permisos llegará en una versión posterior.",
         "runErrorTitle": "Este trabajo se detuvo por un error",
         "runErrorPlain": "Puedes volver a intentarlo con el botón Reintentar debajo del trabajo.",
         "budget": "Presupuesto usado: {cost} / {budget} ({percent})",
@@ -1365,6 +1365,23 @@
         "reasoning": "Razonamiento",
         "tools": "Llamadas a herramientas",
         "noTools": "Sin llamadas a herramientas",
+        "model": "Modelo",
+        "noModel": "Sin datos de modelo para este paso",
+        "mode": "Modo de modelo",
+        "modes": {
+          "DIRECT": "Directo",
+          "CASCADE": "En cascada (primero el barato)",
+          "COMPARE": "Comparar"
+        },
+        "tried": "Modelos probados",
+        "tokens": "Tokens",
+        "tokensValue": "{input} de entrada / {output} de salida",
+        "log": "Registro",
+        "noLog": "Sin datos de registro para este paso",
+        "logEvent": {
+          "started": "Inicio: {time}",
+          "ended": "Fin: {time}"
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {

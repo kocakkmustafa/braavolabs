@@ -1354,7 +1354,7 @@
         "summary": "Adımlar ({steps}) · Araç çağrısı: {tools} · Maliyet: {cost} · El değiştirme: {handoffs}",
         "noSteps": "Bu işte henüz adım kaydı yok.",
         "unknown": "bilgi yok",
-        "later": "Model, yönlendirme ve yetki dökümü sonraki sürümde gelecek.",
+        "later": "Yönlendirme ve yetki dökümü sonraki sürümde gelecek.",
         "runErrorTitle": "Bu iş bir hatayla durdu",
         "runErrorPlain": "İşin altındaki Yeniden dene düğmesiyle tekrar deneyebilirsin.",
         "budget": "Kullanılan bütçe: {cost} / {budget} ({percent})",
@@ -1365,6 +1365,23 @@
         "reasoning": "Gerekçe",
         "tools": "Araç çağrıları",
         "noTools": "Araç çağrısı yok",
+        "model": "Model",
+        "noModel": "Bu adım için model verisi yok",
+        "mode": "Model kipi",
+        "modes": {
+          "DIRECT": "Doğrudan",
+          "CASCADE": "Kademeli (önce ucuz)",
+          "COMPARE": "Karşılaştırma"
+        },
+        "tried": "Denenen modeller",
+        "tokens": "Token",
+        "tokensValue": "{input} giriş / {output} çıkış",
+        "log": "Günlük",
+        "noLog": "Bu adım için günlük verisi yok",
+        "logEvent": {
+          "started": "Başladı: {time}",
+          "ended": "Bitti: {time}"
+        },
         "seconds": "{value} sn",
         "millis": "{value} ms",
         "stepStatus": {

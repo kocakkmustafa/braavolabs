@@ -18,7 +18,12 @@ const toNumber = (v: unknown): number | null => {
   const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
   return Number.isFinite(n) ? n : null;
 };
-const joined = (list: string[] | null | undefined): string | null => (list && list.length > 0 ? list.join(", ") : null);
+/** Kaput sayıları (maliyet, süre, token, sıra): negatif değer geçersiz → null. */
+const nonNeg = (v: unknown): number | null => {
+  const n = toNumber(v);
+  return n !== null && n >= 0 ? n : null;
+};
+const joined =(list: string[] | null | undefined): string | null => (list && list.length > 0 ? list.join(", ") : null);
 
 export function usd(n: number, locale = "tr-TR"): string {
   try { return new Intl.NumberFormat(locale, { style: "currency", currency: "USD", maximumFractionDigits: 4 }).format(n); } catch { return `$${n}`; }
@@ -86,12 +91,47 @@ export function companyLine(groups: readonly LabApprovalGroup[], runs: readonly 
 
 /* ── Kaputu Aç: `GET /runs/:id` gövdesinin savunmacı okuması (adım + araç çağrısı + maliyet; model/yetki dökümü API ister) ── */
 export interface KaputToolCall { id: string; toolName: string; status: string; durationMs: number | null; error: string | null }
-export interface KaputStep { id: string; index: number; name: string; agentRole: string | null; status: string; costUsd: number | null; durationMs: number | null; reasoning: string | null; toolCalls: KaputToolCall[]; error?: string | null }
+/** BRA-P1-01-N1 — adımı fiilen sunan model (`output.provider|model`) ve kip (`modelMode`, `modeDetail`). Alan yoksa null (uydurulmaz). */
+export type KaputModelMode = "DIRECT" | "CASCADE" | "COMPARE";
+export interface KaputModel { provider: string | null; model: string | null; mode: KaputModelMode | null; tried: string[] }
+/** Adım olay günlüğü: yalnız `startedAt`/`completedAt` zaman damgaları (koşu seviyesinde etkinlik günlüğü ucu yok). */
+export interface KaputLogEvent { kind: "started" | "ended"; at: string }
+export interface KaputTokens { input: number | null; output: number | null }
+export interface KaputStep { id: string; index: number; name: string; agentRole: string | null; status: string; costUsd: number | null; durationMs: number | null; reasoning: string | null; toolCalls: KaputToolCall[]; error?: string | null; modelInfo?: KaputModel | null; log?: KaputLogEvent[]; tokens?: KaputTokens | null }
 /** `handoffCount` null = okunamadı/yok (uydurulmaz). */
 export interface Kaput { steps: KaputStep[]; totalCostUsd: number | null; toolCallCount: number; handoffCount: number | null; runError?: string | null; budgetUsd?: number | null }
 
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() ? v : null);
+
+const MODES: readonly string[] = ["DIRECT", "CASCADE", "COMPARE"];
+const isoTime = (v: unknown): string | null => {
+  if (typeof v !== "string") return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d.toISOString();
+};
+/** `modeDetail` içindeki denenen model adları (CASCADE attempts / COMPARE candidates); yinelenenler elenir, en çok 5. */
+function triedModels(detail: unknown): string[] {
+  if (!isObj(detail)) return [];
+  const rows = [detail.attempts, detail.candidates].flatMap((x) => (Array.isArray(x) ? x : [])).filter(isObj);
+  const out: string[] = [];
+  for (const r of rows) {
+    if (r.skipped) continue;
+    const name = str(r.actualModel) ?? str(r.model);
+    if (name && !out.includes(name)) out.push(name);
+  }
+  return out.slice(0, 5);
+}
+export function parseKaputModel(s: Record<string, unknown>): KaputModel | null {
+  const out = isObj(s.output) ? s.output : null;
+  const provider = out ? str(out.provider) : null;
+  const model = out ? str(out.model) : null;
+  const rawMode = typeof s.modelMode === "string" ? s.modelMode.toUpperCase() : null;
+  const mode = rawMode && MODES.includes(rawMode) ? (rawMode as KaputModelMode) : null;
+  const tried = triedModels(s.modeDetail);
+  if (!provider && !model && !mode && tried.length === 0) return null;
+  return { provider, model, mode, tried };
+}
 
 const positive = (n: number | null): number | null => (n !== null && n > 0 ? n : null);
 
@@ -99,21 +139,27 @@ export function parseKaput(raw: unknown): Kaput {
   if (!isObj(raw)) return { steps: [], totalCostUsd: null, toolCallCount: 0, handoffCount: null };
   const steps: KaputStep[] = (Array.isArray(raw.steps) ? raw.steps : []).filter(isObj).map((s, i) => ({
     id: str(s.id) ?? `step-${i}`,
-    index: toNumber(s.stepIndex) ?? i,
+    index: nonNeg(s.stepIndex) ?? i,
     name: str(s.name) ?? str(s.agentRole) ?? `#${i + 1}`,
     agentRole: str(s.agentRole),
     status: (str(s.status) ?? "unknown").toLowerCase(),
-    costUsd: toNumber(s.costUsd),
-    durationMs: toNumber(s.durationMs),
+    costUsd: nonNeg(s.costUsd),
+    durationMs: nonNeg(s.durationMs),
     reasoning: str(s.reasoning),
     error: str(s.error),
+    modelInfo: parseKaputModel(s),
+    log: [
+      ...(isoTime(s.startedAt) ? [{ kind: "started" as const, at: isoTime(s.startedAt) as string }] : []),
+      ...(isoTime(s.completedAt) ? [{ kind: "ended" as const, at: isoTime(s.completedAt) as string }] : []),
+    ],
+    tokens: nonNeg(s.promptTokens) === null && nonNeg(s.completionTokens) === null ? null : { input: nonNeg(s.promptTokens), output: nonNeg(s.completionTokens) },
     toolCalls: (Array.isArray(s.toolCalls) ? s.toolCalls : []).filter(isObj).map((c, j) => ({
       id: str(c.id) ?? `call-${i}-${j}`,
       toolName: str(c.toolName) ?? "?",
       status: (str(c.status) ?? "completed").toLowerCase(),
-      durationMs: toNumber(c.durationMs),
+      durationMs: nonNeg(c.durationMs),
       error: str(c.error),
     })),
   }));
-  return { steps, totalCostUsd: toNumber(raw.costUsd), toolCallCount: steps.reduce((n, s) => n + s.toolCalls.length, 0), handoffCount: null, runError: str(raw.error), budgetUsd: positive(toNumber(raw.budgetUsd)) };
+  return { steps, totalCostUsd: nonNeg(raw.costUsd), toolCallCount: steps.reduce((n, s) => n + s.toolCalls.length, 0), handoffCount: null, runError: str(raw.error), budgetUsd: positive(toNumber(raw.budgetUsd)) };
 }

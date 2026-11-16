@@ -1354,7 +1354,7 @@
         "summary": "Kroki ({steps}) · Wywołania narzędzi: {tools} · Koszt: {cost} · Przekazania: {handoffs}",
         "noSteps": "To zadanie nie ma jeszcze zapisów kroków.",
         "unknown": "brak danych",
-        "later": "Szczegóły modelu, routingu i uprawnień pojawią się w późniejszej wersji.",
+        "later": "Szczegóły routingu i uprawnień pojawią się w późniejszej wersji.",
         "runErrorTitle": "To zadanie zatrzymało się z powodu błędu",
         "runErrorPlain": "Możesz spróbować ponownie przyciskiem Ponów pod zadaniem.",
         "budget": "Wykorzystany budżet: {cost} / {budget} ({percent})",
@@ -1365,6 +1365,23 @@
         "reasoning": "Uzasadnienie",
         "tools": "Wywołania narzędzi",
         "noTools": "Brak wywołań narzędzi",
+        "model": "Model",
+        "noModel": "Brak danych o modelu dla tego kroku",
+        "mode": "Tryb modelu",
+        "modes": {
+          "DIRECT": "Bezpośredni",
+          "CASCADE": "Kaskadowy (najpierw tani)",
+          "COMPARE": "Porównanie"
+        },
+        "tried": "Wypróbowane modele",
+        "tokens": "Tokeny",
+        "tokensValue": "{input} wej. / {output} wyj.",
+        "log": "Dziennik",
+        "noLog": "Brak danych dziennika dla tego kroku",
+        "logEvent": {
+          "started": "Start: {time}",
+          "ended": "Koniec: {time}"
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {

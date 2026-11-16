@@ -171,3 +171,74 @@ describe("KaputPanel — gözden geçirme düzeltmeleri", () => {
     expect(h).toContain('dir="auto"');
   });
 });
+
+describe("BRA-P1-01-N1 — model ve log alanları", () => {
+  const step = (over: Record<string, unknown> = {}) => ({ id: "a", stepIndex: 0, name: "A", status: "COMPLETED", ...over });
+  const one = (over: Record<string, unknown>) => kaput({ steps: [step(over)] });
+  it("eşleme: output.provider/model, modelMode, denenen modeller, token, zaman damgaları", () => {
+    const k = one({
+      output: { provider: "anthropic", model: "claude-x", content: "RAW-CONTENT" }, modelMode: "CASCADE",
+      modeDetail: { attempts: [{ role: "cheap", model: "m-small", actualModel: "m-small-001" }, { role: "strong", model: "m-big" }] },
+      promptTokens: 120, completionTokens: 30, startedAt: "2026-11-16T10:00:00.000Z", completedAt: "2026-11-16T10:00:02Z",
+    }).steps[0];
+    expect(k.modelInfo).toEqual({ provider: "anthropic", model: "claude-x", mode: "CASCADE", tried: ["m-small-001", "m-big"] });
+    expect(k.tokens).toEqual({ input: 120, output: 30 });
+    expect(k.log).toEqual([{ kind: "started", at: "2026-11-16T10:00:00.000Z" }, { kind: "ended", at: "2026-11-16T10:00:02.000Z" }]);
+  });
+  it("veri yok: modelInfo null, log boş, token null; panel açık 'veri yok' metni gösterir", () => {
+    const k = one({}).steps[0];
+    expect(k.modelInfo).toBeNull();
+    expect(k.log).toEqual([]);
+    expect(k.tokens).toBeNull();
+    const h = render(one({}), true);
+    expect(h).toContain("app.jobs.kaput.noModel");
+    expect(h).toContain('data-testid="job-kaput-nolog"');
+  });
+  it("bilinmeyen kip ve geçersiz tarih uydurulmaz", () => {
+    const k = one({ modelMode: "TURBO", startedAt: "yarın" }).steps[0];
+    expect(k.modelInfo).toBeNull();
+    expect(k.log).toEqual([]);
+  });
+  it("Tam: model, kip, token ve günlük görünür; ham içerik sızmaz", () => {
+    const h = render(one({ output: { provider: "openai", model: "gpt-x", content: "RAW-CONTENT" }, modelMode: "DIRECT", promptTokens: 5, completionTokens: 6, startedAt: "2026-11-16T10:00:00Z" }), true);
+    for (const x of ["openai / gpt-x", "app.jobs.kaput.modes.DIRECT", "app.jobs.kaput.tokensValue", 'data-testid="job-kaput-log"', "app.jobs.kaput.logEvent.started"]) expect(h).toContain(x);
+    expect(h).not.toContain("RAW-CONTENT");
+    expect(h).not.toContain("job-kaput-nolog");
+  });
+  it("maskeleme: sır benzeri model adı ve sağlayıcı maskelenir", () => {
+    const h = render(one({ output: { provider: "custom", model: "sk-" + "a".repeat(30) } }), true);
+    expect(h).not.toContain("sk-aaaa");
+    expect(h).toContain("[gizlendi]");
+  });
+  it("tried satırı (≥2 model), ended olayı ve yerelleştirilmiş zaman (düz ' UTC' eki yok)", () => {
+    const h = render(one({
+      output: { model: "a" }, modelMode: "COMPARE",
+      modeDetail: { candidates: [{ model: "m1" }, { model: "m2", actualModel: "m2-x" }, { model: "m3", skipped: "budget" }] },
+      startedAt: "2026-11-16T10:00:00Z", completedAt: "2026-11-16T10:00:02Z",
+    }), true);
+    expect(h).toContain("app.jobs.kaput.tried");
+    expect(h).toContain("m1, m2-x");
+    expect(h).not.toContain("m3");
+    expect(h).toContain("app.jobs.kaput.logEvent.ended");
+    expect(h).toMatch(/"time":"[^"]*UTC[^"]*"/);
+    expect(h).not.toMatch(/UTC UTC/);
+  });
+  it("token null alanı → unknown dalı", () => {
+    const h = render(one({ promptTokens: 7 }), true);
+    expect(h).toContain('"input":"7","output":"app.jobs.kaput.unknown"');
+  });
+  it("bozuk tipler çökmez: attempts dizi değil, modeDetail null, token 'abc'", () => {
+    const k = one({ modelMode: "CASCADE", modeDetail: { attempts: "x", candidates: 5 }, promptTokens: "abc", completionTokens: "abc", startedAt: 12 }).steps[0];
+    expect(k.modelInfo).toEqual({ provider: null, model: null, mode: "CASCADE", tried: [] });
+    expect(k.tokens).toBeNull();
+    expect(k.log).toEqual([]);
+    expect(one({ modeDetail: null, output: "str" }).steps[0].modelInfo).toBeNull();
+    expect(() => render(one({ modelMode: "CASCADE", modeDetail: { attempts: "x" }, promptTokens: "abc" }), true)).not.toThrow();
+  });
+  it("negatif sayılar geçersiz: maliyet, süre, token, sıra", () => {
+    const k = parseKaput({ costUsd: -1, steps: [{ id: "a", stepIndex: -3, costUsd: -0.5, durationMs: -9, promptTokens: -1, completionTokens: -2, toolCalls: [{ id: "t", toolName: "x", durationMs: -4 }] }] });
+    expect(k.totalCostUsd).toBeNull();
+    const s = k.steps[0];
+    expect([s.index, s.costUsd, s.durationMs, s.tokens, s.toolCalls[0].durationMs]).toEqual([0, null, null, null, null]);
+  });
+});

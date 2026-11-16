@@ -1354,7 +1354,7 @@
         "summary": "ステップ ({steps}) · ツール呼び出し: {tools} · コスト: {cost} · 引き継ぎ: {handoffs}",
         "noSteps": "このジョブにはまだステップ記録がありません。",
         "unknown": "情報なし",
-        "later": "モデル、ルーティング、権限の詳細は次のリリースで追加されます。",
+        "later": "ルーティングと権限の詳細は次のリリースで追加されます。",
         "runErrorTitle": "このジョブはエラーで停止しました",
         "runErrorPlain": "ジョブの下にある「再試行」ボタンでもう一度実行できます。",
         "budget": "予算の使用状況: {cost} / {budget}（{percent}）",
@@ -1365,6 +1365,23 @@
         "reasoning": "理由",
         "tools": "ツール呼び出し",
         "noTools": "ツール呼び出しはありません",
+        "model": "モデル",
+        "noModel": "このステップのモデルデータはありません",
+        "mode": "モデルモード",
+        "modes": {
+          "DIRECT": "直接",
+          "CASCADE": "段階的（安価なものを先に）",
+          "COMPARE": "比較"
+        },
+        "tried": "試したモデル",
+        "tokens": "トークン",
+        "tokensValue": "入力 {input} / 出力 {output}",
+        "log": "ログ",
+        "noLog": "このステップのログデータはありません",
+        "logEvent": {
+          "started": "開始: {time}",
+          "ended": "終了: {time}"
+        },
         "seconds": "{value} 秒",
         "millis": "{value} ミリ秒",
         "stepStatus": {

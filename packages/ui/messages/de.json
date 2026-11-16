@@ -1354,7 +1354,7 @@
         "summary": "Schritte ({steps}) · Tool-Aufrufe: {tools} · Kosten: {cost} · Übergaben: {handoffs}",
         "noSteps": "Diese Aufgabe hat noch keine Schrittprotokolle.",
         "unknown": "k. A.",
-        "later": "Modell-, Routing- und Berechtigungsdetails folgen in einer späteren Version.",
+        "later": "Routing- und Berechtigungsdetails folgen in einer späteren Version.",
         "runErrorTitle": "Dieser Auftrag wurde mit einem Fehler beendet",
         "runErrorPlain": "Mit der Schaltfläche „Erneut versuchen“ unter dem Auftrag kannst du es noch einmal probieren.",
         "budget": "Budget genutzt: {cost} / {budget} ({percent})",
@@ -1365,6 +1365,23 @@
         "reasoning": "Begründung",
         "tools": "Werkzeugaufrufe",
         "noTools": "Keine Werkzeugaufrufe",
+        "model": "Modell",
+        "noModel": "Keine Modelldaten für diesen Schritt",
+        "mode": "Modellmodus",
+        "modes": {
+          "DIRECT": "Direkt",
+          "CASCADE": "Kaskade (erst das günstige)",
+          "COMPARE": "Vergleich"
+        },
+        "tried": "Getestete Modelle",
+        "tokens": "Tokens",
+        "tokensValue": "{input} ein / {output} aus",
+        "log": "Protokoll",
+        "noLog": "Keine Protokolldaten für diesen Schritt",
+        "logEvent": {
+          "started": "Gestartet: {time}",
+          "ended": "Beendet: {time}"
+        },
         "seconds": "{value} s",
         "millis": "{value} ms",
         "stepStatus": {
