@@ -470,6 +470,8 @@ pipelineRouter.post("/:id/run", runTriggerLimiter, async (req, res, next) => {
         // Owner is the already-resolved Pipeline → Company (no extra query).
         tenantId: pipeline.company.tenantId,
         workspaceId: pipeline.companyId,
+        // BRA-P1-06-N2: varsayılan owner = koşuyu başlatan kullanıcı.
+        ownerUserId: req.auth!.userId,
         ...(parsedBudget.budget ? { jobBudget: parsedBudget.budget as Prisma.InputJsonValue } : {}),
       },
     });

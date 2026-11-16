@@ -27,6 +27,10 @@ const FREE_RUN_COLUMNS = [
   "updatedAt",
   // BRA-P0-08: job budget policy, set once at creation, read by governance.
   "jobBudget",
+  // BRA-P1-06-N2: owner + teslim onayı; lifecycle değil, delivery.ts yazar.
+  "ownerUserId",
+  "deliveryApprovedById",
+  "deliveryApprovedAt",
 ] as const;
 
 const schemaColumns = Object.keys(Prisma.RunScalarFieldEnum).sort();

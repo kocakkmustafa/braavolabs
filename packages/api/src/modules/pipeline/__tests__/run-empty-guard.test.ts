@@ -205,7 +205,8 @@ describe("POST /:id/run — company lifecycle guard", () => {
     expect(runCreate).toHaveBeenCalledExactlyOnceWith({
       data: {
         pipelineId: "pipe-1", status: "PENDING", trigger: "manual", input: { brief: "fixture-only" },
-        tenantId: "tenant-1", workspaceId: "co-1", // BRA-P0-02c-1
+        tenantId: "tenant-1", workspaceId: "co-1", ownerUserId: "user-1", // BRA-P1-06-N2: başlatan = owner
+        // BRA-P0-02c-1
       },
     });
     expect(activityLogCreate).toHaveBeenCalledOnce();

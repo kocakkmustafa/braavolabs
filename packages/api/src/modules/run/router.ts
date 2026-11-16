@@ -24,6 +24,7 @@ import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfte
 import { decideResume, toLegacyStatus, type JobState } from "./job-state";
 import { evaluateRetryBudget, retryLimit } from "./retry";
 import { toJobReceiptDto } from "./receipt";
+import { assignRunOwner, approveRunDelivery } from "./delivery";
 import { buildCodeSummary, buildReceiptSummaries, CODE_SUMMARY_TOOL_NAMES, MAX_SUMMARY_CALLS } from "./code-summary";
 import { env } from "../../config/env";
 import { toPublicCompany } from "../company/redact";
@@ -1249,3 +1250,24 @@ async function loadCodeSummaryCalls(runId: string, tenantId: string) {
   });
   return { calls: rows.slice(0, MAX_SUMMARY_CALLS).reverse(), truncated: rows.length > MAX_SUMMARY_CALLS };
 }
+
+// ── BRA-P1-06-N2: job owner + insan onaylı teslim (mantık delivery.ts'te) ──
+// PATCH /api/v1/runs/:id/owner — body { ownerUserId: string | null }; ADMIN+ ya da mevcut owner.
+runRouter.patch("/:id/owner", async (req, res, next) => {
+  try {
+    const raw = (req.body ?? {}).ownerUserId;
+    if (raw !== null && (typeof raw !== "string" || raw.length === 0 || raw.length > 128)) {
+      throw new AppError(400, "ownerUserId must be a user id or null");
+    }
+    const out = await assignRunOwner(req.auth!, req.params.id, raw as string | null);
+    res.json(out);
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/runs/:id/delivery/approve — yalnız owner ya da ADMIN+; başarılı terminal koşu; bir kez.
+runRouter.post("/:id/delivery/approve", async (req, res, next) => {
+  try {
+    const out = await approveRunDelivery(req.auth!, req.params.id);
+    res.json({ success: true, ...out });
+  } catch (err) { next(err); }
+});
