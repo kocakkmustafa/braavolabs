@@ -4,7 +4,7 @@
  * yetki alanı (tenant/company/bütçe/izin/onay atlama) reddi ve tenant/company'nin yalnız oturumdan gelmesi.
  * Sıfır ağ: prisma, kuyruk, kota mock'lanır.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type { Router } from "express";
 
 vi.mock("../../../lib/logger", () => ({ logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
@@ -132,13 +132,19 @@ describe("jobs/plan payload sözleşmesi", () => {
     expect((await call("/plan", { message: MSG, workspaceId: "w".repeat(200) })).statusCode).toBe(200);
   });
 
+  it("message alt sınırı: boş ve yalnız-boşluk → 400; 4000 karakter kabul", async () => {
+    expect((await call("/plan", { message: "" })).statusCode).toBe(400);
+    expect((await call("/plan", { message: "   " })).statusCode).toBe(400);
+    expect((await call("/plan", { message: "Rapor hazırla " + "a".repeat(3986) })).statusCode).toBe(200);
+  });
+
   it("yanlış tip / dizi gövde → 400", async () => {
     for (const body of [{ message: 5 }, { message: [MSG] }, { message: MSG, workspaceId: 7 }, [MSG], "x", null]) {
       expect((await call("/plan", body)).statusCode).toBe(400);
     }
   });
 
-  it("tenant yalnız oturumdan: gövdedeki tenantId reddedilir, sahiplik oturum tenant'ıyla aranır", async () => {
+  it("tenant oturumdan gelir: workspace sahipliği ve audit log oturum tenant'ıyla yazılır", async () => {
     await call("/plan", { message: MSG, workspaceId: "ws-1" }, { tenantId: "tenant-session", userId: "u-1", role: "member" });
     expect(m.companyFindFirst.mock.calls[0]![0].where).toEqual({ id: "ws-1", tenantId: "tenant-session" });
     expect(m.activityCreate.mock.calls[0]![0].data.tenantId).toBe("tenant-session");
@@ -146,28 +152,54 @@ describe("jobs/plan payload sözleşmesi", () => {
 });
 
 describe("jobs/start payload sözleşmesi", () => {
-  async function validBody(auth?: Record<string, unknown>) {
-    const p = await call("/plan", { message: MSG }, auth);
-    return { message: MSG, planHash: p.body.planHash as string, idempotencyKey: KEY };
+  afterEach(() => vi.unstubAllEnvs());
+  async function validBody(auth?: Record<string, unknown>, extra: Record<string, unknown> = {}) {
+    const p = await call("/plan", { message: MSG, ...extra }, auth);
+    return { message: MSG, ...extra, planHash: p.body.planHash as string, idempotencyKey: KEY };
   }
+  const SESSION = { tenantId: "tenant-session", userId: "u-1", role: "member" };
 
-  it("geçerli payload kabul (201) ve company/tenant yalnız oturumdan", async () => {
-    const auth = { tenantId: "tenant-session", userId: "u-1", role: "member" };
-    const res = await call("/start", await validBody(auth), auth);
+  it("geçerli payload kabul (201); tenant/company yalnız oturumdan (workspaceId'siz dal)", async () => {
+    const res = await call("/start", await validBody(SESSION), SESSION);
     expect(res.statusCode).toBe(201);
     expect(m.companyFindMany.mock.calls[0]![0].where).toEqual({ tenantId: "tenant-session" });
-    expect(m.activityCreate.mock.calls.at(-1)![0].data.tenantId).toBe("tenant-session");
+    expect(m.claimQuota).toHaveBeenCalledWith("tenant-session", "runs");
+    expect(m.runFindFirst.mock.calls[0]![0].where).toEqual({ tenantId: "tenant-session", idempotencyKey: KEY });
+    expect(m.runCreate.mock.calls[0]![0].data.tenantId).toBe("tenant-session");
+    const started = m.activityCreate.mock.calls.map((c) => c[0].data).find((d) => d.action === "job.started");
+    expect(started.tenantId).toBe("tenant-session");
+    expect(started.resourceId).toBe("run-1");
   });
 
-  it.each(Object.entries(AUTHORITY_FIELDS))("yetki alanı %s → 400 (strict); koşu/kota/kuyruk yok", async (key, value) => {
-    const res = await call("/start", { ...(await validBody()), [key]: value });
-    expect(res.statusCode).toBe(400);
+  it("workspaceId'li dal: sahiplik oturum tenant'ıyla aranır, koşu o şirkete yazılır", async () => {
+    m.companyFindFirst.mockResolvedValue({ id: "ws-9", status: "ACTIVE" });
+    const res = await call("/start", await validBody(SESSION, { workspaceId: "ws-9" }), SESSION);
+    expect(res.statusCode).toBe(201);
+    expect(m.companyFindFirst.mock.calls.at(-1)![0].where).toEqual({ id: "ws-9", tenantId: "tenant-session" });
+    expect(m.companyFindMany).not.toHaveBeenCalled();
+    expect(m.runCreate.mock.calls[0]![0].data.workspaceId).toBe("ws-9");
+  });
+
+  it("başka tenant'ın planHash'i → 409 plan_changed; kota/koşu/kuyruk yok", async () => {
+    const other = await validBody({ tenantId: "tenant-other", userId: "u-2", role: "admin" });
+    const res = await call("/start", other, SESSION);
+    expect(res.statusCode).toBe(409);
+    expect(res.body).toEqual({ error: "plan_changed" });
     expect(m.claimQuota).not.toHaveBeenCalled();
     expect(m.runCreate).not.toHaveBeenCalled();
     expect(m.enqueueRun).not.toHaveBeenCalled();
   });
 
-  it("aşırı uzun alanlar → 400 (message, workspaceId, planHash 201, idempotencyKey 129)", async () => {
+  it.each(Object.entries(AUTHORITY_FIELDS))("yetki alanı %s → 400 (şema hatası); koşu/kota/kuyruk yok", async (key, value) => {
+    const res = await call("/start", { ...(await validBody()), [key]: value });
+    expect(res.statusCode).toBe(400);
+    expect(res.body.error).toBe("Validation error");
+    expect(m.claimQuota).not.toHaveBeenCalled();
+    expect(m.runCreate).not.toHaveBeenCalled();
+    expect(m.enqueueRun).not.toHaveBeenCalled();
+  });
+
+  it("aşırı uzun alanlar → 400 şema hatası (message, workspaceId, planHash 201, idempotencyKey 129)", async () => {
     const base = await validBody();
     for (const patch of [
       { message: "a".repeat(4001) },
@@ -175,17 +207,44 @@ describe("jobs/start payload sözleşmesi", () => {
       { planHash: "h".repeat(201) },
       { idempotencyKey: "k".repeat(129) },
     ]) {
-      expect((await call("/start", { ...base, ...patch })).statusCode).toBe(400);
+      const res = await call("/start", { ...base, ...patch });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe("Validation error");
     }
     expect(m.runCreate).not.toHaveBeenCalled();
   });
 
-  it("onay atlama imkânı yok: yüksek riskli plan + onay alanı → 400, onaysız gönderim → 422", async () => {
+  it("alt/üst sınırlar: idempotencyKey 7 → 400; 8 ve 128 kabul; message boş/boşluk → 400; 4000 message ve 200 planHash şemadan geçer", async () => {
+    const base = await validBody();
+    const bad = await call("/start", { ...base, idempotencyKey: "k".repeat(7) });
+    expect(bad.statusCode).toBe(400);
+    expect(bad.body.error).toBe("Validation error");
+    for (const key of ["k".repeat(8), "k".repeat(128)]) {
+      expect((await call("/start", { ...base, idempotencyKey: key })).statusCode).toBe(201);
+    }
+    for (const message of ["", "   "]) {
+      const res = await call("/start", { ...base, message });
+      expect(res.statusCode).toBe(400);
+      expect(res.body.error).toBe("Validation error");
+    }
+    // Şema geçer; hash eşleşmediği için 409 (400 değil) = sınır kabul edildi.
+    const long = await call("/start", { message: "Rapor hazırla " + "a".repeat(3986), planHash: "h".repeat(200), idempotencyKey: KEY });
+    expect(long.statusCode).toBe(409);
+    expect(long.body).toEqual({ error: "plan_changed" });
+  });
+
+  it("onay atlama imkânı yok: yüksek riskli plan + onay alanı → 400, onaysız gönderim → 422 high_risk_start_unsupported", async () => {
+    vi.stubEnv("STEP_APPROVAL_GATE", "");
     const risky = "Müşterilere kampanya e-postası gönder";
     const p = await call("/plan", { message: risky });
     const body = { message: risky, planHash: p.body.planHash, idempotencyKey: KEY };
-    expect((await call("/start", { ...body, approved: true })).statusCode).toBe(400);
-    expect((await call("/start", body)).statusCode).toBe(422);
+    const withFlag = await call("/start", { ...body, approved: true });
+    expect(withFlag.statusCode).toBe(400);
+    expect(withFlag.body.error).toBe("Validation error");
+    const res = await call("/start", body);
+    expect(res.statusCode).toBe(422);
+    expect(res.body.error).toBe("high_risk_start_unsupported");
+    expect(m.claimQuota).not.toHaveBeenCalled();
     expect(m.runCreate).not.toHaveBeenCalled();
   });
 });
