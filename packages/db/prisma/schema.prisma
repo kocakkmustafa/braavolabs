@@ -611,7 +611,18 @@ model Run {
   // NULL = no job-level limit (legacy behaviour).
   jobBudget      Json?         @map("job_budget")
 
+  // ── Job owner + insan onaylı teslim (BRA-P1-06-N2) ───────────────────
+  // ADDITIVE, nullable, FK'sız düz userId (üyelik doğrulaması uygulama
+  // katmanında; CompanyMember modeli 06-N1'de). owner: sorumlu insan — koşuyu
+  // başlatan kullanıcı varsa o, zamanlanmış/webhook/sistem koşusunda NULL.
+  // Teslim onayı: yalnız başarılı terminal koşu için bir kez; makbuz/kanıt
+  // paketi (JobReceipt) değişmez. Kullanıcı faaliyeti İZLENMEZ.
+  ownerUserId          String?   @map("owner_user_id")
+  deliveryApprovedById String?   @map("delivery_approved_by_id")
+  deliveryApprovedAt   DateTime? @map("delivery_approved_at")
+
   @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, ownerUserId])
   @@index([tenantId, state])
   @@index([pipelineId])
   @@index([status])

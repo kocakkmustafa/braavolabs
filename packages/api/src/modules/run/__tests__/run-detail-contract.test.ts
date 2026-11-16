@@ -83,6 +83,8 @@ const RUN_SCALAR_KEYS = [
   // BRA-P0-02b / 08 (additive, nullable or defaulted)
   "state", "tenantId", "workspaceId", "idempotencyKey", "planVersion", "resultStatus", "deadline",
   "evidenceRef", "retryCount", "heartbeatAt", "jobBudget",
+  // BRA-P1-06-N2 (additive, nullable): owner + insan onaylı teslim
+  "ownerUserId", "deliveryApprovedById", "deliveryApprovedAt",
 ].sort();
 const RELATION_KEYS = ["approvals", "pipeline", "steps"];
 

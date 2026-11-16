@@ -191,6 +191,7 @@ jobsRouter.post("/start", startLimiter, async (req, res, next) => {
       started = await createPlannedRun({
         tenantId,
         workspaceId: company.id,
+        ownerUserId: req.auth!.userId,
         agentRole: agent.role,
         card: result.card,
         planHash,

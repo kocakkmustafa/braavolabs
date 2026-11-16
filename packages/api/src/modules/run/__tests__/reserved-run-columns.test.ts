@@ -27,6 +27,8 @@ const FREE_RUN_COLUMNS = [
   "updatedAt",
   // BRA-P0-08: job budget policy, set once at creation, read by governance.
   "jobBudget",
+  // BRA-P1-06-N2: owner serbest veri (delivery.ts yazar); teslim onayı alanları reserved.
+  "ownerUserId",
 ] as const;
 
 const schemaColumns = Object.keys(Prisma.RunScalarFieldEnum).sort();
@@ -60,6 +62,7 @@ describe("RESERVED_RUN_COLUMNS vs the Run model", () => {
       [
         "id", "pipelineId", "status", "state", "resultStatus", "tenantId", "workspaceId",
         "idempotencyKey", "planVersion", "evidenceRef", "retryCount", "heartbeatAt", "deadline",
+        "deliveryApprovedById", "deliveryApprovedAt",
       ].sort(),
     );
   });

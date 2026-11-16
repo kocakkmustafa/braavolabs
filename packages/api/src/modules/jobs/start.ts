@@ -59,6 +59,8 @@ export function canStartCard(card: PlanCard, env: NodeJS.ProcessEnv = process.en
 export interface StartRunInput {
   tenantId: string;
   workspaceId: string;
+  /** Koşuyu başlatan kullanıcı; yoksa owner null. */
+  ownerUserId?: string | null;
   agentRole: string;
   card: PlanCard;
   planHash: string;
@@ -108,6 +110,8 @@ export async function createPlannedRun(input: StartRunInput): Promise<StartedRun
         workspaceId: input.workspaceId,
         idempotencyKey: input.idempotencyKey,
         jobBudget: input.budget as Prisma.InputJsonValue,
+        // BRA-P1-06-N2: başlatan kullanıcı varsayılan owner (verilmezse null).
+        ownerUserId: input.ownerUserId ?? null,
       },
       select: { id: true, status: true },
     });
