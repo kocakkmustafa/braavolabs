@@ -70,7 +70,7 @@ export interface EvidencePackInput {
   /** Yalnız `EVIDENCE_PACK_TOOL_NAMES` araçları; sıra: eskiden yeniye. */
   calls: readonly PackToolCall[];
   summaries: { testSummary: ReceiptTestSummary | null; diffSummary: ReceiptDiffSummary | null };
-  truncated: { calls: boolean; steps: boolean; approvals: boolean };
+  truncated: { calls: boolean; steps: boolean; approvals: boolean; /** diff/test özet sorgusu kırpıldı */ summaryCalls?: boolean };
 }
 
 export interface EvidencePack {
@@ -90,14 +90,14 @@ export interface EvidencePack {
   code: {
     commits: PackRef<Array<{ sha: string; ref: string }>>;
     pullRequest: PackRef<{ url: string }>;
-    ci: PackRef<{ state: "passing" | "failing" | "unknown"; mergeableState: string; headSha: string | null }>;
+    ci: PackRef<{ mergeStateProxy: "mergeable_clean" | "mergeable_unstable" | "unknown"; mergeableState: string; headSha: string; note: string }>;
     diff: PackRef<ReceiptDiffSummary>;
     tests: PackRef<ReceiptTestSummary>;
   };
   steps: Array<{ stepIndex: number; name: string; status: string; costUsd: number | null; startedAt: string | null; completedAt: string | null }>;
   approvals: Array<{ id: string; type: string; status: string; amountUsd: number | null; decidedBy: string | null; decidedAt: string | null; createdAt: string }>;
   truncated: boolean;
-  truncatedParts: { toolCalls: boolean; steps: boolean; approvals: boolean; commits: boolean };
+  truncatedParts: { toolCalls: boolean; toolCallSummary: boolean; steps: boolean; approvals: boolean; commits: boolean };
   /** SHA-256 hex: yukarıdaki alanların (bu alan hariç) kanonik JSON'u. */
   packHash: string;
 }
@@ -129,7 +129,8 @@ function shaOf(output: unknown): string | null {
   const o = asRecord(output);
   if (!o) return null;
   const commit = asRecord(o.commit);
-  for (const c of [o.sha, o.commit_sha, o.commitSha, o.hash, commit?.sha]) {
+  if (o.status === "FAILED" || o.error) return null;
+  for (const c of [o.sha, o.commit_sha, commit?.sha]) {
     if (typeof c === "string" && SHA_RE.test(c)) return c.toLowerCase();
   }
   return null;
@@ -152,42 +153,39 @@ function deriveCommits(calls: readonly PackToolCall[]): { ref: PackRef<Array<{ s
 
 function derivePr(receipt: JobReceipt, calls: readonly PackToolCall[]): PackRef<{ url: string }> {
   // Makbuz PR öğesi zaten `canonicalPrUrl` + "girdide geçen URL kanıt değil" kurallarından geçmiştir.
-  const pr = receipt.evidence.find((e) => e.kind === "pr" && canonicalPrUrl(e.ref));
-  if (pr) return available({ url: pr.ref }, "receipt.evidence:pr");
+  for (const e of receipt.evidence) {
+    const url = e.kind === "pr" ? canonicalPrUrl(e.ref) : null;
+    if (url) return available({ url }, "receipt.evidence:pr");
+  }
   const pc = calls.filter((c) => c.toolName.toLowerCase() === "create_pull_request");
   if (pc.length === 0) return unavailable("create_pull_request aracı çağrısı yok");
   if (pc.some((c) => asRecord(c.output)?.dryRun === true)) return unavailable("yalnız dry-run: gerçek PR açılmadı");
   return unavailable("PR aracı çağrısında doğrulanmış PR bağlantısı yok");
 }
 
-const CI_STATE: Record<string, "passing" | "failing" | "unknown"> = {
-  clean: "passing",
-  has_hooks: "passing",
-  unstable: "failing",
-  blocked: "unknown",
-  behind: "unknown",
-  dirty: "unknown",
-  draft: "unknown",
-  unknown: "unknown",
-};
+const MERGE_PROXY: Record<string, "mergeable_clean" | "mergeable_unstable"> = { clean: "mergeable_clean", unstable: "mergeable_unstable" };
+const CI_NOTE = "gerçek check-run/CI verisi yok; yalnız GitHub mergeable_state vekili (dal koruması yoksa kırmızı CI'da bile clean olabilir)";
 
 /**
- * CI: ayrı bir CI sonucu kaynağı yok; tek kaynak, makbuzdaki PR'a AİT `get_github_pr_status` çıktısının
- * `mergeableState` alanıdır (GitHub: clean ⇒ kontroller geçti). PR eşleşmezse "kaynak yok".
+ * CI: gerçek check-run verisi YOK. Tek kaynak, makbuzdaki PR'a ait EN YENİ `get_github_pr_status` çıktısının
+ * `mergeableState` alanıdır (vekil). En yeni çağrı PR URL'si, `open` durumu ve paketteki commit SHA'sıyla
+ * eşleşmezse bayat eski çağrıya DÜŞÜLMEZ: `unavailable`.
  */
-function deriveCi(pr: PackRef<{ url: string }>, calls: readonly PackToolCall[]): EvidencePack["code"]["ci"] {
+function deriveCi(pr: PackRef<{ url: string }>, commitShas: readonly string[], calls: readonly PackToolCall[]): EvidencePack["code"]["ci"] {
   const sc = calls.filter((c) => c.toolName.toLowerCase() === "get_github_pr_status" && c.status === "COMPLETED");
-  if (sc.length === 0) return unavailable("CI/PR durum sorgusu (get_github_pr_status) çağrısı yok");
+  if (sc.length === 0) return unavailable("PR durum sorgusu (get_github_pr_status) çağrısı yok; gerçek CI verisi de yok");
   if (pr.status !== "available") return unavailable("makbuzda doğrulanmış PR yok; durum sorgusu bir PR'a bağlanamadı");
-  for (let i = sc.length - 1; i >= 0; i--) {
-    const p = asRecord(asRecord(sc[i]!.output)?.pr);
-    if (!p || canonicalPrUrl(p.url) !== pr.value.url) continue;
-    const ms = typeof p.mergeableState === "string" ? p.mergeableState.toLowerCase() : "";
-    if (!Object.prototype.hasOwnProperty.call(CI_STATE, ms)) continue;
-    const head = typeof p.headSha === "string" && SHA_RE.test(p.headSha) ? p.headSha.toLowerCase() : null;
-    return available({ state: CI_STATE[ms]!, mergeableState: ms, headSha: head }, `tool_call:${sc[i]!.id}`);
+  const latest = sc[sc.length - 1]!;
+  const p = asRecord(asRecord(latest.output)?.pr);
+  if (!p || canonicalPrUrl(p.url) !== pr.value.url) return unavailable("en yeni durum çağrısı makbuzdaki PR ile eşleşmiyor");
+  if (typeof p.state !== "string" || p.state.toLowerCase() !== "open") return unavailable("en yeni durum çağrısında PR açık (open) değil");
+  const head = typeof p.headSha === "string" && SHA_RE.test(p.headSha) ? p.headSha.toLowerCase() : null;
+  if (!head || !commitShas.some((s) => s === head || (s.length >= 7 && head.length >= 7 && (s.startsWith(head) || head.startsWith(s))))) {
+    return unavailable("PR headSha paketteki commit SHA'larıyla eşleşmiyor");
   }
-  return unavailable("makbuzdaki PR için geçerli durum çıktısı yok");
+  const ms = typeof p.mergeableState === "string" ? p.mergeableState.toLowerCase() : "";
+  const proxy = Object.prototype.hasOwnProperty.call(MERGE_PROXY, ms) ? MERGE_PROXY[ms]! : "unknown";
+  return available({ mergeStateProxy: proxy, mergeableState: proxy === "unknown" ? "unknown" : ms, headSha: head, note: CI_NOTE }, `tool_call:${latest.id}`);
 }
 
 export function buildEvidencePack(input: EvidencePackInput): EvidencePack {
@@ -197,7 +195,7 @@ export function buildEvidencePack(input: EvidencePackInput): EvidencePack {
 
   const commits = deriveCommits(input.calls);
   const pullRequest = derivePr(receipt, input.calls);
-  const ci = deriveCi(pullRequest, input.calls);
+  const ci = deriveCi(pullRequest, commits.ref.status === "available" ? commits.ref.value.map((c) => c.sha) : [], input.calls);
 
   const steps = input.steps.slice(0, MAX_PACK_STEPS).map((s) => ({
     stepIndex: s.stepIndex,
@@ -219,6 +217,7 @@ export function buildEvidencePack(input: EvidencePackInput): EvidencePack {
 
   const truncatedParts = {
     toolCalls: input.truncated.calls,
+    toolCallSummary: input.truncated.summaryCalls === true,
     steps: input.truncated.steps || input.steps.length > MAX_PACK_STEPS,
     approvals: input.truncated.approvals || input.approvals.length > MAX_PACK_APPROVALS,
     commits: commits.capped,
@@ -241,7 +240,7 @@ export function buildEvidencePack(input: EvidencePackInput): EvidencePack {
       pullRequest,
       ci,
       diff: summaries.diffSummary ? available(summaries.diffSummary, "tool_calls:diff-tools") : unavailable("diff aracı çağrısı/çıktısı yok"),
-      tests: summaries.testSummary ? available(summaries.testSummary, "tool_calls:test-tools") : unavailable("test aracı çağrısı yok"),
+      tests: truncatedParts.toolCallSummary ? unavailable("truncated: test çağrı sorgusu kırpıldı, sonuç doğrulanamaz") : summaries.testSummary ? available(summaries.testSummary, "tool_calls:test-tools") : unavailable("test aracı çağrısı yok"),
     },
     steps,
     approvals,

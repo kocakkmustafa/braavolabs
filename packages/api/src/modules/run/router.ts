@@ -1285,6 +1285,7 @@ runRouter.get("/:id/evidence", async (req, res, next) => {
       return;
     }
     const summaryCalls = await loadCodeSummaryCalls(run.id, tenantId);
+    // Makbuzdan sonra gelen çağrılar süzülmez: paket "şimdiki durum" görünümüdür; makbuz contentHash'i kendi anındaki kanıtı bağlar.
     const rows = await prisma.toolCall.findMany({
       where: {
         runStep: { runId: run.id, run: { pipeline: { company: { tenantId } } } },
@@ -1307,6 +1308,7 @@ runRouter.get("/:id/evidence", async (req, res, next) => {
           calls: rows.length > MAX_PACK_CALLS,
           steps: run.steps.length > MAX_PACK_STEPS,
           approvals: run.approvals.length > MAX_PACK_APPROVALS,
+          summaryCalls: summaryCalls.truncated,
         },
       }),
     );

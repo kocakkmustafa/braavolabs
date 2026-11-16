@@ -89,7 +89,7 @@ describe("GET /runs/:id/evidence", () => {
     expect(b.cost).toEqual({ receiptUsd: 0.25, runUsd: 0.3 });
     expect(b.code.commits).toEqual({ status: "available", source: "tool_calls:git_commit", value: [{ sha: SHA, ref: "tool_call:c1" }] });
     expect(b.code.pullRequest).toEqual({ status: "available", source: "receipt.evidence:pr", value: { url: PR_URL } });
-    expect(b.code.ci).toEqual({ status: "available", source: "tool_call:c4", value: { state: "passing", mergeableState: "clean", headSha: SHA } });
+    expect(b.code.ci).toEqual({ status: "available", source: "tool_call:c4", value: { mergeStateProxy: "mergeable_clean", mergeableState: "clean", headSha: SHA, note: expect.stringContaining("gerçek check-run") } });
     expect(b.code.diff.value).toMatchObject({ fileCount: 1, additions: 1, deletions: 1, files: [{ path: "src/a.ts" }] });
     expect(b.code.tests.value).toMatchObject({ passed: 7, failed: 0, ok: true });
     expect(b.steps).toEqual([{ stepIndex: 0, name: "fix", status: "COMPLETED", costUsd: 0.1, startedAt: "2026-11-09T09:00:00.000Z", completedAt: null }]);
@@ -147,5 +147,101 @@ describe("GET /runs/:id/evidence", () => {
     expect(res.body.truncated).toBe(true);
     expect(res.body.truncatedParts).toMatchObject({ toolCalls: true, steps: true });
     expect(res.body.steps).toHaveLength(MAX_PACK_STEPS);
+  });
+});
+
+const statusOf = (over: Record<string, unknown>, id = "c4") => ({ ...prStatus, id, output: { status: "COMPLETED", pr: { ...prStatus.output.pr, ...over } } });
+const pack = async () => (await call()).res.body;
+
+describe("evidence — CI vekili", () => {
+  it("passing/failing kelimesi yok; unstable → mergeable_unstable; has_hooks/haritada yok → unknown", async () => {
+    setup([], [commitCall, statusOf({ mergeableState: "unstable" })]);
+    expect((await pack()).code.ci.value).toMatchObject({ mergeStateProxy: "mergeable_unstable" });
+    for (const ms of ["has_hooks", "weird_new_state"]) {
+      setup([], [commitCall, statusOf({ mergeableState: ms })]);
+      const b = await pack();
+      expect(b.code.ci.value).toMatchObject({ mergeStateProxy: "unknown", mergeableState: "unknown" });
+      expect(JSON.stringify(b.code.ci)).not.toMatch(/passing|failing/);
+    }
+  });
+  it("başka PR URL'si / PR open değil / headSha eşleşmiyor ya da yok → unavailable", async () => {
+    for (const over of [{ url: "https://github.com/o/r/pull/99" }, { state: "closed" }, { headSha: "b".repeat(40) }, { headSha: undefined }]) {
+      setup([], [commitCall, statusOf(over)]);
+      expect((await pack()).code.ci).toMatchObject({ status: "unavailable", value: null });
+    }
+  });
+  it("en yeni durum çağrısı uyuşmuyorsa eski eşleşen çağrıya DÜŞÜLMEZ", async () => {
+    // Sorgu en yeniden eskiye gelir (route ters çevirir): ilk eleman EN YENİ.
+    setup([], [commitCall, statusOf({ state: "closed" }, "new"), statusOf({}, "old")]);
+    expect((await pack()).code.ci.status).toBe("unavailable");
+  });
+  it("commit yokken CI unavailable (headSha bağlanamaz)", async () => {
+    setup([], [statusOf({})]);
+    expect((await pack()).code.ci.status).toBe("unavailable");
+  });
+});
+
+describe("evidence — SHA kaynağı", () => {
+  const sha = async (output: unknown, status = "COMPLETED") => {
+    setup([], [{ id: "g", toolName: "git_commit", status, output }]);
+    return (await pack()).code.commits;
+  };
+  it.each([["6 hex", "abcdef"], ["41 hex", "a".repeat(41)], ["metin eki", "abcdef1; x"], ["hex değil", "zzzzzzzz"]])("geçersiz SHA reddedilir: %s", async (_n, v) => {
+    expect((await sha({ sha: v })).status).toBe("unavailable");
+  });
+  it("7 ve 40 hex kabul; büyük harf küçültülür; `hash` anahtarı yok sayılır", async () => {
+    expect((await sha({ sha: "ABCDEF1" })).value).toEqual([{ sha: "abcdef1", ref: "tool_call:g" }]);
+    expect((await sha({ commit: { sha: SHA } })).value[0].sha).toBe(SHA);
+    expect((await sha({ commit_sha: SHA })).status).toBe("available");
+    expect((await sha({ hash: SHA })).status).toBe("unavailable");
+  });
+  it("status:FAILED / error işaretli ya da FAILED durumlu git_commit dışlanır", async () => {
+    expect((await sha({ status: "FAILED", sha: SHA })).status).toBe("unavailable");
+    expect((await sha({ error: "boom", sha: SHA })).status).toBe("unavailable");
+    expect((await sha({ sha: SHA }, "FAILED")).status).toBe("unavailable");
+  });
+  it(">50 commit: ilk 50, truncatedParts.commits", async () => {
+    const many = Array.from({ length: 60 }, (_, i) => ({ id: `m${i}`, toolName: "git_commit", status: "COMPLETED", output: { sha: i.toString(16).padStart(40, "0") } }));
+    setup([], many);
+    const b = await pack();
+    expect(b.code.commits.value).toHaveLength(50);
+    expect(b.truncatedParts.commits).toBe(true);
+    expect(b.truncated).toBe(true);
+  });
+});
+
+describe("evidence — packHash her alan için duyarlı", () => {
+  it("adım / onay / maliyet / kırpma değişince değişir", async () => {
+    setup([], [commitCall]);
+    const base = (await pack()).packHash;
+    const variants: Array<[string, unknown]> = [
+      ["adım", RUN({ steps: [{ ...RUN().steps[0], name: "other" }] })],
+      ["onay", RUN({ approvals: [{ ...RUN().approvals[0], status: "REJECTED" }] })],
+      ["run maliyeti", RUN({ costUsd: 9 })],
+    ];
+    for (const [n, run] of variants) {
+      setup([], [commitCall], run);
+      expect((await pack()).packHash, n).not.toBe(base);
+    }
+    setup([], [commitCall], RUN(), ROW({ costUsd: 5 }));
+    expect((await pack()).packHash).not.toBe(base);
+    setup([], Array.from({ length: MAX_PACK_CALLS + 1 }, () => commitCall));
+    expect((await pack()).packHash).not.toBe(base);
+  });
+});
+
+describe("evidence — özet sorgusu kırpıldı", () => {
+  it("summaryCalls kırpılınca truncated/toolCallSummary true; tests unavailable(truncated)", async () => {
+    const one = { toolName: "git_diff", status: "COMPLETED", input: {}, output: { files: [{ path: "a.ts", additions: 1, deletions: 0 }] } };
+    setup(Array.from({ length: 201 }, () => one), []);
+    const b = await pack();
+    expect(b.truncated).toBe(true);
+    expect(b.truncatedParts.toolCallSummary).toBe(true);
+    expect(b.code.tests).toMatchObject({ status: "unavailable", value: null });
+    expect(b.code.tests.reason).toMatch(/truncated/);
+  });
+  it("PR değeri kanonik URL", async () => {
+    setup([], [], RUN(), ROW({ evidence: [{ kind: "pr", ref: PR_URL }] }));
+    expect((await pack()).code.pullRequest.value).toEqual({ url: PR_URL });
   });
 });
