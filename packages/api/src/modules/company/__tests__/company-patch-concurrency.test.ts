@@ -10,6 +10,7 @@ const db = vi.hoisted(() => ({
   // raceOnce: ilk updateMany'den hemen önce başka bir uç (bütçe/kip) config'e yazar.
   raceOnce: null as null | Record<string, unknown>,
   alwaysConflict: false,
+  conflicts: 0, tenantCalls: 0,
 }));
 
 vi.mock("../../../lib/db", () => ({
@@ -29,6 +30,11 @@ vi.mock("../../../lib/db", () => ({
           c.updatedAt = new Date(c.updatedAt.getTime() + 1);
           db.raceOnce = null;
         }
+        if (db.conflicts > 0) {
+          db.conflicts--;
+          c.config = { ...c.config, [`race${db.conflicts}`]: true };
+          c.updatedAt = new Date(c.updatedAt.getTime() + 1);
+        }
         if (db.alwaysConflict) return { count: 0 };
         if (a.where.updatedAt && a.where.updatedAt.getTime() !== c.updatedAt.getTime()) return { count: 0 };
         if ("config" in a.data && a.data.config !== undefined) c.config = a.data.config;
@@ -37,7 +43,7 @@ vi.mock("../../../lib/db", () => ({
         return { count: 1 };
       },
     },
-    tenant: { findUnique: async () => ({ plan: "INDIVIDUAL" }) },
+    tenant: { findUnique: async () => { db.tenantCalls++; return { plan: "INDIVIDUAL" }; } },
     entitlementEvent: { findMany: async () => [] },
     activityLog: { create: async (a: any) => { db.logs.push(a.data); } },
   },
@@ -64,7 +70,7 @@ async function call(id: string, body: unknown, tenantId = "t-1") {
 const status = (e: any) => e?.statusCode ?? e?.status;
 
 beforeEach(() => {
-  db.logs = []; db.calls = []; db.raceOnce = null; db.alwaysConflict = false;
+  db.logs = []; db.calls = []; db.raceOnce = null; db.alwaysConflict = false; db.conflicts = 0; db.tenantCalls = 0;
   db.companies = [
     { id: "co-1", tenantId: "t-1", name: "Acme", config: { webhookSecret: "keep-me", kpi: { a: 1 } }, updatedAt: new Date(1000) },
     { id: "co-B", tenantId: "t-B", name: "Other", config: { niche: "b" }, updatedAt: new Date(1000) },
@@ -125,6 +131,54 @@ describe("genel PATCH /:id — iyimser kilit", () => {
     db.raceOnce = { monthlyBudgetUsd: 1 };
     await call("co-1", { config: { niche: "saas" } });
     expect(db.logs).toEqual([expect.objectContaining({ tenantId: "t-1", actor: "u-1", action: "company.update", resource: "company", resourceId: "co-1" })]);
+  });
+
+  it("3. denemede başarı: iki çakışmadan sonra yazar, iki yarış yazımı da korunur", async () => {
+    db.conflicts = 2;
+    const { res, err } = await call("co-1", { config: { niche: "saas" } });
+    expect(err).toBeUndefined();
+    expect(res.body).toEqual({ success: true });
+    expect(db.calls.filter((c) => c.op === "updateMany")).toHaveLength(3);
+    expect(db.companies[0].config).toMatchObject({ niche: "saas", race0: true, race1: true, webhookSecret: "keep-me" });
+    expect(db.logs).toHaveLength(1);
+  });
+
+  it("name + config birlikte: ikisi de yazılır ve yarışta korunur", async () => {
+    db.raceOnce = { monthlyBudgetUsd: 7 };
+    const { err } = await call("co-1", { name: "Renamed", config: { niche: "saas" } });
+    expect(err).toBeUndefined();
+    expect(db.companies[0].name).toBe("Renamed");
+    expect(db.companies[0].config).toMatchObject({ niche: "saas", monthlyBudgetUsd: 7 });
+    expect(db.logs).toHaveLength(1);
+  });
+
+  it("kanal: yamada plan dışı yeni kanal 403, yazma ve log yok", async () => {
+    const { err } = await call("co-1", { config: { channels: ["youtube"] } });
+    expect(status(err)).toBe(403);
+    expect(db.calls.filter((c) => c.op === "updateMany")).toHaveLength(0);
+    expect(db.logs).toHaveLength(0);
+  });
+
+  it("kanal: mevcut config'te plan dışı kanal kalmışsa ilgisiz yama {niche} 403 (davranış korunur, bilinçli)", async () => {
+    db.companies[0].config.channels = ["youtube"];
+    const { err } = await call("co-1", { config: { niche: "saas" } });
+    expect(status(err)).toBe(403);
+    expect(db.companies[0].config.niche).toBeUndefined();
+    expect(db.logs).toHaveLength(0);
+  });
+
+  it("kanal: config'te kanal yoksa tenant/plan sorgusu hiç atılmaz", async () => {
+    const { err } = await call("co-1", { config: { niche: "saas" } });
+    expect(err).toBeUndefined();
+    expect(db.tenantCalls).toBe(0);
+  });
+
+  it("kanal: plan sorgusu yeniden denemelerde tek (2 çakışma, 3 deneme)", async () => {
+    db.conflicts = 2;
+    const { err } = await call("co-1", { config: { channels: ["instagram"] } });
+    expect(err).toBeUndefined();
+    expect(db.calls.filter((c) => c.op === "updateMany")).toHaveLength(3);
+    expect(db.tenantCalls).toBe(1);
   });
 
   it("allowlist dışı anahtar yazılmaz", async () => {

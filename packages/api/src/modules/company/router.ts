@@ -169,16 +169,23 @@ companyRouter.patch("/:id", async (req, res, next) => {
     // tenant's plan-allowed channels. Onboarding hard-codes the right
     // list, but a Free user PATCHing this endpoint directly could
     // otherwise add `instagram` / `youtube` and use paid features.
+    // NOT: Denetim BİRLEŞİK config üzerinde yapılır (eski kodla aynı): mevcut config'te plan dışı
+    // kanal kalmışsa ilgisiz bir yama da 403 alır — bilinçli, davranış korunur.
+    // Plan/izinli küme ilk ihtiyaçta bir kez hesaplanır; yeniden denemelerde tekrar sorgulanmaz.
+    let planCache: { plan: string; allowed: Set<string> } | undefined;
     const enforceChannels = async (cfg: unknown) => {
       if (cfg && typeof cfg === "object" && "channels" in cfg) {
         const proposedChannels = (cfg as Record<string, unknown>).channels;
         if (Array.isArray(proposedChannels)) {
-          const tenant = await prisma.tenant.findUnique({
-            where: { id: tenantId },
-            select: { plan: true },
-          });
-          const plan = await getEffectivePlan(tenantId, tenant?.plan);
-          const allowed = new Set(PLAN_LIMITS[plan].channels);
+          if (!planCache) {
+            const tenant = await prisma.tenant.findUnique({
+              where: { id: tenantId },
+              select: { plan: true },
+            });
+            const p = await getEffectivePlan(tenantId, tenant?.plan);
+            planCache = { plan: p, allowed: new Set<string>(PLAN_LIMITS[p].channels) };
+          }
+          const { plan, allowed } = planCache;
           const denied = proposedChannels.filter(
             (c) => typeof c !== "string" || !allowed.has(c),
           );
