@@ -853,7 +853,8 @@ export type TickSkipReason =
   | "company_inactive"
   | "duplicate_tick"
   | "dedup_unavailable"
-  | "quota_exhausted";
+  | "quota_exhausted"
+  | "waiting_approval";
 
 /**
  * Persist a deliberate tick skip to activity_log (rule #9). Best-effort: a log
@@ -1000,6 +1001,33 @@ export async function processScheduledTick(job: Job<ScheduledTickData>): Promise
       // Redis is the thing that is down for "unavailable": no NX key to use.
       slotClaim === "duplicate" ? slotMs : null,
     );
+    return;
+  }
+
+  // BRA-P1-04-N2 overlap guard: the same pipeline already has a run parked in
+  // WAITING_APPROVAL (step approval gate) → do NOT open a second run and do NOT
+  // burn quota. Placed AFTER the slot claim and BEFORE the quota claim: the slot
+  // stays consumed (at-most-once per slot — a redelivered/duplicate tick can
+  // never start a late run once the approval resolves) and a skipped tick costs
+  // no quota. Tenant-scoped; a query error propagates (tick never retried, no
+  // run is created = fail-closed).
+  const waitingRun = await prisma.run.findFirst({
+    where: {
+      pipelineId: pipeline.id,
+      tenantId: pipeline.company.tenantId,
+      status: "WAITING_APPROVAL",
+    },
+    select: { id: true },
+  });
+  if (waitingRun) {
+    logger.info(
+      { pipelineId, waitingRunId: waitingRun.id, slotMs },
+      "Scheduled tick skipped — previous run is waiting for approval",
+    );
+    await logTickSkip(pipeline.company.tenantId, pipelineId, "waiting_approval", {
+      slotMs,
+      waitingRunId: waitingRun.id,
+    });
     return;
   }
 
