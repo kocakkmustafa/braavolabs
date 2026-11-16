@@ -1,4 +1,4 @@
-/** BRA-P2-03c — GET /companies/:id/activity: tenant, sayfalama, limit/imleç 400, sızıntı, route-marker. */
+/** BRA-P2-03c — GET /companies/:id/activity-feed: tenant, sayfalama, limit/imleç 400, sızıntı, route-marker. */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { Router } from "express";
 
@@ -17,13 +17,13 @@ import { companyRouter } from "../router";
 import { decodeCursor, encodeCursor } from "../../run/list-cursor";
 import { COMPANY_ACTION_LABELS, summarizeCompany } from "../activity";
 
-const layers = (companyRouter as Router as any).stack.filter((l: any) => l.route?.path === "/:id/activity" && l.route.methods.get);
+const layers = (companyRouter as Router as any).stack.filter((l: any) => l.route?.path === "/:id/activity-feed" && l.route.methods.get);
 const handler = layers[0].route.stack[layers[0].route.stack.length - 1].handle;
 
-async function call(query: Record<string, unknown> = {}, tenantId = "t1") {
+async function call(query: Record<string, unknown> = {}, tenantId = "t1", h: any = handler) {
   const res: any = { statusCode: 200, body: undefined, status(c: number) { this.statusCode = c; return this; }, json(p: unknown) { this.body = p; return this; } };
   let err: any;
-  await handler({ auth: { tenantId, userId: "u", role: "MEMBER" }, params: { id: "co-1" }, query, body: {} }, res, (e?: any) => { err = e; });
+  await h({ auth: { tenantId, userId: "u", role: "MEMBER" }, params: { id: "co-1" }, query, body: {} }, res, (e?: any) => { err = e; });
   return { res, err };
 }
 const row = (id: string, sec: number, over: Record<string, unknown> = {}) => ({
@@ -31,8 +31,8 @@ const row = (id: string, sec: number, over: Record<string, unknown> = {}) => ({
 });
 beforeEach(() => { vi.clearAllMocks(); coFindFirst.mockResolvedValue({ id: "co-1" }); logFindMany.mockResolvedValue([]); });
 
-describe("GET /companies/:id/activity", () => {
-  it("tek kayıtlı uç (eski ham-log ucu yerine geçti)", () => { expect(layers).toHaveLength(1); });
+describe("GET /companies/:id/activity-feed", () => {
+  it("tek kayıtlı uç; eski /:id/activity ayrıca durur", () => { expect(layers).toHaveLength(1); });
   it("yabancı kiracı/şirket → 404; günlük sorgulanmaz; şirket sorgusu tenant'a bağlı", async () => {
     coFindFirst.mockResolvedValue(null);
     const { err } = await call({}, "t2");
@@ -40,11 +40,11 @@ describe("GET /companies/:id/activity", () => {
     expect(coFindFirst.mock.calls[0][0].where).toEqual({ id: "co-1", tenantId: "t2" });
     expect(logFindMany).not.toHaveBeenCalled();
   });
-  it("günlük where: tenantId + resource=company + resourceId; JSON-path yok", async () => {
+  it("günlük where: tenantId + resourceId (resource şartı yok); JSON-path yok", async () => {
     await call();
     const where = logFindMany.mock.calls[0][0].where;
     expect(where.AND[0]).toEqual({ tenantId: "t1" });
-    expect(where.AND[1]).toEqual({ resource: "company", resourceId: "co-1" });
+    expect(where.AND[1]).toEqual({ resourceId: "co-1" });
     expect(JSON.stringify(where)).not.toContain("path");
   });
   it("yanıt biçimi {items:[{id,action,at,actor,summary}], nextCursor}; başka anahtar yok", async () => {
@@ -72,6 +72,30 @@ describe("GET /companies/:id/activity", () => {
     coFindFirst.mockClear();
     expect((await call({ cursor: "zzz" })).err?.statusCode).toBe(400);
     expect(coFindFirst).not.toHaveBeenCalled();
+  });
+  it("offset verilirse 400; veri sorgulanmaz", async () => {
+    expect((await call({ offset: "5" })).err?.statusCode).toBe(400);
+    expect(coFindFirst).not.toHaveBeenCalled();
+    expect(logFindMany).not.toHaveBeenCalled();
+  });
+  it("webhook.* gibi allowlist dışı eylem kaybolmaz: 'Event (action)'", async () => {
+    logFindMany.mockResolvedValue([row("w1", 4, { action: "webhook.received", actor: "system", details: { payload: "secret-body" } })]);
+    const { res } = await call();
+    expect(res.body.items[0]).toMatchObject({ action: "webhook.received", actor: "system", summary: "Event (webhook.received)" });
+    expect(JSON.stringify(res.body)).not.toContain("secret-body");
+  });
+  it("ESKİ /:id/activity sözleşmesi değişmedi: {logs,total,limit,offset}, ham satır", async () => {
+    const old = (companyRouter as Router as any).stack.find((l: any) => l.route?.path === "/:id/activity" && l.route.methods.get);
+    const h = old.route.stack[old.route.stack.length - 1].handle;
+    const rows = [{ id: "r1", action: "x", payload: "raw", details: { a: 1 } }];
+    (coFindFirst as any).mockResolvedValue({ id: "co-1" });
+    logFindMany.mockResolvedValue(rows);
+    const cnt = vi.fn().mockResolvedValue(7);
+    const { prisma } = await import("../../../lib/db");
+    (prisma as any).activityLog.count = cnt;
+    const { res } = await call({ limit: "10", offset: "3" }, "t1", h);
+    expect(res.body).toEqual({ logs: rows, total: 7, limit: 10, offset: 3 });
+    expect(logFindMany.mock.calls[0][0]).toMatchObject({ where: { tenantId: "t1", resourceId: "co-1" }, orderBy: { createdAt: "desc" }, take: 10, skip: 3 });
   });
   it("sızıntı: e-posta/sır/ham details/ad summary ve yanıta girmez; yalnız rol enum'u ek olur", async () => {
     const SECRET = "sk-ant-api03-SUPERSECRETTOKEN";

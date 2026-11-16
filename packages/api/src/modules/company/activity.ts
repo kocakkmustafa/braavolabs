@@ -1,9 +1,9 @@
 /**
- * BRA-P2-03c — şirket olay günlüğü (salt-okur): `GET /companies/:id/activity`.
+ * BRA-P2-03c — şirket olay günlüğü (salt-okur): `GET /companies/:id/activity-feed`.
  *
- * ActivityLog şirkete resource="company" + resourceId=şirket id'si ile bağlanır (şema: ayrı companyId kolonu YOK;
+ * ActivityLog şirkete resourceId=şirket id'si ile bağlanır (resource şartı YOK: webhook.* vb. de görünsün; eski uçla uyumlu) (şema: ayrı companyId kolonu YOK;
  * yazıcılar: company.create/update/pause/resume/budget.update/model_mode.update ve members.ts'teki company.member.*).
- * Yalnız bu bağ kullanılır; JSON-path eşitliği yok (SEC-019). Başka kaynaklara (run/agent/pipeline) bakılmaz:
+ * Allowlist dışı eylem "Event (action)" etiketi alır. Yalnız bu bağ kullanılır; JSON-path eşitliği yok (SEC-019). Başka kaynaklara (run/agent/pipeline) bakılmaz:
  * onlar kendi uçlarında (`/runs/:id/activity`) görünür.
  *
  * Yanıt: {items:[{id, action, at, actor?, summary}], nextCursor}. Maskeleme run/activity.ts ile ORTAK
@@ -72,8 +72,9 @@ export interface CompanyActivityDb {
 
 export async function loadCompanyActivity(
   db: CompanyActivityDb,
-  input: { tenantId: string; companyId: string; limitRaw: unknown; cursorRaw: unknown },
+  input: { tenantId: string; companyId: string; limitRaw: unknown; cursorRaw: unknown; offsetRaw?: unknown },
 ): Promise<{ items: ActivityItem[]; nextCursor: string | null }> {
+  if (input.offsetRaw !== undefined) throw new AppError(400, "offset is not supported; use cursor.");
   const limit = parseLimit(input.limitRaw, COMPANY_ACTIVITY_DEFAULT_LIMIT, COMPANY_ACTIVITY_MAX_LIMIT);
   if (limit === null) throw new AppError(400, `Invalid limit. Use an integer between 1 and ${COMPANY_ACTIVITY_MAX_LIMIT}.`);
   const cursor = input.cursorRaw === undefined ? undefined : decodeCursor(input.cursorRaw);
@@ -84,7 +85,7 @@ export async function loadCompanyActivity(
   if (!company) throw new AppError(404, "Company not found");
 
   const rows = await db.activityLog.findMany({
-    where: { AND: [{ tenantId }, { resource: "company", resourceId: company.id }, ...(cursor ? [afterCursorWhere(cursor)] : [])] },
+    where: { AND: [{ tenantId }, { resourceId: company.id }, ...(cursor ? [afterCursorWhere(cursor)] : [])] },
     select: { id: true, action: true, actor: true, details: true, createdAt: true },
     orderBy: LIST_ORDER,
     take: limit + 1,

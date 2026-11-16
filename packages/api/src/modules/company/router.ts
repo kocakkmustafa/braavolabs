@@ -869,16 +869,57 @@ companyRouter.post("/:companyId/agents/:agentId/nl-edit/apply", async (req, res,
   } catch (err) { next(err); }
 });
 
-// GET /api/v1/companies/:id/activity — BRA-P2-03c: şirket olay günlüğü (salt-okur, newest first, imleçli).
-// Yetki: okuma = kimliği doğrulanmış kiracı üyesi (router düzeyinde authMiddleware; /summary ve /members GET ile aynı);
-// yeni PrivilegedAction yok. Mantık + maskeleme company/activity.ts'te; ham `details` yanıta girmez.
+// NOT (BRA-P2-03c): bu uç ham ActivityLog satırı döndürür (logs/total/offset); mobil (companies/[id].tsx, lib/api.ts)
+// buna bağlı, şekli DEĞİŞMEZ. Mobil `activity-feed` `items`'a taşınınca bu uç sanitize/kapatılacak (ayrı bilet).
+// GET /api/v1/companies/:id/activity — company-specific activity timeline
 companyRouter.get("/:id/activity", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+
+    const limit = Math.min(Number(req.query.limit) || 50, 100);
+    const offset = Number(req.query.offset) || 0;
+
+    // Filter strictly by resourceId. Earlier this OR'd against a JSONB
+    // path-equality on `details.companyId` — that branch is fragile
+    // (any future writer that puts an attacker-controlled companyId
+    // into the JSON blob without a tenant check would leak rows) and
+    // it's also a planner pessimist: pgsql ends up sequential-scanning
+    // activity_log because no GIN index covers the path expression.
+    // The resourceId column is indexed and tenant-scoped — that's all
+    // we need for the per-company timeline. Anything still writing
+    // activity to `details.companyId` instead of `resourceId` is a
+    // bug at the writer, not a query we should paper over here.
+    const whereClause = {
+      tenantId: req.auth!.tenantId,
+      resourceId: company.id,
+    };
+    const logs = await prisma.activityLog.findMany({
+      where: whereClause,
+      orderBy: { createdAt: "desc" },
+      take: limit,
+      skip: offset,
+    });
+
+    const total = await prisma.activityLog.count({ where: whereClause });
+
+    res.json({ logs, total, limit, offset });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/companies/:id/activity-feed — BRA-P2-03c: sanitize, salt-okur, imleçli şirket olay günlüğü.
+// Yetki: router düzeyinde authMiddleware (tenant üyesi okur; /summary, /members GET ile aynı); yeni PrivilegedAction yok.
+// `offset` desteklenmez (imleç modeli) → 400. Mantık + maskeleme company/activity.ts'te.
+companyRouter.get("/:id/activity-feed", async (req, res, next) => {
   try {
     res.json(await loadCompanyActivity(prisma, {
       tenantId: req.auth!.tenantId,
       companyId: req.params.id,
       limitRaw: req.query.limit,
       cursorRaw: req.query.cursor,
+      offsetRaw: req.query.offset,
     }));
   } catch (err) { next(err); }
 });
