@@ -30,13 +30,21 @@ describe("parseCompanySummary", () => {
     expect(d.buckets).toEqual({ working: 0, needs_approval: null, stuck: null, done: null });
     expect(d.pendingApprovals).toBeNull();
     expect(d.monthCostUsd).toBeNull();
-    expect(d.budget.state).toBe("none");
+    expect(d.budget).toBeNull();
   });
   it.each([null, undefined, 5, "x", [], true])("bozuk gövde %j → null", (raw) => expect(parseCompanySummary(raw)).toBeNull());
-  it("buckets/budget bozuksa çökmez; bilinmeyen bütçe durumu none", () => {
+  it("buckets/budget bozuksa çökmez; eksik/bilinmeyen bütçe null (Bilinmiyor), açık none korunur", () => {
     const d = parseCompanySummary({ buckets: [1], budget: { state: "weird", limitUsd: 5, spentUsd: 9 } })!;
     expect(d.buckets.working).toBeNull();
-    expect(d.budget).toEqual({ state: "none", limitUsd: null, spentUsd: null, remainingUsd: null, usedPct: null });
+    expect(d.budget).toBeNull();
+    for (const budget of [undefined, null, "x", [], { state: "x" }, {}]) expect(toCompanySummaryView(parseCompanySummary({ budget })!).budget).toBeNull();
+    expect(toCompanySummaryView(parseCompanySummary({ budget: { state: "none" } })!).budget).toMatchObject({ state: "none", labelKey: "none" });
+  });
+  it("400 haneli metin null; 15 hane geçer", () => {
+    expect(toMoney("9".repeat(400))).toBeNull();
+    expect(toMoney("9".repeat(16))).toBeNull();
+    expect(toMoney("9".repeat(15))).toBe("9".repeat(15));
+    expect(parseCompanySummary({ monthCostUsd: "9".repeat(400) })!.monthCostUsd).toBeNull();
   });
   it("toMoney: Decimal metin/sonlu sayı; üstel, virgül, negatif (izin yoksa) null", () => {
     expect(toMoney("0.000001")).toBe("0.000001");
@@ -55,19 +63,19 @@ describe("view eşleme", () => {
     expect(v.buckets.every((b) => b.count === null)).toBe(true);
     expect(v.buckets.map((b) => b.key)).toEqual(["working", "needs_approval", "stuck", "done"]);
   });
-  const b = (state: string, extra: object = {}) => toBudgetView(parseCompanySummary({ budget: { state, limitUsd: 100, spentUsd: 50, remainingUsd: 50, usedPct: 50, ...extra } })!.budget);
+  const b = (state: string, extra: object = {}) => toBudgetView(parseCompanySummary({ budget: { state, limitUsd: 100, spentUsd: 50, remainingUsd: 50, usedPct: 50, ...extra } })!.budget!);
   it("4 bütçe durumu → ton/etiket/çubuk", () => {
-    expect(toBudgetView(parseCompanySummary({ budget: { state: "none" } })!.budget)).toMatchObject({ tone: "muted", labelKey: "none", barPct: null });
+    expect(toBudgetView(parseCompanySummary({ budget: { state: "none" } })!.budget!)).toMatchObject({ tone: "muted", labelKey: "none", barPct: null });
     expect(b("ok")).toMatchObject({ tone: "cyan", labelKey: "ok", barPct: 50 });
     expect(b("warn", { usedPct: 85 })).toMatchObject({ tone: "amber", labelKey: "warn", barPct: 85 });
     expect(b("over", { usedPct: 130 })).toMatchObject({ tone: "red", labelKey: "over", barPct: 100, usedPct: 130 });
   });
   it("limit 0 + harcama: over, yüzde yok, çubuk dolu", () => {
-    const v = toBudgetView(parseCompanySummary({ budget: { state: "over", limitUsd: 0, spentUsd: 3, remainingUsd: -3, usedPct: null } })!.budget);
+    const v = toBudgetView(parseCompanySummary({ budget: { state: "over", limitUsd: 0, spentUsd: 3, remainingUsd: -3, usedPct: null } })!.budget!);
     expect(v).toMatchObject({ state: "over", usedPct: null, barPct: 100, remainingUsd: "-3", limitUsd: "0" });
   });
   it("limit 0 + harcama 0: ok, yüzde yok, çubuk yok", () => {
-    const v = toBudgetView(parseCompanySummary({ budget: { state: "ok", limitUsd: 0, spentUsd: 0, remainingUsd: 0, usedPct: null } })!.budget);
+    const v = toBudgetView(parseCompanySummary({ budget: { state: "ok", limitUsd: 0, spentUsd: 0, remainingUsd: 0, usedPct: null } })!.budget!);
     expect(v).toMatchObject({ state: "ok", usedPct: null, barPct: null });
   });
   it("çubuk 0..100'e kırpılır", () => {

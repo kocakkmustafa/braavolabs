@@ -18,7 +18,6 @@ const card: React.CSSProperties = {
   borderWidth: 1, borderStyle: "solid", borderColor: "var(--color-surface-container-high)",
 };
 const muted: React.CSSProperties = { color: "var(--color-on-surface-variant)", fontSize: 13 };
-const BAR_COLOR = { muted: "var(--color-outline)", cyan: "#60A5FA", amber: "#FF7A1A", red: "#FF4D4D" } as const;
 
 export default function CompanySummaryCard({ companyId }: { companyId: string }) {
   const { token, hydrated } = useAuthGuard();
@@ -29,19 +28,24 @@ export default function CompanySummaryCard({ companyId }: { companyId: string })
   const [load, setLoad] = useState<Load>({ status: "loading", view: null });
   const seq = useRef(0);
 
+  const ctrl = useRef<AbortController | null>(null);
+
   const refresh = useCallback(() => {
+    ctrl.current?.abort();
     if (!hydrated || !token || !companyId) return;
     const mine = ++seq.current;
+    const ac = new AbortController();
+    ctrl.current = ac;
     setLoad({ status: "loading", view: null });
-    api.getCompanySummary(token, companyId)
-      .then((data) => { if (mine === seq.current) setLoad(data ? { status: "ready", view: toCompanySummaryView(data) } : { status: "empty", view: null }); })
-      .catch(() => { if (mine === seq.current) setLoad({ status: "error", view: null }); });
+    api.getCompanySummary(token, companyId, ac.signal)
+      .then((data) => { if (mine === seq.current && !ac.signal.aborted) setLoad(data ? { status: "ready", view: toCompanySummaryView(data) } : { status: "empty", view: null }); })
+      .catch(() => { if (mine === seq.current && !ac.signal.aborted) setLoad({ status: "error", view: null }); }); // iptal edilen istek hata göstermez
   }, [token, hydrated, companyId, sessionRevision]);
-  useEffect(() => { refresh(); return () => { seq.current++; }; }, [refresh]);
+  useEffect(() => { refresh(); return () => { seq.current++; ctrl.current?.abort(); }; }, [refresh]);
 
   const unknown = ct("unknown");
   const num = (n: number | null) => (n === null ? unknown : fmt.number(n, 0));
-  const usd = (v: string | null) => (v === null ? unknown : fmt.usd(v));
+  const usd = (v: string | null) => (v === null || !Number.isFinite(Number(v)) ? unknown : fmt.usd(v));
   const v = load.view;
 
   return (
@@ -86,6 +90,12 @@ export default function CompanySummaryCard({ companyId }: { companyId: string })
             </div>
           </dl>
 
+          {v.budget === null ? (
+            <div data-testid="company-summary-budget" style={{ display: "grid", gap: 8 }}>
+              <span style={{ fontWeight: 600 }}>{ct("budget.title")}</span>
+              <p style={muted} data-testid="company-summary-budget-unknown">{unknown}</p>
+            </div>
+          ) : (
           <div data-testid="company-summary-budget" style={{ display: "grid", gap: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
               <span style={{ fontWeight: 600 }}>{ct("budget.title")}</span>
@@ -100,18 +110,19 @@ export default function CompanySummaryCard({ companyId }: { companyId: string })
                 data-testid="company-summary-budget-bar"
                 style={{ height: 8, borderRadius: 999, background: "var(--color-surface-container-high)", overflow: "hidden" }}
               >
-                <div style={{ height: "100%", width: `${v.budget.barPct}%`, background: BAR_COLOR[v.budget.tone], insetInlineStart: 0 }} />
+                <div className={`bv-pill-${v.budget.tone}`} style={{ height: "100%", width: `${v.budget.barPct}%`, background: "currentColor", border: 0 }} />
               </div>
             )}
             {v.budget.state === "none" ? (
               <p style={muted} data-testid="company-summary-budget-none">{ct("budget.noneHint")}</p>
             ) : (
               <p style={muted} data-testid="company-summary-budget-line">
-                {ct("budget.spent")} {usd(v.budget.spentUsd)} · {ct("budget.limit")} {usd(v.budget.limitUsd)} · {ct("budget.remaining")} {usd(v.budget.remainingUsd)}
+                {ct("budget.spent")} <bdi>{usd(v.budget.spentUsd)}</bdi> · {ct("budget.limit")} <bdi>{usd(v.budget.limitUsd)}</bdi> · {ct("budget.remaining")} <bdi>{usd(v.budget.remainingUsd)}</bdi>
                 {v.budget.usedPct !== null ? ` · ${ct("budget.used", { pct: fmt.number(v.budget.usedPct, 1) })}` : ""}
               </p>
             )}
           </div>
+          )}
         </>
       )}
     </section>

@@ -21,10 +21,12 @@ export interface CompanySummaryData {
   buckets: Record<CompanyBucketKey, number | null>;
   pendingApprovals: number | null;
   monthCostUsd: string | null;
-  budget: CompanyBudgetData;
+  /** null → sunucu bütçeyi vermedi/bozuk/bilinmeyen durum ("Bilinmiyor"); state:"none" sunucunun açık "bütçe yok" beyanıdır. */
+  budget: CompanyBudgetData | null;
 }
 
-const MONEY_RE = /^-?\d+(\.\d+)?$/;
+/** ≤15 tam hane, ≤12 ondalık: Number() ile sonlu kalır, hassasiyet/∞ riski yok. */
+const MONEY_RE = /^-?\d{1,15}(\.\d{1,12})?$/;
 
 /** Sonlu, tam sayı, ≥0 değilse null (0 uydurulmaz). */
 export function toCount(v: unknown): number | null {
@@ -36,7 +38,7 @@ export function toMoney(v: unknown, allowNegative = false): string | null {
   let s: string | null = null;
   if (typeof v === "string") { const t = v.trim(); s = MONEY_RE.test(t) ? t : null; }
   else if (typeof v === "number" && Number.isFinite(v)) s = String(v);
-  if (s === null || !MONEY_RE.test(s)) return null; // 1e21 gibi üstel gösterim reddedilir
+  if (s === null || !MONEY_RE.test(s) || !Number.isFinite(Number(s))) return null; // üstel gösterim/aşırı hane reddedilir
   if (!allowNegative && s.startsWith("-")) return null;
   return s;
 }
@@ -45,13 +47,11 @@ function toPct(v: unknown): number | null {
   return typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
 }
 
-const NO_BUDGET: CompanyBudgetData = { state: "none", limitUsd: null, spentUsd: null, remainingUsd: null, usedPct: null };
-
-function parseBudget(raw: unknown): CompanyBudgetData {
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return NO_BUDGET;
+function parseBudget(raw: unknown): CompanyBudgetData | null {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
   const b = raw as Record<string, unknown>;
   const state = (BUDGET_STATES as readonly unknown[]).includes(b.state) ? (b.state as CompanyBudgetState) : null;
-  if (state === null) return NO_BUDGET; // bilinmeyen durum: rakamlara da güvenilmez
+  if (state === null) return null; // bilinmeyen durum: rakamlara da güvenilmez, "bütçe yok" da denmez
   return {
     state,
     limitUsd: toMoney(b.limitUsd),

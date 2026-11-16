@@ -33,10 +33,11 @@ export interface CompanySummaryView {
   pendingApprovals: number | null;
   buckets: { key: CompanyBucketKey; count: number | null }[];
   monthCostUsd: string | null;
-  budget: BudgetView;
+  /** null → Bilinmiyor. */
+  budget: BudgetView | null;
 }
 
-export function toBudgetView(b: CompanySummaryData["budget"]): BudgetView {
+export function toBudgetView(b: NonNullable<CompanySummaryData["budget"]>): BudgetView {
   const { tone, labelKey } = BUDGET_BADGE[b.state];
   let barPct: number | null = null;
   if (b.state === "over") barPct = 100;
@@ -55,6 +56,6 @@ export function toCompanySummaryView(d: CompanySummaryData): CompanySummaryView 
     pendingApprovals: d.pendingApprovals,
     buckets: COMPANY_BUCKET_KEYS.map((key) => ({ key, count: d.buckets[key] })),
     monthCostUsd: d.monthCostUsd,
-    budget: toBudgetView(d.budget),
+    budget: d.budget ? toBudgetView(d.budget) : null,
   };
 }
