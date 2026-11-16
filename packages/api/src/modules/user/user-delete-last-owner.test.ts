@@ -8,7 +8,7 @@ import type { Router } from "express";
 type U = { id: string; tenantId: string; role: "OWNER" | "ADMIN" | "MEMBER"; createdAt: number };
 type M = { tenantId: string; companyId: string; userId: string; role: "OWNER" | "MEMBER" };
 const st = vi.hoisted(() => ({
-  users: [] as any[], members: [] as any[], logs: [] as any[], vanish: new Set<string>(), deleted: [] as string[],
+  users: [] as any[], members: [] as any[], logs: [] as any[], vanish: new Set<string>(), locked: new Set<string>(), deleted: [] as string[],
   order: [] as string[],
 }));
 
@@ -25,8 +25,8 @@ vi.mock("../../lib/db", () => {
       const q = strings.join("?");
       if (/FROM users[\s\S]*FOR UPDATE/.test(q)) { st.order.push(`lock-user:${vals[0]}`); return [{ id: vals[0] }]; }
       if (/FROM companies[\s\S]*FOR UPDATE/.test(q)) { st.order.push(`lock-company:${vals[0]}`); return [{ id: vals[0] }]; }
-      if (/FROM users[\s\S]*FOR SHARE/.test(q)) {
-        const gone = st.vanish.has(vals[0]) || !st.users.some((u: U) => u.id === vals[0]);
+      if (/FROM users[\s\S]*FOR SHARE SKIP LOCKED/.test(q)) {
+        const gone = st.vanish.has(vals[0]) || st.locked.has(vals[0]) || !st.users.some((u: U) => u.id === vals[0]);
         return gone ? [] : [{ id: vals[0] }];
       }
       return [];
@@ -87,7 +87,7 @@ const ownersOf = (c: string) => st.members.filter((m: M) => m.companyId === c &&
 beforeEach(() => {
   vi.clearAllMocks();
   st.users = [u("u1", "ADMIN", 1)];
-  st.members = []; st.logs = []; st.deleted = []; st.order = []; st.vanish = new Set();
+  st.members = []; st.logs = []; st.deleted = []; st.order = []; st.vanish = new Set(); st.locked = new Set();
   prismaMock.user.findUnique.mockResolvedValue({ email: "x@example.invalid", role: "ADMIN", appleId: null, tenant: { plan: "FREE", stripeSubscriptionId: null } });
   prismaMock.user.count.mockResolvedValue(2);
   prismaMock.activityLog.create.mockResolvedValue({});
@@ -158,6 +158,26 @@ describe("DELETE /users/me sahiplik devri", () => {
     expect(err).toBeUndefined();
     expect(st.logs.map((l: any) => l.action)).toEqual(["company.owner_orphaned"]);
     expect(st.deleted).toEqual(["u1"]);
+  });
+
+  it("başka tx'in kilitlediği (SKIP LOCKED) aday atlanır; hepsi kilitliyse orphan, silme geçer", async () => {
+    st.users.push(u("u2", "ADMIN", 1), u("u3", "ADMIN", 2));
+    st.locked.add("u2");
+    st.members = [own("c1", "u1")];
+    await del();
+    expect(ownersOf("c1")).toEqual(["u3"]);
+    st.members = [own("c9", "u1")]; st.users = [u("u1", "ADMIN", 1), u("u2", "ADMIN", 1), u("u3", "ADMIN", 2)];
+    st.locked.add("u3"); st.logs = []; st.deleted = [];
+    const { err } = await del();
+    expect(err).toBeUndefined();
+    expect(st.logs.map((l: any) => l.action)).toEqual(["company.owner_orphaned"]);
+    expect(st.deleted).toEqual(["u1"]);
+  });
+
+  it("kilit sorguları tenant'ı doğrular; aday kilidi SKIP LOCKED + rol yeniden doğrulaması taşır", async () => {
+    const src = (await import("node:fs")).readFileSync(new URL("./owner-transfer.ts", import.meta.url), "utf8");
+    expect(src).toMatch(/FROM users WHERE id = \$\{userId\} AND tenant_id = \$\{tenantId\} FOR UPDATE/);
+    expect(src).toMatch(/AND tenant_id = \$\{tenantId\} AND role IN \('OWNER', 'ADMIN'\) FOR SHARE SKIP LOCKED/);
   });
 
   it("OWNER olmayan kullanıcı: devir yok, normal silme", async () => {

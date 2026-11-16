@@ -7,7 +7,10 @@
  *   1. silinen kullanıcının satırı FOR UPDATE kilitlenir (aday olarak seçilmesiyle serileşir),
  *   2. tek-OWNER olduğu her şirket (id sırasıyla) FOR UPDATE kilitlenir (members.ts lockCompany kalıbı),
  *   3. aday = aynı tenant'ın başka en eski OWNER/ADMIN kullanıcısı (backfill kuralı: tenant OWNER > ADMIN,
- *      created_at, id); aday satırı FOR SHARE kilitlenir — aynı anda silinen aday atlanır/sonrakine geçilir,
+ *      created_at, id); aday satırı `FOR SHARE SKIP LOCKED` kilitlenir ve kilit sorgusu tenant + rolü yeniden
+ *      doğrular: silinen, rolü artık OWNER/ADMIN olmayan ya da başka tx'in kilidindeki (zaten silinmek üzere
+ *      olan; A<->B karşılıklı adaylıkta deadlock yerine) aday atlanır, sıradakine geçilir. Hepsi elenirse
+ *      "aday yok" yolu: orphan log, silme bloke olmaz. (Mevcut MEMBER satırı yükseltme kararı korunur.)
  *   4. aday OWNER yapılır (varsa MEMBER satırı yükseltilir) ve activity_log'a `company.member.owner_transferred`,
  *   5. aday yoksa şirket sahipsiz kalır ve `company.owner_orphaned` yazılır.
  * activity_log yalnız kimlik (id) taşır; e-posta/ad gibi ham veri yok.
@@ -26,7 +29,7 @@ export async function transferSoleOwnerships(
   const { tenantId, userId } = args;
   const out: OwnerTransferResult = { transferred: 0, orphaned: 0 };
 
-  await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} FOR UPDATE`;
+  await tx.$queryRaw`SELECT id FROM users WHERE id = ${userId} AND tenant_id = ${tenantId} FOR UPDATE`;
 
   const owned = (await tx.companyMember.findMany({
     where: { tenantId, userId, role: "OWNER" },
@@ -53,8 +56,8 @@ export async function transferSoleOwnerships(
 
     let chosen: string | null = null;
     for (const c of candidates) {
-      const row = (await tx.$queryRaw`SELECT id FROM users WHERE id = ${c.id} AND tenant_id = ${tenantId} FOR SHARE`) as unknown[];
-      if (row && row.length > 0) { chosen = c.id; break; } // eşzamanlı silinen aday satırı dönmez
+      const row = (await tx.$queryRaw`SELECT id FROM users WHERE id = ${c.id} AND tenant_id = ${tenantId} AND role IN ('OWNER', 'ADMIN') FOR SHARE SKIP LOCKED`) as unknown[];
+      if (row && row.length > 0) { chosen = c.id; break; } // silinen/kilitli/rol değişmiş aday satırı dönmez
     }
 
     if (chosen) {
