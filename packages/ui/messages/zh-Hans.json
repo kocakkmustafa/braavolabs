@@ -1354,7 +1354,7 @@
         "summary": "步骤（{steps}）· 工具调用：{tools} · 成本：{cost} · 交接：{handoffs}",
         "noSteps": "此任务暂无步骤记录。",
         "unknown": "暂无",
-        "later": "模型、路由和权限详情将在后续版本提供。",
+        "later": "路由和权限详情将在后续版本提供。",
         "runErrorTitle": "此任务因错误而停止",
         "runErrorPlain": "你可以使用任务下方的“重试”按钮再试一次。",
         "budget": "已用预算：{cost} / {budget}（{percent}）",

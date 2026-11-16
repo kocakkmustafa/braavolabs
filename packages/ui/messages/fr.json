@@ -1354,7 +1354,7 @@
         "summary": "Étapes ({steps}) · Appels d'outils : {tools} · Coût : {cost} · Transferts : {handoffs}",
         "noSteps": "Cette tâche n'a pas encore d'étapes enregistrées.",
         "unknown": "n/d",
-        "later": "Le détail du modèle, du routage et des autorisations arrivera dans une version ultérieure.",
+        "later": "Le détail du routage et des autorisations arrivera dans une version ultérieure.",
         "runErrorTitle": "Ce travail s'est arrêté sur une erreur",
         "runErrorPlain": "Tu peux réessayer avec le bouton Réessayer sous le travail.",
         "budget": "Budget utilisé : {cost} / {budget} ({percent})",

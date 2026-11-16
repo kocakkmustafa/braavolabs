@@ -1354,7 +1354,7 @@
         "summary": "Kroki ({steps}) · Wywołania narzędzi: {tools} · Koszt: {cost} · Przekazania: {handoffs}",
         "noSteps": "To zadanie nie ma jeszcze zapisów kroków.",
         "unknown": "brak danych",
-        "later": "Szczegóły modelu, routingu i uprawnień pojawią się w późniejszej wersji.",
+        "later": "Szczegóły routingu i uprawnień pojawią się w późniejszej wersji.",
         "runErrorTitle": "To zadanie zatrzymało się z powodu błędu",
         "runErrorPlain": "Możesz spróbować ponownie przyciskiem Ponów pod zadaniem.",
         "budget": "Wykorzystany budżet: {cost} / {budget} ({percent})",

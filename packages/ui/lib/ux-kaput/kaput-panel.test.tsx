@@ -210,4 +210,35 @@ describe("BRA-P1-01-N1 — model ve log alanları", () => {
     expect(h).not.toContain("sk-aaaa");
     expect(h).toContain("[gizlendi]");
   });
+  it("tried satırı (≥2 model), ended olayı ve yerelleştirilmiş zaman (düz ' UTC' eki yok)", () => {
+    const h = render(one({
+      output: { model: "a" }, modelMode: "COMPARE",
+      modeDetail: { candidates: [{ model: "m1" }, { model: "m2", actualModel: "m2-x" }, { model: "m3", skipped: "budget" }] },
+      startedAt: "2026-11-16T10:00:00Z", completedAt: "2026-11-16T10:00:02Z",
+    }), true);
+    expect(h).toContain("app.jobs.kaput.tried");
+    expect(h).toContain("m1, m2-x");
+    expect(h).not.toContain("m3");
+    expect(h).toContain("app.jobs.kaput.logEvent.ended");
+    expect(h).toMatch(/"time":"[^"]*UTC[^"]*"/);
+    expect(h).not.toMatch(/UTC UTC/);
+  });
+  it("token null alanı → unknown dalı", () => {
+    const h = render(one({ promptTokens: 7 }), true);
+    expect(h).toContain('"input":"7","output":"app.jobs.kaput.unknown"');
+  });
+  it("bozuk tipler çökmez: attempts dizi değil, modeDetail null, token 'abc'", () => {
+    const k = one({ modelMode: "CASCADE", modeDetail: { attempts: "x", candidates: 5 }, promptTokens: "abc", completionTokens: "abc", startedAt: 12 }).steps[0];
+    expect(k.modelInfo).toEqual({ provider: null, model: null, mode: "CASCADE", tried: [] });
+    expect(k.tokens).toBeNull();
+    expect(k.log).toEqual([]);
+    expect(one({ modeDetail: null, output: "str" }).steps[0].modelInfo).toBeNull();
+    expect(() => render(one({ modelMode: "CASCADE", modeDetail: { attempts: "x" }, promptTokens: "abc" }), true)).not.toThrow();
+  });
+  it("negatif sayılar geçersiz: maliyet, süre, token, sıra", () => {
+    const k = parseKaput({ costUsd: -1, steps: [{ id: "a", stepIndex: -3, costUsd: -0.5, durationMs: -9, promptTokens: -1, completionTokens: -2, toolCalls: [{ id: "t", toolName: "x", durationMs: -4 }] }] });
+    expect(k.totalCostUsd).toBeNull();
+    const s = k.steps[0];
+    expect([s.index, s.costUsd, s.durationMs, s.tokens, s.toolCalls[0].durationMs]).toEqual([0, null, null, null, null]);
+  });
 });

@@ -18,7 +18,12 @@ const toNumber = (v: unknown): number | null => {
   const n = typeof v === "number" ? v : typeof v === "string" && v.trim() !== "" ? Number(v) : NaN;
   return Number.isFinite(n) ? n : null;
 };
-const joined = (list: string[] | null | undefined): string | null => (list && list.length > 0 ? list.join(", ") : null);
+/** Kaput sayıları (maliyet, süre, token, sıra): negatif değer geçersiz → null. */
+const nonNeg = (v: unknown): number | null => {
+  const n = toNumber(v);
+  return n !== null && n >= 0 ? n : null;
+};
+const joined =(list: string[] | null | undefined): string | null => (list && list.length > 0 ? list.join(", ") : null);
 
 export function usd(n: number, locale = "tr-TR"): string {
   try { return new Intl.NumberFormat(locale, { style: "currency", currency: "USD", maximumFractionDigits: 4 }).format(n); } catch { return `$${n}`; }
@@ -134,12 +139,12 @@ export function parseKaput(raw: unknown): Kaput {
   if (!isObj(raw)) return { steps: [], totalCostUsd: null, toolCallCount: 0, handoffCount: null };
   const steps: KaputStep[] = (Array.isArray(raw.steps) ? raw.steps : []).filter(isObj).map((s, i) => ({
     id: str(s.id) ?? `step-${i}`,
-    index: toNumber(s.stepIndex) ?? i,
+    index: nonNeg(s.stepIndex) ?? i,
     name: str(s.name) ?? str(s.agentRole) ?? `#${i + 1}`,
     agentRole: str(s.agentRole),
     status: (str(s.status) ?? "unknown").toLowerCase(),
-    costUsd: toNumber(s.costUsd),
-    durationMs: toNumber(s.durationMs),
+    costUsd: nonNeg(s.costUsd),
+    durationMs: nonNeg(s.durationMs),
     reasoning: str(s.reasoning),
     error: str(s.error),
     modelInfo: parseKaputModel(s),
@@ -147,14 +152,14 @@ export function parseKaput(raw: unknown): Kaput {
       ...(isoTime(s.startedAt) ? [{ kind: "started" as const, at: isoTime(s.startedAt) as string }] : []),
       ...(isoTime(s.completedAt) ? [{ kind: "ended" as const, at: isoTime(s.completedAt) as string }] : []),
     ],
-    tokens: toNumber(s.promptTokens) === null && toNumber(s.completionTokens) === null ? null : { input: toNumber(s.promptTokens), output: toNumber(s.completionTokens) },
+    tokens: nonNeg(s.promptTokens) === null && nonNeg(s.completionTokens) === null ? null : { input: nonNeg(s.promptTokens), output: nonNeg(s.completionTokens) },
     toolCalls: (Array.isArray(s.toolCalls) ? s.toolCalls : []).filter(isObj).map((c, j) => ({
       id: str(c.id) ?? `call-${i}-${j}`,
       toolName: str(c.toolName) ?? "?",
       status: (str(c.status) ?? "completed").toLowerCase(),
-      durationMs: toNumber(c.durationMs),
+      durationMs: nonNeg(c.durationMs),
       error: str(c.error),
     })),
   }));
-  return { steps, totalCostUsd: toNumber(raw.costUsd), toolCallCount: steps.reduce((n, s) => n + s.toolCalls.length, 0), handoffCount: null, runError: str(raw.error), budgetUsd: positive(toNumber(raw.budgetUsd)) };
+  return { steps, totalCostUsd: nonNeg(raw.costUsd), toolCallCount: steps.reduce((n, s) => n + s.toolCalls.length, 0), handoffCount: null, runError: str(raw.error), budgetUsd: positive(toNumber(raw.budgetUsd)) };
 }

@@ -1354,7 +1354,7 @@
         "summary": "단계 ({steps}) · 도구 호출: {tools} · 비용: {cost} · 인계: {handoffs}",
         "noSteps": "이 작업에는 아직 단계 기록이 없습니다.",
         "unknown": "정보 없음",
-        "later": "모델, 라우팅, 권한 상세는 이후 버전에서 제공됩니다.",
+        "later": "라우팅과 권한 상세는 이후 버전에서 제공됩니다.",
         "runErrorTitle": "이 작업은 오류로 중단되었습니다",
         "runErrorPlain": "작업 아래의 다시 시도 버튼으로 다시 실행할 수 있습니다.",
         "budget": "사용한 예산: {cost} / {budget} ({percent})",

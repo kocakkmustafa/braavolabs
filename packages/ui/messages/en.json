@@ -1354,7 +1354,7 @@
         "summary": "Steps ({steps}) · Tool calls: {tools} · Cost: {cost} · Handoffs: {handoffs}",
         "noSteps": "This job has no step records yet.",
         "unknown": "n/a",
-        "later": "Model, routing and permission details arrive in a later release.",
+        "later": "Routing and permission details arrive in a later release.",
         "runErrorTitle": "This job stopped with an error",
         "runErrorPlain": "You can try again with the Retry button under the job.",
         "budget": "Budget used: {cost} / {budget} ({percent})",

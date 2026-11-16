@@ -132,7 +132,7 @@ function FullStep({ s, n, hid, t, locale, total, percent, duration, status }: {
   const modelLabel = mi && (mi.provider || mi.model) ? [mi.provider, mi.model].filter((x): x is string => !!x).map((x) => safeText(x, NAME_MAX)).join(" / ") : null;
   const log = s.log ?? [];
   const fmtNum = (n: number) => { try { return new Intl.NumberFormat(locale).format(n); } catch { return String(n); } };
-  const fmtTime = (iso: string) => { try { return new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "medium", timeZone: "UTC" }).format(new Date(iso)) + " UTC"; } catch { return iso; } };
+  const fmtTime = (iso: string) => { try { return new Intl.DateTimeFormat(locale, { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "UTC", timeZoneName: "short" }).format(new Date(iso)); } catch { return iso; } };
   const row = (label: string, value: React.ReactNode) => (
     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", ...wrap }}><span style={muted}>{label}:</span><span dir="auto" style={wrap}>{value}</span></div>
   );
