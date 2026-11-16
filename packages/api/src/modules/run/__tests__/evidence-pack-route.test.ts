@@ -230,6 +230,48 @@ describe("evidence — packHash her alan için duyarlı", () => {
   });
 });
 
+describe("evidence — packHash alan alan duyarlılık (2. tur)", () => {
+  const at = (iso: string) => ({ createdAt: new Date(iso) });
+  const st = (over: Record<string, unknown> = {}, when = "2026-11-09T09:40:00Z") => ({ ...statusOf(over), ...at(when) });
+  const hashOf = async (o: { summary?: unknown[]; calls?: unknown[]; run?: unknown; receipt?: unknown } = {}) => {
+    setup(o.summary ?? [diffCall, testCall], o.calls ?? [commitCall, st()], o.run ?? RUN(), o.receipt ?? ROW());
+    return (await pack()).packHash;
+  };
+  it("her alan değişince packHash değişir; değişmeyen girdide aynı", async () => {
+    const base = await hashOf();
+    expect(await hashOf()).toBe(base);
+    const variants: Array<[string, Parameters<typeof hashOf>[0]]> = [
+      ["ci.mergeableState", { calls: [commitCall, st({ mergeableState: "unstable" })] }],
+      ["ci.observedAt", { calls: [commitCall, st({}, "2026-11-09T09:41:00Z")] }],
+      ["pullRequest", { receipt: ROW({ evidence: [{ kind: "diff", ref: "tool_call:c1" }, { kind: "test", ref: "tool_call:c2", ok: true }, { kind: "pr", ref: "https://github.com/o/r/pull/8" }] }) }],
+      ["diff", { summary: [{ ...diffCall, output: { diff: DIFF_TEXT.replaceAll("src/a.ts", "src/b.ts") } }, testCall] }],
+      ["tests", { summary: [diffCall, { ...testCall, output: { exitCode: 0, passed: 8, failed: 0 } }] }],
+      ["evidenceCounts", { receipt: ROW({ evidence: [...ROW().evidence, { kind: "log", ref: "x" }] }) }],
+      ["approvalIds", { receipt: ROW({ approvalIds: ["ap1", "ap2"] }) }],
+      ["resultStatus", { receipt: ROW({ resultStatus: "UNVERIFIED" }) }],
+      ["decidedBy", { run: RUN({ approvals: [{ ...RUN().approvals[0], decidedBy: "u2" }] }) }],
+      ["toolCallSummary", { summary: Array.from({ length: 201 }, () => diffCall) }],
+    ];
+    const seen = new Set([base]);
+    for (const [name, v] of variants) {
+      const h = await hashOf(v);
+      expect(h, name).not.toBe(base);
+      seen.add(h);
+    }
+    expect(seen.size).toBe(variants.length + 1);
+  });
+  it("observedAt = durum çağrısının createdAt'i (ISO); yoksa alan yok", async () => {
+    setup([], [commitCall, st()]);
+    expect((await pack()).code.ci.value.observedAt).toBe("2026-11-09T09:40:00.000Z");
+    setup([], [commitCall, statusOf({})]);
+    expect("observedAt" in (await pack()).code.ci.value).toBe(false);
+  });
+  it("headSha yalnız TAM eşitlik: paketteki SHA'nın öneki eşleşmez", async () => {
+    setup([], [commitCall, st({ headSha: SHA.slice(0, 7) })]);
+    expect((await pack()).code.ci.status).toBe("unavailable");
+  });
+});
+
 describe("evidence — özet sorgusu kırpıldı", () => {
   it("summaryCalls kırpılınca truncated/toolCallSummary true; tests unavailable(truncated)", async () => {
     const one = { toolName: "git_diff", status: "COMPLETED", input: {}, output: { files: [{ path: "a.ts", additions: 1, deletions: 0 }] } };

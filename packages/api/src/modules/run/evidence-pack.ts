@@ -41,6 +41,7 @@ export interface PackToolCall {
   toolName: string;
   status: string;
   output?: unknown;
+  createdAt?: Date | null;
 }
 export interface PackStepRow {
   stepIndex: number;
@@ -90,7 +91,7 @@ export interface EvidencePack {
   code: {
     commits: PackRef<Array<{ sha: string; ref: string }>>;
     pullRequest: PackRef<{ url: string }>;
-    ci: PackRef<{ mergeStateProxy: "mergeable_clean" | "mergeable_unstable" | "unknown"; mergeableState: string; headSha: string; note: string }>;
+    ci: PackRef<{ mergeStateProxy: "mergeable_clean" | "mergeable_unstable" | "unknown"; mergeableState: string; headSha: string; observedAt?: string; note: string }>;
     diff: PackRef<ReceiptDiffSummary>;
     tests: PackRef<ReceiptTestSummary>;
   };
@@ -180,12 +181,13 @@ function deriveCi(pr: PackRef<{ url: string }>, commitShas: readonly string[], c
   if (!p || canonicalPrUrl(p.url) !== pr.value.url) return unavailable("en yeni durum çağrısı makbuzdaki PR ile eşleşmiyor");
   if (typeof p.state !== "string" || p.state.toLowerCase() !== "open") return unavailable("en yeni durum çağrısında PR açık (open) değil");
   const head = typeof p.headSha === "string" && SHA_RE.test(p.headSha) ? p.headSha.toLowerCase() : null;
-  if (!head || !commitShas.some((s) => s === head || (s.length >= 7 && head.length >= 7 && (s.startsWith(head) || head.startsWith(s))))) {
+  // Tam eşitlik: önek eşleşmesi kısa (7 hex) SHA ile yanlış pozitif üretir; git_commit ve durum aracı aynı biçimi vermezse unavailable (fail-closed).
+  if (!head || !commitShas.includes(head)) {
     return unavailable("PR headSha paketteki commit SHA'larıyla eşleşmiyor");
   }
   const ms = typeof p.mergeableState === "string" ? p.mergeableState.toLowerCase() : "";
   const proxy = Object.prototype.hasOwnProperty.call(MERGE_PROXY, ms) ? MERGE_PROXY[ms]! : "unknown";
-  return available({ mergeStateProxy: proxy, mergeableState: proxy === "unknown" ? "unknown" : ms, headSha: head, note: CI_NOTE }, `tool_call:${latest.id}`);
+  return available({ mergeStateProxy: proxy, mergeableState: proxy === "unknown" ? "unknown" : ms, headSha: head, ...(iso(latest.createdAt) ? { observedAt: iso(latest.createdAt)! } : {}), note: CI_NOTE }, `tool_call:${latest.id}`);
 }
 
 export function buildEvidencePack(input: EvidencePackInput): EvidencePack {

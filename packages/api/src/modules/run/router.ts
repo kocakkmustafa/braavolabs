@@ -1293,7 +1293,7 @@ runRouter.get("/:id/evidence", async (req, res, next) => {
       },
       orderBy: [{ runStep: { stepIndex: "desc" } }, { createdAt: "desc" }, { id: "desc" }],
       take: MAX_PACK_CALLS + 1,
-      select: { id: true, toolName: true, status: true, output: true },
+      select: { id: true, toolName: true, status: true, output: true, createdAt: true },
     });
     res.json(
       buildEvidencePack({
