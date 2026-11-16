@@ -87,7 +87,7 @@ tenantRouter.post("/:slug/install", authMiddleware, async (req, res, next) => {
         "Paid template installation is unavailable until verified checkout is implemented.",
       );
     }
-    const result = await installTemplate(t.id, req.auth!.tenantId, body);
+    const result = await installTemplate(t.id, req.auth!.tenantId, body, req.auth!.userId);
     res.status(201).json(result);
   } catch (err) { next(err); }
 });

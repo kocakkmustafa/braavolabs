@@ -18,6 +18,7 @@ vi.mock("../../../lib/db", () => {
       count: (...args: unknown[]) => companyCount(...args),
     },
     agent: { create: (...args: unknown[]) => agentCreate(...args) },
+    companyMember: { upsert: vi.fn().mockResolvedValue({}) }, user: { findFirst: vi.fn().mockResolvedValue({ id: "u" }) },
     pipeline: { create: (...args: unknown[]) => pipelineCreate(...args) },
     activityLog: { create: (...args: unknown[]) => activityLogCreate(...args) },
     companyTemplate: { update: vi.fn() },

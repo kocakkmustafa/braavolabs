@@ -22,6 +22,7 @@ import { AppError } from "../../middleware/error";
 import { tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { assertCompanyCapacity } from "../company/company-capacity";
+import { seedCreatorAsOwner } from "../company/owner-seed";
 import {
   STARTER_TEMPLATES,
   STARTER_TEMPLATE_IDS,
@@ -149,6 +150,7 @@ starterRouter.post("/:id/clone", authMiddleware, async (req, res, next) => {
           },
         },
       });
+      await seedCreatorAsOwner(tx, { tenantId, companyId: company.id, userId });
 
       // Map of role → agentId so we can wire pipelines correctly even if
       // two agents share a similar role. We resolve by exact role match.
