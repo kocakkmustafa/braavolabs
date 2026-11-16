@@ -21,6 +21,28 @@ export const AUTO_SELECTION_CONFIG_KEY = "autoSelection";
 export const MAX_MODE_BUDGET_USD = 1_000_000;
 
 const SAFE_MODEL_NAME = /^[\w.:/-]{1,100}$/;
+/** Anahtar benzeri önekler (ayraçlı: sk-, gsk_, csk-, xai-, pplx-, nvapi-, gh*_, rk/pk) ve sabit biçimler. */
+const SECRET_PREFIX =
+  /^((g?sk|csk|xai|pplx|nvapi|rk|pk|ghp|gho|ghu|ghs|ghr)[-_]|xox[abprs]|AKIA[0-9A-Z]{8,}|AIza[\w-]{10,}|eyJ)/i;
+
+/** Model alanına yapıştırılmış anahtar benzeri değer mi? (≥32 karışık harf+rakam dizisi dahil) */
+export function isSecretLike(id: string): boolean {
+  if (SECRET_PREFIX.test(id)) return true;
+  const run = /[A-Za-z0-9]{32,}/.exec(id);
+  return !!run && /[A-Za-z]/.test(run[0]) && /\d/.test(run[0]);
+}
+
+/** Geçerli model kimliği: güvenli karakterler; URL/yol/anahtar benzeri değil. */
+export function isSafeModelName(v: unknown): v is string {
+  return (
+    typeof v === "string" &&
+    SAFE_MODEL_NAME.test(v) &&
+    !isSecretLike(v) &&
+    !/^[a-z][a-z0-9+.-]*:\/\//i.test(v) &&
+    !v.includes("//") &&
+    !v.includes("..")
+  );
+}
 const CONFIG_KEYS = new Set(["cheapModel", "compareModels", "confidenceThreshold", "budgetUsdCap"]);
 
 export type Validation<T> = { ok: true; value: T } | { ok: false; error: string };
@@ -37,15 +59,15 @@ export function validateModelModeConfigInput(raw: unknown): Validation<ModelMode
   }
   const out: ModelModeConfig = {};
   if (raw.cheapModel !== undefined) {
-    if (typeof raw.cheapModel !== "string" || !SAFE_MODEL_NAME.test(raw.cheapModel)) {
-      return { ok: false, error: "cheapModel must be a model id (1-100 chars: letters, digits, . : / _ -)" };
+    if (!isSafeModelName(raw.cheapModel)) {
+      return { ok: false, error: "cheapModel must be a plain model id (1-100 chars; no URLs, paths or key-like values)" };
     }
     out.cheapModel = raw.cheapModel;
   }
   if (raw.compareModels !== undefined) {
     const list = raw.compareModels;
-    if (!Array.isArray(list) || list.some((m) => typeof m !== "string" || !SAFE_MODEL_NAME.test(m))) {
-      return { ok: false, error: "compareModels must be an array of model ids" };
+    if (!Array.isArray(list) || list.some((m) => !isSafeModelName(m))) {
+      return { ok: false, error: "compareModels must be an array of plain model ids (no URLs, paths or key-like values)" };
     }
     const unique = [...new Set(list as string[])];
     if (unique.length !== list.length) return { ok: false, error: "compareModels must not contain duplicates" };
@@ -103,6 +125,15 @@ export function validateCompanyModeSettingsInput(raw: unknown): Validation<Compa
   }
   if (Object.keys(patch).length === 0) return { ok: false, error: "nothing to update: send modelMode and/or autoSelection" };
   return { ok: true, value: patch };
+}
+
+/** Ham config'ten yalnız kip anahtarlarını çıkarır (yoksa null) — oluşturma yolunda doğrulama için. */
+export function extractModeSettings(config: unknown): Record<string, unknown> | null {
+  if (!isPlainObject(config)) return null;
+  const out: Record<string, unknown> = {};
+  if (MODE_CONFIG_KEY in config) out[MODE_CONFIG_KEY] = config[MODE_CONFIG_KEY];
+  if (AUTO_SELECTION_CONFIG_KEY in config) out[AUTO_SELECTION_CONFIG_KEY] = config[AUTO_SELECTION_CONFIG_KEY];
+  return Object.keys(out).length > 0 ? out : null;
 }
 
 /** Company.config'ten şirket kipini okur; yok/bozuk -> null. Asla throw etmez. */

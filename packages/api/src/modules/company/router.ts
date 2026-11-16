@@ -25,6 +25,7 @@ import { buildCompanySummary } from "./summary";
 import { BUDGET_CONFIG_KEY, validateBudgetInput } from "./budget";
 import {
   applyCompanyModeSettings,
+  extractModeSettings,
   validateCompanyModeSettingsInput,
   validateModelModeConfigInput,
 } from "./model-mode-settings";
@@ -98,6 +99,13 @@ companyRouter.post("/", async (req, res, next) => {
   try {
     const data = createSchema.parse(req.body);
     const tenantId = req.auth!.tenantId;
+
+    // BRA-P0-06a-2: oluşturmada gelen kip anahtarları da PATCH /:id/model-mode ile aynı kuralla doğrulanır.
+    const modeKeys = extractModeSettings(data.config);
+    if (modeKeys) {
+      const v = validateCompanyModeSettingsInput(modeKeys);
+      if (!v.ok) throw new AppError(400, v.error);
+    }
 
     const company = await tenantTx(async (tx) => {
       await assertCompanyCapacity(tx, tenantId);
@@ -476,7 +484,8 @@ companyRouter.patch("/:id/budget", requirePermission("billing:budget"), async (r
 // PATCH /api/v1/companies/:id/model-mode — şirket model kipi + autoSelection (BRA-P0-06a-2).
 // Body: { modelMode?: "DIRECT"|"CASCADE"|"COMPARE"|null, autoSelection?: { enabled: boolean }|null }; null = ayarı sil.
 // Yetki: şirket PATCH'iyle aynı kapı (kimliği doğrulanmış kiracı üyesi; kurucu kararı 2026-11-15 "mevcut kapı kalır").
-// Genel PATCH /:id bu anahtarları KABUL ETMEZ (allowlist dışı); tek doğrulanmış yazma yolu burası.
+// Genel PATCH /:id bu anahtarları KABUL ETMEZ (allowlist dışı); oluşturmada (POST /) aynı doğrulama uygulanır.
+// Yetki bilinçli olarak şirket PATCH'iyle aynı (en düşük üye rolü dahil); budget ucu gibi ADMIN şartı YOK.
 // config'in diğer anahtarları korunur; eşzamanlı yazma updatedAt iyimser kilidiyle yakalanır.
 companyRouter.patch("/:id/model-mode", async (req, res, next) => {
   try {

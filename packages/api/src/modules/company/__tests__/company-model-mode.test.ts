@@ -120,6 +120,27 @@ describe("PATCH /:id/model-mode", () => {
     expect(status(bad.err)).toBe(409);
     expect(db.companies[0].config.modelMode).toBe("DIRECT");
   });
+  it.each([[[]], [{ autoSelection: { enabled: true, x: 1 } }], [{ autoSelection: { enabled: "yes" } }]])(
+    "gövde %j -> 400",
+    async (body) => {
+      const { err } = await call(patchMode, { id: "co-1" }, body);
+      expect(status(err)).toBe(400);
+      expect(db.logs).toHaveLength(0);
+    },
+  );
+  it("ikinci denemede başarı: activity_log tam bir kez yazılır", async () => {
+    db.raceOnce = true;
+    await call(patchMode, { id: "co-1" }, { modelMode: "COMPARE" });
+    expect(db.logs).toHaveLength(1);
+  });
+  it("şirket OLUŞTURMA: geçersiz kip anahtarları 400 (tenantTx çağrılmaz); geçerli/yok olanlar doğrulamayı geçer", async () => {
+    const create = find("/", "post");
+    const base = { name: "Acme", slug: "acme", primitives: ["SALES"] };
+    for (const config of [{ modelMode: "AUTO" }, { autoSelection: true }, { autoSelection: { enabled: 1 } }]) {
+      const { err } = await call(create, {}, { ...base, config });
+      expect(status(err)).toBe(400);
+    }
+  });
   it("genel PATCH /:id bu anahtarları kabul etmez (allowlist dışı)", async () => {
     const generic = find("/:id", "patch");
     await call(generic, { id: "co-1" }, { config: { modelMode: "COMPARE", autoSelection: { enabled: true }, niche: "y" } });
