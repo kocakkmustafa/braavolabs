@@ -1722,7 +1722,7 @@
       "noConnectors": "Yok",
       "moreConnectors": "+{count} daha",
       "noData": "Henüz veri yok. Önizlemek için paketi dışa aktarın.",
-      "connectorsNote": "Önizlemedeki bağlantı etiketleri paketin istediği eylemleri gösterir. Gönderim/yazma yetkisi bağlayıcı kapsamıyla sınırlanır; bu paket bunu zorlamaz."
+      "connectorsNote": "Önizleme paketin hangi bağlantıları istediğini gösterir; eylem ve kapsam ayrıntıları dosyadadır. Gönderim/yazma yetkisi bağlayıcı kapsamıyla sınırlanır; bu paket bunu zorlamaz."
     },
     "codeChange": {
       "title": "Değişiklik: {title}",

@@ -43,7 +43,10 @@ describe("bayrak ve görünürlük", () => {
     for (const v of ["1", "true", " TRUE "]) expect(uxPilotEnabled({ NEXT_PUBLIC_UX_PILOT: v })).toBe(true);
   });
   it("kapalıyken hiçbir şey çizilmez", () => { expect(html({ enabled: false })).toBe(""); });
-  it("ortam bayrağı verilmeyince de kapalı", () => { expect(renderToStaticMarkup(<PilotEntryCard companyId="c1" />)).toBe(""); });
+  it("ortam bayrağı verilmeyince de kapalı (ortamdan bağımsız: stubEnv)", () => {
+    vi.stubEnv("NEXT_PUBLIC_UX_PILOT", "");
+    try { expect(renderToStaticMarkup(<PilotEntryCard companyId="c1" />)).toBe(""); } finally { vi.unstubAllEnvs(); }
+  });
   it("açıkken kart, senaryo ve notlar görünür", () => {
     const h = html();
     expect(h).toContain('data-testid="pilot-entry-card"');
@@ -222,18 +225,39 @@ describe("dosya adı, oturum hatası, tetikleyici, odak, revoke", () => {
     expect(revoke).toHaveBeenCalledWith("blob:y");
     vi.useRealTimers(); vi.unstubAllGlobals();
   });
-  it("dürüst metin: 15 dilde e-posta/taslak/gönderilmez/gerçek-müşteri iddiası yok; kalan bayrak kopyası en.json", () => {
+  it("dürüst metin: her dilde taslak/e-posta/gönderilmez/gerçek-müşteri iddiası yok", () => {
     const dir = resolve(process.cwd(), "messages");
-    const en = JSON.parse(readFileSync(resolve(dir, "en.json"), "utf8")).app.pilotEntry;
-    expect(en.scenarioName).toBeUndefined(); expect(en.draftOnly).toBeUndefined(); expect(en.noSecrets).toBeUndefined();
-    const text = JSON.stringify(en).toLowerCase();
-    for (const bad of ["email", "draft", "nothing is sent", "real customer"]) expect(text.replace(/"error":\{[^}]*\}/, "")).not.toContain(bad);
-    expect(en.connectorsNote).toMatch(/does not enforce/);
-    for (const f of readdirSync(dir).filter((n) => n.endsWith(".json"))) {
+    // Yasak iddia kökleri (küçük harf), dilin kendi karşılıklarıyla. Eski anahtarların yokluğu ayrıca denetlenir.
+    const banned: Record<string, string[]> = {
+      en: ["email", "draft", "nothing is sent", "real customer"],
+      tr: ["e-posta", "taslak", "gönderilmez", "gerçek müşteri"],
+      de: ["e-mail", "entwurf", "nichts gesendet", "echte kunden"],
+      fr: ["e-mail", "brouillon", "rien n'est envoyé", "clients réels", "client réelle"],
+      es: ["correo", "borrador", "no se envía", "clientes reales"],
+      "es-419": ["correo", "borrador", "no se envía", "clientes reales"],
+      it: ["e-mail", "bozza", "non viene inviato", "clienti reali"],
+      "pt-BR": ["e-mail", "rascunho", "nada é enviado", "clientes reais"],
+      pl: ["e-mail", "szkic", "nic nie jest wysyłane", "prawdziwych danych klientów"],
+      id: ["email", "draf", "tidak ada yang dikirim", "pelanggan asli"],
+      ja: ["メール", "下書き", "送信されません", "実際の顧客"],
+      ko: ["이메일", "초안", "발송되지 않", "실제 고객"],
+      "zh-Hans": ["邮件", "草稿", "不会发送任何", "真实客户"],
+      hi: ["ईमेल", "ड्राफ्ट", "भेजा नहीं जाता", "असली ग्राहक"],
+      ar: ["البريد", "مسودة", "لا يُرسل", "عملاء حقيقية"],
+    };
+    const files = readdirSync(dir).filter((n) => n.endsWith(".json"));
+    expect(files.map((n) => n.replace(/\.json$/, "")).sort()).toEqual(Object.keys(banned).sort());
+    for (const f of files) {
+      const loc = f.replace(/\.json$/, "");
       const p = JSON.parse(readFileSync(resolve(dir, f), "utf8")).app.pilotEntry;
       expect(p.scenarioName, f).toBeUndefined(); expect(p.draftOnly, f).toBeUndefined(); expect(p.noSecrets, f).toBeUndefined();
       expect(typeof p.connectorsNote, f).toBe("string");
+      const claims = [p.title, p.description, p.syntheticOnly, p.connectorsNote].join(" ").toLowerCase();
+      for (const bad of banned[loc]) expect(claims.includes(bad.toLowerCase()), `${f}: "${bad}"`).toBe(false);
     }
+    const en = JSON.parse(readFileSync(resolve(dir, "en.json"), "utf8")).app.pilotEntry;
+    expect(en.connectorsNote).toMatch(/does not enforce/);
+    expect(en.connectorsNote).not.toMatch(/show the actions/);
   });
 });
 

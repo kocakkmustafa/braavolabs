@@ -1722,7 +1722,7 @@
       "noConnectors": "Ninguna",
       "moreConnectors": "+{count} más",
       "noData": "Aún no hay datos. Exporta el paquete para previsualizarlo.",
-      "connectorsNote": "Las etiquetas de conexión de la vista previa muestran las acciones que solicita el paquete. El permiso de envío o escritura lo limita el alcance del conector; este paquete no lo impone."
+      "connectorsNote": "La vista previa muestra qué conexiones solicita el paquete; los detalles de acciones y alcances están en el archivo. El permiso de envío o escritura lo limita el alcance del conector; este paquete no lo impone."
     },
     "codeChange": {
       "title": "Cambio: {title}",

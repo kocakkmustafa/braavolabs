@@ -1722,7 +1722,7 @@
       "noConnectors": "Tidak ada",
       "moreConnectors": "+{count} lagi",
       "noData": "Belum ada data. Ekspor paket untuk melihat pratinjau.",
-      "connectorsNote": "Label koneksi di pratinjau menunjukkan tindakan yang diminta paket. Izin mengirim atau menulis dibatasi oleh cakupan konektor; paket ini tidak memaksakannya."
+      "connectorsNote": "Pratinjau menunjukkan koneksi apa yang diminta paket; rincian tindakan dan cakupan ada di file. Izin mengirim atau menulis dibatasi oleh cakupan konektor; paket ini tidak memaksakannya."
     },
     "codeChange": {
       "title": "Perubahan: {title}",

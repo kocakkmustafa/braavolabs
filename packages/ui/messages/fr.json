@@ -1722,7 +1722,7 @@
       "noConnectors": "Aucune",
       "moreConnectors": "+{count} de plus",
       "noData": "Pas encore de données. Exportez le paquet pour l'aperçu.",
-      "connectorsNote": "Les libellés de connexion de l'aperçu montrent les actions demandées par le paquet. L'autorisation d'envoi ou d'écriture est limitée par la portée du connecteur ; ce paquet ne l'impose pas."
+      "connectorsNote": "L'aperçu montre les connexions demandées par le paquet ; le détail des actions et des portées figure dans le fichier. L'autorisation d'envoi ou d'écriture est limitée par la portée du connecteur ; ce paquet ne l'impose pas."
     },
     "codeChange": {
       "title": "Modification : {title}",

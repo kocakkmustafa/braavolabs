@@ -1722,7 +1722,7 @@
       "noConnectors": "Nessuna",
       "moreConnectors": "+{count} altre",
       "noData": "Ancora nessun dato. Esporta il pacchetto per vedere l'anteprima.",
-      "connectorsNote": "Le etichette di connessione nell'anteprima mostrano le azioni richieste dal pacchetto. L'autorizzazione a inviare o scrivere è limitata dall'ambito del connettore; questo pacchetto non la impone."
+      "connectorsNote": "L'anteprima mostra quali connessioni richiede il pacchetto; i dettagli di azioni e ambiti sono nel file. L'autorizzazione a inviare o scrivere è limitata dall'ambito del connettore; questo pacchetto non la impone."
     },
     "codeChange": {
       "title": "Modifica: {title}",

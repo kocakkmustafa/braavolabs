@@ -1722,7 +1722,7 @@
       "noConnectors": "无",
       "moreConnectors": "另有 {count} 项",
       "noData": "暂无数据。导出试点包后即可预览。",
-      "connectorsNote": "预览中的连接标签显示该包请求的操作。发送或写入权限由连接器范围限制，此包不会强制执行。"
+      "connectorsNote": "预览显示该包请求了哪些连接；操作和范围的详细信息在文件中。发送或写入权限由连接器范围限制，此包不会强制执行。"
     },
     "codeChange": {
       "title": "变更：{title}",

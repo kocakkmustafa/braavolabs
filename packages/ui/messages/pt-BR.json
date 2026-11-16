@@ -1722,7 +1722,7 @@
       "noConnectors": "Nenhuma",
       "moreConnectors": "+{count} a mais",
       "noData": "Ainda sem dados. Exporte o pacote para ver a prévia.",
-      "connectorsNote": "Os rótulos de conexão na prévia mostram as ações que o pacote solicita. A permissão de envio ou escrita é limitada pelo escopo do conector; este pacote não a impõe."
+      "connectorsNote": "A prévia mostra quais conexões o pacote solicita; os detalhes de ações e escopos estão no arquivo. A permissão de envio ou escrita é limitada pelo escopo do conector; este pacote não a impõe."
     },
     "codeChange": {
       "title": "Alteração: {title}",

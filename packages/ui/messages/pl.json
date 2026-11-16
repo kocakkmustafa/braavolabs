@@ -1722,7 +1722,7 @@
       "noConnectors": "Brak",
       "moreConnectors": "+{count} więcej",
       "noData": "Brak danych. Wyeksportuj pakiet, aby zobaczyć podgląd.",
-      "connectorsNote": "Etykiety połączeń w podglądzie pokazują działania żądane przez pakiet. Uprawnienie do wysyłania lub zapisu jest ograniczone zakresem konektora; ten pakiet go nie wymusza."
+      "connectorsNote": "Podgląd pokazuje, jakich połączeń żąda pakiet; szczegóły działań i zakresów są w pliku. Uprawnienie do wysyłania lub zapisu jest ograniczone zakresem konektora; ten pakiet go nie wymusza."
     },
     "codeChange": {
       "title": "Zmiana: {title}",

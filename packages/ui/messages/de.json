@@ -1722,7 +1722,7 @@
       "noConnectors": "Keine",
       "moreConnectors": "+{count} weitere",
       "noData": "Noch keine Daten. Exportieren Sie das Paket für die Vorschau.",
-      "connectorsNote": "Die Verbindungsbezeichnungen in der Vorschau zeigen die vom Paket angeforderten Aktionen. Sende- oder Schreibrechte werden durch den Connector-Scope begrenzt; dieses Paket erzwingt das nicht."
+      "connectorsNote": "Die Vorschau zeigt, welche Verbindungen das Paket anfordert; Details zu Aktionen und Scopes stehen in der Datei. Sende- oder Schreibrechte werden durch den Connector-Scope begrenzt; dieses Paket erzwingt das nicht."
     },
     "codeChange": {
       "title": "Änderung: {title}",

@@ -1722,7 +1722,7 @@
       "noConnectors": "None",
       "moreConnectors": "+{count} more",
       "noData": "No data yet. Export the package to preview it.",
-      "connectorsNote": "Connection labels in the preview show the actions the package requests. Sending or writing permission is limited by the connector scope; this package does not enforce it."
+      "connectorsNote": "The preview shows which connections the package requests; action and scope details are in the file. Sending or writing permission is limited by the connector scope; this package does not enforce it."
     },
     "codeChange": {
       "title": "Change: {title}",
