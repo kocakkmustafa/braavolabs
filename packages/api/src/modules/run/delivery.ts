@@ -50,10 +50,10 @@ export async function assignRunOwner(
 
   await tenantTx(async (tx) => {
     const r = await tx.run.updateMany({
-      where: { id: run.id, ...tenantScope(actor.tenantId) },
+      where: { id: run.id, ...tenantScope(actor.tenantId), ownerUserId: run.ownerUserId },
       data: { ownerUserId },
     });
-    if (r.count === 0) throw new AppError(404, "Run not found");
+    if (r.count === 0) throw new AppError(409, "Run changed concurrently");
     await tx.activityLog.create({
       data: {
         tenantId: actor.tenantId,
@@ -87,7 +87,7 @@ export async function approveRunDelivery(
   await tenantTx(async (tx) => {
     // CAS: yarışta ikinci onay count 0 alır.
     const r = await tx.run.updateMany({
-      where: { id: run.id, ...tenantScope(actor.tenantId), status: "COMPLETED", deliveryApprovedAt: null },
+      where: { id: run.id, ...tenantScope(actor.tenantId), ownerUserId: run.ownerUserId, status: "COMPLETED", deliveryApprovedAt: null },
       data: { deliveryApprovedById: actor.userId, deliveryApprovedAt: at },
     });
     if (r.count === 0) throw new AppError(409, "Delivery already approved or run not completed");

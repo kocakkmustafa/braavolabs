@@ -21,6 +21,7 @@ vi.mock("../../../lib/db", () => {
     const t = w.pipeline?.company?.tenantId;
     if (t !== undefined && db.runTenant[r.id] !== t) return false;
     if (w.status !== undefined && r.status !== w.status) return false;
+    if ("ownerUserId" in w && r.ownerUserId !== w.ownerUserId) return false;
     if ("deliveryApprovedAt" in w && w.deliveryApprovedAt === null && r.deliveryApprovedAt) return false;
     return true;
   };
@@ -174,6 +175,29 @@ describe("approveRunDelivery", () => {
     const { prisma } = await import("../../../lib/db");
     const spy = vi.spyOn(prisma.run, "findFirst").mockResolvedValueOnce(snapshot as never);
     expect((await errOf(approveRunDelivery(owner, "run-1"))).statusCode).toBe(409);
+    spy.mockRestore();
+  });
+});
+
+describe("owner changes between read and write (CAS on ownerUserId)", () => {
+  it("approval → 409 and nothing written when the owner changed concurrently", async () => {
+    const snapshot = { ...db.runs[0] };
+    db.runs[0].ownerUserId = "u-new";
+    const { prisma } = await import("../../../lib/db");
+    const spy = vi.spyOn(prisma.run, "findFirst").mockResolvedValueOnce(snapshot as never);
+    expect((await errOf(approveRunDelivery(owner, "run-1"))).statusCode).toBe(409);
+    expect(db.runs[0].deliveryApprovedAt).toBeNull();
+    expect(db.logs).toHaveLength(0);
+    spy.mockRestore();
+  });
+  it("assignment → 409 and no log when the owner changed concurrently", async () => {
+    const snapshot = { ...db.runs[0] };
+    db.runs[0].ownerUserId = "u-admin";
+    const { prisma } = await import("../../../lib/db");
+    const spy = vi.spyOn(prisma.run, "findFirst").mockResolvedValueOnce(snapshot as never);
+    expect((await errOf(assignRunOwner(owner, "run-1", "u-new"))).statusCode).toBe(409);
+    expect(db.runs[0].ownerUserId).toBe("u-admin");
+    expect(db.logs).toHaveLength(0);
     spy.mockRestore();
   });
 });

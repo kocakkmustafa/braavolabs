@@ -94,6 +94,9 @@ export const RESERVED_RUN_COLUMNS = [
   "retryCount",
   "heartbeatAt",
   "deadline",
+  // BRA-P1-06-N2: teslim onayı yalnız delivery.ts yazar (extra ile yazılamaz).
+  "deliveryApprovedById",
+  "deliveryApprovedAt",
 ] as const;
 type ReservedRunColumn = (typeof RESERVED_RUN_COLUMNS)[number];
 
