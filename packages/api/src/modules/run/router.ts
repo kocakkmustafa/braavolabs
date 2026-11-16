@@ -24,7 +24,7 @@ import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfte
 import { decideResume, toLegacyStatus, type JobState } from "./job-state";
 import { evaluateRetryBudget, retryLimit } from "./retry";
 import { toJobReceiptDto } from "./receipt";
-import { buildCodeSummary, CODE_SUMMARY_TOOL_NAMES, MAX_SUMMARY_CALLS } from "./code-summary";
+import { buildCodeSummary, buildReceiptSummaries, CODE_SUMMARY_TOOL_NAMES, MAX_SUMMARY_CALLS } from "./code-summary";
 import { env } from "../../config/env";
 import { toPublicCompany } from "../company/redact";
 import { INBOX_BUCKETS, jobBucket, type InboxBucket, type RunEvent } from "@ai-company-os/core";
@@ -1212,7 +1212,9 @@ runRouter.get("/:id/receipt", async (req, res, next) => {
       res.status(404).json({ error: "receipt_not_found" });
       return;
     }
-    res.json(toJobReceiptDto(receipt));
+    // BRA-P1-03-N3: eklemeli, salt-okur türetilmiş bölümler (yol + sayı; veri yoksa null). Var olan alanlar değişmez.
+    const { calls, truncated } = await loadCodeSummaryCalls(run.id, tenantId);
+    res.json({ ...toJobReceiptDto(receipt), ...buildReceiptSummaries(run.id, calls, truncated) });
   } catch (err) { next(err); }
 });
 
@@ -1228,18 +1230,22 @@ runRouter.get("/:id/code-summary", async (req, res, next) => {
       select: { id: true },
     });
     if (!run) throw new AppError(404, "Run not found");
-    // En YENİ çağrılar okunur (nihai durum sondadır); sınır aşılırsa en eskiler atılır ve diff `complete:false` olur.
-    const rows = await prisma.toolCall.findMany({
-      where: {
-        runStep: { runId: run.id, run: { pipeline: { company: { tenantId } } } },
-        OR: CODE_SUMMARY_TOOL_NAMES.map((n) => ({ toolName: { equals: n, mode: "insensitive" as const } })),
-      },
-      orderBy: [{ runStep: { stepIndex: "desc" } }, { createdAt: "desc" }, { id: "desc" }], // `id`: aynı createdAt'te belirleyici sıra
-      take: MAX_SUMMARY_CALLS + 1,
-      select: { toolName: true, status: true, input: true, output: true },
-    });
-    const truncated = rows.length > MAX_SUMMARY_CALLS;
-    const calls = rows.slice(0, MAX_SUMMARY_CALLS).reverse();
+    const { calls, truncated } = await loadCodeSummaryCalls(run.id, tenantId);
     res.json(buildCodeSummary(run.id, calls, new Date(), truncated));
   } catch (err) { next(err); }
 });
+
+/** code-summary ve makbuz ortak okuyucusu: kiracı + koşu kapsamlı, yalnız izinli diff/test araçları. */
+async function loadCodeSummaryCalls(runId: string, tenantId: string) {
+  // En YENİ çağrılar okunur (nihai durum sondadır); sınır aşılırsa en eskiler atılır ve diff `complete:false` olur.
+  const rows = await prisma.toolCall.findMany({
+    where: {
+      runStep: { runId, run: { pipeline: { company: { tenantId } } } },
+      OR: CODE_SUMMARY_TOOL_NAMES.map((n) => ({ toolName: { equals: n, mode: "insensitive" as const } })),
+    },
+    orderBy: [{ runStep: { stepIndex: "desc" } }, { createdAt: "desc" }, { id: "desc" }], // `id`: aynı createdAt'te belirleyici sıra
+    take: MAX_SUMMARY_CALLS + 1,
+    select: { toolName: true, status: true, input: true, output: true },
+  });
+  return { calls: rows.slice(0, MAX_SUMMARY_CALLS).reverse(), truncated: rows.length > MAX_SUMMARY_CALLS };
+}
