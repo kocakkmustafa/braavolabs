@@ -1650,6 +1650,38 @@
         }
       }
     },
+    "companySummary": {
+      "title": "Tek bakış",
+      "loading": "Şirket özeti yükleniyor…",
+      "error": "Şirket özeti yüklenemedi.",
+      "retry": "Tekrar dene",
+      "empty": "Bu şirket için özet yok.",
+      "unknown": "Bilinmiyor",
+      "bucket": {
+        "working": "Çalışıyor",
+        "needs_approval": "Onay bekliyor",
+        "stuck": "Takıldı",
+        "done": "Bitti"
+      },
+      "pendingApprovals": "Bekleyen onaylar",
+      "agents": "Ajanlar",
+      "pipelines": "Pipeline'lar",
+      "monthCost": "Bu ay maliyet",
+      "budget": {
+        "title": "Aylık bütçe",
+        "noneHint": "Bu şirket için aylık bütçe belirlenmemiş.",
+        "spent": "Harcanan",
+        "limit": "Limit",
+        "remaining": "Kalan",
+        "used": "%{pct} kullanıldı",
+        "state": {
+          "none": "Bütçe yok",
+          "ok": "Yolunda",
+          "warn": "Limite yakın",
+          "over": "Bütçe aşıldı"
+        }
+      }
+    },
     "codeChange": {
       "title": "Değişiklik: {title}",
       "titleGeneric": "Kod değişikliği",

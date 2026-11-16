@@ -2,6 +2,7 @@ import type { InboxBucket, JobCodeSummary, JobReceipt, ModelsOverview } from "@a
 import { parseRunsPage, parseApprovalGroupsPage } from "./inboxParse";
 import { parseCompareOptions, parseCompareSession, type CompareRequest } from "./compare";
 import { parseApprovalDecision } from "./approvalDecision";
+import { parseCompanySummary } from "./company-summary/parse";
 import { parsePlanResponse, parseStartResponse, planRequestBody } from "./planCardParse";
 import { requestDeadline } from "./request-deadline";
 import { defaultLocale, localeFromCookieHeader } from "../i18n/locales";
@@ -392,6 +393,10 @@ export const api = {
   // BRA-UX-API-02: salt-okur model + yetki + bu ay maliyet dökümü (kaynak olmayan alan null).
   getModelsOverview: (token: string, companyId: string) =>
     apiFetch<ModelsOverview>(`/companies/${encodeURIComponent(companyId)}/models`, { token }),
+
+  // BRA-P0-11d: şirket tek bakış özeti; savunmacı ayrıştırma (bozuk gövde → null, eksik alan → null).
+  getCompanySummary: (token: string, companyId: string, signal?: AbortSignal) =>
+    apiFetch<unknown>(`/companies/${encodeURIComponent(companyId)}/summary`, { token, signal }).then(parseCompanySummary),
 
   // Approvals
   listApprovals: (token: string, status = "PENDING") =>

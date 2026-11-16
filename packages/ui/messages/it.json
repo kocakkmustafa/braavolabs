@@ -1650,6 +1650,38 @@
         }
       }
     },
+    "companySummary": {
+      "title": "A colpo d'occhio",
+      "loading": "Caricamento del riepilogo dell'azienda…",
+      "error": "Impossibile caricare il riepilogo dell'azienda.",
+      "retry": "Riprova",
+      "empty": "Nessun riepilogo per questa azienda.",
+      "unknown": "Sconosciuto",
+      "bucket": {
+        "working": "In corso",
+        "needs_approval": "In attesa di approvazione",
+        "stuck": "Bloccato",
+        "done": "Completato"
+      },
+      "pendingApprovals": "Approvazioni in sospeso",
+      "agents": "Agenti",
+      "pipelines": "Pipeline",
+      "monthCost": "Costo di questo mese",
+      "budget": {
+        "title": "Budget mensile",
+        "noneHint": "Per questa azienda non è impostato un budget mensile.",
+        "spent": "Speso",
+        "limit": "Limite",
+        "remaining": "Rimanente",
+        "used": "{pct}% usato",
+        "state": {
+          "none": "Nessun budget",
+          "ok": "In linea",
+          "warn": "Vicino al limite",
+          "over": "Budget superato"
+        }
+      }
+    },
     "codeChange": {
       "title": "Modifica: {title}",
       "titleGeneric": "Modifica del codice",

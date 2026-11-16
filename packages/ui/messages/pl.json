@@ -1650,6 +1650,38 @@
         }
       }
     },
+    "companySummary": {
+      "title": "Rzut oka",
+      "loading": "Wczytywanie podsumowania firmy…",
+      "error": "Nie udało się wczytać podsumowania firmy.",
+      "retry": "Spróbuj ponownie",
+      "empty": "Brak podsumowania dla tej firmy.",
+      "unknown": "Nieznane",
+      "bucket": {
+        "working": "W toku",
+        "needs_approval": "Czeka na zatwierdzenie",
+        "stuck": "Zablokowane",
+        "done": "Gotowe"
+      },
+      "pendingApprovals": "Oczekujące zatwierdzenia",
+      "agents": "Agenci",
+      "pipelines": "Pipeline'y",
+      "monthCost": "Koszt w tym miesiącu",
+      "budget": {
+        "title": "Budżet miesięczny",
+        "noneHint": "Dla tej firmy nie ustawiono budżetu miesięcznego.",
+        "spent": "Wydano",
+        "limit": "Limit",
+        "remaining": "Pozostało",
+        "used": "Wykorzystano {pct}%",
+        "state": {
+          "none": "Brak budżetu",
+          "ok": "W normie",
+          "warn": "Blisko limitu",
+          "over": "Budżet przekroczony"
+        }
+      }
+    },
     "codeChange": {
       "title": "Zmiana: {title}",
       "titleGeneric": "Zmiana w kodzie",

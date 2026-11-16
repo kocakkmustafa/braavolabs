@@ -1650,6 +1650,38 @@
         }
       }
     },
+    "companySummary": {
+      "title": "Visão geral",
+      "loading": "Carregando o resumo da empresa…",
+      "error": "Não foi possível carregar o resumo da empresa.",
+      "retry": "Tentar de novo",
+      "empty": "Não há resumo para esta empresa.",
+      "unknown": "Desconhecido",
+      "bucket": {
+        "working": "Em andamento",
+        "needs_approval": "Aguardando aprovação",
+        "stuck": "Travado",
+        "done": "Concluído"
+      },
+      "pendingApprovals": "Aprovações pendentes",
+      "agents": "Agentes",
+      "pipelines": "Pipelines",
+      "monthCost": "Custo neste mês",
+      "budget": {
+        "title": "Orçamento mensal",
+        "noneHint": "Esta empresa não tem orçamento mensal.",
+        "spent": "Gasto",
+        "limit": "Limite",
+        "remaining": "Restante",
+        "used": "{pct}% usado",
+        "state": {
+          "none": "Sem orçamento",
+          "ok": "Em dia",
+          "warn": "Perto do limite",
+          "over": "Orçamento excedido"
+        }
+      }
+    },
     "codeChange": {
       "title": "Alteração: {title}",
       "titleGeneric": "Alteração de código",

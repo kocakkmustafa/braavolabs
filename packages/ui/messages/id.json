@@ -1650,6 +1650,38 @@
         }
       }
     },
+    "companySummary": {
+      "title": "Sekilas",
+      "loading": "Memuat ringkasan perusahaan…",
+      "error": "Ringkasan perusahaan tidak dapat dimuat.",
+      "retry": "Coba lagi",
+      "empty": "Tidak ada ringkasan untuk perusahaan ini.",
+      "unknown": "Tidak diketahui",
+      "bucket": {
+        "working": "Berjalan",
+        "needs_approval": "Menunggu persetujuan",
+        "stuck": "Macet",
+        "done": "Selesai"
+      },
+      "pendingApprovals": "Persetujuan tertunda",
+      "agents": "Agen",
+      "pipelines": "Pipeline",
+      "monthCost": "Biaya bulan ini",
+      "budget": {
+        "title": "Anggaran bulanan",
+        "noneHint": "Perusahaan ini belum memiliki anggaran bulanan.",
+        "spent": "Terpakai",
+        "limit": "Batas",
+        "remaining": "Sisa",
+        "used": "{pct}% terpakai",
+        "state": {
+          "none": "Tanpa anggaran",
+          "ok": "Sesuai rencana",
+          "warn": "Mendekati batas",
+          "over": "Melebihi anggaran"
+        }
+      }
+    },
     "codeChange": {
       "title": "Perubahan: {title}",
       "titleGeneric": "Perubahan kode",
