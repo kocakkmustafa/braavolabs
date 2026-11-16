@@ -1378,6 +1378,12 @@
         "tokensValue": "{input} इनपुट / {output} आउटपुट",
         "log": "लॉग",
         "noLog": "इस चरण के लिए लॉग डेटा नहीं है",
+        "activity": {
+          "title": "कार्य गतिविधि",
+          "actorSystem": "सिस्टम",
+          "actorUser": "टीम सदस्य",
+          "more": "नवीनतम {count} घटनाएँ दिखाई जा रही हैं; और भी हैं।"
+        },
         "logEvent": {
           "started": "शुरू: {time}",
           "ended": "समाप्त: {time}"

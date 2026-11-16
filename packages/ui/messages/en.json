@@ -1378,6 +1378,12 @@
         "tokensValue": "{input} in / {output} out",
         "log": "Log",
         "noLog": "No log data for this step",
+        "activity": {
+          "title": "Job activity",
+          "actorSystem": "System",
+          "actorUser": "Team member",
+          "more": "Showing the latest {count} events; more exist."
+        },
         "logEvent": {
           "started": "Started: {time}",
           "ended": "Ended: {time}"

@@ -1378,6 +1378,12 @@
         "tokensValue": "{input} en entrée / {output} en sortie",
         "log": "Journal",
         "noLog": "Aucune donnée de journal pour cette étape",
+        "activity": {
+          "title": "Activité de la tâche",
+          "actorSystem": "Système",
+          "actorUser": "Membre de l'équipe",
+          "more": "Affichage des {count} derniers événements ; il y en a d'autres."
+        },
         "logEvent": {
           "started": "Début : {time}",
           "ended": "Fin : {time}"

@@ -1378,6 +1378,12 @@
         "tokensValue": "{input} ein / {output} aus",
         "log": "Protokoll",
         "noLog": "Keine Protokolldaten für diesen Schritt",
+        "activity": {
+          "title": "Auftragsaktivität",
+          "actorSystem": "System",
+          "actorUser": "Teammitglied",
+          "more": "Die letzten {count} Ereignisse werden angezeigt; es gibt weitere."
+        },
         "logEvent": {
           "started": "Gestartet: {time}",
           "ended": "Beendet: {time}"

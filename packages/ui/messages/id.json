@@ -1378,6 +1378,12 @@
         "tokensValue": "{input} masuk / {output} keluar",
         "log": "Log",
         "noLog": "Tidak ada data log untuk langkah ini",
+        "activity": {
+          "title": "Aktivitas pekerjaan",
+          "actorSystem": "Sistem",
+          "actorUser": "Anggota tim",
+          "more": "Menampilkan {count} peristiwa terbaru; masih ada lagi."
+        },
         "logEvent": {
           "started": "Mulai: {time}",
           "ended": "Selesai: {time}"

@@ -1378,6 +1378,12 @@
         "tokensValue": "{input} de entrada / {output} de saída",
         "log": "Registro",
         "noLog": "Sem dados de registro para esta etapa",
+        "activity": {
+          "title": "Atividade do trabalho",
+          "actorSystem": "Sistema",
+          "actorUser": "Membro da equipe",
+          "more": "Mostrando os últimos {count} eventos; há mais."
+        },
         "logEvent": {
           "started": "Início: {time}",
           "ended": "Fim: {time}"
