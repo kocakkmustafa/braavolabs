@@ -932,14 +932,26 @@ async function logTickSkip(
  *  - RUNNING, dual-write OFF: no heartbeat is written and the column is not even
  *    named (pre-migration schema safe) → updatedAt within PENDING_MAX_AGE_MS, the
  *    same generous bound, so a normal long run is never mistaken for stale.
+ *  - Dual-write ON, PENDING arm: only state NULL or READY (a real run waiting to
+ *    start). DRAFT/PLANNED also map to legacy PENDING (job-state.ts TO_LEGACY) but
+ *    are not started by the sweeper/worker, so they must not block ticks.
+ *  - Known trade-off: with the flag ON a single step longer than jobStaleAfterMs()
+ *    stops heartbeating → the run turns stale and the guard lifts (same as the
+ *    inbox "stuck" definition).
  */
 function liveRunFreshness(nowMs: number): Prisma.RunWhereInput {
   const maxAgeCutoff = new Date(nowMs - PENDING_MAX_AGE_MS);
-  if (!isJobStateDualWriteEnabled()) return { updatedAt: { gte: maxAgeCutoff } };
+  if (!isJobStateDualWriteEnabled()) {
+    return { status: { in: ["PENDING", "RUNNING"] }, updatedAt: { gte: maxAgeCutoff } };
+  }
   const hbCutoff = new Date(nowMs - jobStaleAfterMs());
   return {
     OR: [
-      { status: "PENDING", updatedAt: { gte: maxAgeCutoff } },
+      {
+        status: "PENDING",
+        OR: [{ state: null }, { state: "READY" }],
+        updatedAt: { gte: maxAgeCutoff },
+      },
       {
         status: "RUNNING",
         OR: [
@@ -1049,27 +1061,40 @@ export async function processScheduledTick(job: Job<ScheduledTickData>): Promise
   // duplicate tick can never start a late run once the run resolves) and a skipped
   // tick costs no quota. Tenant-scoped; a query error propagates (tick never
   // retried, no run is created = fail-closed).
+  // Two ordered queries so the reason is deterministic: WAITING_APPROVAL first
+  // (approval-parked run is the operator-actionable cause), then PENDING/RUNNING.
+  const waitingRun = await prisma.run.findFirst({
+    where: { pipelineId: pipeline.id, tenantId: pipeline.company.tenantId, status: "WAITING_APPROVAL" },
+    select: { id: true },
+  });
+  if (waitingRun) {
+    logger.info(
+      { pipelineId, waitingRunId: waitingRun.id, slotMs },
+      "Scheduled tick skipped — previous run is waiting for approval",
+    );
+    await logTickSkip(pipeline.company.tenantId, pipelineId, "waiting_approval", {
+      slotMs,
+      waitingRunId: waitingRun.id,
+    });
+    return;
+  }
   const activeRun = await prisma.run.findFirst({
     where: {
       pipelineId: pipeline.id,
       tenantId: pipeline.company.tenantId,
-      OR: [{ status: "WAITING_APPROVAL" }, { status: { in: ["PENDING", "RUNNING"] }, ...liveRunFreshness(Date.now()) }],
+      ...liveRunFreshness(Date.now()),
     },
     select: { id: true, status: true },
   });
   if (activeRun) {
-    // WAITING_APPROVAL wins the reason if (unusually) both kinds exist: an
-    // approval-parked run is the operator-actionable cause.
-    const waiting = activeRun.status === "WAITING_APPROVAL";
     logger.info(
       { pipelineId, activeRunId: activeRun.id, status: activeRun.status, slotMs },
-      waiting
-        ? "Scheduled tick skipped — previous run is waiting for approval"
-        : "Scheduled tick skipped — previous run still PENDING/RUNNING (overlap)",
+      "Scheduled tick skipped — previous run still PENDING/RUNNING (overlap)",
     );
-    await logTickSkip(pipeline.company.tenantId, pipelineId, waiting ? "waiting_approval" : "overlap", {
+    await logTickSkip(pipeline.company.tenantId, pipelineId, "overlap", {
       slotMs,
-      ...(waiting ? { waitingRunId: activeRun.id } : { activeRunId: activeRun.id, activeRunStatus: activeRun.status }),
+      activeRunId: activeRun.id,
+      activeRunStatus: activeRun.status,
     });
     return;
   }
