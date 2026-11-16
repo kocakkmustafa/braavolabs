@@ -461,6 +461,11 @@ model Agent {
   // Money-touching actions ALWAYS require approval regardless of this setting
   // (CLAUDE.md rule #3 is inviolable) — autonomy only relaxes non-money pauses.
   autonomy    AgentAutonomy @default(BALANCED)
+  // BRA-P0-06a-2 — model kipi (DIRECT/CASCADE/COMPARE). NULL = şirket ayarını
+  // (Company.config.modelMode) / autoSelection'ı / DIRECT varsayılanını miras al.
+  // modelModeConfig: { cheapModel?, compareModels?, confidenceThreshold?, budgetUsdCap? }.
+  modelMode       ModelMode? @map("model_mode")
+  modelModeConfig Json?      @map("model_mode_config")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
@@ -540,6 +545,15 @@ enum AgentAutonomy {
   SUPERVISED
   BALANCED
   AUTONOMOUS
+}
+
+// BRA-P0-06a-2 — kurucu tanımı (2026-11-15): DIRECT = seçilen tek model;
+// CASCADE = ucuz modelle başla, yetmezse güçlüye geç; COMPARE = 2–3 model
+// aynı işi yapar, sonuçlardan biri seçilir.
+enum ModelMode {
+  DIRECT
+  CASCADE
+  COMPARE
 }
 
 model Run {
@@ -633,6 +647,11 @@ model RunStep {
   // process dies mid-step the last full turn survives. NULLed when the step
   // COMPLETEs (hygiene — the frozen copy lives in handoff_ledger.checkpoint).
   transcript  Json?
+  // BRA-P0-06a-2 — adımın gerçekte çalıştırıldığı model kipi ve ayrıntısı
+  // (CASCADE yükseltmeleri, COMPARE adayları/seçimi, DIRECT'e düşme nedeni).
+  // Nullable + additive: eski satırlar NULL kalır (kip bilinmiyor).
+  modelMode   ModelMode?    @map("model_mode")
+  modeDetail  Json?         @map("mode_detail")
   startedAt   DateTime?     @map("started_at")
   completedAt DateTime?     @map("completed_at")
   createdAt   DateTime      @default(now()) @map("created_at")
