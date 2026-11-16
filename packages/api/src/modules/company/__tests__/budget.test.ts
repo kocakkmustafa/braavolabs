@@ -50,14 +50,14 @@ describe("parseMonthlyBudget", () => {
 
 describe("computeBudgetStatus", () => {
   it("limit null -> none", () => {
-    expect(computeBudgetStatus(null, 10)).toEqual({ limitUsd: null, spentUsd: 10, remainingUsd: null, usedPct: null, state: "none" });
+    expect(computeBudgetStatus(null, 10)).toEqual({ limitUsd: null, spentUsd: 10, remainingUsd: null, usedPct: null, state: "none", suggestedAlertAtPct: 80 });
   });
   it("spent null (kaynak yok) -> none, usedPct null", () => {
-    expect(computeBudgetStatus(100, null)).toEqual({ limitUsd: 100, spentUsd: null, remainingUsd: null, usedPct: null, state: "none" });
+    expect(computeBudgetStatus(100, null)).toEqual({ limitUsd: 100, spentUsd: null, remainingUsd: null, usedPct: null, state: "none", suggestedAlertAtPct: 80 });
   });
   it("ikisi de null", () => expect(computeBudgetStatus(null, null).state).toBe("none"));
   it("ok: %50", () => {
-    expect(computeBudgetStatus(200, 100)).toEqual({ limitUsd: 200, spentUsd: 100, remainingUsd: 100, usedPct: 50, state: "ok" });
+    expect(computeBudgetStatus(200, 100)).toEqual({ limitUsd: 200, spentUsd: 100, remainingUsd: 100, usedPct: 50, state: "ok", suggestedAlertAtPct: 80 });
   });
   it("warn eşiği: %79.99 ok, %80 warn", () => {
     expect(computeBudgetStatus(10000, 7999).state).toBe("ok");
@@ -84,7 +84,7 @@ describe("computeBudgetStatus", () => {
     expect(computeBudgetStatus(100, 150)).toMatchObject({ usedPct: 150, remainingUsd: -50, state: "over" });
   });
   it("limit 0 + spent>0 -> over, usedPct null, bölme-sıfır yok", () => {
-    expect(computeBudgetStatus(0, 5)).toEqual({ limitUsd: 0, spentUsd: 5, remainingUsd: -5, usedPct: null, state: "over" });
+    expect(computeBudgetStatus(0, 5)).toEqual({ limitUsd: 0, spentUsd: 5, remainingUsd: -5, usedPct: null, state: "over", suggestedAlertAtPct: 80 });
   });
   it("limit 0 + spent 0 -> ok", () => {
     expect(computeBudgetStatus(0, 0)).toMatchObject({ usedPct: null, state: "ok" });
@@ -95,5 +95,28 @@ describe("computeBudgetStatus", () => {
     expect(computeBudgetStatus(100, NaN).state).toBe("none");
     expect(computeBudgetStatus(-1, 1).state).toBe("none");
     expect(computeBudgetStatus(100, Infinity).state).toBe("none");
+  });
+});
+
+describe("computeBudgetStatus — BRA-P2-03d tam sayı para kuralı", () => {
+  it("suggestedAlertAtPct yalnız öneri: sabit 80, durum eşiğiyle aynı değer, her durumda var", () => {
+    for (const [l, s] of [[null, null], [100, 0], [100, 80], [100, 150], [0, 0]] as const) {
+      expect(computeBudgetStatus(l, s).suggestedAlertAtPct).toBe(80);
+    }
+  });
+  it("float birikim hatası yok: 0.3 - 0.1 = 0.2 tam; 10.1 - 0.1 = 10", () => {
+    expect(computeBudgetStatus(0.3, 0.1).remainingUsd).toBe(0.2);
+    expect(computeBudgetStatus(10.1, 0.1).remainingUsd).toBe(10);
+    expect(computeBudgetStatus(1000000, 0.1).remainingUsd).toBe(999999.9);
+  });
+  it("harcama cente yarım-yukarı yuvarlanır (remaining); spentUsd ham kalır", () => {
+    expect(computeBudgetStatus(10, 1.005).remainingUsd).toBe(8.99);
+    expect(computeBudgetStatus(10, 1.004999).remainingUsd).toBe(9);
+    expect(computeBudgetStatus(10, 1.005).spentUsd).toBe(1.005);
+  });
+  it("usedPct 2 ondalığa aşağı yuvarlanır; >100 mümkün", () => {
+    expect(computeBudgetStatus(3, 1)).toMatchObject({ usedPct: 33.33, state: "ok" });
+    expect(computeBudgetStatus(3, 2)).toMatchObject({ usedPct: 66.66 });
+    expect(computeBudgetStatus(10, 25.5)).toMatchObject({ usedPct: 255, remainingUsd: -15.5, state: "over" });
   });
 });

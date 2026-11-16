@@ -175,25 +175,37 @@ describe("summary.budget", () => {
   it("tanımsız -> state none", async () => {
     db.runs = [{ cost: "2.000000" }];
     const { res } = await call(summary.h, "co-1", undefined);
-    expect(res.body.budget).toEqual({ limitUsd: null, spentUsd: 2, remainingUsd: null, usedPct: null, state: "none" });
+    expect(res.body.budget).toEqual({ limitUsd: null, spentUsd: 2, remainingUsd: null, usedPct: null, state: "none", suggestedAlertAtPct: 80 });
   });
   it("tanımlı + harcama -> doğru yüzde ve warn", async () => {
     db.companies[0].config = { monthlyBudgetUsd: 10 };
     db.runs = [{ cost: "8.500000" }];
     const { res } = await call(summary.h, "co-1", undefined);
     expect(res.body.monthCostUsd).toBe("8.500000");
-    expect(res.body.budget).toEqual({ limitUsd: 10, spentUsd: 8.5, remainingUsd: 1.5, usedPct: 85, state: "warn" });
+    expect(res.body.budget).toEqual({ limitUsd: 10, spentUsd: 8.5, remainingUsd: 1.5, usedPct: 85, state: "warn", suggestedAlertAtPct: 80 });
   });
   it("tanımlı + maliyet kaynağı yok -> none, usedPct null", async () => {
     db.companies[0].config = { monthlyBudgetUsd: 10 };
     const { res } = await call(summary.h, "co-1", undefined);
     expect(res.body.monthCostUsd).toBeNull();
-    expect(res.body.budget).toEqual({ limitUsd: 10, spentUsd: null, remainingUsd: null, usedPct: null, state: "none" });
+    expect(res.body.budget).toEqual({ limitUsd: 10, spentUsd: null, remainingUsd: null, usedPct: null, state: "none", suggestedAlertAtPct: 80 });
   });
   it("bozuk config -> none; mevcut alanlar yerinde", async () => {
     db.companies[0].config = { monthlyBudgetUsd: "abc" };
     const { res } = await call(summary.h, "co-1", undefined);
     expect(res.body.budget.state).toBe("none");
     expect(Object.keys(res.body)).toEqual(expect.arrayContaining(["companyId", "agents", "pipelines", "buckets", "pendingApprovals", "monthCostUsd", "budget"]));
+  });
+  it("BRA-P2-03d: aşılmış bütçe >%100, sıfır bütçe; yanıt yalnız toplam (ham satır/sır yok)", async () => {
+    db.companies[0].config = { monthlyBudgetUsd: 10, apiKey: "sk-secret-123" };
+    db.runs = [{ cost: "12.340000" }, { cost: "13.160000" }];
+    let { res } = await call(summary.h, "co-1", undefined);
+    expect(res.body.budget).toEqual({ limitUsd: 10, spentUsd: 25.5, remainingUsd: -15.5, usedPct: 255, state: "over", suggestedAlertAtPct: 80 });
+    db.companies[0].config = { monthlyBudgetUsd: 0 };
+    ({ res } = await call(summary.h, "co-1", undefined));
+    expect(res.body.budget).toMatchObject({ limitUsd: 0, usedPct: null, state: "over", remainingUsd: -25.5 });
+    const json = JSON.stringify(res.body);
+    expect(json).not.toContain("sk-secret");
+    expect(json).not.toMatch(/"cost"|"runs"|"config"/);
   });
 });
