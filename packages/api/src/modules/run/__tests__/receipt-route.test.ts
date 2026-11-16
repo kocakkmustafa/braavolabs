@@ -135,6 +135,26 @@ describe("GET /runs/:id/receipt — BRA-P1-03-N3 testSummary/diffSummary", () =>
     const { res } = await call();
     expect(res.body.diffSummary.truncated).toBe(true);
   });
+  it(">200 çağrıda eski başarısız test düşer: testSummary.truncated=true ve ok=false (fail-closed)", async () => {
+    const pass = { toolName: "run_tests", status: "COMPLETED", input: {}, output: { exitCode: 0, passed: 5, failed: 0 } };
+    const fail = { toolName: "run_tests", status: "COMPLETED", input: {}, output: { exitCode: 1, failed: 2 } };
+    // Sorgu en yeniden eskiye gelir; 201. (en eski) satır olan başarısız test kırpılır, kalanı hepsi geçen test.
+    setup([...Array.from({ length: MAX_SUMMARY_CALLS }, () => pass), fail]);
+    const { res } = await call();
+    expect(res.body.testSummary.truncated).toBe(true);
+    expect(res.body.testSummary.ok).toBe(false);
+  });
+  it(">200 çağrıda pencerede test yoksa testSummary null değil: ok=false, truncated=true", async () => {
+    const diff = { toolName: "git_diff", status: "COMPLETED", input: {}, output: { files: [{ path: "a.ts", additions: 1, deletions: 0 }] } };
+    setup(Array.from({ length: MAX_SUMMARY_CALLS + 1 }, () => diff));
+    const { res } = await call();
+    expect(res.body.testSummary).toMatchObject({ ok: false, truncated: true, runs: 0, passed: null, failed: null });
+  });
+  it("kırpma yokken testSummary.truncated=false ve ok davranışı aynı", async () => {
+    setup([{ toolName: "run_tests", status: "COMPLETED", input: {}, output: { exitCode: 0, passed: 3, failed: 0 } }]);
+    const { res } = await call();
+    expect(res.body.testSummary).toMatchObject({ ok: true, truncated: false, passed: 3 });
+  });
   it("tenant izolasyonu: araç çağrısı sorgusu kiracı + koşu kapsamlı", async () => {
     setup([]);
     await call();

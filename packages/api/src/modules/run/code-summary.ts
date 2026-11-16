@@ -367,6 +367,8 @@ export function buildCodeSummary(
 
 /** BRA-P1-03-N3 — makbuza eklenen diff özeti: `JobCodeSummaryDiff` + kırpma bayrağı. */
 export type ReceiptDiffSummary = JobCodeSummaryDiff & { truncated: boolean };
+/** Makbuz test özeti: `truncated` ⇒ en eski çağrılar okunmadı, `ok` fail-closed `false`. */
+export type ReceiptTestSummary = JobCodeSummaryTests & { truncated: boolean };
 
 /**
  * BRA-P1-03-N3 — makbuz yanıtına eklenen salt-okur bölümler (testSummary/diffSummary). Yeni veri kaynağı
@@ -377,10 +379,12 @@ export function buildReceiptSummaries(
   runId: string,
   calls: readonly CodeSummaryToolCall[],
   callsTruncated = false,
-): { testSummary: JobCodeSummaryTests | null; diffSummary: ReceiptDiffSummary | null } {
+): { testSummary: ReceiptTestSummary | null; diffSummary: ReceiptDiffSummary | null } {
   const { diff, tests } = buildCodeSummary(runId, calls, new Date(0), callsTruncated);
   return {
-    testSummary: tests,
+    testSummary: callsTruncated
+      ? { ...(tests ?? { passed: null, failed: null, skipped: null, total: null, runs: 0 }), ok: false, truncated: true }
+      : tests && { ...tests, truncated: false },
     diffSummary: diff ? { ...diff, truncated: callsTruncated || diff.fileCount > diff.files.length } : null,
   };
 }
