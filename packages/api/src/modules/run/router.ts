@@ -25,6 +25,7 @@ import { decideResume, toLegacyStatus, type JobState } from "./job-state";
 import { evaluateRetryBudget, retryLimit } from "./retry";
 import { toJobReceiptDto } from "./receipt";
 import { buildCodeSummary, buildReceiptSummaries, CODE_SUMMARY_TOOL_NAMES, MAX_SUMMARY_CALLS } from "./code-summary";
+import { buildEvidencePack, EVIDENCE_PACK_TOOL_NAMES, MAX_PACK_APPROVALS, MAX_PACK_CALLS, MAX_PACK_STEPS } from "./evidence-pack";
 import { env } from "../../config/env";
 import { toPublicCompany } from "../company/redact";
 import { INBOX_BUCKETS, jobBucket, type InboxBucket, type RunEvent } from "@ai-company-os/core";
@@ -1249,3 +1250,67 @@ async function loadCodeSummaryCalls(runId: string, tenantId: string) {
   });
   return { calls: rows.slice(0, MAX_SUMMARY_CALLS).reverse(), truncated: rows.length > MAX_SUMMARY_CALLS };
 }
+
+// ── BRA-P0-09b: kanıt paketi (makbuz yanında türetilmiş, salt-okur; migration yok) ──
+// GET /api/v1/runs/:id/evidence — makbuz ucuyla aynı kapsam (kiracı + koşu; aynı auth). Ayrı uç seçildi:
+// makbuz yanıt anahtar sözleşmesi (receipt-route testi) kilitli, paket ise ayrı `packHash`/sürüm taşır.
+// Makbuz yoksa 404 receipt_not_found (paket makbuza bağlıdır). Yalnız yol/sayı/ref döner.
+runRouter.get("/:id/evidence", async (req, res, next) => {
+  try {
+    const tenantId = req.auth!.tenantId;
+    const run = await prisma.run.findFirst({
+      where: { id: req.params.id, pipeline: { company: { tenantId } } },
+      select: {
+        id: true,
+        costUsd: true,
+        steps: {
+          orderBy: { stepIndex: "asc" },
+          take: MAX_PACK_STEPS + 1,
+          select: { stepIndex: true, name: true, status: true, costUsd: true, startedAt: true, completedAt: true },
+        },
+        approvals: {
+          orderBy: { createdAt: "asc" },
+          take: MAX_PACK_APPROVALS + 1,
+          select: { id: true, type: true, status: true, decidedBy: true, decidedAt: true, createdAt: true, amountUsd: true },
+        },
+      },
+    });
+    if (!run) throw new AppError(404, "Run not found");
+    const receipt = await prisma.jobReceipt.findFirst({
+      where: { runId: run.id, tenantId },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!receipt) {
+      res.status(404).json({ error: "receipt_not_found" });
+      return;
+    }
+    const summaryCalls = await loadCodeSummaryCalls(run.id, tenantId);
+    // Makbuzdan sonra gelen çağrılar süzülmez: paket "şimdiki durum" görünümüdür; makbuz contentHash'i kendi anındaki kanıtı bağlar.
+    const rows = await prisma.toolCall.findMany({
+      where: {
+        runStep: { runId: run.id, run: { pipeline: { company: { tenantId } } } },
+        OR: EVIDENCE_PACK_TOOL_NAMES.map((n) => ({ toolName: { equals: n, mode: "insensitive" as const } })),
+      },
+      orderBy: [{ runStep: { stepIndex: "desc" } }, { createdAt: "desc" }, { id: "desc" }],
+      take: MAX_PACK_CALLS + 1,
+      select: { id: true, toolName: true, status: true, output: true, createdAt: true },
+    });
+    res.json(
+      buildEvidencePack({
+        runId: run.id,
+        receipt: toJobReceiptDto(receipt),
+        runCostUsd: run.costUsd,
+        steps: run.steps.slice(0, MAX_PACK_STEPS),
+        approvals: run.approvals.slice(0, MAX_PACK_APPROVALS),
+        calls: rows.slice(0, MAX_PACK_CALLS).reverse(),
+        summaries: buildReceiptSummaries(run.id, summaryCalls.calls, summaryCalls.truncated),
+        truncated: {
+          calls: rows.length > MAX_PACK_CALLS,
+          steps: run.steps.length > MAX_PACK_STEPS,
+          approvals: run.approvals.length > MAX_PACK_APPROVALS,
+          summaryCalls: summaryCalls.truncated,
+        },
+      }),
+    );
+  } catch (err) { next(err); }
+});
