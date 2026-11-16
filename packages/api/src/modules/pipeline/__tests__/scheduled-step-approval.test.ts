@@ -1,8 +1,9 @@
 /**
  * BRA-P1-04-N2 — zamanlanmış (cron tick ile açılan, trigger="scheduled") koşuda adım-düzeyi onay
- * kapısı. Kapı koşunun tetikleyicisine bakmaz (executeStep tek çekirdek nokta); bu dosya bunu
- * regresyon olarak sabitler: kullanıcı yokken adım WAITING_APPROVAL'da bekler, tekrar eden tick /
- * yeniden kuyruklama adımı onaysız çalıştırmaz, onayla devam eder, red/timeout'ta durur ve loglanır,
+ * kapısı. Kapı koşunun tetikleyicisine bakmaz (executeStep tek çekirdek nokta); bu dosya executeStep
+ * düzeyinde sabitler (tick→processRun zinciri: scheduled-chain-approval.test.ts, tick slot idempotency:
+ * scheduled-tick.test.ts): kullanıcı yokken adım WAITING_APPROVAL'da bekler, aynı koşunun yeniden
+ * işlenmesi (re-enqueue) adımı onaysız çalıştırmaz, onayla devam eder, red/timeout'ta durur ve loglanır,
  * kiracı/koşu izolasyonu korunur. Sıfır ağ: prisma bellekte, exact-action tüketimi gerçek koddur.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
@@ -16,6 +17,7 @@ const h = vi.hoisted(() => ({
   runStepUpdate: vi.fn(),
   runAgentLoop: vi.fn(),
   activity: [] as Row[],
+  whereLog: [] as Array<{ op: string; where: Row }>,
 }));
 
 function match(row: Row, where: Row): boolean {
@@ -43,16 +45,20 @@ vi.mock("../../../lib/db", () => ({
     handoffLedger: { findFirst: async () => null },
     activityLog: { create: async ({ data }: any) => { h.activity.push(data); return {}; } },
     approval: {
-      findMany: async ({ where }: any) => h.approvals.filter((r) => match(r, { consumedAt: null, ...where })).map((r) => ({
-        ...r,
-        run: { pipeline: { company: { tenantId: h.runs[r.runId].tenantId } } },
-      })),
+      // Gerçek Prisma'ya yaklaşık: where + orderBy(decidedAt asc) + take uygulanır; where'ler h.whereLog'a yazılır.
+      findMany: async ({ where, orderBy, take }: any) => {
+        h.whereLog.push({ op: "findMany", where });
+        let rows = h.approvals.filter((r) => match(r, { consumedAt: null, ...where }));
+        if (orderBy?.decidedAt === "asc") rows = [...rows].sort((a, b) => +(a.decidedAt ?? 0) - +(b.decidedAt ?? 0));
+        if (typeof take === "number") rows = rows.slice(0, take);
+        return rows.map((r) => ({ ...r, run: { pipeline: { company: { tenantId: h.runs[r.runId].tenantId } } } }));
+      },
       updateMany: async ({ where, data }: any) => {
         const rows = h.approvals.filter((r) => match(r, where));
         rows.forEach((r) => Object.assign(r, data));
         return { count: rows.length };
       },
-      findFirst: async ({ where }: any) => h.approvals.find((r) => match(r, where)) ?? null,
+      findFirst: async ({ where }: any) => { h.whereLog.push({ op: "findFirst", where }); return h.approvals.find((r) => match(r, where)) ?? null; },
       create: async ({ data }: any) => { const r = { id: `ap-${++h.seq}`, consumedAt: null, decidedAt: null, createdAt: new Date(), ...data }; h.approvals.push(r); return r; },
       deleteMany: async ({ where }: any) => { const n = h.approvals.length; h.approvals = h.approvals.filter((r) => !match(r, where)); return { count: n - h.approvals.length }; },
     },
@@ -102,7 +108,7 @@ const actions = () => h.activity.map((a) => a.action);
 beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv("STEP_APPROVAL_GATE", "true");
-  h.approvals = []; h.seq = 0; h.activity = [];
+  h.approvals = []; h.seq = 0; h.activity = []; h.whereLog = [];
   h.runs = { "run-sched-1": { tenantId: "t-1", status: "RUNNING" }, "run-sched-2": { tenantId: "t-1", status: "RUNNING" }, "run-other": { tenantId: "t-2", status: "RUNNING" } };
   h.runStepCreate.mockResolvedValue({ id: "rs-1", startedAt: new Date() });
   h.runStepUpdate.mockResolvedValue({});
@@ -202,5 +208,49 @@ describe("zamanlanmış koşu × adım onay kapısı", () => {
     // başka kiracının zamanlanmış koşusu bağımsız kendi onayını açar
     await executeStep("run-other", GATED, 1, {});
     expect(h.approvals.filter((r) => r.runId === "run-other").every((r) => r.tenantId === "t-2")).toBe(true);
+  });
+
+  // Mutasyon koruması: actionHash kiracıyı da içerdiği için farklı kiracı satırı sonuçla ayırt edilemez;
+  // bu yüzden Prisma where'inin kendisinde kiracı kapsamı doğrudan sabitlenir (rule #10).
+  it("tenant where: bekleyen-onay araması (step-approval) ve consumeGrant sorguları tenantId + runId ile kapsamlıdır", async () => {
+    await executeStep("run-sched-1", GATED, 1, {});
+    const find = h.whereLog.find((w) => w.op === "findFirst")!;
+    expect(find.where).toMatchObject({ tenantId: "t-1", runId: "run-sched-1", status: "PENDING" });
+    const consume = h.whereLog.find((w) => w.op === "findMany")!;
+    expect(consume.where).toMatchObject({ tenantId: "t-1", runId: "run-sched-1", status: "APPROVED", consumedAt: null });
+  });
+
+  it("aynı koşu/adım için başka kiracıya ait PENDING satır yeniden kullanılmaz; kendi kiracı satırı açılır", async () => {
+    await executeStep("run-sched-1", GATED, 1, {});
+    const forged = { ...h.approvals[0], id: "ap-forged", tenantId: "t-2" };
+    h.approvals = [forged]; // yalnız yabancı kiracının aynı hash'li bekleyen satırı kaldı
+    h.runs["run-sched-1"].status = "RUNNING";
+    await executeStep("run-sched-1", GATED, 1, {});
+    const own = h.approvals.filter((r) => r.tenantId === "t-1" && r.status === "PENDING");
+    expect(own).toHaveLength(1);
+    expect(own[0].id).not.toBe("ap-forged");
+    expect(forged.consumedAt).toBeNull();
+  });
+
+  it("aynı koşu/adım için başka kiracının APPROVED onayı tüketilemez (consumedAt boş kalır, adım çalışmaz)", async () => {
+    await executeStep("run-sched-1", GATED, 1, {});
+    const row = approve("run-sched-1");
+    row.tenantId = "t-2";
+    h.runs["run-sched-1"].status = "RUNNING";
+    await executeStep("run-sched-1", GATED, 1, {});
+    expect(row.consumedAt).toBeNull();
+    expect(h.runAgentLoop).not.toHaveBeenCalled();
+  });
+
+  it("consumeGrant adayları decidedAt sırasıyla ve en çok 5 ile okunur (mock gerçek orderBy/take'e uyar); eski onay önce tüketilir", async () => {
+    await executeStep("run-sched-1", GATED, 1, {});
+    const a = approve("run-sched-1");
+    a.decidedAt = new Date(Date.now() - 1000);
+    const b = { ...a, id: "ap-b", decidedAt: new Date(), nonce: "other-nonce" };
+    h.approvals.push(b);
+    h.runs["run-sched-1"].status = "RUNNING";
+    expect((await executeStep("run-sched-1", GATED, 1, {})).status).toBe("COMPLETED");
+    expect(a.consumedAt).toBeInstanceOf(Date);
+    expect(b.consumedAt).toBeNull();
   });
 });
