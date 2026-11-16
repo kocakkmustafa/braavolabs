@@ -22,6 +22,7 @@ import { Prisma } from "@prisma/client";
 import { prisma, tenantTx } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { requirePermission } from "../../middleware/require-permission";
+import { authMiddleware } from "../../middleware/auth";
 
 const ROLES = ["OWNER", "MEMBER"] as const;
 const addSchema = z.object({ userId: z.string().min(1), role: z.enum(ROLES).default("MEMBER") }).strict();
@@ -50,6 +51,8 @@ async function assertNotLastOwner(tx: any, companyId: string, tenantId: string):
 }
 
 export const companyMembersRouter = Router({ mergeParams: true });
+// Üst companyRouter da authMiddleware uygular; census dosya içi işaret ister (çift doğrulama zararsız).
+companyMembersRouter.use(authMiddleware);
 
 companyMembersRouter.get("/", async (req, res, next) => {
   try {
