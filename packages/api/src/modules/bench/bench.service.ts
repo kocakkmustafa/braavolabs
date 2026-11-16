@@ -15,8 +15,11 @@
  * so keys resolve from the environment: `BENCH_<PROVIDER>_KEY` first,
  * then the system key the API already holds (`ANTHROPIC_API_KEY`,
  * `GROQ_API_KEY`, generic `<PROVIDER>_API_KEY`). A cloud combination
- * without any key is SKIPPED with a report — not an error, and no
- * phantom BenchRun row is written.
+ * without any key is SKIPPED with a report — not an error.
+ *
+ * BRA-P1-05-N2: SKIPPED and FAILED combinations leave an audit BenchRun row
+ * (status + constant errorCode, scoresByTask [], score 0, cost 0, real
+ * duration, no raw error text). The public leaderboard filters them out.
  */
 
 import { prisma } from "../../lib/db";
@@ -26,6 +29,11 @@ import { env } from "../../config/env";
 import { runAgentLoop } from "../agent/claude";
 import { LOCAL_PROVIDERS, type AIClientConfig } from "../../services/ai-client";
 import { BUILTIN_SUITES, type BenchTask } from "./suites";
+import {
+  BENCH_ERROR_CODE,
+  BENCH_RUN_STATUS,
+  type BenchErrorCode,
+} from "./bench-run-status";
 
 export async function seedBenchSuites(): Promise<void> {
   // BR-P0-004: runs at server boot (index.ts) — no request, no tenant.
@@ -117,10 +125,46 @@ export function resolveBenchProviderConfig(
   return { provider, model, apiKey: apiKey ?? "", ...(baseUrl ? { baseUrl } : {}) };
 }
 
+/** Best-effort audit row for a SKIPPED/FAILED combination. Never throws and
+ * never stores the raw error — only a constant code. No row when the suite
+ * itself is unknown (nothing to attach it to). */
+async function recordNonCompletedRun(
+  opts: RunBenchOptions,
+  model: string,
+  status: typeof BENCH_RUN_STATUS.FAILED | typeof BENCH_RUN_STATUS.SKIPPED,
+  errorCode: BenchErrorCode,
+  durationMs: number,
+): Promise<void> {
+  try {
+    const suite = await prisma.benchSuite.findUnique({ where: { slug: opts.suiteSlug } });
+    if (!suite) return;
+    await prisma.benchRun.create({
+      data: {
+        suiteId: suite.id,
+        provider: opts.provider,
+        model,
+        scoresByTask: [] as any,
+        scoreNormalised: 0,
+        costUsd: 0,
+        durationMs: Math.max(0, Math.round(durationMs)),
+        notes: opts.notes,
+        status,
+        errorCode,
+      },
+    });
+  } catch {
+    logger.warn(
+      { provider: opts.provider, model, suite: opts.suiteSlug, status, errorCode },
+      "Bench non-completed run row could not be persisted",
+    );
+  }
+}
+
 export async function runBenchSuite(opts: RunBenchOptions): Promise<RunBenchResult> {
   // Pre-flight BOTH key resolutions before spending a single token: a
   // missing judge key would otherwise burn the whole candidate run and
   // then fail at scoring time.
+  const preflightAt = Date.now();
   const candidateConfig = resolveBenchProviderConfig(opts.provider, opts.model);
   if (!candidateConfig) {
     const reason =
@@ -129,6 +173,9 @@ export async function runBenchSuite(opts: RunBenchOptions): Promise<RunBenchResu
     logger.warn(
       { provider: opts.provider, model: opts.model, suite: opts.suiteSlug },
       "Bench combination skipped — no API key for candidate provider",
+    );
+    await recordNonCompletedRun(
+      opts, opts.model, BENCH_RUN_STATUS.SKIPPED, BENCH_ERROR_CODE.NO_CANDIDATE_KEY, Date.now() - preflightAt,
     );
     return { skipped: true, provider: opts.provider, model: opts.model, reason };
   }
@@ -139,6 +186,9 @@ export async function runBenchSuite(opts: RunBenchOptions): Promise<RunBenchResu
     logger.warn(
       { provider: opts.provider, model: opts.model, suite: opts.suiteSlug },
       "Bench combination skipped — judge (ANTHROPIC) key missing",
+    );
+    await recordNonCompletedRun(
+      opts, opts.model, BENCH_RUN_STATUS.SKIPPED, BENCH_ERROR_CODE.NO_JUDGE_KEY, Date.now() - preflightAt,
     );
     return { skipped: true, provider: opts.provider, model: opts.model, reason };
   }
@@ -155,59 +205,68 @@ export async function runBenchSuite(opts: RunBenchOptions): Promise<RunBenchResu
   // leaderboard reflects what really ran, not what was merely requested.
   let actualModel = opts.model;
 
-  for (const task of tasks) {
-    // 1) Have the candidate model answer the task — FORCED to the
-    //    requested provider×model via aiConfigOverride (D-010 fix: the
-    //    tenant-less runAgentLoop used to land on system Anthropic while
-    //    the BenchRun row claimed opts.provider).
-    const answer = await runAgentLoop({
-      systemPrompt:
-        "You are an autonomous AI agent running inside Braavolabs. Answer the user's question precisely. Keep responses focused and under 300 words.",
-      userMessage: task.prompt,
-      toolNames: [],
-      model: opts.model,
-      aiConfigOverride: candidateConfig,
-    });
-    totalCost += answer.totalCostUsd ?? 0;
-    if (answer.model) actualModel = answer.model;
+  try {
+    for (const task of tasks) {
+      // 1) Have the candidate model answer the task — FORCED to the
+      //    requested provider×model via aiConfigOverride (D-010 fix: the
+      //    tenant-less runAgentLoop used to land on system Anthropic while
+      //    the BenchRun row claimed opts.provider).
+      const answer = await runAgentLoop({
+        systemPrompt:
+          "You are an autonomous AI agent running inside Braavolabs. Answer the user's question precisely. Keep responses focused and under 300 words.",
+        userMessage: task.prompt,
+        toolNames: [],
+        model: opts.model,
+        aiConfigOverride: candidateConfig,
+      });
+      totalCost += answer.totalCostUsd ?? 0;
+      if (answer.model) actualModel = answer.model;
 
-    // 2) Have a fixed judge model score the answer against the rubric.
-    //    Hard-pinned to Claude Sonnet so the judge stays stable
-    //    across runs and we don't have a "judge improvement bias"
-    //    where a new candidate model also makes a better judge.
-    const judge = await runAgentLoop({
-      systemPrompt:
-        "You are an impartial grader. Score the candidate's answer against the rubric on a 0..10 integer scale. " +
-        "Respond as STRICT JSON: {\"score\": int, \"notes\": string}. " +
-        "Penalise hallucination, missing required points, off-topic responses. " +
-        "Award full marks only if every rubric criterion is satisfied.",
-      userMessage:
-        `RUBRIC:\n${task.rubric}\n\nCANDIDATE'S ANSWER:\n${answer.finalContent.slice(0, 4000)}`,
-      toolNames: [],
-      model: JUDGE_MODEL,
-      aiConfigOverride: judgeConfig,
-    });
-    totalCost += judge.totalCostUsd ?? 0;
-    let parsed: { score?: number; notes?: string } | null = null;
-    try {
-      parsed = JSON.parse(judge.finalContent.trim());
-    } catch {
-      const match = judge.finalContent.match(/\{[\s\S]*\}/);
-      if (match) {
-        try {
-          parsed = JSON.parse(match[0]);
-        } catch {
-          /* swallow */
+      // 2) Have a fixed judge model score the answer against the rubric.
+      //    Hard-pinned to Claude Sonnet so the judge stays stable
+      //    across runs and we don't have a "judge improvement bias"
+      //    where a new candidate model also makes a better judge.
+      const judge = await runAgentLoop({
+        systemPrompt:
+          "You are an impartial grader. Score the candidate's answer against the rubric on a 0..10 integer scale. " +
+          "Respond as STRICT JSON: {\"score\": int, \"notes\": string}. " +
+          "Penalise hallucination, missing required points, off-topic responses. " +
+          "Award full marks only if every rubric criterion is satisfied.",
+        userMessage:
+          `RUBRIC:\n${task.rubric}\n\nCANDIDATE'S ANSWER:\n${answer.finalContent.slice(0, 4000)}`,
+        toolNames: [],
+        model: JUDGE_MODEL,
+        aiConfigOverride: judgeConfig,
+      });
+      totalCost += judge.totalCostUsd ?? 0;
+      let parsed: { score?: number; notes?: string } | null = null;
+      try {
+        parsed = JSON.parse(judge.finalContent.trim());
+      } catch {
+        const match = judge.finalContent.match(/\{[\s\S]*\}/);
+        if (match) {
+          try {
+            parsed = JSON.parse(match[0]);
+          } catch {
+            /* swallow */
+          }
         }
       }
+      const score = Math.max(0, Math.min(suite.maxScorePerTask, Math.round(Number(parsed?.score ?? 0))));
+      scores.push({
+        taskId: task.id,
+        score,
+        judgeNotes: String(parsed?.notes ?? "").slice(0, 400),
+        toolUseMode: answer.toolUseMode ?? null,
+      });
     }
-    const score = Math.max(0, Math.min(suite.maxScorePerTask, Math.round(Number(parsed?.score ?? 0))));
-    scores.push({
-      taskId: task.id,
-      score,
-      judgeNotes: String(parsed?.notes ?? "").slice(0, 400),
-      toolUseMode: answer.toolUseMode ?? null,
-    });
+  } catch (err) {
+    // Keep the trace (code only — the raw error stays out of the row) and
+    // rethrow so callers see the original failure unchanged.
+    await recordNonCompletedRun(
+      opts, actualModel, BENCH_RUN_STATUS.FAILED, BENCH_ERROR_CODE.RUN_ERROR, Date.now() - startedAt,
+    );
+    throw err;
   }
 
   const maxTotal = tasks.length * suite.maxScorePerTask;

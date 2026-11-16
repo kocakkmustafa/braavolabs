@@ -96,3 +96,26 @@ describe("mount order: compare router does not shadow the public bench router", 
     expect(m.suite).not.toHaveBeenCalled();
   });
 });
+
+// BRA-P1-05-N2: FAILED/SKIPPED rows (score 0) must never reach public reads.
+describe("public reads exclude non-COMPLETED BenchRun rows", () => {
+  const rows = [
+    { id: "ok", provider: "OPENAI", model: "m-ok", scoreNormalised: 0.8, costUsd: 1, durationMs: 5, ranAt: new Date("2026-01-02"), status: "COMPLETED" },
+    { id: "bad", provider: "OPENAI", model: "m-bad", scoreNormalised: 0, costUsd: 0, durationMs: 5, ranAt: new Date("2026-01-03"), status: "FAILED" },
+    { id: "skip", provider: "GROQ", model: "m-skip", scoreNormalised: 0, costUsd: 0, durationMs: 1, ranAt: new Date("2026-01-04"), status: "SKIPPED" },
+  ];
+  beforeEach(() => {
+    // Honour the `where.status` the router sends (fail-closed: no filter => all rows come back).
+    m.runs.mockImplementation(async ({ where }: any) => rows.filter((r) => !where.status || r.status === where.status));
+  });
+  it("GET /bench leaderboard drops FAILED/SKIPPED and the query pins status COMPLETED", async () => {
+    const body = await (await fetch(base + "/")).json();
+    expect(body[0].leaderboard.map((r: any) => r.id)).toEqual(["ok"]);
+    expect(m.runs).toHaveBeenCalledWith(expect.objectContaining({ where: { suiteId: "s1", status: "COMPLETED" } }));
+  });
+  it("GET /bench/:slug runs list drops FAILED/SKIPPED", async () => {
+    const body = await (await fetch(base + "/pub")).json();
+    expect(body.runs.map((r: any) => r.id)).toEqual(["ok"]);
+    expect(m.runs).toHaveBeenCalledWith(expect.objectContaining({ where: { suiteId: "s1", status: "COMPLETED" } }));
+  });
+});
