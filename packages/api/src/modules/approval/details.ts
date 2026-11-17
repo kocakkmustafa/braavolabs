@@ -113,21 +113,21 @@ function clamp(v: string): string {
 }
 
 /**
- * BRA-UX-API-07k: `:` içeren araç/sağlayıcı/model değerlerinde kimlik biçimi (`user:pass`, `a:b@c`,
- * `scheme://…`) reddedilir; meşru `ns:send_email` (araç) ve `llama3:8b` (model etiketi) geçer.
- * `leaksSecret`'e EKLENMEZ: o, mcp-auth başlık değerlerinde de kullanılır (orada `:` meşru).
- * Kurallar: `@`, `//`, birden çok `:` yok; parçalardan biri kimlik sözcüğü (user/pass/...) değil;
- * sağ parça düz harf "parola benzeri" kelime ise yalnız bilinen etiket geçer (rakamlı etiket 8b, 70b,
- * 3.5 ve `_`/`-`/`.` içerenler zaten düz harf değil → geçer). Takas: `ns:send` gibi ayraçsız düz kelime reddedilir.
+ * BRA-UX-API-07k: `:` içeren araç/sağlayıcı/model değerlerinde kimlik biçimi reddi (DAR sezgi).
+ * Reddedilir YALNIZ: (a) `://` içeren (URL/userinfo), (c) SOL parça (ilk `:` öncesi) açıkça
+ * parola/kimlik-bilgisi sözcüğü (tam eşleşme, /i): password|passwd|pass|pwd|token|secret|apikey|api_key|bearer|basic.
+ * (`@` kuralı yok: PROVIDER_NAME/TOOL_NAME allowlist'i `@` zaten geçirmez → ölü kod.)
+ * Meşru etiketler asla düşmez: `llama3:8b`, `phi3:medium`, `deepseek/deepseek-r1:free`, `x:nitro`,
+ * `auth:login`, `user:create`, `ns:send_email`, `host:5000/ns/model:tag`.
+ * BİLİNEN YAPISAL SINIR: `bob:hunter2`, `u:p4ss1` gibi etiket-benzeri değerler `llama3:8b` ile ayırt
+ * edilemez → GEÇER. Asıl savunma yukarı akışta (allowlist + `leaksSecret`); bu bir sızıntı-azaltmadır,
+ * tam çözüm değil. `leaksSecret`'e EKLENMEZ (mcp-auth başlık değerlerinde `:` meşru).
  */
-const CRED_WORD = /^(user|usr|username|login|admin|root|pass|passwd|password|pwd|secret|key|token|auth|bearer|basic)$/i;
-const KNOWN_TAG = /^(latest|instruct|chat|code|text|vision|base|embed|large|small|mini|turbo|preview)$/i;
+const CRED_LEFT = /^(password|passwd|pass|pwd|token|secret|apikey|api_key|bearer|basic)$/i;
 export function credentialShaped(v: string): boolean {
   if (!v.includes(":")) return false;
-  if (/@|\/\/|:.*:/.test(v)) return true;
-  const [left, right] = v.split(":") as [string, string];
-  if (CRED_WORD.test(left) || CRED_WORD.test(right)) return true;
-  return /^[A-Za-z]+$/.test(right) && !KNOWN_TAG.test(right);
+  if (v.includes("://")) return true;
+  return CRED_LEFT.test(v.slice(0, v.indexOf(":")));
 }
 
 /** Biçim allowlist'ine uyan ve `leaksSecret` süzgecinden geçen değer; uymazsa null (ham değer asla çıkmaz). */
