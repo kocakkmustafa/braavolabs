@@ -25,6 +25,7 @@ import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { toPublicCompany } from "./redact";
 import { buildModelsOverview } from "./models-overview";
 import { buildCompanySummary } from "./summary";
+import { buildProjectBudget } from "./budget-projects";
 import { loadCompanyActivity } from "./activity";
 import { BUDGET_CONFIG_KEY, validateBudgetInput } from "./budget";
 import {
@@ -468,6 +469,19 @@ companyRouter.get("/:id/summary", async (req, res, next) => {
     });
     if (!company) throw new AppError(404, "Company not found");
     res.json(await buildCompanySummary(req.auth!.tenantId, company.id, new Date(), company.config));
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/companies/:id/budget/projects — proje (=pipeline) bazlı bu ay harcaması (BRA-P1-06-N3).
+// Yetki: router-wide authMiddleware (/summary ile aynı okuma erişimi); salt-okur, yeni rbac eylemi yok.
+companyRouter.get("/:id/budget/projects", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+      select: { id: true, config: true },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+    res.json(await buildProjectBudget(req.auth!.tenantId, company.id, company.config));
   } catch (err) { next(err); }
 });
 
