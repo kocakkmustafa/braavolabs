@@ -249,8 +249,8 @@ describe("applyWorktreePlan", () => {
     await fs.writeFile(join(root, "big.bin"), Buffer.alloc(1024 * 1024 + 1));
     const m: PatchInput[] = [{ path: "big.bin", op: "modify", content: "x" }];
     const d: PatchInput[] = [{ path: "big.bin", op: "delete" }];
-    expect(code(await applyWorktreePlan(plan(m), m))).toBe("TARGET_NOT_REGULAR");
-    expect(code(await applyWorktreePlan(plan(d), d))).toBe("TARGET_NOT_REGULAR");
+    expect(code(await applyWorktreePlan(plan(m), m))).toBe("TARGET_TOO_LARGE");
+    expect(code(await applyWorktreePlan(plan(d), d))).toBe("TARGET_TOO_LARGE");
   });
 
   it("re-check failure keeps its specific code and rolls back", async () => {
@@ -305,5 +305,121 @@ describe("applyWorktreePlan", () => {
     expect(r).toMatchObject({ ok: false, code: "APPLY_FAILED", rolledBack: true });
     vi.restoreAllMocks();
     expect(await snapshot(base)).toEqual(before);
+  });
+
+  it("race: hardlink swapped in between check and write open leaves the outside file untouched", async () => {
+    await fs.writeFile(join(root, "m.txt"), "orig");
+    await fs.writeFile(join(outside, "victim.txt"), "VICTIM");
+    const patches: PatchInput[] = [{ path: "m.txt", op: "modify", content: "pwn" }];
+    const p = plan(patches);
+    const realOpen = fs.open.bind(fs);
+    let swapped = false;
+    vi.spyOn(fs, "open").mockImplementation(async (...args: Parameters<typeof fs.open>) => {
+      const flags = Number(args[1] ?? 0);
+      if (!swapped && String(args[0]).endsWith("/m.txt") && (flags & 3) === 1 /* O_WRONLY */) {
+        swapped = true;
+        await fs.unlink(join(root, "m.txt"));
+        await fs.link(join(outside, "victim.txt"), join(root, "m.txt"));
+      }
+      return realOpen(...args);
+    });
+    const r = await applyWorktreePlan(p, patches, { dryRun: false });
+    expect(swapped).toBe(true);
+    expect(r).toMatchObject({ ok: false, code: "TARGET_NOT_REGULAR" });
+    expect(readFileSync(join(outside, "victim.txt"), "utf8")).toBe("VICTIM");
+  });
+
+  it("race: inode replaced between read and write open is rejected (dev/ino mismatch)", async () => {
+    await fs.writeFile(join(root, "m.txt"), "orig");
+    await fs.writeFile(join(outside, "other.txt"), "OTHER");
+    const patches: PatchInput[] = [{ path: "m.txt", op: "modify", content: "pwn" }];
+    const p = plan(patches);
+    const realOpen = fs.open.bind(fs);
+    vi.spyOn(fs, "open").mockImplementation(async (...args: Parameters<typeof fs.open>) => {
+      if (String(args[0]).endsWith("/m.txt") && (Number(args[1] ?? 0) & 3) === 1) {
+        await fs.unlink(join(root, "m.txt"));
+        await fs.writeFile(join(root, "m.txt"), "replacement");
+      }
+      return realOpen(...args);
+    });
+    const r = await applyWorktreePlan(p, patches, { dryRun: false });
+    expect(r).toMatchObject({ ok: false, code: "TARGET_NOT_REGULAR" });
+    expect(readFileSync(join(root, "m.txt"), "utf8")).toBe("replacement");
+  });
+
+  it("precheck APPLY_FAILED carries no rollback fields", async () => {
+    const patches: PatchInput[] = [{ path: "a.txt", op: "create", content: "x" }];
+    const p = plan(patches);
+    vi.spyOn(fs, "lstat").mockRejectedValue(Object.assign(new Error("io"), { code: "EIO" }));
+    const r = await applyWorktreePlan(p, patches);
+    expect(r).toMatchObject({ ok: false, code: "APPLY_FAILED" });
+    expect(r).not.toHaveProperty("rolledBack");
+    expect(r).not.toHaveProperty("unrestoredPaths");
+  });
+
+  it("a directory named '..foo' is a legitimate subPath", async () => {
+    const patches: PatchInput[] = [{ path: "x.txt", op: "create", content: "x" }];
+    const p = planWorktree({ root, subPath: "..foo", patches });
+    if (!p.ok) throw new Error("plan " + p.code);
+    expect(code(await applyWorktreePlan(p, patches, { dryRun: false }))).toBe("OK");
+    expect(readFileSync(join(root, "..foo/x.txt"), "utf8")).toBe("x");
+  });
+
+  it("root/workDir differ from re-plan is PLAN_INVALID", async () => {
+    const patches: PatchInput[] = [{ path: "a.txt", op: "create", content: "x" }];
+    const p = plan(patches);
+    expect(code(await applyWorktreePlan({ ...p, root: root + "/" }, patches))).toBe("PLAN_INVALID");
+    expect(code(await applyWorktreePlan({ ...p, workDir: root + "/./" }, patches))).toBe("PLAN_INVALID");
+  });
+
+  it("modify undo failure is reported (injected)", async () => {
+    await fs.writeFile(join(root, "m.txt"), "orig");
+    const patches: PatchInput[] = [
+      { path: "m.txt", op: "modify", content: "changed" },
+      { path: "z.txt", op: "create", content: "z" },
+    ];
+    const p = plan(patches);
+    const realOpen = fs.open.bind(fs);
+    // undo of modify re-checks the chain via lstat: make it fail once z.txt open has failed
+    const realLstat = fs.lstat.bind(fs);
+    let armed = false;
+    vi.spyOn(fs, "open").mockImplementation(async (...args: Parameters<typeof fs.open>) => {
+      if (String(args[0]).endsWith("/z.txt")) {
+        armed = true;
+        throw Object.assign(new Error("denied"), { code: "EACCES" });
+      }
+      return realOpen(...args);
+    });
+    vi.spyOn(fs, "lstat").mockImplementation(async (...args: Parameters<typeof fs.lstat>) => {
+      if (armed) throw Object.assign(new Error("io"), { code: "EIO" });
+      return realLstat(...args);
+    });
+    const r = await applyWorktreePlan(p, patches, { dryRun: false });
+    expect(r).toMatchObject({ ok: false, code: "APPLY_FAILED", rolledBack: false, unrestoredPaths: ["m.txt"] });
+  });
+
+  it("delete undo failure is reported (injected)", async () => {
+    await fs.writeFile(join(root, "d.txt"), "del");
+    const patches: PatchInput[] = [
+      { path: "d.txt", op: "delete" },
+      { path: "z.txt", op: "create", content: "z" },
+    ];
+    const p = plan(patches);
+    const realOpen = fs.open.bind(fs);
+    const realLstat = fs.lstat.bind(fs);
+    let armed = false;
+    vi.spyOn(fs, "open").mockImplementation(async (...args: Parameters<typeof fs.open>) => {
+      if (String(args[0]).endsWith("/z.txt")) {
+        armed = true;
+        throw Object.assign(new Error("denied"), { code: "EACCES" });
+      }
+      return realOpen(...args);
+    });
+    vi.spyOn(fs, "lstat").mockImplementation(async (...args: Parameters<typeof fs.lstat>) => {
+      if (armed) throw Object.assign(new Error("io"), { code: "EIO" });
+      return realLstat(...args);
+    });
+    const r = await applyWorktreePlan(p, patches, { dryRun: false });
+    expect(r).toMatchObject({ ok: false, code: "APPLY_FAILED", rolledBack: false, unrestoredPaths: ["d.txt"] });
   });
 });

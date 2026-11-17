@@ -31,6 +31,7 @@ export type ExecutorErrorCode =
   | "TARGET_EXISTS"
   | "TARGET_MISSING"
   | "TARGET_NOT_REGULAR"
+  | "TARGET_TOO_LARGE"
   | "SENSITIVE_NOT_APPROVED"
   | "PLAN_INVALID"
   | "PATCH_PLAN_MISMATCH"
@@ -83,7 +84,7 @@ const utf8Len = (s: string) => Buffer.byteLength(s, "utf8");
 const O_NOFOLLOW = fsc.O_NOFOLLOW ?? 0;
 const O_NONBLOCK = fsc.O_NONBLOCK ?? 0;
 const CODES = new Set<string>([
-  "ROOT_MISSING", "SYMLINK_ESCAPE", "TARGET_EXISTS", "TARGET_MISSING", "TARGET_NOT_REGULAR",
+  "ROOT_MISSING", "SYMLINK_ESCAPE", "TARGET_EXISTS", "TARGET_MISSING", "TARGET_NOT_REGULAR", "TARGET_TOO_LARGE",
   "SENSITIVE_NOT_APPROVED", "PLAN_INVALID", "PATCH_PLAN_MISMATCH", "APPLY_FAILED",
 ]);
 
@@ -103,7 +104,7 @@ async function checkFile(
   try {
     return await checkFileInner(realRoot, root, file);
   } catch (e) {
-    return fail("APPLY_FAILED", `${file.path}: check failed (${errCode(e) ?? "error"})`, { rolledBack: false });
+    return fail("APPLY_FAILED", `${file.path}: check failed (${errCode(e) ?? "error"})`);
   }
 }
 
@@ -130,7 +131,7 @@ async function checkFileInner(
         missingFrom = true;
         break;
       }
-      return fail("APPLY_FAILED", `${file.path}: lstat failed (${errCode(e) ?? "error"})`, { rolledBack: false });
+      return fail("APPLY_FAILED", `${file.path}: lstat failed (${errCode(e) ?? "error"})`);
     }
     if (st.isSymbolicLink()) return fail("SYMLINK_ESCAPE", `${file.path}: parent component is a symlink`);
     if (!st.isDirectory()) {
@@ -154,11 +155,11 @@ async function checkFileInner(
     if (errCode(e) === "ENOENT") {
       return file.op === "create" ? null : fail("TARGET_MISSING", `${file.path}: target does not exist`);
     }
-    return fail("APPLY_FAILED", `${file.path}: lstat failed (${errCode(e) ?? "error"})`, { rolledBack: false });
+    return fail("APPLY_FAILED", `${file.path}: lstat failed (${errCode(e) ?? "error"})`);
   }
   if (file.op === "create") return fail("TARGET_EXISTS", `${file.path}: target already exists`);
   if (!st.isFile()) return fail("TARGET_NOT_REGULAR", `${file.path}: target is not a regular file`);
-  if (st.size > MAX_CONTENT_BYTES) return fail("TARGET_NOT_REGULAR", `${file.path}: existing file too large`);
+  if (st.size > MAX_CONTENT_BYTES) return fail("TARGET_TOO_LARGE", `${file.path}: existing file too large`);
   if (file.op === "modify" && st.nlink > 1) return fail("TARGET_NOT_REGULAR", `${file.path}: target is hard-linked`);
   return null;
 }
@@ -173,18 +174,36 @@ async function writeAll(fh: FileHandle, buf: Buffer): Promise<void> {
   }
 }
 
-async function openRegular(path: string, flags: number, mode?: number, forbidLinks = false): Promise<FileHandle> {
+interface Identity { dev: number; ino: number }
+const codeErr = (code: ExecutorErrorCode, msg: string) => Object.assign(new Error(msg), { code });
+
+function verify(st: import("node:fs").Stats, forbidLinks: boolean, expect?: Identity): void {
+  if (!st.isFile()) throw codeErr("TARGET_NOT_REGULAR", "not regular");
+  if (st.size > MAX_CONTENT_BYTES) throw codeErr("TARGET_TOO_LARGE", "too large");
+  if (forbidLinks && st.nlink > 1) throw codeErr("TARGET_NOT_REGULAR", "hard-linked");
+  if (expect && (st.dev !== expect.dev || st.ino !== expect.ino)) throw codeErr("TARGET_NOT_REGULAR", "target replaced");
+}
+
+/**
+ * Opens WITHOUT O_TRUNC and verifies the opened handle (fstat) before anything
+ * is changed. Callers truncate only after this returns.
+ */
+async function openRegular(
+  path: string,
+  flags: number,
+  mode?: number,
+  forbidLinks = false,
+  expect?: Identity,
+): Promise<{ fh: FileHandle; id: Identity }> {
   const fh = await fs.open(path, flags | O_NOFOLLOW | O_NONBLOCK, mode);
   try {
     const st = await fh.stat();
-    if (!st.isFile()) throw Object.assign(new Error("not regular"), { code: "ENOTREG" });
-    if (st.size > MAX_CONTENT_BYTES) throw Object.assign(new Error("too large"), { code: "E2BIG" });
-    if (forbidLinks && st.nlink > 1) throw Object.assign(new Error("hardlink"), { code: "EHARDLINK" });
+    verify(st, forbidLinks, expect);
+    return { fh, id: { dev: st.dev, ino: st.ino } };
   } catch (e) {
     await fh.close();
     throw e;
   }
-  return fh;
 }
 
 /** mkdir -p one level at a time; records each created dir. Refuses symlinks. */
@@ -255,7 +274,7 @@ export async function applyWorktreePlan(
   // Do not trust the plan object: re-plan from root/subPath/patches and compare
   // absPath + sensitive (and everything else) with what the planner would say.
   const subPath = posix.relative(plan.root, plan.workDir);
-  if (subPath.startsWith("..") || posix.isAbsolute(subPath)) return fail("PLAN_INVALID", "workDir outside root");
+  if (subPath === ".." || subPath.startsWith("../") || posix.isAbsolute(subPath)) return fail("PLAN_INVALID", "workDir outside root");
   const fresh = planWorktree({ root: plan.root, subPath: subPath === "" ? undefined : subPath, patches });
   if (!fresh.ok) return fail("PLAN_INVALID", `re-plan failed: ${fresh.code}`);
   if (fresh.root !== plan.root || fresh.workDir !== plan.workDir) return fail("PLAN_INVALID", "root/workDir differ from re-plan");
@@ -325,6 +344,11 @@ export async function applyWorktreePlan(
     return unrestored;
   };
 
+  const recheck = async (f: { path: string; absPath: string }, op: PatchOp) => {
+    const r = await checkFile(realRoot, plan.root, { path: f.path, absPath: f.absPath, op });
+    if (r) throw Object.assign(new Error(r.message), { code: r.code });
+  };
+
   try {
     for (const f of plan.files) {
       const again = await checkFile(realRoot, plan.root, f);
@@ -335,8 +359,8 @@ export async function applyWorktreePlan(
 
       if (f.op === "create") {
         await ensureDirs(realRoot, posix.dirname(rel), createdDirs);
-        const fh = await openRegular(target, fsc.O_WRONLY | fsc.O_CREAT | fsc.O_EXCL, 0o644);
-        undo.push({ path: f.path, run: () => fs.unlink(target) });
+        const { fh } = await openRegular(target, fsc.O_WRONLY | fsc.O_CREAT | fsc.O_EXCL, 0o644);
+        undo.push({ path: f.path, run: async () => { await recheck(f, "delete"); await fs.unlink(target); } });
         try {
           await writeAll(fh, buf as Buffer);
         } finally {
@@ -344,7 +368,7 @@ export async function applyWorktreePlan(
         }
         reports.push({ path: f.path, op: f.op, action: "created", bytes: f.bytes });
       } else if (f.op === "modify") {
-        const rh = await openRegular(target, fsc.O_RDONLY, undefined, true);
+        const { fh: rh, id } = await openRegular(target, fsc.O_RDONLY, undefined, true);
         let original: Buffer;
         let mode: number;
         try {
@@ -353,24 +377,28 @@ export async function applyWorktreePlan(
         } finally {
           await rh.close();
         }
-        undo.push({ path: f.path, run: async () => {
-          const h = await openRegular(target, fsc.O_WRONLY | fsc.O_TRUNC);
-          try {
-            await writeAll(h, original);
-          } finally {
-            await h.close();
-          }
-          await fs.chmod(target, mode);
-        } });
-        const wh = await openRegular(target, fsc.O_WRONLY | fsc.O_TRUNC, undefined, true);
+        // Verified write handle (no O_TRUNC): same inode as the one we read, single link.
+        const { fh: wh } = await openRegular(target, fsc.O_WRONLY, undefined, true, id);
         try {
+          undo.push({ path: f.path, run: async () => {
+            await recheck(f, "modify");
+            const { fh: h } = await openRegular(target, fsc.O_WRONLY, undefined, true, id);
+            try {
+              await h.truncate(0);
+              await writeAll(h, original);
+              await h.chmod(mode);
+            } finally {
+              await h.close();
+            }
+          } });
+          await wh.truncate(0);
           await writeAll(wh, buf as Buffer);
         } finally {
           await wh.close();
         }
         reports.push({ path: f.path, op: f.op, action: "modified", bytes: f.bytes });
       } else {
-        const rh = await openRegular(target, fsc.O_RDONLY);
+        const { fh: rh } = await openRegular(target, fsc.O_RDONLY);
         let original: Buffer;
         let mode: number;
         try {
@@ -381,13 +409,14 @@ export async function applyWorktreePlan(
         }
         await fs.unlink(target);
         undo.push({ path: f.path, run: async () => {
-          const h = await openRegular(target, fsc.O_WRONLY | fsc.O_CREAT | fsc.O_EXCL, mode);
+          await recheck(f, "create");
+          const { fh: h } = await openRegular(target, fsc.O_WRONLY | fsc.O_CREAT | fsc.O_EXCL, mode);
           try {
             await writeAll(h, original);
+            await h.chmod(mode);
           } finally {
             await h.close();
           }
-          await fs.chmod(target, mode);
         } });
         reports.push({ path: f.path, op: f.op, action: "deleted", bytes: f.bytes });
       }
