@@ -673,6 +673,12 @@ export const api = {
       method: "POST", body: JSON.stringify({ description }), token,
     }),
 
+  // BRA-UX-05g — "Taslak → Oluştur" (BRA-UX-API-03). Taslak ucu KAYIT YAZMAZ; confirm taslağı kaydeder (LLM çağrısı yok).
+  composeAgentDraft: (token: string, companyId: string, description: string) =>
+    apiFetch<unknown>(`/companies/${companyId}/agents/compose/draft`, { method: "POST", body: JSON.stringify({ description }), token }),
+  composeAgentConfirm: (token: string, companyId: string, draft: unknown) =>
+    apiFetch<unknown>(`/companies/${companyId}/agents/compose/confirm`, { method: "POST", body: JSON.stringify({ draft }), token }),
+
   // Pipeline CRUD
   getPipeline: (token: string, id: string) =>
     apiFetch<any>(`/pipelines/${id}`, { token }),
