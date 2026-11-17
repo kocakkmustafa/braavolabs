@@ -24,9 +24,9 @@ describe("deriveApprovalDetails", () => {
 
   it("EXTERNAL_CONTROL ve HANDOFF", () => {
     expect(deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "external_control", connectionId: "c1", action: "PAUSE", targetId: "t1" }))
-      .toEqual({ risk: null, permissions: ["external_control:PAUSE"], dataTransfer: ["PAUSE → bağlantı c1, hedef t1"], reversible: null });
+      .toEqual({ risk: null, permissions: ["external_control:PAUSE"], dataTransfer: ["PAUSE → bağlantı c1, hedef t1"], dataTransferStructured: { kind: "external_control", action: "PAUSE", connectionId: "c1", targetId: "t1" }, reversible: null });
     expect(deriveApprovalDetails("HANDOFF", { handoffId: "h", suggestedProvider: "openai", suggestedModel: "gpt-x" }))
-      .toEqual({ risk: null, permissions: null, dataTransfer: ["koşu → openai / gpt-x"], reversible: null });
+      .toEqual({ risk: null, permissions: null, dataTransfer: ["koşu → openai / gpt-x"], dataTransferStructured: { kind: "handoff", provider: "openai", model: "gpt-x" }, reversible: null });
   });
 
   it("INPUT ve bilinmeyen tip: hepsi null", () => {
@@ -296,5 +296,73 @@ describe("deriveApprovalDetails", () => {
     const out = withApprovalDetails(row);
     expect(out).toMatchObject(row);
     expect(Object.keys(out).sort()).toEqual(["description", "details", "id", "metadata", "type"]);
+  });
+});
+
+describe("dataTransferStructured (BRA-UX-API-07)", () => {
+  it("SPEND araç kapısı: input_fields; eski string aynı", () => {
+    const d = deriveApprovalDetails("SPEND", { toolName: "send_email", input: { to: "a@b.c", subject: "s", apiKey: "K" } });
+    expect(d.dataTransfer).toEqual(["send_email ← girdi alanları: to, subject"]);
+    expect(d.dataTransferStructured).toEqual({ kind: "input_fields", tool: "send_email", fields: ["to", "subject"] });
+  });
+  it("EXTERNAL_CONTROL: hedefsiz / eylemsiz alanlar yok", () => {
+    const d = deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "external_control", connectionId: "c1" });
+    expect(d.dataTransfer).toEqual(["eylem → bağlantı c1"]);
+    expect(d.dataTransferStructured).toEqual({ kind: "external_control", connectionId: "c1" });
+  });
+  it("HANDOFF: modelsiz", () => {
+    const d = deriveApprovalDetails("HANDOFF", { suggestedProvider: "openai" });
+    expect(d.dataTransfer).toEqual(["koşu → openai"]);
+    expect(d.dataTransferStructured).toEqual({ kind: "handoff", provider: "openai" });
+  });
+  it("dataTransfer null ise alan hiç yok (anahtar bile)", () => {
+    for (const [t, m] of [
+      ["SPEND", { gate: "step", tool: "x" }],
+      ["SPEND", { toolName: "send_email" }],
+      ["EXTERNAL_CONTROL", { toolName: "x", action: "PAUSE" }],
+      ["HANDOFF", { suggestedModel: "m" }],
+      ["INPUT", { toolName: "ask" }],
+    ] as const) {
+      const d = deriveApprovalDetails(t, m);
+      expect(d.dataTransfer).toBeNull();
+      expect("dataTransferStructured" in d).toBe(false);
+    }
+  });
+  it("sızıntı: değerler, gizli alan adları ve sızdıran kimlikler yapılandırılmış alana girmez", () => {
+    const d = deriveApprovalDetails("SPEND", {
+      toolName: "send_email",
+      input: { to: "SECRET-VAL@x.io", password: "P", apiKey: "K", token: "T", body: "SECRET-BODY" },
+    });
+    expect(d.dataTransferStructured).toEqual({ kind: "input_fields", tool: "send_email", fields: ["to", "body"] });
+    expect(JSON.stringify(d.dataTransferStructured)).not.toMatch(/SECRET|password|apiKey|token/i);
+    const e = deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "t", action: "PAUSE", connectionId: "sk_live_abcdef", targetId: "user:pass" });
+    expect(e.dataTransfer).toBeNull();
+    expect("dataTransferStructured" in e).toBe(false);
+    const e2 = deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "t", action: "PAUSE", connectionId: "c1", targetId: "user:pass" });
+    expect(e2.dataTransferStructured).toEqual({ kind: "external_control", action: "PAUSE", connectionId: "c1" });
+    const h = deriveApprovalDetails("HANDOFF", { suggestedProvider: "openai", suggestedModel: "sk-live-abcdefghijklmnopqrstuvwx" });
+    expect(h.dataTransferStructured).toEqual({ kind: "handoff", provider: "openai" });
+  });
+});
+
+describe("dataTransferStructured sınırları (BRA-UX-API-07 nit)", () => {
+  it("fields en çok MAX_DETAIL_ITEMS; her ad ≤41 karakter (toplam boyut sınırlı)", () => {
+    const input: Record<string, string> = {};
+    for (let i = 0; i < 30; i++) input[`f${i}`] = "v";
+    const d = deriveApprovalDetails("SPEND", { toolName: "t", input });
+    const s = d.dataTransferStructured as { kind: string; fields: string[] };
+    expect(s.fields).toHaveLength(MAX_DETAIL_ITEMS);
+    expect(s.fields.every((f) => f.length <= 41)).toBe(true);
+    expect(deriveApprovalDetails("SPEND", { toolName: "t", input: { ["a".repeat(42)]: 1, ok: 1 } }).dataTransferStructured)
+      .toEqual({ kind: "input_fields", tool: "t", fields: ["ok"] });
+  });
+  it("leaksSecret ile elenen alan adı yapılandırılmış alana geçmez", () => {
+    const d = deriveApprovalDetails("SPEND", { toolName: "t", input: { sk_live_abc: 1, ghp_x: 1, ["f".repeat(32)]: 1, safe: 1 } });
+    expect(d.dataTransferStructured).toEqual({ kind: "input_fields", tool: "t", fields: ["safe"] });
+  });
+  it("leaksSecret ile elenen araç adı: yapılandırılmış alan yok", () => {
+    const d = deriveApprovalDetails("SPEND", { toolName: "sk-live-abcdef", input: { a: 1 } });
+    expect(d.dataTransfer).toBeNull();
+    expect("dataTransferStructured" in d).toBe(false);
   });
 });

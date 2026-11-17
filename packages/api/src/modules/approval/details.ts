@@ -18,14 +18,18 @@
  *   dataTransfer SPEND araç kapısı: "toolName ← girdi alanları: a, b" (yalnız güvenli alan
  *                ADLARI, değer yok); EXTERNAL_CONTROL: bağlantı/hedef kimliği (kimlik
  *                allowlist'i); HANDOFF: sağlayıcı/model. Step kapısı ve INPUT: null.
+ *   dataTransferStructured (BRA-UX-API-07) dataTransfer ile aynı kaynak/süzgeç, metinsiz: yalnız
+ *                araç/alan/kimlik ADLARI (yön ayrı alan değil, `kind`'dan çıkar; external_control
+ *                için ham `action` ayrıca var). Boyut: fields ≤ MAX_DETAIL_ITEMS (10), her ad
+ *                ≤ 41 karakter, kimlik/araç/sağlayıcı ≤ 64 → toplam sınırlı. dataTransfer null ise alan hiç yok.
  *   reversible   metadata.reversible YALNIZ boolean ise (BRA-UX-API-01c): para harcayan araç
  *                çağrısı false, external_control TRIGGER false / PAUSE-RESUME true. Kayıt yoksa
  *                (eski onaylar, adım kapısı, INPUT, HANDOFF, para dışı araçlar) null.
  */
 
-import type { ApprovalDetails, ApprovalRisk } from "@ai-company-os/core";
+import type { ApprovalDataTransfer, ApprovalDetails, ApprovalRisk } from "@ai-company-os/core";
 
-export type { ApprovalDetails, ApprovalRisk };
+export type { ApprovalDataTransfer, ApprovalDetails, ApprovalRisk };
 
 export const MAX_DETAIL_STRING = 200;
 export const MAX_DETAIL_ITEMS = 10;
@@ -159,6 +163,7 @@ export function deriveApprovalDetails(type: unknown, metadata: unknown): Approva
         permissions: list([tool]),
         dataTransfer: tool && fields.length ? list([clamp(`${tool} ← girdi alanları: ${fields.join(", ")}`)]) : null,
         reversible: asBool(m.reversible),
+        ...(tool && fields.length ? { dataTransferStructured: { kind: "input_fields" as const, tool, fields } } : {}),
       };
     }
     if (type === "EXTERNAL_CONTROL") {
@@ -173,6 +178,16 @@ export function deriveApprovalDetails(type: unknown, metadata: unknown): Approva
           ? list([clamp(`${action ?? "eylem"} → bağlantı ${conn}${target ? `, hedef ${target}` : ""}`)])
           : null,
         reversible: asBool(m.reversible),
+        ...(conn
+          ? {
+              dataTransferStructured: {
+                kind: "external_control" as const,
+                ...(action ? { action } : {}),
+                connectionId: conn,
+                ...(target ? { targetId: target } : {}),
+              },
+            }
+          : {}),
       };
     }
     if (type === "HANDOFF") {
@@ -183,6 +198,9 @@ export function deriveApprovalDetails(type: unknown, metadata: unknown): Approva
         permissions: null,
         dataTransfer: provider ? list([clamp(`koşu → ${provider}${model ? ` / ${model}` : ""}`)]) : null,
         reversible: null,
+        ...(provider
+          ? { dataTransferStructured: { kind: "handoff" as const, provider, ...(model ? { model } : {}) } }
+          : {}),
       };
     }
   } catch {

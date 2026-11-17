@@ -22,12 +22,24 @@ export interface DecideApprovalInput {
  */
 export type ApprovalRisk = "low" | "medium" | "high";
 
+/** Yapılandırılmış veri aktarımı: yalnız araç/alan ADLARI ve ham yön değerleri; değer yok. */
+export type ApprovalDataTransfer =
+  /** `input_fields`: SPEND araç kapısının girdi alanı adları; INPUT (ask_user) onay tipiyle ilgisi YOK. */
+  | { kind: "input_fields"; tool: string; fields: string[] }
+  | { kind: "external_control"; action?: string; connectionId: string; targetId?: string }
+  | { kind: "handoff"; provider: string; model?: string };
+
 export interface ApprovalDetails {
   risk: ApprovalRisk | null;
   /** İstenen yetki/araç kapsamı. */
   permissions: string[] | null;
   /** Hangi veri nereye (alan adları; değer yok). */
   dataTransfer: string[] | null;
+  /**
+   * BRA-UX-API-07 — `dataTransfer` ile AYNI bilgi, metinsiz (istemci yerelleştirir). Yalnız
+   * `dataTransfer` üretilebilen durumda bulunur; yoksa alan hiç yer almaz (eski şekil birebir).
+   */
+  dataTransferStructured?: ApprovalDataTransfer;
   /** Geri alınabilirlik; bugün hiçbir kaynakta kayıtlı değil → her zaman null. */
   reversible: boolean | null;
 }
