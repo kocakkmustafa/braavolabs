@@ -3,7 +3,7 @@
  * gizli anahtar sızmaz, kırpma.
  */
 import { describe, it, expect } from "vitest";
-import { deriveApprovalDetails, withApprovalDetails, MAX_DETAIL_ITEMS, MAX_DETAIL_STRING } from "../details";
+import { deriveApprovalDetails, credentialShaped, withApprovalDetails, MAX_DETAIL_ITEMS, MAX_DETAIL_STRING } from "../details";
 
 const NULLS = { risk: null, permissions: null, dataTransfer: null, reversible: null };
 
