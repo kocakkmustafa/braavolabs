@@ -17,6 +17,7 @@ import {
 } from "./builder";
 import { updateAgentWithHistory } from "./agent-update";
 import { composeAgent } from "../agent/composer";
+import { sanitizeComposedDraft } from "../agent/compose-draft";
 import { assertCompanyCapacity } from "./company-capacity";
 import { seedCreatorAsOwner } from "./owner-seed";
 import { companyMembersRouter } from "./members";
@@ -43,6 +44,9 @@ const buildStartLimiter = rateLimit({ windowMs: 60_000, maxRequests: 5, keyPrefi
 const buildAnswerLimiter = rateLimit({ windowMs: 60_000, maxRequests: 20, keyPrefix: "rl:company:build:answer" });
 // Composer: one LLM round-trip per call, cheaper than build but still costs tokens.
 const agentComposeLimiter = rateLimit({ windowMs: 60_000, maxRequests: 10, keyPrefix: "rl:agent:compose" });
+// Confirm LLM çağırmaz; ucuz tenant-bazlı sınır. LLM limiter'dan AYRI örnek (draft'ı etkilemez).
+export const AGENT_COMPOSE_CONFIRM_MAX_PER_MIN = 30;
+const agentComposeConfirmLimiter = rateLimit({ windowMs: 60_000, maxRequests: AGENT_COMPOSE_CONFIRM_MAX_PER_MIN, keyPrefix: "rl:agent:compose-confirm" });
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
@@ -738,13 +742,12 @@ companyRouter.post("/:id/agents/compose/draft", agentComposeLimiter, async (req,
 // aynı kayıt yolu kullanılır.
 const agentComposeConfirmSchema = z.object({ draft: z.unknown() });
 
-companyRouter.post("/:id/agents/compose/confirm", async (req, res, next) => {
+// NOT: ajan SAYISI kapasitesi yok (eski compose'ta da yoktu); karar BRA-UX-API-03 sonrası kurucuda.
+companyRouter.post("/:id/agents/compose/confirm", agentComposeConfirmLimiter, async (req, res, next) => {
   try {
     const companyId = req.params.id as string;
     const company = await findOwnCompany(req, companyId);
     const { draft } = agentComposeConfirmSchema.parse(req.body);
-    // Tembel import: araç kayıt defterini yalnız confirm yolunda yükler (composer ile aynı bağımlılık).
-    const { sanitizeComposedDraft } = await import("../agent/compose-draft");
     const { agent: composed, droppedTools } = sanitizeComposedDraft(draft);
     const agent = await persistComposedAgent(req, company.id, composed, { source: "draft", droppedTools });
     res.status(201).json({ agent, droppedTools });

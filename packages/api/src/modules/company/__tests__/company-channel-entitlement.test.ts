@@ -7,7 +7,7 @@ vi.mock("../../../lib/db", () => ({
     company: { findFirst: db.company, updateMany: db.update }, activityLog: { create: db.activity },
   }, tenantTx: vi.fn(),
 }));
-vi.mock("../../../lib/logger", () => ({ logger: { warn: vi.fn(), info: vi.fn() } }));
+vi.mock("../../../lib/logger", () => ({ logger: { warn: vi.fn(), info: vi.fn(), debug: vi.fn() } }));
 vi.mock("../../../middleware/auth", () => ({ authMiddleware: (_req: unknown, _res: unknown, next: () => void) => next() }));
 vi.mock("../../../middleware/rateLimit", () => ({ rateLimit: () => (_req: unknown, _res: unknown, next: () => void) => next() }));
 vi.mock("../builder", () => ({ startBuildSession: vi.fn(), continueBuildSession: vi.fn(), confirmBuild: vi.fn(), getSession: vi.fn() }));

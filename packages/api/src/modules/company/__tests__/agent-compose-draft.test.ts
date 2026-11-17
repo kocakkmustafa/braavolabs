@@ -9,24 +9,16 @@ const db = vi.hoisted(() => ({
   tenantTx: vi.fn(),
 }));
 vi.mock("../../../lib/db", () => db);
-vi.mock("../../../lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
+vi.mock("../../../lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 vi.mock("../../../middleware/auth", () => ({ authMiddleware: vi.fn() }));
 vi.mock("../../../middleware/require-permission", () => ({ requirePermission: () => vi.fn() }));
-vi.mock("../../../middleware/rateLimit", () => ({ rateLimit: () => vi.fn() }));
+const limiters = vi.hoisted(() => [] as any[]);
+vi.mock("../../../middleware/rateLimit", () => ({
+  rateLimit: (o: any) => { const f = vi.fn(); limiters.push({ o, f }); return f; },
+}));
 vi.mock("../builder", () => ({ startBuildSession: vi.fn(), continueBuildSession: vi.fn(), confirmBuild: vi.fn(), getSession: vi.fn() }));
 const composeAgent = vi.hoisted(() => vi.fn());
-vi.mock("../../agent/composer", async () => {
-  const { z } = await import("zod");
-  return {
-    composeAgent,
-    ComposedAgentSchema: z.object({
-      name: z.string().min(1).max(80),
-      role: z.string().min(1).max(40).regex(/^[a-z][a-z0-9_]*$/),
-      systemPrompt: z.string().min(20).max(8000),
-      tools: z.array(z.string()).max(20),
-    }),
-  };
-});
+vi.mock("../../agent/composer", async (orig) => ({ ...(await orig<typeof import("../../agent/composer")>()), composeAgent }));
 vi.mock("../../agent/registry", () => ({ getToolNames: () => ["web_search"], getTool: vi.fn() }));
 vi.mock("../company-capacity", () => ({ assertCompanyCapacity: vi.fn() }));
 vi.mock("../../billing/entitlement-ledger.service", () => ({ getEffectivePlan: vi.fn() }));
@@ -59,10 +51,30 @@ beforeEach(() => {
 });
 
 describe("compose draft/confirm", () => {
-  it("draft rotası paramlı ajan rotalarından önce tanımlı", () => {
-    const p = paths();
-    expect(p.indexOf("/:id/agents/compose/draft")).toBeGreaterThan(-1);
-    expect(p.indexOf("/:id/agents/compose/confirm")).toBeGreaterThan(-1);
+  it("draft/confirm/compose, aynı yola eşleşebilecek paramlı POST rotalarından ÖNCE eşleşir", () => {
+    const posts: string[] = paths();
+    const toRe = (p: string) => new RegExp("^" + p.replace(/:[^/]+/g, "[^/]+") + "$");
+    for (const [url, want] of [
+      ["/c1/agents/compose/draft", "/:id/agents/compose/draft"],
+      ["/c1/agents/compose/confirm", "/:id/agents/compose/confirm"],
+      ["/c1/agents/compose", "/:id/agents/compose"],
+    ]) {
+      const matching = posts.filter((p) => toRe(p).test(url));
+      expect(matching[0]).toBe(want);
+      for (const other of matching.filter((m) => m !== want)) {
+        expect(posts.indexOf(want)).toBeLessThan(posts.indexOf(other));
+      }
+    }
+  });
+
+  it("confirm limiter ayrı örnek, 30/dk; draft LLM limiter'ını paylaşmaz", () => {
+    const find = (prefix: string) => limiters.find((l) => l.o.keyPrefix === prefix);
+    expect(find("rl:agent:compose-confirm")!.o).toMatchObject({ maxRequests: 30, windowMs: 60_000 });
+    expect(find("rl:agent:compose")!.f).not.toBe(find("rl:agent:compose-confirm")!.f);
+    const stack = (path: string) => (companyRouter as any).stack.find((l: any) => l.route?.path === path && l.route.methods.post).route.stack.map((x: any) => x.handle);
+    expect(stack("/:id/agents/compose/confirm")).toContain(find("rl:agent:compose-confirm")!.f);
+    expect(stack("/:id/agents/compose/confirm")).not.toContain(find("rl:agent:compose")!.f);
+    expect(stack("/:id/agents/compose/draft")).toContain(find("rl:agent:compose")!.f);
   });
 
   it("taslak hiçbir satır yazmaz ve tenant ile arar", async () => {
@@ -77,7 +89,9 @@ describe("compose draft/confirm", () => {
 
   it("taslak → oluştur, eski compose ile aynı ajan alanlarını ve audit'i yazar", async () => {
     const d = await call("/:id/agents/compose/draft", DESC);
+    composeAgent.mockClear();
     const c = await call("/:id/agents/compose/confirm", { draft: d.body.draft });
+    expect(composeAgent).toHaveBeenCalledTimes(0); // confirm LLM çağırmaz
     const old = await call("/:id/agents/compose", DESC);
     expect(c.status).toBe(201);
     expect(c.body.agent).toEqual(old.body.agent);
@@ -85,7 +99,7 @@ describe("compose draft/confirm", () => {
     expect(db.prisma.agent.create).toHaveBeenCalledTimes(2);
     expect(db.prisma.activityLog.create.mock.calls[0][0].data).toMatchObject({
       tenantId: "tenant-a", actor: "u1", action: "agent.compose", resource: "agent", resourceId: "agent-1" });
-    expect(composeAgent).toHaveBeenCalledTimes(2); // confirm LLM çağırmaz
+    expect(composeAgent).toHaveBeenCalledTimes(1); // yalnız eski compose
   });
 
   it("eski compose yanıt şekli değişmez", async () => {
@@ -93,6 +107,24 @@ describe("compose draft/confirm", () => {
     expect(r.status).toBe(201);
     expect(Object.keys(r.body).sort()).toEqual(["agent", "droppedTools", "model", "provider", "tokens"]);
     expect(db.prisma.activityLog.create.mock.calls[0][0].data.details).toMatchObject({ provider: "anthropic", descriptionLength: DESC.description.length });
+  });
+
+  it("fazladan anahtarlar kayda geçmez (autonomy/model/provider/budget)", async () => {
+    const r = await call("/:id/agents/compose/confirm", { draft: { ...LLM.agent, autonomy: "AUTONOMOUS", model: "x", provider: "p", budget: 9, companyId: "evil" } });
+    expect(r.error).toBeUndefined();
+    expect(db.prisma.agent.create.mock.calls[0][0].data).toEqual({
+      companyId: "company-a", name: "Destek", role: "support_bot", systemPrompt: LLM.agent.systemPrompt, tools: ["web_search"] });
+  });
+
+  it("__proto__ anahtarlı gövde prototipi kirletmez ve kayda geçmez", async () => {
+    const body = JSON.parse(JSON.stringify({ draft: { ...LLM.agent, tools: [] } }).replace('"draft":{', '"draft":{"__proto__":{"autonomy":"AUTONOMOUS","polluted":true},'));
+    expect(Object.keys(body.draft)).toContain("__proto__");
+    const r = await call("/:id/agents/compose/confirm", body);
+    expect(r.error).toBeUndefined();
+    const data = db.prisma.agent.create.mock.calls[0][0].data;
+    expect(Object.keys(data).sort()).toEqual(["companyId", "name", "role", "systemPrompt", "tools"]);
+    expect(({} as any).polluted).toBeUndefined();
+    expect(data.polluted).toBeUndefined();
   });
 
   it("confirm güvenilmez araç adlarını düşürür", async () => {
