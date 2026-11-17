@@ -34,6 +34,7 @@ import { priceForModel, FREE_PROVIDERS } from "../../lib/modelPricing";
 import { commitTrialRun, refundTrialReservation } from "../../services/trial-llm";
 import { prisma } from "../../lib/db";
 import { publishRunEvent } from "../../lib/runEvents";
+import { recordAssistantReply, type DrainedSteer } from "../run/chat-reply";
 import { buildContextSummary, NO_PRIOR_CONTEXT } from "../run/handoff-summary";
 
 /**
@@ -632,7 +633,7 @@ async function checkTurnBoundaryInterrupt(
  * canonical transcript. Publishes STEERING_APPLIED run events. No-op
  * (returns null) outside a governed run.
  */
-async function drainSteeringText(govContext?: AgentGovContext): Promise<string | null> {
+async function drainSteeringText(govContext?: AgentGovContext, drained?: DrainedSteer[]): Promise<string | null> {
   if (!govContext) return null;
   try {
     const pending = await prisma.steeringMessage.findMany({
@@ -644,6 +645,7 @@ async function drainSteeringText(govContext?: AgentGovContext): Promise<string |
       where: { id: { in: pending.map((m) => m.id) } },
       data: { consumedAt: new Date() },
     });
+    if (drained) for (const m of pending) drained.push({ kind: m.kind, content: m.content });
     const text = pending
       .map((m) =>
         m.kind === "INPUT"
@@ -1016,7 +1018,8 @@ export async function runProviderAgentLoop(
 
     // Mid-run steering (v2 moat) — now on EVERY provider path, not just
     // Anthropic (E2/T4 parity).
-    const steering = await drainSteeringText(govContext);
+    const drainedSteers: DrainedSteer[] = [];
+    const steering = await drainSteeringText(govContext, drainedSteers);
     if (steering) injectSteering(messages, steering);
 
     /** One turn against the ACTIVE provider, with the ToolsUnsupported →
@@ -1144,6 +1147,19 @@ export async function runProviderAgentLoop(
       stopReason: toLegacyStopReason(result),
     });
     totalCost += costUsd;
+
+    // BRA-UX-API-05b: the text this turn already produced in answer to chat-originated steering is
+    // mirrored to the job chat (ASSISTANT). Runs AFTER executeToolCalls (a gate throw = no write) and
+    // only while within budget. No new LLM call; tool outputs never reach it; failure is non-fatal.
+    if (govContext && drainedSteers.length > 0 && totalCost <= budgetUsd) {
+      try {
+        await recordAssistantReply(prisma, {
+          tenantId: govContext.tenantId, runId: govContext.runId, steers: drainedSteers, content: result.content ?? "",
+        });
+      } catch (err) {
+        logger.warn({ runId: govContext.runId, err: (err as Error).message }, "assistant chat reply failed (non-fatal)");
+      }
+    }
 
     // Append the assistant turn + tool results to the canonical transcript —
     // exactly as in E2: ONLY when the loop continues (the live array is what
