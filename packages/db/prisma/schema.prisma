@@ -10,6 +10,7 @@ datasource db {
 // ─── TENANT & AUTH ──────────────────────────────────────
 
 model Tenant {
+  jobMessages          JobMessage[]
   id                   String   @id @default(cuid())
   name                 String
   slug                 String   @unique
@@ -138,6 +139,7 @@ model MediaAsset {
 }
 
 model User {
+  jobMessages JobMessage[]
   id           String   @id @default(cuid())
   tenantId     String   @map("tenant_id")
   email        String   @unique
@@ -771,7 +773,9 @@ model JobMessage {
   authorUserId String?        @map("author_user_id")
   createdAt    DateTime       @default(now()) @map("created_at")
 
-  run Run @relation(fields: [runId], references: [id], onDelete: Cascade)
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  run    Run    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  author User?  @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
 
   @@index([tenantId, runId, createdAt(sort: Desc), id(sort: Desc)])
   @@map("job_messages")

@@ -45,7 +45,8 @@ const explainLimiter = rateLimit({ windowMs: 60_000, maxRequests: 10, keyPrefix:
 
 // Handoff create/continue can enqueue a run — throttle per-tenant so a
 // mis-scripted client can't stack ledgers/jobs (same shape as explainLimiter).
-const chatLimiter = rateLimit({ windowMs: 60_000, maxRequests: 30, keyPrefix: "rl:run:chat" });
+// Anahtar tenantId:userId — tek üye tüm kiracının sohbetini kilitlemesin. Redis çökünce fail-closed (rateLimit.ts).
+const chatLimiter = rateLimit({ windowMs: 60_000, maxRequests: 30, keyPrefix: "rl:run:chat", identify: (req) => req.auth ? `${req.auth.tenantId}:${req.auth.userId}` : undefined });
 const handoffLimiter = rateLimit({ windowMs: 60_000, maxRequests: 30, keyPrefix: "rl:run:handoff" });
 
 /**

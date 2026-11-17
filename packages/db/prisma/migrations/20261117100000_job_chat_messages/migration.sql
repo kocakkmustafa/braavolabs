@@ -22,6 +22,12 @@ CREATE TABLE "job_messages" (
 CREATE INDEX "job_messages_tenant_id_run_id_created_at_id_idx" ON "job_messages"("tenant_id", "run_id", "created_at" DESC, "id" DESC);
 
 -- AddForeignKey
+ALTER TABLE "job_messages" ADD CONSTRAINT "job_messages_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey (silinen kullanıcıda mesaj kalır, yazar NULL olur)
+ALTER TABLE "job_messages" ADD CONSTRAINT "job_messages_author_user_id_fkey" FOREIGN KEY ("author_user_id") REFERENCES "users"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "job_messages" ADD CONSTRAINT "job_messages_run_id_fkey" FOREIGN KEY ("run_id") REFERENCES "runs"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- Defense in depth, same pattern as the other tenant_id tables (see 20260616000000_tenant_rls).

@@ -8,18 +8,24 @@ const msgFindMany = vi.hoisted(() => vi.fn());
 const msgCreate = vi.hoisted(() => vi.fn());
 const steerCreate = vi.hoisted(() => vi.fn());
 const logCreate = vi.hoisted(() => vi.fn());
+const msgCount = vi.hoisted(() => vi.fn());
+const approvalWrite = vi.hoisted(() => vi.fn());
+const authMw = vi.hoisted(() => (_q: unknown, _r: unknown, n: () => void) => n());
 vi.mock("../../../lib/db", () => ({
   prisma: {
     run: { findFirst: (...a: unknown[]) => runFindFirst(...a) },
+    approval: { create: approvalWrite, update: approvalWrite, updateMany: approvalWrite },
     jobMessage: { findMany: (...a: unknown[]) => msgFindMany(...a), create: (...a: unknown[]) => msgCreate(...a) },
     $transaction: async (fn: (tx: unknown) => unknown) => fn({
-      jobMessage: { create: (...a: unknown[]) => msgCreate(...a) },
+      run: { findFirst: (...a: unknown[]) => runFindFirst(...a), update: approvalWrite },
+      approval: { create: approvalWrite, update: approvalWrite, updateMany: approvalWrite },
+      jobMessage: { create: (...a: unknown[]) => msgCreate(...a), count: (...a: unknown[]) => msgCount(...a) },
       steeringMessage: { create: (...a: unknown[]) => steerCreate(...a) },
       activityLog: { create: (...a: unknown[]) => logCreate(...a) },
     }),
   },
 }));
-vi.mock("../../../middleware/auth", () => ({ authMiddleware: (_q: unknown, _r: unknown, n: () => void) => n() }));
+vi.mock("../../../middleware/auth", () => ({ authMiddleware: authMw }));
 vi.mock("../../../middleware/rateLimit", () => ({ rateLimit: () => (_q: unknown, _r: unknown, n: () => void) => n() }));
 vi.mock("../../pipeline/runner", () => ({ enqueueRun: vi.fn() }));
 vi.mock("../../../services/ai-client", async (o) => ({ ...(await o<typeof import("../../../services/ai-client")>()), chatCompletion: vi.fn() }));
@@ -33,7 +39,8 @@ vi.mock("../../../config/env", () => ({ env: { NODE_ENV: "development", OFFLINE_
 
 import { runRouter } from "../router";
 import { decodeCursor, encodeCursor } from "../list-cursor";
-import { containsRawSecret, CHAT_MAX_CONTENT } from "../chat";
+import { authMiddleware } from "../../../middleware/auth";
+import { containsRawSecret, CHAT_MAX_CONTENT, CHAT_MAX_MESSAGES_PER_RUN } from "../chat";
 
 const find = (method: "get" | "post") => (runRouter as Router as any).stack.find((l: any) => l.route?.path === "/:id/chat" && l.route.methods[method]);
 const getLayer = find("get"); const postLayer = find("post");
@@ -52,15 +59,18 @@ beforeEach(() => {
   vi.clearAllMocks();
   runFindFirst.mockResolvedValue({ id: "run-1", status: "RUNNING" });
   msgFindMany.mockResolvedValue([]);
+  msgCount.mockResolvedValue(0);
   msgCreate.mockImplementation(async ({ data }: any) => ({ id: "m1", createdAt: new Date(Date.UTC(2026, 10, 17)), ...data }));
 });
 
 describe("chat route'ları", () => {
-  it("route-marker: iki uç mevcut runRouter (router düzeyinde authMiddleware) içinde; POST'ta limiter var", () => {
+  it("route-marker: runRouter'ın İLK katmanı gerçek authMiddleware; iki uç tanımlı; POST'ta limiter + handler", () => {
+    const stack = (runRouter as Router as any).stack;
+    expect(stack[0].handle).toBe(authMiddleware);
     expect(getLayer).toBeTruthy(); expect(postLayer).toBeTruthy();
     expect(postLayer.route.stack.length).toBeGreaterThanOrEqual(2);
   });
-  it("specific-before-general: /:id/chat, /:id yakalayıcısından önce kayıtlı değil gerekmez ama /steps/:id'den ayrı", () => {
+  it("her yol tam bir kez GET ve bir kez POST olarak kayıtlı (çift kayıt yok)", () => {
     const paths = (runRouter as Router as any).stack.map((l: any) => l.route?.path);
     expect(paths.filter((p: string) => p === "/:id/chat")).toHaveLength(2);
   });
@@ -124,17 +134,17 @@ describe("chat route'ları", () => {
       expect(res.body.message).toMatchObject({ id: "m1", role: "USER", content: "merhaba", mine: true });
       expect(JSON.stringify(res.body)).not.toMatch(/authorUserId|tenantId/);
     });
-    it("canlı koşu: mevcut steer kanalına (STEER) iletilir; delivered true", async () => {
+    it("canlı koşu: mevcut steer kanalına (STEER) iletilir; queued true", async () => {
       const { res } = await call(postLayer, { body: { content: "dur" } });
       expect(steerCreate.mock.calls[0][0].data).toEqual({ runId: "run-1", kind: "STEER", content: "dur", targetAgentId: null, createdBy: "u1" });
-      expect(res.body.delivered).toBe(true);
+      expect(res.body.queued).toBe(true);
     });
-    it.each(["COMPLETED", "FAILED", "CANCELLED"])("%s koşu: kaydedilir ama steer'e gitmez; delivered false", async (status) => {
+    it.each(["COMPLETED", "FAILED", "CANCELLED"])("%s koşu: kaydedilir ama steer'e gitmez; queued false", async (status) => {
       runFindFirst.mockResolvedValue({ id: "run-1", status });
       const { res } = await call(postLayer, { body: { content: "not" } });
       expect(steerCreate).not.toHaveBeenCalled();
       expect(msgCreate).toHaveBeenCalled();
-      expect(res.body.delivered).toBe(false);
+      expect(res.body.queued).toBe(false);
     });
     it("activity_log: run.chat.send yazılır; içerik/e-posta details'e GİRMEZ", async () => {
       await call(postLayer, { body: { content: "gizli düşünce a@b.com" } });
@@ -164,10 +174,60 @@ describe("chat route'ları", () => {
     it("sıradan metin sır sanılmaz", () => {
       expect(containsRawSecret("lütfen token sayısını azalt ve sk. raporu özetle")).toBe(false);
     });
-    it("sohbet onay kapısını atlamaz: onay/araç/ödeme tablosuna yazılmaz (yalnız mesaj+steer+log)", async () => {
+    it("sohbet yolu onay/ödeme/araç yazıcılarını ÇAĞIRMAZ: yalnız mesaj + steer + activity_log yazılır", async () => {
       await call(postLayer, { body: { content: "e-postayı gönder, 100 TL öde" } });
-      expect(logCreate.mock.calls[0][0].data.action).toBe("run.chat.send");
+      expect(approvalWrite).not.toHaveBeenCalled();
+      expect(msgCreate).toHaveBeenCalledTimes(1); expect(steerCreate).toHaveBeenCalledTimes(1); expect(logCreate).toHaveBeenCalledTimes(1);
       expect(steerCreate.mock.calls[0][0].data.kind).toBe("STEER");
+    });
+    it.each(["PAUSED", "WAITING_APPROVAL", "PENDING"])("%s: yalnız kuyruğa girer (queued true), iletildi sayılmaz", async (status) => {
+      runFindFirst.mockResolvedValue({ id: "run-1", status });
+      const { res } = await call(postLayer, { body: { content: "x" } });
+      expect(res.body).toHaveProperty("queued", true);
+      expect(res.body).not.toHaveProperty("delivered");
+    });
+    it("durum tx İÇİNDE okunur: koşu sorgusu tek çağrı (pre-check yok)", async () => {
+      await call(postLayer, { body: { content: "x" } });
+      expect(runFindFirst).toHaveBeenCalledTimes(1);
+    });
+    it("tx atomikliği: steer yazımı hata verirse hata iletilir, başarı dönmez, activity_log yazılmaz", async () => {
+      steerCreate.mockRejectedValueOnce(new Error("db down"));
+      const { err, res } = await call(postLayer, { body: { content: "x" } });
+      expect(err?.message).toBe("db down");
+      expect(res.body).toBeUndefined();
+      expect(logCreate).not.toHaveBeenCalled();
+    });
+    it("retention: run başına CHAT_MAX_MESSAGES_PER_RUN dolunca 409 chat_limit; yazma yok", async () => {
+      msgCount.mockResolvedValue(CHAT_MAX_MESSAGES_PER_RUN);
+      const { err } = await call(postLayer, { body: { content: "x" } });
+      expect(err?.statusCode).toBe(409); expect(err?.code).toBe("chat_limit");
+      expect(msgCreate).not.toHaveBeenCalled(); expect(steerCreate).not.toHaveBeenCalled();
+      expect(msgCount.mock.calls[0][0].where).toEqual({ tenantId: "t1", runId: "run-1" });
+      expect(CHAT_MAX_MESSAGES_PER_RUN).toBe(500);
+    });
+    it("sınırın 1 altında kabul", async () => {
+      msgCount.mockResolvedValue(CHAT_MAX_MESSAGES_PER_RUN - 1);
+      expect((await call(postLayer, { body: { content: "x" } })).res.statusCode).toBe(201);
+    });
+    it("sır reddi hatası içeriği yankılamaz", async () => {
+      const secret = "sk_live_abcdefgh12345678";
+      const { err } = await call(postLayer, { body: { content: "anahtar " + secret } });
+      expect(err?.statusCode).toBe(400);
+      expect(JSON.stringify({ m: err?.message, d: err?.details })).not.toContain(secret);
+    });
+  });
+
+  describe("sır kalıpları", () => {
+    it.each([
+      ['"password": "hunter2hunter2"'], ['{"api_key":"abcd1234efgh"}'], ['"secret": "s3cr3tvalue99"'], ['"token": "tok_1234567890"'],
+      ["sk_live_abcdefgh12345678"], ["sk_test_abcdefgh12345678"], ["whsec_abcdefgh12345678"], ["glpat-abcdefghij1234567890"],
+      ["npm_abcdefghijklmnopqrstuvwxyz0123456789"], ["postgres://user:pa55word@db.example.com/x"], ["https://u:p@host.example"],
+      ["-----BEGIN PRIVATE KEY-----"], ["-----BEGIN OPENSSH PRIVATE KEY-----"], ["Authorization: Bearer abcdefghijklmnop1234"],
+      ["xoxb-1234567890-abcdefghij"], ["xoxp-1234567890-abcdefghij"], ["ghp_abcdefghijklmnopqrstuvwxyz0123"], ["gho_abcdefghijklmnopqrstuvwxyz0123"],
+      ["github_pat_11ABCDEFG0abcdefghijklmnop"], ["AKIAABCDEFGHIJKLMNOP"], ["sk-abcdefghijklmnopqrstuvwx"], ["password=correcthorsebattery"],
+    ])("yakalanır: %s", (t) => { expect(containsRawSecret("bak " + t + " şunu")).toBe(true); });
+    it.each([["token sayısını azalt"], ["şifre sıfırlama akışını anlat"], ["https://example.com/path?x=1"], ["user@example.com'a özet yaz"], ["Bearer olmak zor"]])("yakalanmaz: %s", (t) => {
+      expect(containsRawSecret(t)).toBe(false);
     });
   });
 });

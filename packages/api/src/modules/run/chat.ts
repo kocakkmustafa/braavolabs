@@ -6,6 +6,11 @@
  * POST: kullanıcı mesajını kaydeder ve koşu canlıysa MEVCUT steer kanalına (SteeringMessage STEER) iletir — ajan döngüsü
  * bir sonraki turun başında tüketir (agent/claude.ts drainSteeringText). Sohbet ASLA araç/para/dış eylem tetiklemez:
  * ajanın eylemleri kendi mevcut onay/maliyet/kota kapılarından geçer; bu uç onay atlamaz, yeni LLM çağrısı açmaz.
+ * Yetki (KASITLI, /steer ile aynı): yalnız router düzeyi authMiddleware; MEMBER yazabilir, aynı kiracının herkesi okur. rbac.ts'e yeni eylem yok.
+ * GET en yeni mesaj başta döner (createdAt desc, id desc); istemci görüntülerken ters çevirir.
+ * `queued`: mesaj steer kuyruğuna girdi (PENDING/RUNNING/PAUSED/WAITING_APPROVAL). PAUSED/WAITING_APPROVAL'da ajan çalışana dek
+ * tüketilmez — "iletildi/okundu" DEĞİL. Bitmiş koşuda queued:false. Durum, yazım transaction'ı İÇİNDE yeniden okunur
+ * (Prisma'da FOR UPDATE yok; okuma–yazma arası geçiş yarışı kabul edilmiş, yalnız kuyruk bayrağını etkiler).
  * Asistan yanıtı üretimi bu işte YOK (ENGEL/KARAR): ajan döngüsü yanıtlarını sohbete yazmaz; ayrı iş.
  */
 import { z } from "zod";
@@ -15,20 +20,34 @@ import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } 
 export const CHAT_DEFAULT_LIMIT = 50;
 export const CHAT_MAX_LIMIT = 100;
 export const CHAT_MAX_CONTENT = 4000;
+/** Run başına saklanan en fazla mesaj (retention). Aşılırsa 409 chat_limit. */
+export const CHAT_MAX_MESSAGES_PER_RUN = 500;
 export const STEERABLE_STATUSES = ["PENDING", "RUNNING", "PAUSED", "WAITING_APPROVAL"] as const;
 
 export const chatBodySchema = z.object({ content: z.string().trim().min(1).max(CHAT_MAX_CONTENT) }).strict();
 
-/** Ham sır/anahtar süzgeci: eşleşirse mesaj REDDEDİLİR (sessizce maskelemek anlamı bozar, sır yine de DB'ye girmesin). */
+/**
+ * Ham sır/anahtar süzgeci: eşleşirse mesaj REDDEDİLİR (sessizce maskelemek anlamı bozar, sır yine de DB'ye girmesin).
+ * Repoda yeniden kullanılabilir bir içerik-redact yardımcısı yok (lib/sentry yalnız olay yükü süzer) → kalıplar burada.
+ * Hata yanıtı ve loglar içeriği YANKILAMAZ (sabit mesaj).
+ */
 const SECRET_PATTERNS: readonly RegExp[] = [
-  /\bsk-[A-Za-z0-9_-]{16,}/,
-  /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}/,
-  /\bxox[abprs]-[A-Za-z0-9-]{10,}/,
-  /\bAKIA[0-9A-Z]{16}\b/,
-  /\bAIza[0-9A-Za-z_-]{30,}/,
-  /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/,
-  /-----BEGIN [A-Z ]*PRIVATE KEY-----/,
-  /\b(?:api[_-]?key|secret|token|password|passwd)\s*[:=]\s*\S{12,}/i,
+  /\bsk-[A-Za-z0-9_-]{16,}/,                                   // OpenAI/Anthropic tarzı
+  /\bsk_(?:live|test)_[A-Za-z0-9]{8,}/,                        // Stripe
+  /\b(?:rk|pk)_(?:live|test)_[A-Za-z0-9]{8,}/,
+  /\bwhsec_[A-Za-z0-9]{8,}/,                                   // Stripe webhook
+  /\bglpat-[A-Za-z0-9_-]{10,}/,                                // GitLab
+  /\bnpm_[A-Za-z0-9]{20,}/,                                    // npm
+  /\b(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{20,}/,                // GitHub
+  /\bgithub_pat_[A-Za-z0-9_]{20,}/,
+  /\bxox[abprs]-[A-Za-z0-9-]{10,}/,                            // Slack
+  /\bAKIA[0-9A-Z]{16}\b/,                                      // AWS
+  /\bAIza[0-9A-Za-z_-]{30,}/,                                  // Google
+  /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/, // JWT
+  /\bBearer\s+[A-Za-z0-9._~+/=-]{16,}/i,                       // Authorization başlığı
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----/,                         // PEM
+  /\b[a-z][a-z0-9+.-]*:\/\/[^\s:/@]+:[^\s@/]+@/i,                // URL içi kimlik (postgres://u:pass@h)
+  /["']?\b(?:api[_-]?key|secret|token|password|passwd)["']?\s*[:=]\s*["']?[^\s"',}]{8,}/i, // key=val ve "key": "val"
 ];
 export function containsRawSecret(text: string): boolean {
   return SECRET_PATTERNS.some((re) => re.test(text));
@@ -64,27 +83,28 @@ export async function loadChat(db: any, input: { tenantId: string; userId: strin
   };
 }
 
-export async function postChat(db: any, input: { tenantId: string; userId: string; runId: string; body: unknown }): Promise<{ message: ChatMessageDto; delivered: boolean }> {
+export async function postChat(db: any, input: { tenantId: string; userId: string; runId: string; body: unknown }): Promise<{ message: ChatMessageDto; queued: boolean }> {
   const parsed = chatBodySchema.safeParse(input.body);
   if (!parsed.success) throw new AppError(400, `content is required (1-${CHAT_MAX_CONTENT} characters), no other fields.`);
   const content = parsed.data.content;
   if (containsRawSecret(content)) throw new AppError(400, "Message looks like it contains a secret or API key. Remove it and send again.");
   const { tenantId, userId } = input;
-  const run = await db.run.findFirst({ where: { id: input.runId, pipeline: { company: { tenantId } } }, select: { id: true, status: true } });
-  if (!run) throw new AppError(404, "Run not found");
-  const live = (STEERABLE_STATUSES as readonly string[]).includes(run.status);
 
-  const msg = await db.$transaction(async (tx: any) => {
+  return db.$transaction(async (tx: any) => {
+    const run = await tx.run.findFirst({ where: { id: input.runId, pipeline: { company: { tenantId } } }, select: { id: true, status: true } });
+    if (!run) throw new AppError(404, "Run not found");
+    const count = await tx.jobMessage.count({ where: { tenantId, runId: run.id } });
+    if (count >= CHAT_MAX_MESSAGES_PER_RUN) throw new AppError(409, "Chat message limit reached for this job.", undefined, "chat_limit");
+    const queued = (STEERABLE_STATUSES as readonly string[]).includes(run.status);
     const created = await tx.jobMessage.create({
       data: { tenantId, runId: run.id, role: "USER", content, authorUserId: userId },
     });
-    if (live) {
+    if (queued) {
       await tx.steeringMessage.create({ data: { runId: run.id, kind: "STEER", content, targetAgentId: null, createdBy: userId } });
     }
     await tx.activityLog.create({
-      data: { tenantId, actor: userId, action: "run.chat.send", resource: "run", resourceId: run.id, details: { messageId: created.id, delivered: live } },
+      data: { tenantId, actor: userId, action: "run.chat.send", resource: "run", resourceId: run.id, details: { messageId: created.id, queued } },
     });
-    return created;
+    return { message: toChatDto(created, userId), queued };
   });
-  return { message: toChatDto(msg, userId), delivered: live };
 }
