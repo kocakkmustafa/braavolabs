@@ -116,11 +116,12 @@ describe("(2) /approvals eski sayfa: claimFailed, 403/409, INPUT notu", () => {
   });
 });
 
-describe("(3) var olmayan /agents rotasına bağlantı kalmadı", () => {
+describe("(3) bayrak dışında /agents rotasına bağlantı verilmedi", () => {
   const files = ["app", "components"].flatMap((d) => walkFiles(resolve(root, d)))
     .filter((f) => /\.(tsx?|jsx?)$/.test(f) && !/\.test\./.test(f));
-  it("app/agents yok ve kaynakta '/agents' bağlantısı yok", () => {
-    expect(existsSync(resolve(root, "app/agents"))).toBe(false);
+  it("kaynakta '/agents' bağlantısı yok (BRA-UX-05g: rota bayrak arkasında; bayrak KAPALI iken 404 olduğundan bağlantı verilmez)", () => {
+    expect(existsSync(resolve(root, "app/agents/page.tsx"))).toBe(true);
+    expect(readFileSync(resolve(root, "app/agents/page.tsx"), "utf8")).toMatch(/uxAgentsEnabled\(\)\)\s*notFound\(\)/);
     const hits = files.filter((f) => /["'`]\/agents(?:["'`/?#])/.test(readFileSync(f, "utf8"))).map((f) => relative(root, f));
     expect(hits).toEqual([]);
   });
