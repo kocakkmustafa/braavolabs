@@ -1,10 +1,16 @@
 /**
  * BRA-P0-11c — şirket aylık bütçesi: Company.config.monthlyBudgetUsd (migration yok).
  * Saf yardımcılar; DB/IO yok, asla throw etmez.
+ *
+ * NOT (BRA-P2-03d, bilgi): GET /companies/:id/summary `billing:budget` guard'ı TAŞIMAZ; router-wide
+ * authMiddleware ile tüm tenant üyeleri (MEMBER dahil) okur. Limiti DEĞİŞTİREN PATCH /:id/budget ADMIN+
+ * kalır. Okuma erişimini daraltmak rbac eylemi/kurucu kararıdır; burada değiştirilmedi.
  */
 export const BUDGET_CONFIG_KEY = "monthlyBudgetUsd";
 export const MAX_MONTHLY_BUDGET_USD = 1_000_000;
 export const BUDGET_WARN_PCT = 80;
+/** Yalnız öneri (uyarı eşiği); enforcement yok, karar kurucuda. */
+export const BUDGET_SUGGESTED_ALERT_AT_PCT = BUDGET_WARN_PCT; // tek kaynak
 export type BudgetState = "none" | "ok" | "warn" | "over";
 
 export interface BudgetStatus {
@@ -13,6 +19,8 @@ export interface BudgetStatus {
   remainingUsd: number | null;
   usedPct: number | null;
   state: BudgetState;
+  /** Önerilen uyarı eşiği (%); yalnız bilgi, salt-okur. */
+  suggestedAlertAtPct: number;
 }
 
 export type BudgetValidation = { ok: true; value: number } | { ok: false; error: string };
@@ -51,20 +59,35 @@ export function parseMonthlyBudget(config: unknown): number | null {
   }
 }
 
-/** Harcamayı limitle kıyaslar. Bölme-sıfır yok; limit 0 + harcama > 0 -> over, usedPct null. */
+/**
+ * Harcamayı limitle kıyaslar. Bölme-sıfır yok; limit 0 + harcama > 0 -> over, usedPct null.
+ *
+ * Para kuralı (BRA-P2-03d): USD; tüm hesap TAM SAYIYLA yapılır, float birikim hatası yok.
+ * Limit -> cent (tam sayı); harcama -> mikro-USD (1e-6, Run.costUsd ölçeği). remainingUsd =
+ * limit_cent - harcama_cent / 100 (harcama cente YARIM-YUKARI yuvarlanır). usedPct = harcama/limit*100,
+ * 2 ondalığa AŞAĞI yuvarlanır (gösterim; >100 olabilir). Durum (warn/over) yuvarlanmamış mikro değerle.
+ * Alt-cent limit (ör. 0.004) Math.round ile 0 cente iner -> limit-0 dalı; canlıda parseMonthlyBudget
+ * 2 ondalık dayattığı için ULAŞILAMAZ, yalnız saf fonksiyon davranışı olarak sabitlenmiştir.
+ * `suggestedAlertAtPct` yalnız ÖNERİDİR: uygulama/enforcement/yazma yok; eşik kararı kurucuda.
+ */
 export function computeBudgetStatus(limitUsd: number | null, spentUsd: number | null): BudgetStatus {
   const limit = typeof limitUsd === "number" && Number.isFinite(limitUsd) && limitUsd >= 0 ? limitUsd : null;
   const spent = typeof spentUsd === "number" && Number.isFinite(spentUsd) && spentUsd >= 0 ? spentUsd : null;
+  const suggestedAlertAtPct = BUDGET_SUGGESTED_ALERT_AT_PCT;
   if (limit === null || spent === null) {
-    return { limitUsd: limit, spentUsd: spent, remainingUsd: null, usedPct: null, state: "none" };
+    return { limitUsd: limit, spentUsd: spent, remainingUsd: null, usedPct: null, state: "none", suggestedAlertAtPct };
   }
-  const remainingUsd = round2(limit - spent);
-  if (limit === 0) {
-    return { limitUsd: limit, spentUsd: spent, remainingUsd, usedPct: null, state: spent > 0 ? "over" : "ok" };
+  const limitCents = Math.round(limit * 100);
+  const spentMicro = Math.round(spent * 1_000_000);
+  const spentCents = Math.floor((spentMicro + 5_000) / 10_000);
+  const remainingUsd = (limitCents - spentCents) / 100;
+  if (limitCents === 0) {
+    return { limitUsd: limit, spentUsd: spent, remainingUsd, usedPct: null, state: spentMicro > 0 ? "over" : "ok", suggestedAlertAtPct };
   }
-  // Durum yuvarlanmamış değerlerle; usedPct yalnız gösterim (aşağı yuvarlanır, %100 görünümü over'a eşlik eder).
+  const limitMicro = limitCents * 10_000;
   const state: BudgetState =
-    spent >= limit ? "over" : spent * 100 >= limit * BUDGET_WARN_PCT ? "warn" : "ok";
-  const usedPct = Math.floor((spent * 100 / limit) * 100 + 1e-9) / 100;
-  return { limitUsd: limit, spentUsd: spent, remainingUsd, usedPct, state };
+    spentMicro >= limitMicro ? "over" : spentMicro * 100 >= limitMicro * BUDGET_WARN_PCT ? "warn" : "ok";
+  // yüzde*100 = spentMicro / limitCents (tam sayı bölme, aşağı)
+  const usedPct = (spentMicro - (spentMicro % limitCents)) / limitCents / 100;
+  return { limitUsd: limit, spentUsd: spent, remainingUsd, usedPct, state, suggestedAlertAtPct };
 }
