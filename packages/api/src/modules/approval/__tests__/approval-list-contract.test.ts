@@ -142,6 +142,7 @@ describe("GET /approvals yanıt-anahtar sözleşmesi", () => {
       risk: null,
       permissions: ["send_email"],
       dataTransfer: ["send_email ← girdi alanları: to"],
+      dataTransferStructured: { kind: "input_fields", tool: "send_email", fields: ["to"] },
       reversible: null,
     });
     // mevcut sözleşme birebir
