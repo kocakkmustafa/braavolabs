@@ -63,8 +63,8 @@ async function invoke(query: Record<string, unknown> = {}, tenantId = "tenant-1"
 }
 
 const RESPONSE_KEYS = [
-  "bucket", "completedAt", "costUsd", "createdAt", "heartbeatAt", "id", "pipeline", "pipelineId",
-  "resultStatus", "startedAt", "state", "status", "trigger", "updatedAt",
+  "agentName", "bucket", "completedAt", "costUsd", "createdAt", "heartbeatAt", "id", "pipeline", "pipelineId",
+  "resultStatus", "riskLevel", "startedAt", "state", "status", "trigger", "updatedAt",
 ];
 
 function row(i: number, over: Record<string, unknown> = {}) {
@@ -151,7 +151,9 @@ describe("GET /runs", () => {
     for (const leak of ["config", "webhookSecret", "input", "output", "error"]) expect(text).not.toContain(`"${leak}"`);
     // select açık ve dar
     const sel = findMany.mock.calls[0][0].select;
-    expect(Object.keys(sel).sort()).toEqual(RESPONSE_KEYS.filter((k) => k !== "bucket"));
+    expect(Object.keys(sel).sort()).toEqual(
+      [...RESPONSE_KEYS.filter((k) => !["bucket", "agentName", "riskLevel"].includes(k)), "steps", "approvals"].sort(),
+    );
     expect(findMany.mock.calls[0][0].include).toBeUndefined();
   });
 

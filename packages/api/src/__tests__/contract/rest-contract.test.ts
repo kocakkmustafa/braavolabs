@@ -160,7 +160,7 @@ function runRow(i: number, over: Record<string, unknown> = {}) {
   return {
     id: `run-${i}`, pipelineId: "p1", status: "COMPLETED", state: "COMPLETED", resultStatus: "SUCCESS", trigger: "manual",
     costUsd: "0.120000", startedAt: at(i), completedAt: at(i), heartbeatAt: null, createdAt: at(i), updatedAt: at(i),
-    pipeline: { id: "p1", name: "Pipe", company: { id: "c1", name: "Co" } }, ...over,
+    pipeline: { id: "p1", name: "Pipe", company: { id: "c1", name: "Co" } }, steps: [], approvals: [], ...over,
   };
 }
 function apRow(i: number) {
