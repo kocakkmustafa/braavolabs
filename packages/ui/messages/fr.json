@@ -1815,7 +1815,7 @@
       "listSep": ", ",
       "error": {
         "session": "Ta connexion n'a pas pu être vérifiée. Reconnecte-toi.",
-        "payment": "Le forfait ou le budget IA ne le permet pas pour l'instant (402). Consulte la Facturation avant de réessayer.",
+        "payment": "Une limite de forfait ou de budget est atteinte (402). Vérifie les limites puis réessaie.",
         "forbidden": "Tu n'as pas l'autorisation pour cela.",
         "notFound": "Cet espace de travail est introuvable.",
         "rateLimit": "Trop de requêtes (429). Patiente un instant puis réessaie.",
@@ -1825,7 +1825,9 @@
         "badDraft": "Le brouillon a été refusé. Décris l'agent autrement et refais un brouillon.",
         "badResponse": "La réponse du serveur n'a pas été comprise. Rien n'a été affiché comme enregistré.",
         "generic": "Une erreur inattendue s'est produite. Réessaie."
-      }
+      },
+      "refreshList": "Actualiser la liste",
+      "loading": "Chargement…"
     }
   },
   "static": {

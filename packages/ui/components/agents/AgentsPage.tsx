@@ -31,6 +31,7 @@ export default function AgentsPage() {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [state, setState] = useState<ComposerState>({ phase: "idle" });
+  const [refreshed, setRefreshed] = useState(false);
   const seq = useRef(0);
   const listSeq = useRef(0);
 
@@ -74,6 +75,8 @@ export default function AgentsPage() {
   const create = async () => {
     if (!deps || busy) return;
     const my = ++seq.current;
+    setRefreshed(false);
+    setRefreshed(false);
     const cur = state;
     const held = cur.phase === "draft" ? cur.result : cur.phase === "error" && cur.stage === "confirm" ? cur.result : undefined;
     if (!held) return;
@@ -83,13 +86,13 @@ export default function AgentsPage() {
     setState(next);
     if (next.phase === "created") { setText(""); loadRows(); }
   };
-  const discard = () => { seq.current++; setState({ phase: "idle" }); };
+  const discard = () => { seq.current++; setRefreshed(false); setState({ phase: "idle" }); };
 
-  if (!hydrated || !token) return <main style={{ padding: 24 }} aria-busy="true" />;
+  if (!hydrated || !token) return <div style={{ padding: 24 }} aria-busy="true" />;
   const result = state.phase === "draft" || state.phase === "confirming" ? state.result : state.phase === "error" ? state.result : undefined;
 
   return (
-    <main id="main-content" data-testid="agents-page" dir={locale === "ar" ? "rtl" : undefined} style={{ maxWidth: 840, margin: "0 auto", padding: 16, display: "grid", gap: 14 }}>
+    <div data-testid="agents-page" dir={locale === "ar" ? "rtl" : undefined} style={{ maxWidth: 840, margin: "0 auto", padding: 16, display: "grid", gap: 14 }}>
       <header style={{ display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
         <h1 style={{ margin: 0 }}>{at("title")}</h1>
         <button type="button" data-testid="agents-new" style={btnPrimary} disabled={!companyId} onClick={() => setOpen((o) => !o)} aria-expanded={open}>{at("new")}</button>
@@ -99,7 +102,7 @@ export default function AgentsPage() {
       {companies && companies.length > 1 && (
         <label style={{ display: "grid", gap: 4 }}>
           <span style={muted}>{at("company")}</span>
-          <select data-testid="agents-company" value={companyId} onChange={(e) => setCompanyId(e.target.value)} style={field}>
+          <select data-testid="agents-company" value={companyId} disabled={busy} onChange={(e) => setCompanyId(e.target.value)} style={field}>
             {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </label>
@@ -120,7 +123,9 @@ export default function AgentsPage() {
             <div role="alert" data-testid="agents-error" style={{ ...glassError, display: "grid", gap: 8 }}>
               <span>{at(`error.${state.kind}`)}</span>
               {state.stage === "confirm" && mayBeSaved(state.kind) && <span style={muted} data-testid="agents-maybe-saved">{at("maybeSaved")}</span>}
-              {state.stage === "confirm" && result && <div><button type="button" style={btn} onClick={() => void create()}>{at("retry")}</button></div>}
+              {state.stage === "confirm" && result && !mayBeSaved(state.kind) && <div><button type="button" style={btn} onClick={() => void create()}>{at("retry")}</button></div>}
+              {state.stage === "confirm" && result && mayBeSaved(state.kind) && <div><button type="button" data-testid="agents-refresh" style={btn} onClick={() => { setRefreshed(true); loadRows(); }}>{at("refreshList")}</button></div>}
+              {refreshed && result && rows?.some((a) => a.name === result.draft.name && a.role === result.draft.role) && <div role="status" data-testid="agents-already" style={muted}><strong>{result.draft.name}</strong> {at("created")}</div>}
             </div>
           )}
 
@@ -129,10 +134,10 @@ export default function AgentsPage() {
               <h3 style={{ margin: 0, fontSize: 16 }}>{at("previewTitle")} <span style={muted}>({at("notSaved")})</span></h3>
               <div><strong>{at("name")}{at("labelSep")}</strong>{result.draft.name}</div>
               <div><strong>{at("role")}{at("labelSep")}</strong>{ltr(result.draft.role)}</div>
-              <div><strong>{at("tools")}{at("labelSep")}</strong>{result.draft.tools.length ? result.draft.tools.map((x, i) => <span key={x}>{i > 0 && at("listSep")}{ltr(x)}</span>) : at("none")}</div>
+              <div><strong>{at("tools")}{at("labelSep")}</strong>{result.draft.tools.length ? result.draft.tools.map((x, i) => <span key={`${x}-${i}`}>{i > 0 && at("listSep")}{ltr(x)}</span>) : at("none")}</div>
               {result.droppedTools.length > 0 && (
                 <div role="alert" data-testid="agents-dropped" style={glassError}>
-                  {at("dropped", { count: result.droppedTools.length })}{at("labelSep")}{result.droppedTools.map((x, i) => <span key={x}>{i > 0 && at("listSep")}{ltr(x)}</span>)}
+                  {at("dropped", { count: result.droppedTools.length })}{at("labelSep")}{result.droppedTools.map((x, i) => <span key={`${x}-${i}`}>{i > 0 && at("listSep")}{ltr(x)}</span>)}
                 </div>
               )}
               <details>
@@ -152,7 +157,7 @@ export default function AgentsPage() {
           {state.phase === "created" && (
             <div role="status" data-testid="agents-created" style={flat}>
               <strong>{state.created.name}</strong> {at("created")}
-              {state.created.droppedTools.length > 0 && <div style={muted}>{at("dropped", { count: state.created.droppedTools.length })}{at("labelSep")}{state.created.droppedTools.map((x, i) => <span key={x}>{i > 0 && at("listSep")}{ltr(x)}</span>)}</div>}
+              {state.created.droppedTools.length > 0 && <div style={muted}>{at("dropped", { count: state.created.droppedTools.length })}{at("labelSep")}{state.created.droppedTools.map((x, i) => <span key={`${x}-${i}`}>{i > 0 && at("listSep")}{ltr(x)}</span>)}</div>}
             </div>
           )}
         </section>
@@ -161,16 +166,17 @@ export default function AgentsPage() {
       <section aria-label={at("listTitle")} style={{ display: "grid", gap: 8 }}>
         <h2 style={{ margin: 0, fontSize: 18 }}>{at("listTitle")}</h2>
         {rowsFailed && <div role="alert" data-testid="agents-list-error" style={glassError}>{at("listError")} <button type="button" style={btn} onClick={loadRows}>{at("retry")}</button></div>}
+        {rows === null && !rowsFailed && <div role="status" data-testid="agents-loading" style={muted}>{at("loading")}</div>}
         {rows !== null && rows.length === 0 && <div role="status" data-testid="agents-empty" style={flat}>{at("empty")}</div>}
         {rows?.map((a) => (
           <article key={a.id} data-testid="agent-row" style={{ ...flat, display: "grid", gap: 4, minWidth: 0, overflowWrap: "anywhere" }}>
             <strong>{a.name}</strong>
             <span style={muted}>{at("role")}{at("labelSep")}{a.role ? ltr(a.role) : at("unknown")} {at("pairSep")} {at("company")}{at("labelSep")}{companies?.find((c) => c.id === companyId)?.name ?? at("unknown")}</span>
-            <span style={muted}>{at("tools")}{at("labelSep")}{a.tools.length ? a.tools.map((x, i) => <span key={x}>{i > 0 && at("listSep")}{ltr(x)}</span>) : at("none")}</span>
+            <span style={muted}>{at("tools")}{at("labelSep")}{a.tools.length ? a.tools.map((x, i) => <span key={`${x}-${i}`}>{i > 0 && at("listSep")}{ltr(x)}</span>) : at("none")}</span>
             <span style={muted}>{at("status")}{at("labelSep")}{a.status ?? at("unknown")}</span>
           </article>
         ))}
       </section>
-    </main>
+    </div>
   );
 }

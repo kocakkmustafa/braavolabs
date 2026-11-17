@@ -1815,7 +1815,7 @@
       "listSep": ", ",
       "error": {
         "session": "Impossibile verificare l'accesso. Accedi di nuovo.",
-        "payment": "Il piano o il budget IA non lo consente ora (402). Controlla la Fatturazione prima di riprovare.",
+        "payment": "Raggiunto un limite di piano o budget (402). Controlla i limiti e riprova.",
         "forbidden": "Non hai l'autorizzazione per farlo.",
         "notFound": "Area di lavoro non trovata.",
         "rateLimit": "Troppe richieste (429). Attendi un momento e riprova.",
@@ -1825,7 +1825,9 @@
         "badDraft": "La bozza non è stata accettata. Descrivi l'agente in altro modo e crea una nuova bozza.",
         "badResponse": "La risposta del server non è stata compresa. Nulla è stato mostrato come salvato.",
         "generic": "Si è verificato un errore imprevisto. Riprova."
-      }
+      },
+      "refreshList": "Aggiorna elenco",
+      "loading": "Caricamento…"
     }
   },
   "static": {

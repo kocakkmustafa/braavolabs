@@ -1815,7 +1815,7 @@
       "listSep": ", ",
       "error": {
         "session": "Your sign-in could not be verified. Sign in again.",
-        "payment": "The plan or AI budget does not allow this right now (402). Check Billing before trying again.",
+        "payment": "A plan or budget limit was reached (402). Check your limits, then try again.",
         "forbidden": "You do not have permission for this.",
         "notFound": "This workspace was not found.",
         "rateLimit": "Too many requests (429). Wait a moment, then try again.",
@@ -1825,7 +1825,9 @@
         "badDraft": "The draft was not accepted. Describe the agent differently and draft again.",
         "badResponse": "The server reply was not understood. Nothing was shown as saved.",
         "generic": "An unexpected error occurred. Try again."
-      }
+      },
+      "refreshList": "Refresh list",
+      "loading": "Loading…"
     }
   },
   "static": {

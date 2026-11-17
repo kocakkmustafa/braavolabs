@@ -1815,7 +1815,7 @@
       "listSep": ", ",
       "error": {
         "session": "Oturumun doğrulanamadı. Yeniden giriş yap.",
-        "payment": "Plan ya da yapay zekâ bütçesi şu an buna izin vermiyor (402). Yeniden denemeden önce Faturalama'ya bak.",
+        "payment": "Plan veya bütçe sınırına ulaşıldı (402). Sınırları kontrol edip yeniden dene.",
         "forbidden": "Bunun için yetkin yok.",
         "notFound": "Çalışma alanı bulunamadı.",
         "rateLimit": "Çok fazla istek (429). Biraz bekleyip yeniden dene.",
@@ -1825,7 +1825,9 @@
         "badDraft": "Taslak kabul edilmedi. Ajanı farklı anlatıp yeniden taslak hazırla.",
         "badResponse": "Sunucu yanıtı anlaşılamadı. Hiçbir şey kayıtlı gösterilmedi.",
         "generic": "Beklenmeyen bir hata oluştu. Yeniden dene."
-      }
+      },
+      "refreshList": "Listeyi yenile",
+      "loading": "Yükleniyor…"
     }
   },
   "static": {

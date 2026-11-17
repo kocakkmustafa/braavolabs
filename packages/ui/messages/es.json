@@ -1815,7 +1815,7 @@
       "listSep": ", ",
       "error": {
         "session": "No se pudo verificar tu sesión. Inicia sesión de nuevo.",
-        "payment": "El plan o el presupuesto de IA no lo permite ahora (402). Revisa Facturación antes de reintentar.",
+        "payment": "Se alcanzó un límite de plan o presupuesto (402). Revisa los límites y reintenta.",
         "forbidden": "No tienes permiso para esto.",
         "notFound": "No se encontró este espacio de trabajo.",
         "rateLimit": "Demasiadas solicitudes (429). Espera un momento y reintenta.",
@@ -1825,7 +1825,9 @@
         "badDraft": "No se aceptó el borrador. Describe el agente de otra forma y crea otro borrador.",
         "badResponse": "No se entendió la respuesta del servidor. No se mostró nada como guardado.",
         "generic": "Ocurrió un error inesperado. Reintenta."
-      }
+      },
+      "refreshList": "Actualizar lista",
+      "loading": "Cargando…"
     }
   },
   "static": {

@@ -1815,7 +1815,7 @@
       "listSep": ", ",
       "error": {
         "session": "Deine Anmeldung konnte nicht bestätigt werden. Melde dich neu an.",
-        "payment": "Tarif oder KI-Budget erlauben das gerade nicht (402). Prüfe die Abrechnung, bevor du es erneut versuchst.",
+        "payment": "Ein Tarif- oder Budgetlimit wurde erreicht (402). Prüfe die Limits und versuche es erneut.",
         "forbidden": "Dafür fehlt dir die Berechtigung.",
         "notFound": "Dieser Arbeitsbereich wurde nicht gefunden.",
         "rateLimit": "Zu viele Anfragen (429). Warte kurz und versuche es erneut.",
@@ -1825,7 +1825,9 @@
         "badDraft": "Der Entwurf wurde nicht akzeptiert. Beschreibe den Agenten anders und erstelle einen neuen Entwurf.",
         "badResponse": "Die Serverantwort wurde nicht verstanden. Nichts wurde als gespeichert angezeigt.",
         "generic": "Ein unerwarteter Fehler ist aufgetreten. Versuche es erneut."
-      }
+      },
+      "refreshList": "Liste aktualisieren",
+      "loading": "Wird geladen…"
     }
   },
   "static": {

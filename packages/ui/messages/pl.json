@@ -1815,7 +1815,7 @@
       "listSep": ", ",
       "error": {
         "session": "Nie udało się zweryfikować logowania. Zaloguj się ponownie.",
-        "payment": "Plan lub budżet AI nie pozwala na to teraz (402). Sprawdź Rozliczenia przed ponowną próbą.",
+        "payment": "Osiągnięto limit planu lub budżetu (402). Sprawdź limity i spróbuj ponownie.",
         "forbidden": "Brak uprawnień do tej czynności.",
         "notFound": "Nie znaleziono przestrzeni roboczej.",
         "rateLimit": "Zbyt wiele żądań (429). Poczekaj chwilę i spróbuj ponownie.",
@@ -1825,7 +1825,9 @@
         "badDraft": "Szkic nie został przyjęty. Opisz agenta inaczej i przygotuj nowy szkic.",
         "badResponse": "Odpowiedź serwera jest niezrozumiała. Nic nie pokazano jako zapisane.",
         "generic": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie."
-      }
+      },
+      "refreshList": "Odśwież listę",
+      "loading": "Wczytywanie…"
     }
   },
   "static": {

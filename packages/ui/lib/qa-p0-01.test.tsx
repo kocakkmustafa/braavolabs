@@ -125,6 +125,11 @@ describe("(3) bayrak dışında /agents rotasına bağlantı verilmedi", () => {
     const hits = files.filter((f) => /["'`]\/agents(?:["'`/?#])/.test(readFileSync(f, "utf8"))).map((f) => relative(root, f));
     expect(hits).toEqual([]);
   });
+  it("components altında id=\"main-content\" ve iç içe <main> yok (AuthLayout tek main-content sahibi)", () => {
+    const withId = files.filter((f) => f.includes("/components/") && /id="main-content"/.test(readFileSync(f, "utf8"))).map((f) => relative(root, f));
+    expect(withId.filter((f) => !/MainContentTarget/.test(f))).toEqual([]);
+    expect(readFileSync(resolve(root, "components/agents/AgentsPage.tsx"), "utf8")).not.toMatch(/<main\b/);
+  });
   it("yan menü ve pipeline yerel menüsündeki her href gerçek bir rotaya gider", () => {
     for (const file of ["components/Sidebar.tsx", "app/pipelines/[id]/page.tsx"]) {
       const hrefs = [...read(file).matchAll(/href:\s*"(\/[a-z0-9-]*)"/g)].map((m) => m[1]);

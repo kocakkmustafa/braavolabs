@@ -1815,7 +1815,7 @@
       "listSep": ", ",
       "error": {
         "session": "Login kamu tidak dapat diverifikasi. Masuk lagi.",
-        "payment": "Paket atau anggaran AI tidak mengizinkan ini sekarang (402). Periksa Penagihan sebelum mencoba lagi.",
+        "payment": "Batas paket atau anggaran tercapai (402). Periksa batasnya lalu coba lagi.",
         "forbidden": "Kamu tidak punya izin untuk ini.",
         "notFound": "Ruang kerja tidak ditemukan.",
         "rateLimit": "Terlalu banyak permintaan (429). Tunggu sebentar lalu coba lagi.",
@@ -1825,7 +1825,9 @@
         "badDraft": "Draf tidak diterima. Jelaskan agen dengan cara lain lalu buat draf baru.",
         "badResponse": "Balasan server tidak dipahami. Tidak ada yang ditampilkan sebagai tersimpan.",
         "generic": "Terjadi kesalahan tak terduga. Coba lagi."
-      }
+      },
+      "refreshList": "Muat ulang daftar",
+      "loading": "Memuat…"
     }
   },
   "static": {

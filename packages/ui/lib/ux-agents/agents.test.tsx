@@ -122,6 +122,31 @@ describe("hata durumları açık metin", () => {
   });
 });
 
+describe("AgentsPage: belirsiz hata, yükleniyor, meşgul", () => {
+  const src = readFileSync(join(UI, "components/agents/AgentsPage.tsx"), "utf8");
+  it("mayBeSaved iken 'Yeniden dene' yok, 'Listeyi yenile' var; liste yenilenir", () => {
+    expect(src).toMatch(/result && !mayBeSaved\(state\.kind\) &&[^\n]*create\(\)/);
+    expect(src).toMatch(/mayBeSaved\(state\.kind\) && <div><button[^\n]*agents-refresh[^\n]*loadRows\(\)[^\n]*refreshList/);
+    expect(src).toContain('data-testid="agents-already"');
+  });
+  it("yükleniyor role=status, şirket seçici busy iken disabled, tekrarlı araç anahtarı benzersiz, iç içe main yok", () => {
+    expect(src).toMatch(/rows === null && !rowsFailed && <div role="status" data-testid="agents-loading"/);
+    expect(src).toMatch(/data-testid="agents-company" value=\{companyId\} disabled=\{busy\}/);
+    expect(src).not.toMatch(/<span key=\{x\}>/);
+    expect(src).not.toMatch(/<main\b/);
+  });
+  it("402 metni faturalamaya yönlendirmez (15 dil); refreshList/loading var", () => {
+    const dir = join(UI, "messages");
+    for (const f of readdirSync(dir).filter((x) => x.endsWith(".json"))) {
+      const m = JSON.parse(readFileSync(join(dir, f), "utf8")).app.agents;
+      expect(m.error.payment, f).toMatch(/402/);
+      expect(m.error.payment, f).not.toMatch(/Billing|Faturalama|Fatturazione|Facturación|Faturamento|Abrechnung|Penagihan|Rozliczenia|Facturation|請求|账单|결제|बिलिंग|الفوترة/);
+      expect(m.refreshList).toMatch(/\S/);
+      expect(m.loading).toMatch(/\S/);
+    }
+  });
+});
+
 describe("toAgentRows: yalnız API alanları, durum uydurulmaz", () => {
   it("map", () => {
     expect(toAgentRows([{ id: "a", name: "Ad", role: "r", tools: ["t"], autonomy: "BALANCED" }, { id: "b" }, null, { name: "idsiz" }])).toEqual([
