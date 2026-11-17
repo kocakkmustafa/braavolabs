@@ -34,7 +34,7 @@ import { bucketWhere, isInboxBucket, jobStaleAfterMs } from "./job-bucket-query"
 import { loadRunActivity } from "./activity";
 import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } from "./list-cursor";
 import { deriveStepGraph } from "./step-graph";
-import { loadChat, postChat } from "./chat";
+import { loadChat, postChat, CHAT_RATE_LIMIT } from "./chat";
 
 export const runRouter = Router();
 runRouter.use(authMiddleware);
@@ -45,8 +45,8 @@ const explainLimiter = rateLimit({ windowMs: 60_000, maxRequests: 10, keyPrefix:
 
 // Handoff create/continue can enqueue a run — throttle per-tenant so a
 // mis-scripted client can't stack ledgers/jobs (same shape as explainLimiter).
-// Anahtar tenantId:userId — tek üye tüm kiracının sohbetini kilitlemesin. Redis çökünce fail-closed (rateLimit.ts).
-const chatLimiter = rateLimit({ windowMs: 60_000, maxRequests: 30, keyPrefix: "rl:run:chat", identify: (req) => req.auth ? `${req.auth.tenantId}:${req.auth.userId}` : undefined });
+// Ayarlar chat.ts CHAT_RATE_LIMIT (testle paylaşılır). Redis çökünce fail-closed (rateLimit.ts).
+const chatLimiter = rateLimit(CHAT_RATE_LIMIT);
 const handoffLimiter = rateLimit({ windowMs: 60_000, maxRequests: 30, keyPrefix: "rl:run:handoff" });
 
 /**

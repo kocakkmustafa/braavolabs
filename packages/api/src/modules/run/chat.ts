@@ -22,6 +22,16 @@ export const CHAT_MAX_LIMIT = 100;
 export const CHAT_MAX_CONTENT = 4000;
 /** Run başına saklanan en fazla mesaj (retention). Aşılırsa 409 chat_limit. */
 export const CHAT_MAX_MESSAGES_PER_RUN = 500;
+/** Bu koşunun tüketilmemiş STEER kuyruğu tavanı (agent turu başına enjekte edilen yığın sınırlı kalsın). Kaynak ayrımı yok → /steer mesajları da sayılır. */
+export const CHAT_MAX_PENDING_STEER = 20;
+export const CHAT_MAX_PENDING_STEER_CHARS = 20_000;
+export const CHAT_RATE_LIMIT = {
+  windowMs: 60_000,
+  maxRequests: 30,
+  keyPrefix: "rl:run:chat",
+  // tenantId:userId — tek üye tüm kiracının sohbetini kilitlemesin.
+  identify: (req: { auth?: { tenantId: string; userId: string } }) => (req.auth ? `${req.auth.tenantId}:${req.auth.userId}` : undefined),
+} as const;
 export const STEERABLE_STATUSES = ["PENDING", "RUNNING", "PAUSED", "WAITING_APPROVAL"] as const;
 
 export const chatBodySchema = z.object({ content: z.string().trim().min(1).max(CHAT_MAX_CONTENT) }).strict();
@@ -47,7 +57,10 @@ const SECRET_PATTERNS: readonly RegExp[] = [
   /\bBearer\s+[A-Za-z0-9._~+/=-]{16,}/i,                       // Authorization başlığı
   /-----BEGIN [A-Z ]*PRIVATE KEY-----/,                         // PEM
   /\b[a-z][a-z0-9+.-]*:\/\/[^\s:/@]+:[^\s@/]+@/i,                // URL içi kimlik (postgres://u:pass@h)
-  /["']?\b(?:api[_-]?key|secret|token|password|passwd)["']?\s*[:=]\s*["']?[^\s"',}]{8,}/i, // key=val ve "key": "val"
+  // key=val / "key": "val". `\b` `_`'yi kelime sayar → DB_PASSWORD/client_secret kaçardı; bu yüzden öne sınırlı önek
+  // (en çok 40 karakter, iç içe nicelik yok → ReDoS'suz; girdi zaten 4000 karakterle sınırlı). BİLİNEN YANLIŞ POZİTİF:
+  // `const token = getTokenFromRequest(req)` gibi kod satırları bloklanabilir; 400 mesajı açık, kullanıcı değeri çıkarıp tekrar gönderir.
+  /(?<![A-Za-z0-9])["']?[A-Za-z0-9_-]{0,40}(?:api[_-]?key|secret|token|password|passwd)[A-Za-z0-9_-]{0,20}["']?\s*[:=]\s*["']?[^\s"',}]{8,}/i,
 ];
 export function containsRawSecret(text: string): boolean {
   return SECRET_PATTERNS.some((re) => re.test(text));
@@ -95,7 +108,19 @@ export async function postChat(db: any, input: { tenantId: string; userId: strin
     if (!run) throw new AppError(404, "Run not found");
     const count = await tx.jobMessage.count({ where: { tenantId, runId: run.id } });
     if (count >= CHAT_MAX_MESSAGES_PER_RUN) throw new AppError(409, "Chat message limit reached for this job.", undefined, "chat_limit");
+    // Sayım READ COMMITTED altında: eşzamanlı iki POST tavanı 1-2 mesaj aşabilir (kabul edilmiş; sert kilit yok).
     const queued = (STEERABLE_STATUSES as readonly string[]).includes(run.status);
+    if (queued) {
+      const pending: Array<{ content: string }> = await tx.steeringMessage.findMany({
+        where: { runId: run.id, kind: "STEER", consumedAt: null },
+        select: { content: true },
+        take: CHAT_MAX_PENDING_STEER + 1,
+      });
+      const chars = pending.reduce((n, m) => n + m.content.length, 0) + content.length;
+      if (pending.length >= CHAT_MAX_PENDING_STEER || chars > CHAT_MAX_PENDING_STEER_CHARS) {
+        throw new AppError(409, "Too many messages are waiting for the agent. Wait for it to pick them up.", undefined, "chat_backlog");
+      }
+    }
     const created = await tx.jobMessage.create({
       data: { tenantId, runId: run.id, role: "USER", content, authorUserId: userId },
     });

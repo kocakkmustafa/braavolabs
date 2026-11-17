@@ -9,8 +9,9 @@ vi.mock("../../../lib/redis", () => ({
   },
 }));
 import { rateLimit } from "../../../middleware/rateLimit";
+import { CHAT_RATE_LIMIT } from "../chat";
 
-const mk = () => rateLimit({ windowMs: 60_000, maxRequests: 30, keyPrefix: "rl:run:chat", identify: (req) => req.auth ? `${req.auth.tenantId}:${req.auth.userId}` : undefined });
+const mk = () => rateLimit(CHAT_RATE_LIMIT as any); // router.ts aynı sabiti kullanır
 async function hit(mw: any, tenantId: string, userId: string) {
   const res: any = { code: 200, setHeader() {}, status(c: number) { this.code = c; return this; }, json() { return this; } };
   let passed = false;

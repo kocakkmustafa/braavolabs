@@ -8,6 +8,7 @@ const msgFindMany = vi.hoisted(() => vi.fn());
 const msgCreate = vi.hoisted(() => vi.fn());
 const steerCreate = vi.hoisted(() => vi.fn());
 const logCreate = vi.hoisted(() => vi.fn());
+const steerFindMany = vi.hoisted(() => vi.fn());
 const msgCount = vi.hoisted(() => vi.fn());
 const approvalWrite = vi.hoisted(() => vi.fn());
 const authMw = vi.hoisted(() => (_q: unknown, _r: unknown, n: () => void) => n());
@@ -20,7 +21,7 @@ vi.mock("../../../lib/db", () => ({
       run: { findFirst: (...a: unknown[]) => runFindFirst(...a), update: approvalWrite },
       approval: { create: approvalWrite, update: approvalWrite, updateMany: approvalWrite },
       jobMessage: { create: (...a: unknown[]) => msgCreate(...a), count: (...a: unknown[]) => msgCount(...a) },
-      steeringMessage: { create: (...a: unknown[]) => steerCreate(...a) },
+      steeringMessage: { create: (...a: unknown[]) => steerCreate(...a), findMany: (...a: unknown[]) => steerFindMany(...a) },
       activityLog: { create: (...a: unknown[]) => logCreate(...a) },
     }),
   },
@@ -40,7 +41,7 @@ vi.mock("../../../config/env", () => ({ env: { NODE_ENV: "development", OFFLINE_
 import { runRouter } from "../router";
 import { decodeCursor, encodeCursor } from "../list-cursor";
 import { authMiddleware } from "../../../middleware/auth";
-import { containsRawSecret, CHAT_MAX_CONTENT, CHAT_MAX_MESSAGES_PER_RUN } from "../chat";
+import { containsRawSecret, CHAT_MAX_CONTENT, CHAT_MAX_MESSAGES_PER_RUN, CHAT_MAX_PENDING_STEER, CHAT_MAX_PENDING_STEER_CHARS, CHAT_RATE_LIMIT } from "../chat";
 
 const find = (method: "get" | "post") => (runRouter as Router as any).stack.find((l: any) => l.route?.path === "/:id/chat" && l.route.methods[method]);
 const getLayer = find("get"); const postLayer = find("post");
@@ -60,6 +61,7 @@ beforeEach(() => {
   runFindFirst.mockResolvedValue({ id: "run-1", status: "RUNNING" });
   msgFindMany.mockResolvedValue([]);
   msgCount.mockResolvedValue(0);
+  steerFindMany.mockResolvedValue([]);
   msgCreate.mockImplementation(async ({ data }: any) => ({ id: "m1", createdAt: new Date(Date.UTC(2026, 10, 17)), ...data }));
 });
 
@@ -190,7 +192,7 @@ describe("chat route'ları", () => {
       await call(postLayer, { body: { content: "x" } });
       expect(runFindFirst).toHaveBeenCalledTimes(1);
     });
-    it("tx atomikliği: steer yazımı hata verirse hata iletilir, başarı dönmez, activity_log yazılmaz", async () => {
+    it("sıra/hata yayılımı (mock rollback yapmaz; gerçek atomiklik $transaction'a dayanır): steer hata verirse hata iletilir, başarı dönmez, log yazılmaz", async () => {
       steerCreate.mockRejectedValueOnce(new Error("db down"));
       const { err, res } = await call(postLayer, { body: { content: "x" } });
       expect(err?.message).toBe("db down");
@@ -209,6 +211,32 @@ describe("chat route'ları", () => {
       msgCount.mockResolvedValue(CHAT_MAX_MESSAGES_PER_RUN - 1);
       expect((await call(postLayer, { body: { content: "x" } })).res.statusCode).toBe(201);
     });
+    it("steer birikimi: tüketilmemiş STEER sayısı tavana gelince 409 chat_backlog; yazma yok; sorgu tüketilmemiş+run'a bağlı", async () => {
+      steerFindMany.mockResolvedValue(Array.from({ length: CHAT_MAX_PENDING_STEER }, () => ({ content: "a" })));
+      const { err } = await call(postLayer, { body: { content: "x" } });
+      expect(err?.statusCode).toBe(409); expect(err?.code).toBe("chat_backlog");
+      expect(msgCreate).not.toHaveBeenCalled(); expect(steerCreate).not.toHaveBeenCalled();
+      expect(steerFindMany.mock.calls[0][0].where).toEqual({ runId: "run-1", kind: "STEER", consumedAt: null });
+    });
+    it("steer birikimi: karakter toplamı tavanı aşarsa 409 chat_backlog", async () => {
+      steerFindMany.mockResolvedValue([{ content: "a".repeat(CHAT_MAX_PENDING_STEER_CHARS - 1) }]);
+      expect((await call(postLayer, { body: { content: "xx" } })).err?.code).toBe("chat_backlog");
+    });
+    it("steer birikimi tavanın altında kabul; bitmiş koşuda kuyruk sorgulanmaz", async () => {
+      steerFindMany.mockResolvedValue([{ content: "a" }]);
+      expect((await call(postLayer, { body: { content: "x" } })).res.statusCode).toBe(201);
+      steerFindMany.mockClear(); runFindFirst.mockResolvedValue({ id: "run-1", status: "COMPLETED" });
+      await call(postLayer, { body: { content: "x" } });
+      expect(steerFindMany).not.toHaveBeenCalled();
+    });
+    it("limiter ayarı sabit: 30/dk, rl:run:chat, tenantId:userId (router bu sabiti kullanır)", () => {
+      expect(CHAT_RATE_LIMIT).toMatchObject({ maxRequests: 30, windowMs: 60_000, keyPrefix: "rl:run:chat" });
+      expect(CHAT_RATE_LIMIT.identify({ auth: { tenantId: "t", userId: "u" } })).toBe("t:u");
+    });
+    it("kod satırı yanlış pozitifi belgelenmiş davranış: const token = getTokenFromRequest(req) bloklanır", () => {
+      expect(containsRawSecret("const token = getTokenFromRequest(req)")).toBe(true);
+      expect(containsRawSecret("const token = 1")).toBe(false);
+    });
     it("sır reddi hatası içeriği yankılamaz", async () => {
       const secret = "sk_live_abcdefgh12345678";
       const { err } = await call(postLayer, { body: { content: "anahtar " + secret } });
@@ -223,6 +251,7 @@ describe("chat route'ları", () => {
       ["sk_live_abcdefgh12345678"], ["sk_test_abcdefgh12345678"], ["whsec_abcdefgh12345678"], ["glpat-abcdefghij1234567890"],
       ["npm_abcdefghijklmnopqrstuvwxyz0123456789"], ["postgres://user:pa55word@db.example.com/x"], ["https://u:p@host.example"],
       ["-----BEGIN PRIVATE KEY-----"], ["-----BEGIN OPENSSH PRIVATE KEY-----"], ["Authorization: Bearer abcdefghijklmnop1234"],
+      ["DB_PASSWORD=supersecret123"], ["client_secret=abcdefgh12345"], ["access_token=abcdefgh12345"], ["SECRET_KEY=abcdefgh12345"],
       ["xoxb-1234567890-abcdefghij"], ["xoxp-1234567890-abcdefghij"], ["ghp_abcdefghijklmnopqrstuvwxyz0123"], ["gho_abcdefghijklmnopqrstuvwxyz0123"],
       ["github_pat_11ABCDEFG0abcdefghijklmnop"], ["AKIAABCDEFGHIJKLMNOP"], ["sk-abcdefghijklmnopqrstuvwx"], ["password=correcthorsebattery"],
     ])("yakalanır: %s", (t) => { expect(containsRawSecret("bak " + t + " şunu")).toBe(true); });

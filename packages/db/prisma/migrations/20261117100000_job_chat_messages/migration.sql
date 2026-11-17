@@ -21,6 +21,10 @@ CREATE TABLE "job_messages" (
 -- CreateIndex
 CREATE INDEX "job_messages_tenant_id_run_id_created_at_id_idx" ON "job_messages"("tenant_id", "run_id", "created_at" DESC, "id" DESC);
 
+-- CreateIndex (FK silme/SET NULL taraması)
+CREATE INDEX "job_messages_run_id_idx" ON "job_messages"("run_id");
+CREATE INDEX "job_messages_author_user_id_idx" ON "job_messages"("author_user_id");
+
 -- AddForeignKey
 ALTER TABLE "job_messages" ADD CONSTRAINT "job_messages_tenant_id_fkey" FOREIGN KEY ("tenant_id") REFERENCES "tenants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
