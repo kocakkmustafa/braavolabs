@@ -344,3 +344,25 @@ describe("dataTransferStructured (BRA-UX-API-07)", () => {
     expect(h.dataTransferStructured).toEqual({ kind: "handoff", provider: "openai" });
   });
 });
+
+describe("dataTransferStructured sınırları (BRA-UX-API-07 nit)", () => {
+  it("fields en çok MAX_DETAIL_ITEMS; her ad ≤41 karakter (toplam boyut sınırlı)", () => {
+    const input: Record<string, string> = {};
+    for (let i = 0; i < 30; i++) input[`f${i}`] = "v";
+    const d = deriveApprovalDetails("SPEND", { toolName: "t", input });
+    const s = d.dataTransferStructured as { kind: string; fields: string[] };
+    expect(s.fields).toHaveLength(MAX_DETAIL_ITEMS);
+    expect(s.fields.every((f) => f.length <= 41)).toBe(true);
+    expect(deriveApprovalDetails("SPEND", { toolName: "t", input: { ["a".repeat(42)]: 1, ok: 1 } }).dataTransferStructured)
+      .toEqual({ kind: "input_fields", tool: "t", fields: ["ok"] });
+  });
+  it("leaksSecret ile elenen alan adı yapılandırılmış alana geçmez", () => {
+    const d = deriveApprovalDetails("SPEND", { toolName: "t", input: { sk_live_abc: 1, ghp_x: 1, ["f".repeat(32)]: 1, safe: 1 } });
+    expect(d.dataTransferStructured).toEqual({ kind: "input_fields", tool: "t", fields: ["safe"] });
+  });
+  it("leaksSecret ile elenen araç adı: yapılandırılmış alan yok", () => {
+    const d = deriveApprovalDetails("SPEND", { toolName: "sk-live-abcdef", input: { a: 1 } });
+    expect(d.dataTransfer).toBeNull();
+    expect("dataTransferStructured" in d).toBe(false);
+  });
+});

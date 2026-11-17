@@ -19,7 +19,9 @@
  *                ADLARI, değer yok); EXTERNAL_CONTROL: bağlantı/hedef kimliği (kimlik
  *                allowlist'i); HANDOFF: sağlayıcı/model. Step kapısı ve INPUT: null.
  *   dataTransferStructured (BRA-UX-API-07) dataTransfer ile aynı kaynak/süzgeç, metinsiz: yalnız
- *                araç/alan ADLARI + ham yön; dataTransfer null ise alan hiç yok.
+ *                araç/alan/kimlik ADLARI (yön ayrı alan değil, `kind`'dan çıkar; external_control
+ *                için ham `action` ayrıca var). Boyut: fields ≤ MAX_DETAIL_ITEMS (10), her ad
+ *                ≤ 41 karakter, kimlik/araç/sağlayıcı ≤ 64 → toplam sınırlı. dataTransfer null ise alan hiç yok.
  *   reversible   metadata.reversible YALNIZ boolean ise (BRA-UX-API-01c): para harcayan araç
  *                çağrısı false, external_control TRIGGER false / PAUSE-RESUME true. Kayıt yoksa
  *                (eski onaylar, adım kapısı, INPUT, HANDOFF, para dışı araçlar) null.

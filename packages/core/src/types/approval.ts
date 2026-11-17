@@ -24,6 +24,7 @@ export type ApprovalRisk = "low" | "medium" | "high";
 
 /** Yapılandırılmış veri aktarımı: yalnız araç/alan ADLARI ve ham yön değerleri; değer yok. */
 export type ApprovalDataTransfer =
+  /** `input_fields`: SPEND araç kapısının girdi alanı adları; INPUT (ask_user) onay tipiyle ilgisi YOK. */
   | { kind: "input_fields"; tool: string; fields: string[] }
   | { kind: "external_control"; action?: string; connectionId: string; targetId?: string }
   | { kind: "handoff"; provider: string; model?: string };
