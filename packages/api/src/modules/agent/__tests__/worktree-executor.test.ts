@@ -337,8 +337,10 @@ describe("applyWorktreePlan", () => {
     const realOpen = fs.open.bind(fs);
     vi.spyOn(fs, "open").mockImplementation(async (...args: Parameters<typeof fs.open>) => {
       if (String(args[0]).endsWith("/m.txt") && (Number(args[1] ?? 0) & 3) === 1) {
-        await fs.unlink(join(root, "m.txt"));
-        await fs.writeFile(join(root, "m.txt"), "replacement");
+        // Create the replacement while the target still exists (guaranteed different inode),
+        // then rename over it. Never unlink+recreate: ext4 reuses freed inode numbers.
+        await fs.writeFile(join(root, "m.new"), "replacement");
+        await fs.rename(join(root, "m.new"), join(root, "m.txt"));
       }
       return realOpen(...args);
     });
