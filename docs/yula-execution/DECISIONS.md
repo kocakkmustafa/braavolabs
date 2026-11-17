@@ -318,3 +318,15 @@ UNION ALL SELECT 'approvals NULL, deploy sonrası', count(*) FROM approvals WHER
 - **Sandbox sınırı:** yalnız yol/symlink sınırı + dry-run varsayılanı. Süreç ve ağ izolasyonu KAPSAM DIŞI. Gerçek komut çalıştırma ve ağ bu biletin DIŞINDADIR (modül `child_process`/ağ içermez; testle sabitli).
 - **Bağlama:** Modül hiçbir ajan aracına, env bayrağına ya da route'a bağlı değildir (bayrak-kapalı tasarım). Bağlamak ayrı bilet ve kurucu onayı ister.
 - **Bilinen sınırlar:** Kontrol ile yazım arasında yarış (TOCTOU) tamamen kapatılmaz (yeniden kontrol + O_NOFOLLOW ile daraltılır; ara dizin bileşenleri O_NOFOLLOW kapsamında değildir); geri alma en-iyi-çabadır; yalnız POSIX; büyük/küçük harf duyarsız dosya sistemi çakışmasını planlayıcı çözer.
+
+---
+
+## ADR-0007 — "Göstererek Öğret" kaydı neyi kaydeder? (BRA-P2-01a)
+
+- **Durum:** Accepted (kurucu kararı 2026-11-18, toplu onay md.8: seçenek **a**).
+- **Bağlam:** "Göstererek Öğret" (workflow kaydı → onaylı taslak → güvenli tekrar) için belgelerde "kayıt" kaynağı tanımsızdı; Chrome/bilgisayar kontrolü kapsamı K1/K2 ile çelişkiliydi. Ürün değişmezi: gözetim (surveillance) yok; her araç çağrısı `tool_calls`'a, her adım gerekçesiyle `run_steps`'e yazılır (CLAUDE.md kural 1–2).
+- **Seçenekler:** a) yalnız mevcut **araç çağrısı izi** (`ToolCall` / `RunStep`; ekran, UI olayı ya da ekran görüntüsü YOK) · b) kullanıcının onaylı UI eylemleri (yalnız desktop, izinli uygulama) · c) ertele.
+- **Karar:** **a.** "Kayıt", bir koşunun zaten tutulan araç çağrısı izidir: araç adı, girdi/çıktı özeti, adım gerekçesi, sıra, maliyet ve onay satırları. Taslak (workflow) bu izden TÜRETİLİR; kullanıcı onaylamadan çalıştırılmaz ve tekrar, mevcut onay/bütçe/dış-eylem kapıları (exact-action onay, outbound gates, job bütçesi) altında yürür.
+- **Kapsam dışı (bu kararla):** ekran/UI olayı/ekran görüntüsü kaydı, tuş vuruşu, pano, tarayıcı içeriği, kullanıcı faaliyeti izleme. b seçeneği (onaylı desktop UI eylemleri) ayrı bir karar ve kurucu onayı olmadan açılmaz; bu ADR onu engellemez ama varsaymaz.
+- **Sonuçlar:** Yeni bir "kayıt" yazıcısı gerekmez; mevcut `ToolCall`/`RunStep` yeterlidir. Kalıcı bir "kaydedilmiş workflow" nesnesi (BRA-P2-01b: yeni tablo, yalnız ekleyen migration) bu kararın DEVAMIDIR ve ayrı biletle, migration olarak yalnız `v*` ile canlıya çıkar; arayüz Braavolabs Tasarım'a bağlıdır. Taslak üretimi sırasında girdi/çıktı özetleri mevcut redaksiyon kurallarından (sır/PII maskeleme) geçer.
+- **Doğrulama (bu PR):** yalnız belge; kod, migration, bayrak ya da arayüz değişikliği yok.
