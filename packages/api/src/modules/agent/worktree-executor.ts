@@ -23,7 +23,7 @@
 import { constants as fsc, promises as fs } from "node:fs";
 import type { FileHandle } from "node:fs/promises";
 import { posix } from "node:path";
-import type { PatchInput, PatchOp, WorktreePlan } from "./worktree-planner";
+import { MAX_CONTENT_BYTES, planWorktree, type PatchInput, type PatchOp, type WorktreePlan } from "./worktree-planner";
 
 export type ExecutorErrorCode =
   | "ROOT_MISSING"
@@ -53,7 +53,16 @@ export interface FileReport {
 
 export type ApplyResult =
   | { ok: true; dryRun: boolean; files: FileReport[] }
-  | { ok: false; code: ExecutorErrorCode; message: string; paths?: string[]; rolledBack?: boolean };
+  | {
+      ok: false;
+      code: ExecutorErrorCode;
+      message: string;
+      paths?: string[];
+      /** true only when every undo step succeeded. */
+      rolledBack?: boolean;
+      /** Paths whose undo failed (only when rolledBack is false after a real-mode failure). */
+      unrestoredPaths?: string[];
+    };
 
 export interface ApplyOptions {
   /** Default TRUE. Real writes need an explicit `false`. */
@@ -72,6 +81,11 @@ const fail = (code: ExecutorErrorCode, message: string, extra: Partial<Fail> = {
 const errCode = (e: unknown): string | undefined => (e as NodeJS.ErrnoException | undefined)?.code;
 const utf8Len = (s: string) => Buffer.byteLength(s, "utf8");
 const O_NOFOLLOW = fsc.O_NOFOLLOW ?? 0;
+const O_NONBLOCK = fsc.O_NONBLOCK ?? 0;
+const CODES = new Set<string>([
+  "ROOT_MISSING", "SYMLINK_ESCAPE", "TARGET_EXISTS", "TARGET_MISSING", "TARGET_NOT_REGULAR",
+  "SENSITIVE_NOT_APPROVED", "PLAN_INVALID", "PATCH_PLAN_MISMATCH", "APPLY_FAILED",
+]);
 
 interface Checked {
   /** Real root directory. */
@@ -82,6 +96,18 @@ interface Checked {
 
 /** Read-only check of one file's parent chain and target. Returns a failure or null. */
 async function checkFile(
+  realRoot: string,
+  root: string,
+  file: { path: string; absPath: string; op: PatchOp },
+): Promise<Fail | null> {
+  try {
+    return await checkFileInner(realRoot, root, file);
+  } catch (e) {
+    return fail("APPLY_FAILED", `${file.path}: check failed (${errCode(e) ?? "error"})`, { rolledBack: false });
+  }
+}
+
+async function checkFileInner(
   realRoot: string,
   root: string,
   file: { path: string; absPath: string; op: PatchOp },
@@ -132,10 +158,12 @@ async function checkFile(
   }
   if (file.op === "create") return fail("TARGET_EXISTS", `${file.path}: target already exists`);
   if (!st.isFile()) return fail("TARGET_NOT_REGULAR", `${file.path}: target is not a regular file`);
+  if (st.size > MAX_CONTENT_BYTES) return fail("TARGET_NOT_REGULAR", `${file.path}: existing file too large`);
+  if (file.op === "modify" && st.nlink > 1) return fail("TARGET_NOT_REGULAR", `${file.path}: target is hard-linked`);
   return null;
 }
 
-type Undo = () => Promise<void>;
+type Undo = { path: string; run: () => Promise<void> };
 
 async function writeAll(fh: FileHandle, buf: Buffer): Promise<void> {
   let off = 0;
@@ -145,10 +173,13 @@ async function writeAll(fh: FileHandle, buf: Buffer): Promise<void> {
   }
 }
 
-async function openRegular(path: string, flags: number, mode?: number): Promise<FileHandle> {
-  const fh = await fs.open(path, flags | O_NOFOLLOW, mode);
+async function openRegular(path: string, flags: number, mode?: number, forbidLinks = false): Promise<FileHandle> {
+  const fh = await fs.open(path, flags | O_NOFOLLOW | O_NONBLOCK, mode);
   try {
-    if (!(await fh.stat()).isFile()) throw Object.assign(new Error("not regular"), { code: "ENOTREG" });
+    const st = await fh.stat();
+    if (!st.isFile()) throw Object.assign(new Error("not regular"), { code: "ENOTREG" });
+    if (st.size > MAX_CONTENT_BYTES) throw Object.assign(new Error("too large"), { code: "E2BIG" });
+    if (forbidLinks && st.nlink > 1) throw Object.assign(new Error("hardlink"), { code: "EHARDLINK" });
   } catch (e) {
     await fh.close();
     throw e;
@@ -186,7 +217,17 @@ export async function applyWorktreePlan(
   if (typeof plan.root !== "string" || !posix.isAbsolute(plan.root)) {
     return fail("PLAN_INVALID", "plan root is not absolute");
   }
+  if (typeof plan.workDir !== "string") return fail("PLAN_INVALID", "plan workDir missing");
   if (!Array.isArray(patches)) return fail("PATCH_PLAN_MISMATCH", "patches is not an array");
+  {
+    const seenPlan = new Set<string>();
+    for (const f of plan.files) {
+      if (!f || typeof f.path !== "string" || seenPlan.has(f.path)) {
+        return fail("PLAN_INVALID", "duplicate or malformed plan entry");
+      }
+      seenPlan.add(f.path);
+    }
+  }
 
   // patches <-> plan
   if (patches.length !== plan.files.length) {
@@ -211,6 +252,21 @@ export async function applyWorktreePlan(
     if (hasContent) contents.set(f.path, Buffer.from(p.content as string, "utf8"));
   }
 
+  // Do not trust the plan object: re-plan from root/subPath/patches and compare
+  // absPath + sensitive (and everything else) with what the planner would say.
+  const subPath = posix.relative(plan.root, plan.workDir);
+  if (subPath.startsWith("..") || posix.isAbsolute(subPath)) return fail("PLAN_INVALID", "workDir outside root");
+  const fresh = planWorktree({ root: plan.root, subPath: subPath === "" ? undefined : subPath, patches });
+  if (!fresh.ok) return fail("PLAN_INVALID", `re-plan failed: ${fresh.code}`);
+  if (fresh.root !== plan.root || fresh.workDir !== plan.workDir) return fail("PLAN_INVALID", "root/workDir differ from re-plan");
+  const freshByPath = new Map(fresh.files.map((f) => [f.path, f]));
+  for (const f of plan.files) {
+    const g = freshByPath.get(f.path);
+    if (!g || g.op !== f.op || g.bytes !== f.bytes || g.absPath !== f.absPath || g.sensitive !== f.sensitive) {
+      return fail("PLAN_INVALID", `${f.path}: plan entry differs from re-plan`);
+    }
+  }
+
   // sensitive gate (also in dry-run)
   const sensitive = plan.files.filter((f) => f.sensitive).map((f) => f.path);
   if (sensitive.length > 0 && opts.approveSensitive !== true) {
@@ -226,7 +282,7 @@ export async function applyWorktreePlan(
     return fail("ROOT_MISSING", "root does not exist");
   }
 
-  // pre-checks, read-only
+  // pre-checks, read-only (checkFile never rejects)
   for (const f of plan.files) {
     const r = await checkFile(realRoot, plan.root, f);
     if (r) return r;
@@ -249,21 +305,24 @@ export async function applyWorktreePlan(
   const undo: Undo[] = [];
   const createdDirs: string[] = [];
   const reports: FileReport[] = [];
-  const rollback = async () => {
+  /** Returns the paths that could NOT be restored (empty = fully rolled back). */
+  const rollback = async (): Promise<string[]> => {
+    const unrestored: string[] = [];
     for (const u of undo.reverse()) {
       try {
-        await u();
+        await u.run();
       } catch {
-        /* best effort */
+        unrestored.push(u.path);
       }
     }
     for (const d of createdDirs.reverse()) {
       try {
         await fs.rmdir(d);
       } catch {
-        /* best effort */
+        unrestored.push(posix.relative(realRoot, d) + "/");
       }
     }
+    return unrestored;
   };
 
   try {
@@ -277,7 +336,7 @@ export async function applyWorktreePlan(
       if (f.op === "create") {
         await ensureDirs(realRoot, posix.dirname(rel), createdDirs);
         const fh = await openRegular(target, fsc.O_WRONLY | fsc.O_CREAT | fsc.O_EXCL, 0o644);
-        undo.push(() => fs.unlink(target));
+        undo.push({ path: f.path, run: () => fs.unlink(target) });
         try {
           await writeAll(fh, buf as Buffer);
         } finally {
@@ -285,7 +344,7 @@ export async function applyWorktreePlan(
         }
         reports.push({ path: f.path, op: f.op, action: "created", bytes: f.bytes });
       } else if (f.op === "modify") {
-        const rh = await openRegular(target, fsc.O_RDONLY);
+        const rh = await openRegular(target, fsc.O_RDONLY, undefined, true);
         let original: Buffer;
         let mode: number;
         try {
@@ -294,7 +353,7 @@ export async function applyWorktreePlan(
         } finally {
           await rh.close();
         }
-        undo.push(async () => {
+        undo.push({ path: f.path, run: async () => {
           const h = await openRegular(target, fsc.O_WRONLY | fsc.O_TRUNC);
           try {
             await writeAll(h, original);
@@ -302,8 +361,8 @@ export async function applyWorktreePlan(
             await h.close();
           }
           await fs.chmod(target, mode);
-        });
-        const wh = await openRegular(target, fsc.O_WRONLY | fsc.O_TRUNC);
+        } });
+        const wh = await openRegular(target, fsc.O_WRONLY | fsc.O_TRUNC, undefined, true);
         try {
           await writeAll(wh, buf as Buffer);
         } finally {
@@ -321,7 +380,7 @@ export async function applyWorktreePlan(
           await rh.close();
         }
         await fs.unlink(target);
-        undo.push(async () => {
+        undo.push({ path: f.path, run: async () => {
           const h = await openRegular(target, fsc.O_WRONLY | fsc.O_CREAT | fsc.O_EXCL, mode);
           try {
             await writeAll(h, original);
@@ -329,13 +388,20 @@ export async function applyWorktreePlan(
             await h.close();
           }
           await fs.chmod(target, mode);
-        });
+        } });
         reports.push({ path: f.path, op: f.op, action: "deleted", bytes: f.bytes });
       }
     }
   } catch (e) {
-    await rollback();
-    return fail("APPLY_FAILED", `apply failed (${errCode(e) ?? "error"}); rolled back`, { rolledBack: true });
+    const unrestored = await rollback();
+    const c = errCode(e);
+    const code: ExecutorErrorCode = c && CODES.has(c) ? (c as ExecutorErrorCode) : "APPLY_FAILED";
+    const rolledBack = unrestored.length === 0;
+    return fail(
+      code,
+      `apply failed (${c ?? "error"}); ${rolledBack ? "rolled back" : "ROLLBACK INCOMPLETE"}`,
+      rolledBack ? { rolledBack } : { rolledBack, unrestoredPaths: unrestored },
+    );
   }
   return { ok: true, dryRun: false, files: reports };
 }
