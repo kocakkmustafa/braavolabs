@@ -8,10 +8,10 @@
  * retired) joins only with an explicit `--model-GOOGLE <id>`.
  * Arguments are strict: unknown flags, missing values and bad numbers are errors.
  */
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, renameSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { PRICES_VERIFIED_BY_FOUNDER, PRICE_WARNING, REAL_RUN_DEFAULT_MODELS, REAL_RUN_DEFAULT_PROVIDERS } from "./pricing";
-import { DEFAULT_CAP_USD, RealRunRefusal, liveGuardReasons } from "./guards";
+import { DEFAULT_CAP_USD, RealRunRefusal, capToMicroUsd, liveGuardReasons } from "./guards";
 import { makeFakeProvider } from "./fake-provider";
 import { reportToMarkdown } from "./report";
 import { runRealRun, type ProviderCall, type RealRunReport, type Target } from "./runner";
@@ -99,6 +99,21 @@ export function parseArgs(argv: string[]): ParsedArgs {
   };
 }
 
+/** mkdir -p, must be a directory, and a write probe (temp file written then removed). */
+export function prepareOutDir(out: string): string {
+  const dir = resolve(out);
+  try {
+    mkdirSync(dir, { recursive: true });
+    if (!statSync(dir).isDirectory()) throw new Error("not a directory");
+    const probe = join(dir, `.write-probe-${process.pid}`);
+    writeFileSync(probe, "");
+    unlinkSync(probe);
+  } catch {
+    return refuse("OUT_NOT_WRITABLE", "--out must be a writable directory");
+  }
+  return dir;
+}
+
 export async function runCli(
   argv: string[],
   env: Record<string, string | undefined>,
@@ -119,6 +134,10 @@ export async function runCli(
       return { exitCode: 2 };
     }
 
+    capToMicroUsd(args.capUsd); // refuse a bad cap before touching the file system
+    // Validate the output directory BEFORE any provider is built or called.
+    const dir = prepareOutDir(args.out as string);
+
     io.log(`mode=${args.live ? "live" : "dry-run"} capUsd=${args.capUsd} targets: ${args.targets.map((t) => `${t.provider}/${t.model}`).join(", ")}`);
     if (!PRICES_VERIFIED_BY_FOUNDER) io.log(`WARNING: ${PRICE_WARNING}`);
 
@@ -134,12 +153,26 @@ export async function runCli(
       now = fake.now;
     }
 
-    const report = await runRealRun({ mode: args.live ? "live" : "dry-run", targets: args.targets, call, now, capUsd: args.capUsd });
+    const report = await runRealRun({
+      mode: args.live ? "live" : "dry-run", targets: args.targets, call, now, capUsd: args.capUsd,
+      // Partial result after every task x provider, replaced atomically; a failing write never stops the run.
+      onProgress: (partial) => {
+        try {
+          const tmp = join(dir, "partial.json.tmp");
+          writeFileSync(tmp, JSON.stringify(partial, null, 2) + "\n");
+          renameSync(tmp, join(dir, "partial.json"));
+        } catch { /* best effort */ }
+      },
+    });
 
-    const dir = resolve(args.out as string);
-    mkdirSync(dir, { recursive: true });
-    writeFileSync(join(dir, "bench-real-run.json"), JSON.stringify(report, null, 2) + "\n");
-    writeFileSync(join(dir, "bench-real-run.md"), reportToMarkdown(report));
+    try {
+      writeFileSync(join(dir, "bench-real-run.json"), JSON.stringify(report, null, 2) + "\n");
+      writeFileSync(join(dir, "bench-real-run.md"), reportToMarkdown(report));
+    } catch {
+      // Results must not be lost: print them (ids and numbers only; no keys or prompts).
+      io.log(JSON.stringify({ error: "REPORT_WRITE_FAILED", report }));
+      return { exitCode: 4, report };
+    }
     io.log(
       `status=${report.status} setHash=${report.setHash} ` +
         `estimateUsd=${(report.estimate.totalMicroUsd / 1e6).toFixed(6)} spentUsd=${(report.spentMicroUsd / 1e6).toFixed(6)}`,

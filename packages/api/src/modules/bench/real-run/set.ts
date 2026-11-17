@@ -14,7 +14,7 @@ import { createHash } from "node:crypto";
 import { BUILTIN_SUITES } from "../suites";
 import { MAX_RETRIES, PROVIDER_RETRY_FACTOR } from "./guards";
 import { REAL_RUN_DEFAULT_MODELS, REAL_RUN_DEFAULT_PROVIDERS } from "./pricing";
-import { SCORING_VERSION } from "./scoring";
+import { SCORING_FINGERPRINT, SCORING_VERSION } from "./scoring";
 
 export const REAL_RUN_SET_VERSION = "1.0.0";
 
@@ -23,7 +23,7 @@ export type Scorer =
   | { kind: "label"; expected: "APPROVE" | "AUTO" | "REFUSE" }
   /** score = matched groups / groups (each group counts once). An alternative
    * is a whole word/phrase (case-insensitive); a trailing `*` makes it a stem.
-   * Negated hits ("not ...") do not count; stuffing (no prose) x0.25;
+   * A hit right after not/never/n't does not count; stuffing x0.25;
    * over `maxChars` (default 1200) the answer is cut and halved;
    * `maxWords` exceeded => 0. See scoring.ts (SCORING_VERSION). */
   | { kind: "keywords"; groups: string[][]; maxWords?: number; maxChars?: number };
@@ -149,6 +149,7 @@ export function computeSetHash(tasks: readonly RealRunTask[] = REAL_RUN_TASKS, v
     version,
     tasks,
     scoringVersion: SCORING_VERSION,
+    scoringFingerprint: SCORING_FINGERPRINT,
     maxRetries: MAX_RETRIES,
     providerRetryFactor: PROVIDER_RETRY_FACTOR,
     defaultModels: REAL_RUN_DEFAULT_MODELS,

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { REAL_RUN_SET_HASH, REAL_RUN_TASKS, REAL_RUN_TOTAL_TASKS, computeSetHash } from "../set";
@@ -7,11 +7,11 @@ import { REAL_RUN_PRICES, costMicroUsd, estimateTokens, worstCaseMicroUsd } from
 import { PROVIDER_RETRY_FACTOR, capToMicroUsd, liveGuardReasons, RealRunRefusal } from "../guards";
 import { estimateRun, runRealRun, type ProviderCall, type Target } from "../runner";
 import { makeFakeProvider } from "../fake-provider";
-import { SCORING_VERSION, scoreAnswer } from "../scoring";
+import { SCORING_FINGERPRINT, SCORING_VERSION, scoreAnswer } from "../scoring";
 import { parseArgs, runCli } from "../cli";
 import { createLiveProvider } from "../live-provider";
 
-const PINNED_HASH = "89d9abfad03831bd6ef255b4593c5cdff9144abe8333417e4e4b5b461b521085";
+const PINNED_HASH = "3c1d08ceb9ca78efbfd73070856050ab345e0c9f93daaebcd197308be4f8883a";
 const TARGETS: Target[] = [
   { provider: "ANTHROPIC", model: "claude-sonnet-5-5" },
   { provider: "OPENAI", model: "gpt-4o" },
@@ -31,7 +31,8 @@ describe("real-run set", () => {
     expect(REAL_RUN_TOTAL_TASKS).toBe(30);
     expect(computeSetHash()).toBe(REAL_RUN_SET_HASH);
     expect(REAL_RUN_SET_HASH).toBe(PINNED_HASH);
-    expect(SCORING_VERSION).toBe("2");
+    expect(SCORING_VERSION).toBe("3");
+    expect(SCORING_FINGERPRINT).toMatch(/^[0-9a-f]{64}$/);
   });
   it("hash changes with a task or the version", () => {
     const mod = REAL_RUN_TASKS.map((t, i) => (i === 0 ? { ...t, maxTokens: t.maxTokens + 1 } : t));
@@ -233,13 +234,34 @@ describe("runner", () => {
 
 describe("scoring", () => {
   const kw = (groups: string[][], extra: object = {}) => ({ kind: "keywords" as const, groups, ...extra });
-  it("label scorer is strict about position and ambiguity", () => {
-    const s = { kind: "label" as const, expected: "APPROVE" as const };
-    expect(scoreAnswer(s, "APPROVE - public")).toBe(1);
-    expect(scoreAnswer(s, "**APPROVE** because")).toBe(1);
-    expect(scoreAnswer(s, "AUTO then APPROVE")).toBe(0);
-    expect(scoreAnswer(s, "APPROVE / AUTO / REFUSE")).toBe(0);
-    expect(scoreAnswer(s, "I think it should be APPROVE")).toBe(0);
+  it("label scorer: first decision counts, case-insensitive, compounds are not labels", () => {
+    const L = (expected: "APPROVE" | "AUTO" | "REFUSE") => ({ kind: "label" as const, expected });
+    expect(scoreAnswer(L("APPROVE"), "APPROVE - public")).toBe(1);
+    expect(scoreAnswer(L("APPROVE"), "**APPROVE** because")).toBe(1);
+    expect(scoreAnswer(L("APPROVE"), "Approve — it is public")).toBe(1);
+    expect(scoreAnswer(L("REFUSE"), "REFUSE — this cannot be AUTO or APPROVEd")).toBe(1);
+    expect(scoreAnswer(L("APPROVE"), "REFUSE — this cannot be AUTO or APPROVEd")).toBe(0);
+    expect(scoreAnswer(L("APPROVE"), "AUTO then APPROVE")).toBe(0);
+    expect(scoreAnswer(L("APPROVE"), "AUTO-executable steps aside, APPROVE")).toBe(1);
+    expect(scoreAnswer(L("APPROVE"), "I think it should be APPROVE")).toBe(1);
+    expect(scoreAnswer(L("APPROVE"), "No decision here.")).toBe(0);
+    // echoing the whole menu is not an answer
+    expect(scoreAnswer(L("APPROVE"), "APPROVE / AUTO / REFUSE")).toBe(0);
+  });
+  it("short correct answers get full marks (no length or stopword penalty)", () => {
+    const find = REAL_RUN_TASKS.find((t) => t.id === "audit-trace/find-missing-reasoning")!.scorer;
+    const cost = REAL_RUN_TASKS.find((t) => t.id === "audit-trace/cost-anomaly-pin")!.scorer;
+    const loop = REAL_RUN_TASKS.find((t) => t.id === "audit-trace/loop-detection")!.scorer;
+    expect(scoreAnswer(cost, "Step 3. $0.42 (42% of budget).")).toBe(1);
+    expect(scoreAnswer(loop, "LOOP_STOP at step 5")).toBe(1);
+    expect(scoreAnswer(find, "Step 2 — empty reasoning")).toBe(1);
+  });
+  it("negation only drops hits right after not/never, not the task's own concepts", () => {
+    const approval = REAL_RUN_TASKS.find((t) => t.id === "agent-reasoning/refuse-out-of-scope")!.scorer;
+    expect(scoreAnswer(approval, "The agent must refuse; it cannot proceed without approval and it is out of scope.")).toBe(1);
+    const ux = REAL_RUN_TASKS.find((t) => t.id === "agent-reasoning/ux-explain-approval-queue")!.scorer;
+    expect(scoreAnswer(ux, "Nothing spends money without approval.")).toBe(1);
+    expect(scoreAnswer(ux, "No money moves until approval.")).toBe(1);
   });
   it("uses word boundaries, stems and counts each group once", () => {
     const prose = (t: string) => `The result is that ${t} in the case.`;
@@ -247,7 +269,8 @@ describe("scoring", () => {
     expect(scoreAnswer(kw([["step 2"]]), prose("step 2 failed"))).toBe(1);
     expect(scoreAnswer(kw([["refus*"]]), prose("it will refuse the request"))).toBe(1);
     expect(scoreAnswer(kw([["port"]]), prose("the airport is open"))).toBe(0);
-    expect(scoreAnswer(kw([["a1"], ["b1"]]), prose("a1 a1 a1 a1"))).toBe(0.5);
+    expect(scoreAnswer(kw([["a1"], ["b1"]]), prose("a1 a1 a1"))).toBe(0.5);
+    expect(scoreAnswer(kw([["a1"], ["b1"]]), prose("a1 a1 a1 a1"))).toBe(0.125); // one alternative repeated 4x = stuffing
   });
   it("does not count negated hits", () => {
     const s = kw([["refus*"]]);
@@ -261,12 +284,20 @@ describe("scoring", () => {
     expect(scoreAnswer(s, `${filler}alpha is the one`)).toBe(0);
     expect(scoreAnswer(kw([["alpha"]], { maxWords: 3 }), "alpha is the one")).toBe(0);
   });
-  it("keyword stuffing scores low on every keyword task", async () => {
+  it("keyword stuffing scores <= 0.25 wherever stuffing can be told from a terse answer", async () => {
     const stuff = makeFakeProvider({ stuff: true });
-    for (const t of REAL_RUN_TASKS.filter((k) => k.scorer.kind === "keywords")) {
+    let checked = 0;
+    for (const t of REAL_RUN_TASKS) {
+      if (t.scorer.kind !== "keywords") continue;
+      const alts = t.scorer.groups.flat().length;
+      // Tasks whose full alternative list is as short as a terse correct answer
+      // (alts < groups + 3) cannot be separated from it by design.
+      if (alts < t.scorer.groups.length + 3) continue;
       const res = await stuff.call({ taskId: t.id, provider: "X", model: "y", system: t.system, prompt: t.prompt, maxTokens: t.maxTokens });
-      expect(scoreAnswer(t.scorer, res.content)).toBeLessThanOrEqual(0.25);
+      expect(scoreAnswer(t.scorer, res.content), t.id).toBeLessThanOrEqual(0.25);
+      checked++;
     }
+    expect(checked).toBeGreaterThanOrEqual(15);
   });
   it("prose answers carrying the right points still score", async () => {
     const f = makeFakeProvider();
@@ -316,6 +347,17 @@ describe("live provider adapter (stub chat, no network)", () => {
       loadChat: async () => () => new Promise(() => undefined),
     });
     await expect(call({ taskId: "t", provider: "ANTHROPIC", model: "m", system: "", prompt: "", maxTokens: 1 })).rejects.toThrow("timeout");
+  });
+  it("a timed-out call is charged the worst case in the runner", async () => {
+    const call = await createLiveProvider({ ANTHROPIC_API_KEY: "k" }, {
+      timeoutMs: 10,
+      loadChat: async () => () => new Promise(() => undefined),
+    });
+    const r = await runRealRun({ mode: "live", targets: [A], call, now: () => 0, tasks: one });
+    const rec = r.targets[0].tasks[0];
+    expect(rec).toMatchObject({ status: "error", attempts: 2, errorCode: "PROVIDER_ERROR", costEstimated: true });
+    expect(rec.costMicroUsd).toBe(singleWorst() * PROVIDER_RETRY_FACTOR * 2);
+    expect(r.spentMicroUsd).toBe(rec.costMicroUsd);
   });
   it("env schema failure becomes ENV_CONFIG_INVALID with paths only", async () => {
     const zodLike = Object.assign(new Error(`bad ${SENTINEL}`), { issues: [{ path: ["DATABASE_URL"] }, { path: ["JWT_SECRET"] }] });
@@ -371,6 +413,70 @@ describe("CLI", () => {
     expect((await runCli(["--out", "x", "--nope"], {}, sink().io)).exitCode).toBe(2);
   });
 
+  describe("--out pre-validation, partial results, report-write failure", () => {
+    const liveEnv = { BENCH_REAL_RUN_APPROVED: "1", ANTHROPIC_API_KEY: SENTINEL, OPENAI_API_KEY: SENTINEL };
+    const liveArgs = (out: string) => ["--live", "--i-understand-spend", "--out", out];
+
+    it("refuses a file as --out and an unwritable path BEFORE any provider is built", async () => {
+      const base = mkdtempSync(join(tmpdir(), "real-run-out-"));
+      const file = join(base, "afile");
+      writeFileSync(file, "x");
+      for (const bad of [file, join(file, "sub")]) {
+        let built = false;
+        const s = sink();
+        const r = await runCli(liveArgs(bad), liveEnv, s.io, () => { built = true; return async () => ({ content: "", inputTokens: 1, outputTokens: 1 }); });
+        expect(r.exitCode).toBe(2);
+        expect(built).toBe(false);
+        expect(s.lines.join("\n")).toMatch(/OUT_NOT_WRITABLE/);
+      }
+      rmSync(base, { recursive: true, force: true });
+    });
+
+    it("creates the directory (mkdir -p) and leaves no probe file behind", async () => {
+      const base = mkdtempSync(join(tmpdir(), "real-run-mk-"));
+      const nested = join(base, "a", "b");
+      const r = await runCli(["--out", nested], {}, sink().io);
+      expect(r.exitCode).toBe(0);
+      expect(existsSync(join(nested, "bench-real-run.json"))).toBe(true);
+      expect(existsSync(join(nested, `.write-probe-${process.pid}`))).toBe(false);
+      rmSync(base, { recursive: true, force: true });
+    });
+
+    it("writes partial.json after each step (atomic replace, no leftover tmp)", async () => {
+      const dir = mkdtempSync(join(tmpdir(), "real-run-partial-"));
+      const seen: number[] = [];
+      const stub = (): ProviderCall => async () => {
+        try { seen.push(JSON.parse(readFileSync(join(dir, "partial.json"), "utf8")).targets[0].tasks.length); } catch { seen.push(0); }
+        return { content: "AUTO", inputTokens: 20, outputTokens: 20 };
+      };
+      const r = await runCli(liveArgs(dir), liveEnv, sink().io, stub);
+      expect(r.exitCode).toBe(0);
+      // before call n the partial file already holds n-1 completed tasks of target 0
+      expect(seen[0]).toBe(0);
+      expect(Math.max(...seen)).toBeGreaterThanOrEqual(29);
+      const last = JSON.parse(readFileSync(join(dir, "partial.json"), "utf8"));
+      expect(last.status).toBe("IN_PROGRESS");
+      expect(existsSync(join(dir, "partial.json.tmp"))).toBe(false);
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    it("a failing final report write prints the results as JSON on stdout and exits non-zero", async () => {
+      const dir = mkdtempSync(join(tmpdir(), "real-run-wf-"));
+      mkdirSync(join(dir, "bench-real-run.json")); // a directory in the way: the final write fails, the probe passes
+      const s = sink();
+      const r = await runCli(liveArgs(dir), liveEnv, s.io, () => async () => ({ content: "AUTO", inputTokens: 20, outputTokens: 20 }));
+      expect(r.exitCode).toBe(4);
+      const printed = s.lines.find((l) => l.startsWith("{"));
+      expect(printed).toBeDefined();
+      const obj = JSON.parse(printed as string);
+      expect(obj.error).toBe("REPORT_WRITE_FAILED");
+      expect(obj.report.targets).toHaveLength(2);
+      expect(printed).not.toContain("SENTINEL");
+      expect(printed).not.toContain("LinkedIn ad targeting");
+      rmSync(dir, { recursive: true, force: true });
+    });
+  });
+
   it("refuses --live without flags/env/keys and never touches the live adapter", async () => {
     const s = sink();
     let touched = false;
@@ -401,8 +507,10 @@ describe("CLI", () => {
     const s = sink();
     const env = { BENCH_REAL_RUN_APPROVED: "1", ANTHROPIC_API_KEY: SENTINEL, OPENAI_API_KEY: SENTINEL };
     const zodLike = Object.assign(new Error(`bad ${SENTINEL}`), { issues: [{ path: ["DATABASE_URL"] }] });
-    const r = await runCli(["--live", "--i-understand-spend", "--out", "x"], env, s.io,
+    const d3 = mkdtempSync(join(tmpdir(), "real-run-env-"));
+    const r = await runCli(["--live", "--i-understand-spend", "--out", d3], env, s.io,
       (e) => createLiveProvider(e, { loadChat: async () => { throw zodLike; } }));
+    rmSync(d3, { recursive: true, force: true });
     expect(r.exitCode).toBe(2);
     const out = s.lines.join("\n");
     expect(out).toContain("ENV_CONFIG_INVALID: DATABASE_URL");

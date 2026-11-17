@@ -52,7 +52,7 @@ export interface Target {
   model: string;
 }
 
-export type RunStatus = "COMPLETED" | "STOPPED_AT_CAP" | "ABORT_ESTIMATE_OVER_CAP";
+export type RunStatus = "COMPLETED" | "STOPPED_AT_CAP" | "ABORT_ESTIMATE_OVER_CAP" | "IN_PROGRESS";
 export type TaskStatus = "ok" | "error" | "not_run";
 
 export interface TaskRecord {
@@ -108,6 +108,8 @@ export interface RunnerOptions {
   tasks?: readonly RealRunTask[];
   prices?: Record<string, RealRunPrice>;
   setHash?: string;
+  /** Called after every task x target with a partial report (status IN_PROGRESS). */
+  onProgress?: (partial: RealRunReport) => void;
 }
 
 export function estimateRun(
@@ -249,6 +251,13 @@ export async function runRealRun(opts: RunnerOptions): Promise<RealRunReport> {
         }
       }
       list.push(stopped && rec.attempts === 0 ? notRun(task.id) : rec);
+      if (opts.onProgress) {
+        const snapshot: RealRunReport = {
+          ...base, status: "IN_PROGRESS", spentMicroUsd: spent,
+          targets: opts.targets.map((t) => summarise(t, records.get(`${t.provider}/${t.model}`) as TaskRecord[], prices)),
+        };
+        try { opts.onProgress(snapshot); } catch { /* a failing progress sink never affects the run */ }
+      }
     }
   }
 
