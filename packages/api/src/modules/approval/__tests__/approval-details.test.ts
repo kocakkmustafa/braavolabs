@@ -219,6 +219,27 @@ describe("deriveApprovalDetails", () => {
       expect(deriveApprovalDetails("HANDOFF", { suggestedProvider: "openai", suggestedModel: bad }).dataTransfer).toEqual(["koşu → openai"]);
     },
   );
+  // BRA-UX-API-07k — `:` ile kimlik biçimi (user:pass, a:b@c) tek süzgeçte düşer; dataTransfer ve yapılandırılmış alan birlikte.
+  it.each(["user:pass", "a:b@c", "admin:hunter", "http://x"])("07k: provider %s düşer (metin + yapılandırılmış)", (bad) => {
+    const d = deriveApprovalDetails("HANDOFF", { suggestedProvider: bad, suggestedModel: "gpt-4o" });
+    expect(d.dataTransfer).toBeNull();
+    expect(d.dataTransferStructured).toBeUndefined();
+  });
+  it.each(["user:pass", "a:b@c", "bob:hunter"])("07k: tool ve model %s düşer", (bad) => {
+    expect(deriveApprovalDetails("SPEND", { toolName: bad, input: { q: 1 } }).dataTransferStructured).toBeUndefined();
+    expect(deriveApprovalDetails("SPEND", { toolName: bad }).permissions).toBeNull();
+    expect(deriveApprovalDetails("SPEND", { gate: "step", tool: bad }).permissions).toBeNull();
+    const h = deriveApprovalDetails("HANDOFF", { suggestedProvider: "ollama", suggestedModel: bad });
+    expect(h.dataTransfer).toEqual(["koşu → ollama"]);
+    expect(h.dataTransferStructured).toEqual({ kind: "handoff", provider: "ollama" });
+  });
+  it("07k: llama3:8b, anthropic, gmail.send, slack_post geçer", () => {
+    const h = deriveApprovalDetails("HANDOFF", { suggestedProvider: "anthropic", suggestedModel: "llama3:8b" });
+    expect(h.dataTransfer).toEqual(["koşu → anthropic / llama3:8b"]);
+    expect(h.dataTransferStructured).toEqual({ kind: "handoff", provider: "anthropic", model: "llama3:8b" });
+    expect(deriveApprovalDetails("HANDOFF", { suggestedProvider: "openai", suggestedModel: "llama3:latest" }).dataTransferStructured).toMatchObject({ model: "llama3:latest" });
+    for (const t of ["gmail.send", "slack_post"]) expect(deriveApprovalDetails("SPEND", { toolName: t }).permissions).toEqual([t]);
+  });
   it("sağlayıcı/model: vendor/model, claude-3.5, task-test geçer", () => {
     expect(deriveApprovalDetails("HANDOFF", { suggestedProvider: "anthropic", suggestedModel: "vendor/claude-3.5" }).dataTransfer).toEqual(["koşu → anthropic / vendor/claude-3.5"]);
     expect(deriveApprovalDetails("HANDOFF", { suggestedProvider: "task-test", suggestedModel: "keyjob" }).dataTransfer).toEqual(["koşu → task-test / keyjob"]);
