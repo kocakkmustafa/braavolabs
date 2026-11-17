@@ -112,10 +112,28 @@ function clamp(v: string): string {
   return t.length > MAX_DETAIL_STRING ? t.slice(0, MAX_DETAIL_STRING - 1) + "…" : t;
 }
 
+/**
+ * BRA-UX-API-07k: `:` içeren araç/sağlayıcı/model değerlerinde kimlik biçimi reddi (DAR sezgi).
+ * Reddedilir YALNIZ: (a) `://` içeren (URL/userinfo), (c) SOL parça (ilk `:` öncesi) açıkça
+ * parola/kimlik-bilgisi sözcüğü (tam eşleşme, /i): password|passwd|pass|pwd|token|secret|apikey|api_key|bearer|basic.
+ * (`@` kuralı yok: PROVIDER_NAME/TOOL_NAME allowlist'i `@` zaten geçirmez → ölü kod.)
+ * Meşru etiketler asla düşmez: `llama3:8b`, `phi3:medium`, `deepseek/deepseek-r1:free`, `x:nitro`,
+ * `auth:login`, `user:create`, `ns:send_email`, `host:5000/ns/model:tag`.
+ * BİLİNEN YAPISAL SINIR: `bob:hunter2`, `u:p4ss1` gibi etiket-benzeri değerler `llama3:8b` ile ayırt
+ * edilemez → GEÇER. Asıl savunma yukarı akışta (allowlist + `leaksSecret`); bu bir sızıntı-azaltmadır,
+ * tam çözüm değil. `leaksSecret`'e EKLENMEZ (mcp-auth başlık değerlerinde `:` meşru).
+ */
+const CRED_LEFT = /^(password|passwd|pass|pwd|token|secret|apikey|api_key|bearer|basic)$/i;
+export function credentialShaped(v: string): boolean {
+  if (!v.includes(":")) return false;
+  if (v.includes("://")) return true;
+  return CRED_LEFT.test(v.slice(0, v.indexOf(":")));
+}
+
 /** Biçim allowlist'ine uyan ve `leaksSecret` süzgecinden geçen değer; uymazsa null (ham değer asla çıkmaz). */
 function matching(v: unknown, re: RegExp): string | null {
   if (typeof v !== "string" || !re.test(v) || SECRET_VALUE.test(v)) return null;
-  if (leaksSecret(v)) return null;
+  if (leaksSecret(v) || credentialShaped(v)) return null;
   return v;
 }
 

@@ -3,7 +3,7 @@
  * gizli anahtar sızmaz, kırpma.
  */
 import { describe, it, expect } from "vitest";
-import { deriveApprovalDetails, withApprovalDetails, MAX_DETAIL_ITEMS, MAX_DETAIL_STRING } from "../details";
+import { deriveApprovalDetails, credentialShaped, withApprovalDetails, MAX_DETAIL_ITEMS, MAX_DETAIL_STRING } from "../details";
 
 const NULLS = { risk: null, permissions: null, dataTransfer: null, reversible: null };
 
@@ -207,7 +207,7 @@ describe("deriveApprovalDetails", () => {
     expect(deriveApprovalDetails("SPEND", { toolName: "a" + bad }).permissions).toBeNull();
     expect(deriveApprovalDetails("EXTERNAL_CONTROL", { toolName: "a" + bad, action: "PAUSE" }).permissions).toBeNull();
   });
-  it("araç adı: task-test-1 / keyjob / task_pk_1 / a:b geçer", () => {
+  it("araç adı: task-test-1 / keyjob / task_pk_1 / ns:send_email geçer", () => {
     for (const t of ["task-test-1", "keyjob", "task_pk_1", "ns:send_email"]) {
       expect(deriveApprovalDetails("SPEND", { toolName: t }).permissions).toEqual([t]);
     }
@@ -219,6 +219,35 @@ describe("deriveApprovalDetails", () => {
       expect(deriveApprovalDetails("HANDOFF", { suggestedProvider: "openai", suggestedModel: bad }).dataTransfer).toEqual(["koşu → openai"]);
     },
   );
+  // BRA-UX-API-07k — DAR sezgi; credentialShaped doğrudan.
+  it.each(["llama3:8b", "phi3:medium", "deepseek/deepseek-r1:free", "x:nitro", "auth:login", "user:create", "key:rotate", "ns:send_email", "gmail.send", "anthropic", "registry.example.com:5000/ns/model:tag", "codellama:python", "command-r:plus"])(
+    "07k credentialShaped: %s GEÇER",
+    (ok) => expect(credentialShaped(ok)).toBe(false),
+  );
+  it.each(["password:x", "token:abc123", "secret:s", "bearer:x", "Basic:zzz", "api_key:k", "https://u:p@h", "http://x"])("07k credentialShaped: %s reddedilir", (bad) =>
+    expect(credentialShaped(bad)).toBe(true),
+  );
+  // Bilinen yapısal sınır: etiket-benzeri parola llama3:8b'den ayırt edilemez → geçer (belgelenmiş takas).
+  it.each(["bob:hunter2", "u:p4ss1"])("07k bilinen sınır: %s geçer", (v) => expect(credentialShaped(v)).toBe(false));
+  it.each(["password:x", "token:abc123", "https://u:p@h", "ghp_xxx:x"])("07k uçtan uca: provider/tool %s düşer (metin + yapılandırılmış)", (bad) => {
+    const d = deriveApprovalDetails("HANDOFF", { suggestedProvider: bad, suggestedModel: "gpt-4o" });
+    expect(d.dataTransfer).toBeNull();
+    expect(d.dataTransferStructured).toBeUndefined();
+    expect(deriveApprovalDetails("SPEND", { toolName: bad, input: { q: 1 } }).dataTransferStructured).toBeUndefined();
+    expect(deriveApprovalDetails("SPEND", { toolName: bad }).permissions).toBeNull();
+    expect(deriveApprovalDetails("SPEND", { gate: "step", tool: bad }).permissions).toBeNull();
+    const h = deriveApprovalDetails("HANDOFF", { suggestedProvider: "ollama", suggestedModel: bad });
+    expect(h.dataTransfer).toEqual(["koşu → ollama"]);
+    expect(h.dataTransferStructured).toEqual({ kind: "handoff", provider: "ollama" });
+  });
+  it("07k: meşru model etiketleri HANDOFF'ta korunur", () => {
+    for (const m of ["llama3:8b", "phi3:medium", "deepseek/deepseek-r1:free", "registry.example.com:5000/ns/model:tag"]) {
+      const h = deriveApprovalDetails("HANDOFF", { suggestedProvider: "anthropic", suggestedModel: m });
+      expect(h.dataTransfer).toEqual([`koşu → anthropic / ${m}`]);
+      expect(h.dataTransferStructured).toEqual({ kind: "handoff", provider: "anthropic", model: m });
+    }
+    for (const t of ["gmail.send", "slack_post", "auth:login", "user:create"]) expect(deriveApprovalDetails("SPEND", { toolName: t }).permissions).toEqual([t]);
+  });
   it("sağlayıcı/model: vendor/model, claude-3.5, task-test geçer", () => {
     expect(deriveApprovalDetails("HANDOFF", { suggestedProvider: "anthropic", suggestedModel: "vendor/claude-3.5" }).dataTransfer).toEqual(["koşu → anthropic / vendor/claude-3.5"]);
     expect(deriveApprovalDetails("HANDOFF", { suggestedProvider: "task-test", suggestedModel: "keyjob" }).dataTransfer).toEqual(["koşu → task-test / keyjob"]);
