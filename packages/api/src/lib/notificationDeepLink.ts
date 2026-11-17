@@ -16,7 +16,11 @@ import { z } from "zod";
 export const DEEP_LINK_VERSION = 1 as const;
 export const DEEP_LINK_KINDS = ["approval", "risk", "draft", "run", "company"] as const;
 export type DeepLinkKind = (typeof DEEP_LINK_KINDS)[number];
-/** APNs 4 KB sınırının çok altında; data nesnesinin JSON bayt üst sınırı. */
+/**
+ * APNs 4 KB sınırının çok altında bir GÜVENLİK BANDI. Mevcut şemalarla en kötü durum
+ * ≈250 bayt (approval: 64 id + 128 toolName); `refine` bugün erişilemez, ileride
+ * alan eklenirse şişmeye karşı sigortadır.
+ */
 export const DEEP_LINK_MAX_BYTES = 1024;
 
 /** Mobil `SAFE_ID_PATTERN` ile birebir. */

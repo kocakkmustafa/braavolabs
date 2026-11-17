@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { DEEP_LINK_KINDS, DEEP_LINK_MAX_BYTES, buildDeepLink, deepLinkDataFor, parseDeepLink } from "./notificationDeepLink";
 
-/** Birebir kopya: mobile/lib/notifications.ts:342-398 (SAFE_ID_PATTERN + resolveNotificationRoute). */
+/** Birebir kopya: mobile/lib/notifications.ts:342-392 (SAFE_ID_PATTERN + resolveNotificationRoute). */
 const SAFE = /^[a-zA-Z0-9_-]{1,64}$/;
 const safeId = (x: unknown) => (typeof x === "string" && SAFE.test(x) ? x : null);
 function mobileRoute(data: Record<string, unknown>): string | null {
@@ -58,7 +58,9 @@ describe("notification deep link contract", () => {
 
   it("stays far below the APNs limit", () => {
     const max = buildDeepLink({ kind: "approval", id: "x".repeat(64), toolName: "t".repeat(128) });
-    expect(Buffer.byteLength(JSON.stringify(max))).toBeLessThanOrEqual(DEEP_LINK_MAX_BYTES);
+    const worst = Buffer.byteLength(JSON.stringify(max));
+    expect(worst).toBeLessThanOrEqual(260); // gerçek en kötü durum ≈250; 1024 yalnız güvenlik bandı
+    expect(worst).toBeLessThan(DEEP_LINK_MAX_BYTES);
     expect(DEEP_LINK_MAX_BYTES).toBeLessThanOrEqual(1024);
   });
 
@@ -74,5 +76,22 @@ describe("notification deep link contract", () => {
     // legacy payloads produced by today's callers
     expect(deepLinkDataFor({ kind: "approval", id: "a", toolName: "t.x" }).data).toEqual({ v: 1, kind: "approval", id: "a", toolName: "t.x" });
     expect(deepLinkDataFor({ kind: "risk", id: "r", stopType: "loop_guard" }).data).toEqual({ v: 1, kind: "risk", id: "r", stopType: "loop_guard" });
+  });
+
+  it("round-trips every real risk stopType (core governance.ts + engine job_budget)", () => {
+    for (const stopType of ["hard_stop", "loop_stop", "cost_anomaly_stop", "spam_stop", "brand_violation_stop", "job_budget"]) {
+      const wire = JSON.parse(JSON.stringify(buildDeepLink({ kind: "risk", id: "run1", stopType })));
+      expect(parseDeepLink(wire)).toEqual({ v: 1, kind: "risk", id: "run1", stopType });
+      expect(deepLinkDataFor({ kind: "risk", id: "run1", stopType }).dropped).toEqual([]);
+      expect(mobileRoute(wire)).toBe("/risks");
+    }
+  });
+
+  it("connector toolName (mcp_{slug}_{remote}) outside the pattern is dropped on purpose; notification still goes", () => {
+    const ok = deepLinkDataFor({ kind: "approval", id: "a1", toolName: "mcp_github_create-issue" });
+    expect(ok.data).toEqual({ v: 1, kind: "approval", id: "a1", toolName: "mcp_github_create-issue" });
+    const odd = deepLinkDataFor({ kind: "approval", id: "a1", toolName: "mcp_slack_post message (beta)" });
+    expect(odd.data).toEqual({ v: 1, kind: "approval", id: "a1" });
+    expect(odd.dropped).toEqual(["toolName"]);
   });
 });
