@@ -113,9 +113,12 @@ components:
         bucket:
           type: [string, "null"]
           enum: [working, needs_approval, done, stuck, null]
-        agentName: { type: [string, "null"] }
+        agentName:
+          type: [string, "null"]
+          description: En düşük stepIndex'li ajanlı adımın ajanı (çok ajanlı koşuda yalnız o); yoksa null.
         riskLevel:
           type: [string, "null"]
+          description: En son 20 onaydaki (APPROVED/REJECTED/EXPIRED dahil) en yüksek risk; bekleyen risk DEĞİL; yoksa null.
           enum: [low, medium, high, null]
     RunsListResponse:
       type: object

@@ -1,29 +1,31 @@
 /**
  * BRA-UX-API-04 — GET /runs satırı için salt-okur özet alanları (saf yardımcı).
  *
- *  agentName  koşunun ilk (en düşük stepIndex) ajanlı adımının ajan adı. Run'ın kendi ajan
- *             alanı yok; kaynak RunStep.agentId → Agent.name. Ajanlı adım yoksa null (uydurma yok).
- *  riskLevel  koşunun onay satırlarından en yüksek risk (high > medium > low); approval/details.ts
- *             sınıflarını (deriveApprovalDetails/asRisk) yeniden kullanır. Veri yoksa null.
+ *  agentName  en düşük stepIndex'li AJANLI adımın ajanı (çok ajanlı koşuda yalnız o). Run'ın kendi
+ *             ajan alanı yok; kaynak RunStep.agentId → Agent.name. Ajanlı adım yoksa null (uydurma yok).
+ *  riskLevel  koşunun EN SON N (MAX_ROW_APPROVALS) onayındaki en yüksek risk (high > medium > low);
+ *             APPROVED/REJECTED/EXPIRED dahil — "bekleyen risk" DEĞİL. approval/details.ts'in
+ *             deriveApprovalRisk'ini kullanır (yalnız risk; diğer süzgeçler çalışmaz). Veri yoksa null.
  *
  * Yalnız ad + enum döner; ham metadata/içerik asla çıkmaz. Sorgu router'daki findMany'nin
  * iç içe select'idir (ek tur yok, N+1 yok).
  */
-import { deriveApprovalDetails, type ApprovalRisk } from "../approval/details";
+import { deriveApprovalRisk, type ApprovalRisk } from "../approval/details";
 
-/** Satır başına taranan onay üst sınırı (sayfa boyutuyla birlikte sorguyu sınırlar). */
-export const MAX_ROW_APPROVALS = 50;
+/** Satır başına taranan EN SON onay sayısı (Prisma iç içe take bellekte kırpar; küçük tutulur). */
+export const MAX_ROW_APPROVALS = 20;
 
 /** findMany `select`'ine eklenen iç içe parçalar; tenant kapsamı agent→company üzerinden de dayatılır. */
 export function rowSummarySelect(tenantId: string) {
   return {
     steps: {
       where: { agentId: { not: null }, agent: { company: { tenantId } } },
-      orderBy: { stepIndex: "asc" as const },
+      orderBy: [{ stepIndex: "asc" as const }, { id: "asc" as const }], // stepIndex benzersiz değil
       take: 1,
       select: { agent: { select: { name: true } } },
     },
     approvals: {
+      orderBy: [{ createdAt: "desc" as const }, { id: "desc" as const }],
       take: MAX_ROW_APPROVALS,
       select: { type: true, metadata: true },
     },
@@ -35,7 +37,7 @@ const RANK: Record<ApprovalRisk, number> = { low: 1, medium: 2, high: 3 };
 export function highestRisk(approvals: ReadonlyArray<{ type?: unknown; metadata: unknown }> | null | undefined): ApprovalRisk | null {
   let best: ApprovalRisk | null = null;
   for (const a of approvals ?? []) {
-    const r = deriveApprovalDetails(a.type, a.metadata).risk;
+    const r = deriveApprovalRisk(a.type, a.metadata);
     if (r && (best === null || RANK[r] > RANK[best])) best = r;
   }
   return best;

@@ -139,6 +139,18 @@ function inputFieldNames(input: unknown): string[] {
     .slice(0, MAX_DETAIL_ITEMS);
 }
 
+/**
+ * Yalnız RİSK türetimi (tek kaynak; deriveApprovalDetails da bunu kullanır). Regex/süzgeç çalıştırmaz.
+ * SPEND+step kapısı: metadata.risk · SPEND/EXTERNAL_CONTROL: metadata.riskLevel · diğer: null.
+ */
+export function deriveApprovalRisk(type: unknown, metadata: unknown): ApprovalRisk | null {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return null;
+  const m = metadata as Record<string, unknown>;
+  if (type === "SPEND") return m.gate === "step" ? asRisk(m.risk) : asRisk(m.riskLevel);
+  if (type === "EXTERNAL_CONTROL") return asRisk(m.riskLevel);
+  return null;
+}
+
 export function deriveApprovalDetails(type: unknown, metadata: unknown): ApprovalDetails {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return { ...NULL_DETAILS };
   const m = metadata as Record<string, unknown>;
@@ -146,7 +158,7 @@ export function deriveApprovalDetails(type: unknown, metadata: unknown): Approva
     if (type === "SPEND") {
       if (m.gate === "step") {
         return {
-          risk: asRisk(m.risk),
+          risk: deriveApprovalRisk(type, metadata),
           permissions: list([matching(m.tool, TOOL_NAME)]),
           dataTransfer: null,
           reversible: null,
@@ -155,7 +167,7 @@ export function deriveApprovalDetails(type: unknown, metadata: unknown): Approva
       const tool = matching(m.toolName, TOOL_NAME);
       const fields = inputFieldNames(m.input);
       return {
-        risk: asRisk(m.riskLevel),
+        risk: deriveApprovalRisk(type, metadata),
         permissions: list([tool]),
         dataTransfer: tool && fields.length ? list([clamp(`${tool} ← girdi alanları: ${fields.join(", ")}`)]) : null,
         reversible: asBool(m.reversible),
@@ -167,7 +179,7 @@ export function deriveApprovalDetails(type: unknown, metadata: unknown): Approva
       const conn = safeId(m.connectionId);
       const target = safeId(m.targetId);
       return {
-        risk: asRisk(m.riskLevel),
+        risk: deriveApprovalRisk(type, metadata),
         permissions: tool && action ? list([`${tool}:${action}`]) : list([tool]),
         dataTransfer: conn
           ? list([clamp(`${action ?? "eylem"} → bağlantı ${conn}${target ? `, hedef ${target}` : ""}`)])

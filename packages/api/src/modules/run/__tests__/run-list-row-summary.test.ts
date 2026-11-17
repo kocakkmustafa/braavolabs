@@ -16,6 +16,7 @@ vi.mock("../handoff.service", () => ({ createHandoff: vi.fn(), claimHandoff: vi.
 vi.mock("../../../config/env", () => ({ env: { NODE_ENV: "development", OFFLINE_MODE: false, CLAUDE_MODEL: "claude-sonnet-4-5" } }));
 
 import { runRouter } from "../router";
+import { deriveApprovalRisk, deriveApprovalDetails } from "../../approval/details";
 import { highestRisk, agentNameOf, MAX_ROW_APPROVALS } from "../row-summary";
 
 function getHandler(router: Router, path: string) {
@@ -74,8 +75,11 @@ describe("GET /runs — agentName / riskLevel", () => {
     expect(findMany).toHaveBeenCalledTimes(1);
     const sel = findMany.mock.calls[0][0].select;
     expect(sel.steps.take).toBe(1);
-    expect(sel.steps.orderBy).toEqual({ stepIndex: "asc" });
+    expect(sel.steps.orderBy).toEqual([{ stepIndex: "asc" }, { id: "asc" }]);
+    expect(sel.steps.where.agentId).toEqual({ not: null });
     expect(sel.approvals.take).toBe(MAX_ROW_APPROVALS);
+    expect(MAX_ROW_APPROVALS).toBe(20);
+    expect(sel.approvals.orderBy).toEqual([{ createdAt: "desc" }, { id: "desc" }]);
     expect(Object.keys(sel.approvals.select).sort()).toEqual(["metadata", "type"]);
     expect(findMany.mock.calls[0][0].include).toBeUndefined();
     expect(count).not.toHaveBeenCalled();
@@ -105,5 +109,22 @@ describe("row-summary yardımcıları", () => {
     expect(highestRisk([{ type: "SPEND", metadata: { gate: "step", risk: "Medium" } }])).toBe("medium");
     expect(agentNameOf(undefined)).toBeNull();
     expect(agentNameOf([{ agent: { name: "" } }])).toBeNull();
+  });
+});
+
+describe("deriveApprovalRisk", () => {
+  const cases: Array<[unknown, unknown]> = [
+    ["SPEND", { gate: "step", risk: "HIGH" }], ["SPEND", { toolName: "send_email", riskLevel: "medium" }],
+    ["SPEND", { gate: "step", riskLevel: "high" }], ["SPEND", { riskLevel: "x" }], ["SPEND", null], ["SPEND", []],
+    ["EXTERNAL_CONTROL", { riskLevel: "Low" }], ["EXTERNAL_CONTROL", { risk: "high" }],
+    ["HANDOFF", { riskLevel: "high" }], [undefined, { riskLevel: "high" }],
+  ];
+  it.each(cases)("parite: %j %j -> deriveApprovalDetails.risk ile aynı", (type, md) => {
+    expect(deriveApprovalRisk(type, md)).toBe(deriveApprovalDetails(type, md).risk);
+  });
+  it("değerler", () => {
+    expect(deriveApprovalRisk("SPEND", { gate: "step", risk: "HIGH" })).toBe("high");
+    expect(deriveApprovalRisk("EXTERNAL_CONTROL", { riskLevel: "Low" })).toBe("low");
+    expect(deriveApprovalRisk("HANDOFF", { riskLevel: "high" })).toBeNull();
   });
 });

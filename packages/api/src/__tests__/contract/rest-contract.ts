@@ -43,9 +43,9 @@ export const RunListItemSchema = z.object({
     company: z.object({ id: z.string(), name: z.string() }),
   }),
   bucket: z.enum(INBOX_BUCKET_VALUES).nullable(),
-  /** BRA-UX-API-04: ilk ajanlı adımın ajan adı; yoksa null. */
+  /** BRA-UX-API-04: en düşük stepIndex'li ajanlı adımın ajanı (çok ajanlı koşuda yalnız o); yoksa null. */
   agentName: nullableString,
-  /** BRA-UX-API-04: onay satırlarından en yüksek risk; yoksa null. */
+  /** BRA-UX-API-04: en son 20 onaydaki (tüm durumlar) en yüksek risk; "bekleyen risk" DEĞİL; yoksa null. */
   riskLevel: z.enum(["low", "medium", "high"]).nullable(),
 });
 
