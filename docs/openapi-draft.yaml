@@ -84,7 +84,7 @@ components:
         requestId: { type: string }
     RunListItem:
       type: object
-      required: [id, pipelineId, status, state, resultStatus, trigger, costUsd, startedAt, completedAt, heartbeatAt, createdAt, updatedAt, pipeline, bucket]
+      required: [id, pipelineId, status, state, resultStatus, trigger, costUsd, startedAt, completedAt, heartbeatAt, createdAt, updatedAt, pipeline, bucket, agentName, riskLevel]
       properties:
         id: { type: string }
         pipelineId: { type: string }
@@ -113,6 +113,13 @@ components:
         bucket:
           type: [string, "null"]
           enum: [working, needs_approval, done, stuck, null]
+        agentName:
+          type: [string, "null"]
+          description: En düşük stepIndex'li ajanlı adımın ajanı (çok ajanlı koşuda yalnız o); yoksa null.
+        riskLevel:
+          type: [string, "null"]
+          description: En son 20 onaydaki (APPROVED/REJECTED/EXPIRED dahil) en yüksek risk; bekleyen risk DEĞİL; yoksa null.
+          enum: [low, medium, high, null]
     RunsListResponse:
       type: object
       required: [runs, nextCursor]

@@ -35,6 +35,7 @@ import { loadRunActivity } from "./activity";
 import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } from "./list-cursor";
 import { deriveStepGraph } from "./step-graph";
 import { loadChat, postChat, CHAT_RATE_LIMIT } from "./chat";
+import { rowSummarySelect, withRowSummary } from "./row-summary";
 
 export const runRouter = Router();
 runRouter.use(authMiddleware);
@@ -139,12 +140,13 @@ runRouter.get("/", async (req, res, next) => {
         createdAt: true,
         updatedAt: true,
         pipeline: { select: { id: true, name: true, company: { select: { id: true, name: true } } } },
+        ...rowSummarySelect(req.auth!.tenantId), // BRA-UX-API-04: agentName + riskLevel (tek sorgu, iç içe select)
       },
       orderBy: LIST_ORDER,
       take: limit + 1,
     });
     const page = rows.slice(0, limit);
-    const runs = page.map((r) => ({
+    const runs = page.map((raw) => withRowSummary(raw)).map((r) => ({
       ...r,
       bucket: jobBucket({
         state: r.state,
