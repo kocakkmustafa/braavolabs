@@ -9,16 +9,22 @@ export function reportToMarkdown(r: RealRunReport): string {
     "",
     `- setVersion: ${r.setVersion}`,
     `- setHash: ${r.setHash}`,
+    `- scoringVersion: ${r.scoringVersion}`,
+    `- retries: wrapper ${r.maxRetries}, provider-internal factor ${r.providerRetryFactor} (applied to estimate and per-call guard)`,
     `- tasks: ${r.taskCount}`,
     `- status: ${r.status}`,
     `- cap: ${usd(r.capMicroUsd)} USD`,
     `- estimate (worst case): ${usd(r.estimate.totalMicroUsd)} USD`,
     `- spent: ${usd(r.spentMicroUsd)} USD`,
     "",
+    ...r.warnings.map((w) => `> WARNING: ${w}`),
+    ...(r.warnings.length ? [""] : []),
   ];
   for (const t of r.targets) {
     lines.push(
       `## ${t.provider} / ${t.model}`,
+      "",
+      `price as of ${t.priceAsOf ?? "n/a"} (${t.priceSource ?? "n/a"})`,
       "",
       `mean score: ${t.meanScore ?? "n/a"} | cost: ${usd(t.totalCostMicroUsd)} USD | mean latency: ${t.meanLatencyMs ?? "n/a"} ms`,
       "",
@@ -30,6 +36,6 @@ export function reportToMarkdown(r: RealRunReport): string {
     }
     lines.push("");
   }
-  lines.push("`*` = worst-case charge for a failed attempt (real usage unknown).", "");
+  lines.push("`*` = estimated cost (failed attempt, missing/zero usage, or conservative provider charge).", "");
   return lines.join("\n");
 }

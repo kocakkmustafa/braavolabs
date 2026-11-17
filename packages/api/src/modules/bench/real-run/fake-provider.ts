@@ -15,7 +15,7 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
-export function makeFakeProvider(): { call: ProviderCall; now: () => number; calls: () => number } {
+export function makeFakeProvider(opts: { stuff?: boolean } = {}): { call: ProviderCall; now: () => number; calls: () => number } {
   let clock = 0;
   let n = 0;
   const call: ProviderCall = async (req) => {
@@ -28,8 +28,13 @@ export function makeFakeProvider(): { call: ProviderCall; now: () => number; cal
     if (task?.scorer.kind === "label") {
       content = good ? task.scorer.expected : "AUTO";
     } else if (task?.scorer.kind === "keywords") {
-      const picked = task.scorer.groups.filter((_, i) => good || i % 2 === 0).map((g) => g[0]);
-      content = picked.join(" ");
+      if (opts.stuff) {
+        // Keyword stuffing: every alternative of every group, no prose.
+        content = task.scorer.groups.flat().map((a) => a.replace(/\*$/, "")).join(" ");
+      } else {
+        const picked = task.scorer.groups.filter((_, i) => good || i % 2 === 0).map((g) => g[0].replace(/\*$/, ""));
+        content = `The answer is that ${picked.join(" and ")} apply to this case.`;
+      }
     }
     return {
       content,

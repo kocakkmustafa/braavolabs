@@ -7,7 +7,16 @@ export const HARD_CAP_USD = 20;
 export const DEFAULT_CAP_USD = 20;
 /** New calls stop once real spend reaches this share of the cap. */
 export const STOP_FRACTION = 0.9;
+/** Wrapper-level retries per task (ours). */
 export const MAX_RETRIES = 1;
+/**
+ * Hidden retries INSIDE ai-client (Anthropic SDK maxRetries=2, OpenAI path 3
+ * attempts): one wrapper attempt may hit the wire up to this many times.
+ * Single constant used by the pre-estimate and the per-call worst case.
+ */
+export const PROVIDER_RETRY_FACTOR = 3;
+/** Per-call wall-clock limit enforced by the wrapper (Promise.race). */
+export const PROVIDER_TIMEOUT_MS = 60_000;
 
 export class RealRunRefusal extends Error {
   constructor(public readonly code: string, message: string) {
