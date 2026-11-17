@@ -44,7 +44,7 @@ describe("per-device push rendering", () => {
     const messages = messagesAt();
     expect(messages).toHaveLength(14);
     for (const [index, locale] of NOTIFICATION_LOCALES.entries()) {
-      expect(messages[index]).toEqual({ to: `synthetic-${locale}`, sound: "default", title: notificationText(locale, "push.agentInputTitle"), body: payload.body, data: payload.data, badge: 2, priority: "high", channelId: "approvals" });
+      expect(messages[index]).toEqual({ to: `synthetic-${locale}`, sound: "default", title: notificationText(locale, "push.agentInputTitle"), body: payload.body, data: { ...payload.data, v: 1 }, badge: 2, priority: "high", channelId: "approvals" });
     }
     expect(fetchStub).toHaveBeenCalledExactlyOnceWith("https://exp.host/--/api/v2/push/send", expect.objectContaining({ method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json", "Accept-Encoding": "gzip, deflate" }, signal: expect.any(AbortSignal) }));
     expect(timeout).toHaveBeenCalledExactlyOnceWith(5000);
