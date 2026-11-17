@@ -43,6 +43,10 @@ export const RunListItemSchema = z.object({
     company: z.object({ id: z.string(), name: z.string() }),
   }),
   bucket: z.enum(INBOX_BUCKET_VALUES).nullable(),
+  /** BRA-UX-API-04: ilk ajanlı adımın ajan adı; yoksa null. */
+  agentName: nullableString,
+  /** BRA-UX-API-04: onay satırlarından en yüksek risk; yoksa null. */
+  riskLevel: z.enum(["low", "medium", "high"]).nullable(),
 });
 
 /** GET /api/v1/runs */
