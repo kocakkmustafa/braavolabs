@@ -130,7 +130,7 @@ export default defineConfig({
       timeout: 30_000,
       env: { ...process.env, E2E_FAKE_LLM_PORT: String(FAKE_LLM_PORT) },
     },
-    uiServer(UI_PORT, { NEXT_PUBLIC_UX_AGENTS: "" }),
+    uiServer(UI_PORT, {}),
     // BRA-UX-04: the SAME build served with the prototype flag ON (read at request time, not baked in), so one run proves
     // both "flag off = no difference" (UI_PORT) and the prototype journeys (UI_LAB_PORT).
     // BRA-UX-05a: aynı örnek `/start` Niyet Çubuğu bayrağı da AÇIK (istek anında okunur); UI_PORT'ta eski ekran birebir sunulur.
@@ -139,9 +139,8 @@ export default defineConfig({
     // BRA-UX-05i: aynı örnek `/approvals` onay merkezi bayrağı da AÇIK; UI_PORT'ta eski onay sayfası birebir sunulur.
     // BRA-UX-05h: aynı örnek `/settings/models` bayrağı da AÇIK; UI_PORT'ta rota 404'tür (yeni rota, eski sayfa yok).
     // BRA-UX-05f: aynı örnek `/companies/[id]/status` şirket durumu bayrağı da AÇIK; UI_PORT'ta rota 404'tür (yeni rota).
-    // BRA-UX-05g: aynı örnek `/agents` Ajanlar bayrağı da AÇIK; UI_PORT'ta rota 404'tür (BU BİLETTEN ÖNCEKİ davranış).
-    uiServer(UI_LAB_PORT, { NEXT_PUBLIC_UX_LAB: "1", NEXT_PUBLIC_UX_INTENT: "1", NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1", NEXT_PUBLIC_UX_APPROVALS: "1", NEXT_PUBLIC_UX_MODELS: "1", NEXT_PUBLIC_UX_COMPANY: "1", NEXT_PUBLIC_UX_CODE: "1", NEXT_PUBLIC_UX_AGENTS: "1" }),
+    uiServer(UI_LAB_PORT, { NEXT_PUBLIC_UX_LAB: "1", NEXT_PUBLIC_UX_INTENT: "1", NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1", NEXT_PUBLIC_UX_APPROVALS: "1", NEXT_PUBLIC_UX_MODELS: "1", NEXT_PUBLIC_UX_COMPANY: "1", NEXT_PUBLIC_UX_CODE: "1" }),
     // BRA-UX-05e: İşler + iş sayfası AÇIK ama kod değişikliği kartı bayrağı KAPALI örnek (kart yok, `/code-summary` isteği yok kanıtı).
-    uiServer(UI_WS_PORT, { NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1", NEXT_PUBLIC_UX_AGENTS: "" }),
+    uiServer(UI_WS_PORT, { NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1" }),
   ],
 });
