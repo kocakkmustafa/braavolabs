@@ -17,6 +17,7 @@ import {
 } from "./builder";
 import { updateAgentWithHistory } from "./agent-update";
 import { composeAgent } from "../agent/composer";
+import { sanitizeComposedDraft } from "../agent/compose-draft";
 import { assertCompanyCapacity } from "./company-capacity";
 import { seedCreatorAsOwner } from "./owner-seed";
 import { companyMembersRouter } from "./members";
@@ -43,6 +44,9 @@ const buildStartLimiter = rateLimit({ windowMs: 60_000, maxRequests: 5, keyPrefi
 const buildAnswerLimiter = rateLimit({ windowMs: 60_000, maxRequests: 20, keyPrefix: "rl:company:build:answer" });
 // Composer: one LLM round-trip per call, cheaper than build but still costs tokens.
 const agentComposeLimiter = rateLimit({ windowMs: 60_000, maxRequests: 10, keyPrefix: "rl:agent:compose" });
+// Confirm LLM çağırmaz; ucuz tenant-bazlı sınır. LLM limiter'dan AYRI örnek (draft'ı etkilemez).
+export const AGENT_COMPOSE_CONFIRM_MAX_PER_MIN = 30;
+const agentComposeConfirmLimiter = rateLimit({ windowMs: 60_000, maxRequests: AGENT_COMPOSE_CONFIRM_MAX_PER_MIN, keyPrefix: "rl:agent:compose-confirm" });
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
@@ -651,6 +655,105 @@ const agentComposeSchema = z.object({
   description: z.string().min(10).max(4000),
 });
 
+async function runComposer(tenantId: string, description: string) {
+  try {
+    return await composeAgent(tenantId, description);
+  } catch (err) {
+    // Surface common composer failures as 400 with actionable copy
+    // instead of a generic 500. Two big buckets:
+    //  - missing/invalid AI key → user must visit Settings
+    //  - LLM returned non-JSON / bad shape → suggest a different provider
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/no ai provider|api key|not initialized|configure/i.test(msg)) {
+      throw new AppError(
+        400,
+        "Configure an AI provider in Settings → AI Provider before composing agents. Anthropic, OpenAI, Gemini, Groq, or self-hosted Ollama all work.",
+      );
+    }
+    if (/json|valid agent spec|did not return/i.test(msg)) {
+      throw new AppError(400, msg);
+    }
+    throw err;
+  }
+}
+
+// Tek kayıt yolu: eski compose ve yeni confirm aynı satırı/aynı audit'i yazar.
+async function persistComposedAgent(
+  req: { auth?: { tenantId: string; userId: string } },
+  companyId: string,
+  composed: { name: string; role: string; systemPrompt: string; tools: string[] },
+  details: Record<string, unknown>,
+) {
+  const agent = await prisma.agent.create({
+    data: {
+      companyId,
+      name: composed.name,
+      role: composed.role,
+      systemPrompt: composed.systemPrompt,
+      tools: composed.tools as any,
+    },
+  });
+  await prisma.activityLog.create({
+    data: {
+      tenantId: req.auth!.tenantId,
+      actor: req.auth!.userId,
+      action: "agent.compose",
+      resource: "agent",
+      resourceId: agent.id,
+      details: { companyId, ...details },
+    },
+  });
+  return agent;
+}
+
+async function findOwnCompany(req: { auth?: { tenantId: string } }, companyId: string) {
+  const company = await prisma.company.findFirst({
+    where: { id: companyId, tenantId: req.auth!.tenantId },
+  });
+  if (!company) throw new AppError(404, "Company not found");
+  return company;
+}
+
+// POST /api/v1/companies/:id/agents/compose/draft — Taslak (KAYIT YOK)
+//
+// Tasarım 04-design §5.5 "Taslak → Oluştur" 1. adım. Aynı LLM çağrısı ve aynı
+// oran sınırı; ajan YAZILMAZ, activity_log YAZILMAZ. İstemci taslağı tutar,
+// düzenler ve POST …/agents/compose/confirm ile oluşturur (draftId/migration yok).
+companyRouter.post("/:id/agents/compose/draft", agentComposeLimiter, async (req, res, next) => {
+  try {
+    const companyId = req.params.id as string;
+    await findOwnCompany(req, companyId);
+    const { description } = agentComposeSchema.parse(req.body);
+    const result = await runComposer(req.auth!.tenantId, description);
+    res.json({
+      draft: result.agent,
+      droppedTools: result.droppedTools,
+      provider: result.provider,
+      model: result.model,
+      tokens: { input: result.inputTokens, output: result.outputTokens },
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/companies/:id/agents/compose/confirm — Taslağı onayla ve kaydet
+//
+// LLM çağrısı YOK. Gövdedeki taslak güvenilmez istemci verisidir: composer'ın
+// zod şeması + araç beyaz listesi yeniden uygulanır, sonra eski compose ile
+// aynı kayıt yolu kullanılır.
+const agentComposeConfirmSchema = z.object({ draft: z.unknown() });
+
+// NOT: ajan SAYISI kapasitesi yok (eski compose'ta da yoktu); karar BRA-UX-API-03 sonrası kurucuda.
+companyRouter.post("/:id/agents/compose/confirm", agentComposeConfirmLimiter, async (req, res, next) => {
+  try {
+    const companyId = req.params.id as string;
+    const company = await findOwnCompany(req, companyId);
+    const { draft } = agentComposeConfirmSchema.parse(req.body);
+    const { agent: composed, droppedTools } = sanitizeComposedDraft(draft);
+    const agent = await persistComposedAgent(req, company.id, composed, { source: "draft", droppedTools });
+    res.status(201).json({ agent, droppedTools });
+  } catch (err) { next(err); }
+});
+
 companyRouter.post("/:id/agents/compose", agentComposeLimiter, async (req, res, next) => {
   try {
     // Cast to string — when this endpoint chains through agentComposeLimiter
@@ -658,60 +761,18 @@ companyRouter.post("/:id/agents/compose", agentComposeLimiter, async (req, res, 
     // `string | string[]` which Prisma rejects. Other endpoints in this file
     // skip the cast because they don't compose through this middleware.
     const companyId = req.params.id as string;
-    const company = await prisma.company.findFirst({
-      where: { id: companyId, tenantId: req.auth!.tenantId },
-    });
-    if (!company) throw new AppError(404, "Company not found");
+    const company = await findOwnCompany(req, companyId);
 
     const { description } = agentComposeSchema.parse(req.body);
-    let result;
-    try {
-      result = await composeAgent(req.auth!.tenantId, description);
-    } catch (err) {
-      // Surface common composer failures as 400 with actionable copy
-      // instead of a generic 500. Two big buckets:
-      //  - missing/invalid AI key → user must visit Settings
-      //  - LLM returned non-JSON / bad shape → suggest a different provider
-      const msg = err instanceof Error ? err.message : String(err);
-      if (/no ai provider|api key|not initialized|configure/i.test(msg)) {
-        throw new AppError(
-          400,
-          "Configure an AI provider in Settings → AI Provider before composing agents. Anthropic, OpenAI, Gemini, Groq, or self-hosted Ollama all work.",
-        );
-      }
-      if (/json|valid agent spec|did not return/i.test(msg)) {
-        throw new AppError(400, msg);
-      }
-      throw err;
-    }
+    const result = await runComposer(req.auth!.tenantId, description);
 
-    const agent = await prisma.agent.create({
-      data: {
-        companyId: company.id,
-        name: result.agent.name,
-        role: result.agent.role,
-        systemPrompt: result.agent.systemPrompt,
-        tools: result.agent.tools as any,
-      },
-    });
-
-    await prisma.activityLog.create({
-      data: {
-        tenantId: req.auth!.tenantId,
-        actor: req.auth!.userId,
-        action: "agent.compose",
-        resource: "agent",
-        resourceId: agent.id,
-        details: {
-          companyId: company.id,
-          provider: result.provider,
-          model: result.model,
-          inputTokens: result.inputTokens,
-          outputTokens: result.outputTokens,
-          droppedTools: result.droppedTools,
-          descriptionLength: description.length,
-        },
-      },
+    const agent = await persistComposedAgent(req, company.id, result.agent, {
+      provider: result.provider,
+      model: result.model,
+      inputTokens: result.inputTokens,
+      outputTokens: result.outputTokens,
+      droppedTools: result.droppedTools,
+      descriptionLength: description.length,
     });
 
     res.status(201).json({
