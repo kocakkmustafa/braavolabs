@@ -30,6 +30,7 @@ export const ACTION_LABELS: Readonly<Record<string, string>> = {
   "run.resume": "Run resumed",
   "run.retry": "Run retried",
   "run.steer": "Steering message sent",
+  "run.chat.send": "Chat message sent",
   "run.handoff_requested": "Handoff requested",
   "run.handoff_created": "Handoff created",
   "run.handoff_claimed": "Handoff claimed",

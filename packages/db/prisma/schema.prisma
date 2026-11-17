@@ -10,6 +10,7 @@ datasource db {
 // ─── TENANT & AUTH ──────────────────────────────────────
 
 model Tenant {
+  jobMessages          JobMessage[]
   id                   String   @id @default(cuid())
   name                 String
   slug                 String   @unique
@@ -138,6 +139,7 @@ model MediaAsset {
 }
 
 model User {
+  jobMessages JobMessage[]
   id           String   @id @default(cuid())
   tenantId     String   @map("tenant_id")
   email        String   @unique
@@ -621,6 +623,8 @@ model Run {
   deliveryApprovedById String?   @map("delivery_approved_by_id")
   deliveryApprovedAt   DateTime? @map("delivery_approved_at")
 
+  chatMessages JobMessage[]
+
   @@unique([tenantId, idempotencyKey])
   @@index([tenantId, ownerUserId])
   @@index([tenantId, state])
@@ -755,6 +759,34 @@ model SteeringMessage {
 
   @@index([runId, consumedAt])
   @@map("steering_messages")
+}
+
+// ─── JOB SOHBETİ (BRA-UX-API-05) ─────────────────────────
+// Bir işe (Run) bağlı sohbet geçmişi. Yalnız kullanıcının kendi gönderdiği ve
+// asistanın yazdığı metin; ekran/UI olayı KAYDEDİLMEZ. tenant_id RLS (tenant_rls).
+model JobMessage {
+  id           String         @id @default(cuid())
+  tenantId     String         @map("tenant_id")
+  runId        String         @map("run_id")
+  role         JobMessageRole
+  content      String         @db.Text
+  authorUserId String?        @map("author_user_id")
+  createdAt    DateTime       @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  run    Run    @relation(fields: [runId], references: [id], onDelete: Cascade)
+  author User?  @relation(fields: [authorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, runId, createdAt(sort: Desc), id(sort: Desc)])
+  @@index([runId])
+  @@index([authorUserId])
+  @@map("job_messages")
+}
+
+enum JobMessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
 }
 
 enum SteeringKind {

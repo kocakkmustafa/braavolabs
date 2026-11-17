@@ -34,6 +34,7 @@ import { bucketWhere, isInboxBucket, jobStaleAfterMs } from "./job-bucket-query"
 import { loadRunActivity } from "./activity";
 import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } from "./list-cursor";
 import { deriveStepGraph } from "./step-graph";
+import { loadChat, postChat, CHAT_RATE_LIMIT } from "./chat";
 import { rowSummarySelect, withRowSummary } from "./row-summary";
 
 export const runRouter = Router();
@@ -45,6 +46,8 @@ const explainLimiter = rateLimit({ windowMs: 60_000, maxRequests: 10, keyPrefix:
 
 // Handoff create/continue can enqueue a run — throttle per-tenant so a
 // mis-scripted client can't stack ledgers/jobs (same shape as explainLimiter).
+// Ayarlar chat.ts CHAT_RATE_LIMIT (testle paylaşılır). Redis çökünce fail-closed (rateLimit.ts).
+const chatLimiter = rateLimit(CHAT_RATE_LIMIT);
 const handoffLimiter = rateLimit({ windowMs: 60_000, maxRequests: 30, keyPrefix: "rl:run:handoff" });
 
 /**
@@ -851,6 +854,23 @@ runRouter.get("/:id/activity", async (req, res, next) => {
       limitRaw: req.query.limit,
       cursorRaw: req.query.cursor,
     }));
+  } catch (err) { next(err); }
+});
+
+// GET/POST /api/v1/runs/:id/chat — BRA-UX-API-05: işe bağlı sohbet geçmişi + kullanıcı mesajı (mantık run/chat.ts).
+// POST mesajı kaydeder ve canlı koşuya mevcut steer kanalıyla iletir; eylem tetiklemez (onay kapıları aynen).
+runRouter.get("/:id/chat", async (req, res, next) => {
+  try {
+    res.json(await loadChat(prisma, {
+      tenantId: req.auth!.tenantId, userId: req.auth!.userId,
+      runId: req.params.id as string, limitRaw: req.query.limit, cursorRaw: req.query.cursor,
+    }));
+  } catch (err) { next(err); }
+});
+runRouter.post("/:id/chat", chatLimiter, async (req, res, next) => {
+  try {
+    const out = await postChat(prisma, { tenantId: req.auth!.tenantId, userId: req.auth!.userId, runId: req.params.id as string, body: req.body });
+    res.status(201).json(out);
   } catch (err) { next(err); }
 });
 
