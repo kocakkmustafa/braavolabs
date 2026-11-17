@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const db = vi.hoisted(() => ({ prisma: {} as any, tenantTx: vi.fn() }));
 vi.mock("../../../lib/db", () => db);
-vi.mock("../../../lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
+vi.mock("../../../lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } }));
 vi.mock("../../../middleware/auth", () => ({ authMiddleware: vi.fn() }));
 vi.mock("../../../middleware/require-permission", () => ({ requirePermission: () => vi.fn() }));
 vi.mock("../../../middleware/rateLimit", () => ({ rateLimit: () => vi.fn() }));
