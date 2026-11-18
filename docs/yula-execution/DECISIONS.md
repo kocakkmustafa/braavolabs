@@ -318,3 +318,19 @@ UNION ALL SELECT 'approvals NULL, deploy sonrası', count(*) FROM approvals WHER
 - **Sandbox sınırı:** yalnız yol/symlink sınırı + dry-run varsayılanı. Süreç ve ağ izolasyonu KAPSAM DIŞI. Gerçek komut çalıştırma ve ağ bu biletin DIŞINDADIR (modül `child_process`/ağ içermez; testle sabitli).
 - **Bağlama:** Modül hiçbir ajan aracına, env bayrağına ya da route'a bağlı değildir (bayrak-kapalı tasarım). Bağlamak ayrı bilet ve kurucu onayı ister.
 - **Bilinen sınırlar:** Kontrol ile yazım arasında yarış (TOCTOU) tamamen kapatılmaz (yeniden kontrol + O_NOFOLLOW ile daraltılır; ara dizin bileşenleri O_NOFOLLOW kapsamında değildir); geri alma en-iyi-çabadır; yalnız POSIX; büyük/küçük harf duyarsız dosya sistemi çakışmasını planlayıcı çözer.
+
+---
+
+## ADR-0008 — Tam yetki kapsamı: çalışma alanı yazma + ağ kapalı + SANDBOX_ESCAPE onayı (BRA-P2-02a)
+
+- **Durum:** Accepted (kurucu kararı 2026-11-18, toplu onay md.9: KARAR-A1 = a). Not: ADR-0007 başka PR'da eklenir; numara çakışırsa raporlanır.
+- **Bağlam:** "Tam yetki" modunda ajan yerelde çalışırken neyin serbest, neyin onaylı olduğu yazılı ve makine-doğrulanabilir olmalıdır. Seçenekler: (a) çalışma alanında yazma + ağ kapalı + kaçış onayı; (b) yalnız bulut (yerel yazma hiç yok). Bulut-yalnız (b) yerel dosya işini ve çevrimdışı/self-hosted hibrit hedefini dışlar, ürün değerini düşürür; (a) sınırı yazıyla çizip her aşımı insan onayına bağlar, bu yüzden (a) seçildi.
+- **Karar — sınır (varsayılan: reddet):**
+  - **YOL:** yalnız çalışma kökü altı izinlidir (okuma; yazma/silme yalnız `allowWrite` ile). Kök dışı, `..`/`.`/boş segment, mutlak kök dışı yol, symlink kaçışı (çözülmüş hedef kök dışı), sistem dizinleri (`/etc`, `/proc`, `~/.ssh` vb.), `.git/hooks` ve `.env*` yazımı doğrudan izin almaz. Kök dışı hiçbir yol doğrudan allow olmaz.
+  - **AĞ:** allowlist boşken ağ tamamen kapalıdır. Allowlist elemanı ana makine adı + port (tam eşleşme, büyük/küçük harf duyarsız); joker yoktur. IP-literal, `localhost`, metadata adresleri ve IDN/Unicode ana makineler allowlist'te olsa bile kaçış onayı ister.
+  - **SHELL:** varsayılan kapalı. Komut çalıştırma bu ADR'nin kapsamı DIŞINDADIR ve ayrı kurucu onayı ister; politika fonksiyonu her `shell.exec`'i reddeder (`SHELL_DISABLED`).
+  - **Kaçış = `SANDBOX_ESCAPE` onayı:** sınır dışı her istek, exact-action (tek eylem: tür + hedef) kapsamlı bir `SANDBOX_ESCAPE` onayı olarak ADMIN kararına gider. Onay yalnız o eylemi kapsar, genelleşmez. Ret = kaçış reddi; run FAILED OLMAZ (eylem atlanır, ajan haberdar edilir, run sürer ya da kullanıcıya döner).
+- **Gözetim yok ile uyum:** Politika yalnız ajanın kendi eylemlerini sınırlar; kullanıcının ekranını, dosyalarını veya etkinliğini izlemez. Senkron yalnız metadata'dır (içerik yok, 02d). Onay kaydı mevcut `activity_log`/`approvals` ilkesine uyar.
+- **Kapanış kriteri (parçalı teslim):** 02b saf karar fonksiyonu `evaluateSandboxAccess` (`packages/braavo-core/src/sandbox-policy.ts`, I/O yok, throw etmez, deterministik) · 02c `SANDBOX_ESCAPE` enum + migration · 02d yalnız-metadata senkron · 02e bayrak-kapalı durum uçları. Hepsi tamamlanıp doğrulanınca 02 kapanır.
+- **Bağlama:** Bayrak ve ayrı kurucu onayı olmadan hiçbir yere bağlanmaz; 02a/02b'de route, migration, arayüz, bayrak yoktur.
+- **Bilinen sınırlar:** Fonksiyon saf olduğu için symlink'i kendisi çözemez: çağıranın verdiği `resolvedPath`/`isSymlink` ipucunu kullanır, ipucu yoksa yalnız sözdizimsel kontrol yapar ve `needsRealpath:true` döner; yürütücü realpath ile yeniden sormalıdır. Kontrol–kullanım arası yarış (TOCTOU) yürütücünün işidir. `.env*` okuma bu sürümde izinlidir (yalnız yazma/silme kaçış ister).
