@@ -217,6 +217,8 @@ const envShape = z.object({
   // Default-off: enable only after the additive lineage migration and client
   // regeneration have been independently verified. Disable for rollback;
   // persisted evidence is retained and the old conservative fence returns.
+  // BRA-UX-API-03k: plan-wide agent quota. Default-off; plan numbers come from the founder (modules/company/agent-capacity.ts).
+  AGENT_QUOTA_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
   GOOGLE_PURCHASE_LINEAGE_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
   IAP_DELIVERY_RELIABILITY_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
   // A permanently failing provider lookup or persistence target must not
