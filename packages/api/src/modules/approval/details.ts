@@ -100,6 +100,31 @@ const TOOL_NAME = /^[A-Za-z][\w.:-]{0,63}$/;
 /** Sağlayıcı/model adı biçimi (gpt-4o, claude-3.5, vendor/model). */
 const PROVIDER_NAME = /^[\w.:/-]{1,64}$/;
 
+/** SANDBOX_ESCAPE metadata re-validation (target is already masked at write time). */
+const ESCAPE_KIND = /^(?=.{3,32}$)[a-z]+\.[a-z_]+$/;
+const ESCAPE_REASON = /^[a-z0-9_-]{1,64}$/;
+/**
+ * Single source of truth for a sandbox-escape TARGET's forbidden characters (write side in
+ * sandbox-escape.ts imports it; display re-validation here uses the same set):
+ *  - control (Cc), format/invisible/bidi/tag (Cf), private use (Co), line/paragraph separators (Zl/Zp),
+ *  - every space separator except the ordinary ASCII space,
+ *  - invisible fillers/joiners/variation selectors the Cf class misses,
+ *  - slash look-alikes (a path that LOOKS split or joined differently from what is approved) and the
+ *    arrow used by the one-line display (`kind → target (reason)`).
+ * KNOWN LIMITS (the look-alike list can never be complete; the writer fails closed on what it knows):
+ *  - mixed-direction text (RTL letters next to LTR) can reorder visually; the structured `target` is returned
+ *    separately and the UI must render it isolated (dir="ltr" / <bdi>) -> ticket candidate for the UI session.
+ *  - parentheses are legal in names, so `/tmp/x (reason)` can read like the trailing `(reason)`; the real reason
+ *    is always the LAST parenthesis and is also a separate structured field.
+ */
+export const ESCAPE_TARGET_FORBIDDEN =
+  /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Default_Ignorable_Code_Point}\p{Zl}\p{Zp}\u034f\u115f\u1160\u17b4\u17b5\u180b-\u180f\u3164\uffa0\ufe00-\ufe0f\ufffc\u{e0000}-\u{e0fff}\u2044\u2215\u29f8\u2571\uff0f\u2192\u2800\u2216\uff3c\ufe68\u2572\u29f5\u2024\uff0e\ufe52]|(?! )\p{Zs}/u;
+/** Whitespace that the eye cannot tell apart from a different path: leading/trailing/double spaces. */
+export const ESCAPE_TARGET_AMBIGUOUS_SPACE = /^ | $| {2,}| \/|\/ /;
+const ESCAPE_TARGET = {
+  test: (s: string) => s.length >= 1 && s.length <= 256 && !ESCAPE_TARGET_FORBIDDEN.test(s) && !ESCAPE_TARGET_AMBIGUOUS_SPACE.test(s),
+};
+
 const NULL_DETAILS: ApprovalDetails = Object.freeze({
   risk: null,
   permissions: null,
@@ -135,6 +160,21 @@ function matching(v: unknown, re: RegExp): string | null {
   if (typeof v !== "string" || !re.test(v) || SECRET_VALUE.test(v)) return null;
   if (leaksSecret(v) || credentialShaped(v)) return null;
   return v;
+}
+
+/**
+ * One-line escape display. NOT passed through `clamp` (it collapses whitespace, which would make
+ * `/a  b` and `/a b` look identical while their digests differ). When too long, the MIDDLE of the target
+ * is elided so the kind, the reason and the file name at the end stay visible.
+ */
+function escapeLine(kind: string, target: string, reason: string): string {
+  const full = `${kind} → ${target} (${reason})`;
+  if (full.length <= MAX_DETAIL_STRING) return full;
+  const cps = Array.from(target); // code points: never cut an astral character in half
+  const room = Math.max(16, MAX_DETAIL_STRING - (kind.length + reason.length + 6));
+  const tail = Math.ceil((room - 1) / 2);
+  const head = room - 1 - tail;
+  return `${kind} → ${cps.slice(0, head).join("")}…${cps.slice(cps.length - tail).join("")} (${reason})`;
 }
 
 function list(items: Array<string | null>): string[] | null {
@@ -217,6 +257,22 @@ export function deriveApprovalDetails(type: unknown, metadata: unknown): Approva
                 ...(target ? { targetId: target } : {}),
               },
             }
+          : {}),
+      };
+    }
+    if (type === "SANDBOX_ESCAPE") {
+      // BRA-P2-02c: the displayed action comes from metadata only (kind + masked target + code),
+      // re-validated here; the agent-written `description` is never the source.
+      const escapeKind = typeof m.kind === "string" && ESCAPE_KIND.test(m.kind) ? m.kind : null;
+      const target = typeof m.target === "string" && ESCAPE_TARGET.test(m.target) ? m.target : null;
+      const reasonCode = typeof m.reasonCode === "string" && ESCAPE_REASON.test(m.reasonCode) ? m.reasonCode : null;
+      return {
+        risk: null,
+        permissions: list([escapeKind]),
+        dataTransfer: escapeKind && target && reasonCode ? list([escapeLine(escapeKind, target, reasonCode)]) : null,
+        reversible: null,
+        ...(escapeKind && target && reasonCode
+          ? { dataTransferStructured: { kind: "sandbox_escape" as const, escapeKind, target, reasonCode } }
           : {}),
       };
     }

@@ -1960,6 +1960,16 @@ enum ApprovalType {
   // is rejected, not the run) and cancels the ledger row. Surfaces in the
   // same approvals queue the mobile app already renders — zero mobile code.
   HANDOFF
+  // Sandbox escape request (BRA-P2-02c): the sandbox policy decided
+  // `escape-approval-required` and a human must allow ONE concrete escape.
+  // metadata carries {kind, target, reasonCode} ONLY (kind = fs.write /
+  // net.connect / …, target = normalised path or host:port, reasonCode = policy
+  // code); never raw commands, file content or secrets. The metadata is hashed
+  // into the exact-action grant (actionHash), so a different action cannot ride
+  // on this approval. Decide = approval:decide (ADMIN+). REJECT = escape denied:
+  // the approval is REJECTED but the run is NOT cancelled/failed — the agent is
+  // told via SteeringMessage(INPUT) and the run resumes without the escape.
+  SANDBOX_ESCAPE
 }
 
 enum ApprovalStatus {

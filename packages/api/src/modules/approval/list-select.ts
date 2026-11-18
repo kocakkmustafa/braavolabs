@@ -51,3 +51,15 @@ export function publicApprovalMetadata(metadata: unknown): { toolName?: string }
 export function projectApprovalRow<T extends { metadata: unknown }>(row: T): Omit<T, "metadata"> & { metadata: { toolName?: string } } {
   return { ...row, metadata: publicApprovalMetadata(row.metadata) };
 }
+
+/**
+ * BRA-P2-02c: for SANDBOX_ESCAPE the visible action is derived from metadata (via `details`), NOT
+ * from the agent-written `description` — a spoofed description must not mislead the approver. The
+ * original text survives only as clamped `additionalText`. Other types are returned untouched.
+ */
+export function withEscapeDisplay<T extends { type?: unknown; description?: unknown; details?: { dataTransfer?: string[] | null } }>(row: T): T {
+  if (row.type !== "SANDBOX_ESCAPE") return row;
+  const shown = row.details?.dataTransfer?.[0] ?? "sandbox escape";
+  const extra = typeof row.description === "string" ? row.description.replace(/\s+/g, " ").trim().slice(0, 200) : "";
+  return { ...row, description: `Sandbox escape: ${shown}`, additionalText: extra || null };
+}

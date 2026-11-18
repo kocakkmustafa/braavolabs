@@ -12,8 +12,9 @@ import { reopenClaimedHandoff } from "../run/handoff.service";
 import { z } from "zod";
 import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } from "../run/list-cursor";
 import { toPublicCompany } from "../company/redact";
-import { APPROVAL_LIST_SELECT, projectApprovalRow } from "./list-select";
+import { APPROVAL_LIST_SELECT, projectApprovalRow, withEscapeDisplay } from "./list-select";
 import { withApprovalDetails } from "./details";
+import { resumeAfterEscapeDenied } from "./escape-denied";
 import {
   type ApprovalArtifact,
   extractArtifactFromInput,
@@ -120,7 +121,7 @@ approvalRouter.get("/", async (req, res, next) => {
       },
     }));
     // artifact ham metadata'dan çıkarılır, sonra metadata yalnız toolName'e indirilir (BRA-P0-04h).
-    const withArtifacts = (await attachArtifacts(safe)).map(withApprovalDetails).map(projectApprovalRow);
+    const withArtifacts = (await attachArtifacts(safe)).map(withApprovalDetails).map(withEscapeDisplay).map(projectApprovalRow);
 
     if (groupBy === "run") {
       const groups = new Map<string, { runId: string; runTitle: string | null; approvals: unknown[] }>();
@@ -306,6 +307,12 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
         // APPROVED: leave the run as-is; the post-tx claim block drives it.
       } else if (decision === "APPROVED") {
         ({ enqueue, from } = await driveApprovedRun(tx, approval.id, approval.runId, tenantId));
+      } else if (approval.type === "SANDBOX_ESCAPE") {
+        // BRA-P2-02c: a denied escape rejects the APPROVAL, not the run (never
+        // cancelled/failed). The agent is told via SteeringMessage(INPUT); the run is
+        // resumed ONLY if it is really WAITING_APPROVAL and no other gate is pending —
+        // a terminal or paused run is never moved (both JOB_STATE_DUAL_WRITE modes).
+        ({ enqueue, from } = await resumeAfterEscapeDenied(tx, approval.id, approval.runId, tenantId, req.auth!.userId, approval.metadata));
       } else {
         await cancelRunAfterReject(tx, approval.runId, tenantId);
       }
@@ -501,7 +508,7 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
     // current runner replays from step group 0; per-step idempotency keys
     // keep most external side effects safe. (REJECTED leaves the run as
     // CANCELLED — no enqueue needed.) HANDOFF handled its own enqueue above.
-    if (decision === "APPROVED" && result.enqueue) {
+    if ((decision === "APPROVED" || approval.type === "SANDBOX_ESCAPE") && result.enqueue) {
       try {
         await enqueueRun(approval.runId);
       } catch (err) {
