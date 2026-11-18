@@ -11,6 +11,7 @@ datasource db {
 
 model Tenant {
   jobMessages          JobMessage[]
+  tenantRepositories   TenantRepository[]
   id                   String   @id @default(cuid())
   name                 String
   slug                 String   @unique
@@ -2244,4 +2245,32 @@ model ErasureTombstone {
   @@id([subjectKind, subjectHash])
   @@index([expiresAt])
   @@map("erasure_tombstones")
+}
+
+// BRA-P1-03-N1: tenant repository ALLOWLIST (read-only intent). Records which repositories a tenant lists; stores NO
+// token, key or credential (the GitHub App is the founder's). `installationId` is the App's public numeric id.
+// ADDITIVE migration; live only with a `v*` release.
+enum RepoProvider {
+  GITHUB
+}
+
+model TenantRepository {
+  id              String       @id @default(cuid())
+  tenantId        String       @map("tenant_id")
+  provider        RepoProvider @default(GITHUB)
+  owner           String
+  repo            String
+  /// lower(owner/repo): case-insensitive identity.
+  fullName        String       @map("full_name")
+  installationId  String?      @map("installation_id")
+  defaultBranch   String?      @map("default_branch")
+  createdByUserId String?      @map("created_by_user_id")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, provider, fullName])
+  @@index([tenantId])
+  @@map("tenant_repositories")
 }
