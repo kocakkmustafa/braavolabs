@@ -4,6 +4,9 @@ import { authMiddleware } from "../../middleware/auth";
 import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
+import { env } from "../../config/env";
+import { MAX_CONTENT_BYTES, MAX_PATCHES, MAX_PATH_LENGTH, planWorktree } from "./worktree-planner";
+import { buildWorktreePreview } from "./worktree-preview";
 import {
   createVersion,
   listVersions,
@@ -154,6 +157,42 @@ agentVersionRouter.post("/:id/rollback", async (req, res, next) => {
       version: result.version,
       message: `Rolled back to version ${result.targetVersion}`,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// BRA-P2-02e: dry-run worktree PREVIEW. Behind WORKTREE_PLAN_ENABLED (default off => 404). Pure planning only:
+// nothing is written, stored or executed; the response is metadata-only (see worktree-preview.ts, ADR-0008:
+// persistence of worktree state is deferred). Tenant scope: the agent must belong to the caller's tenant.
+const worktreePlanSchema = z.strictObject({
+  root: z.string().min(1).max(MAX_PATH_LENGTH),
+  subPath: z.string().min(1).max(MAX_PATH_LENGTH).optional(),
+  patches: z
+    .array(
+      z.strictObject({
+        path: z.string().max(MAX_PATH_LENGTH),
+        op: z.enum(["create", "modify", "delete"]),
+        content: z.string().max(MAX_CONTENT_BYTES).optional(),
+      }),
+    )
+    .max(MAX_PATCHES),
+});
+
+// POST /api/v1/agents/:id/worktree/plan
+agentVersionRouter.post("/:id/worktree/plan", async (req, res, next) => {
+  try {
+    if (!env.WORKTREE_PLAN_ENABLED) throw new AppError(404, "Not found");
+    const agentId = String(req.params.id);
+    await verifyAgentAccess(agentId, req.auth!.tenantId);
+    const body = worktreePlanSchema.parse(req.body);
+    const plan = planWorktree(body);
+    if (!plan.ok) {
+      // code only: the planner's message can echo the caller's path.
+      res.status(422).json({ dryRun: true, ok: false, code: plan.code });
+      return;
+    }
+    res.json(buildWorktreePreview(plan, body.patches, { tenantId: req.auth!.tenantId, agentId, now: new Date() }));
   } catch (err) {
     next(err);
   }

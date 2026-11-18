@@ -217,6 +217,8 @@ const envShape = z.object({
   // Default-off: enable only after the additive lineage migration and client
   // regeneration have been independently verified. Disable for rollback;
   // persisted evidence is retained and the old conservative fence returns.
+  // BRA-P2-02e: POST /agents/:id/worktree/plan (dry-run preview, no persistence). Default-off: 404 while false.
+  WORKTREE_PLAN_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
   GOOGLE_PURCHASE_LINEAGE_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
   IAP_DELIVERY_RELIABILITY_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
   // A permanently failing provider lookup or persistence target must not
