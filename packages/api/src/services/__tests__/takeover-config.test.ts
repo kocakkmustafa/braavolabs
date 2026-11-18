@@ -23,8 +23,11 @@ vi.mock("../../lib/logger", () => ({
 }));
 
 const listTenantProviderLinksMock = vi.hoisted(() => vi.fn());
+const blockedMock = vi.hoisted(() => vi.fn());
 vi.mock("../provider-chain", () => ({
   listTenantProviderLinks: (...a: unknown[]) => listTenantProviderLinksMock(...a),
+  isCloudBlockedByLocalDefault: (...a: unknown[]) => blockedMock(...a),
+  LOCAL_DEFAULT_CLOUD_BLOCKED_MESSAGE: "Yerel sağlayıcı varsayılanken bulut sağlayıcılar kullanılamaz",
 }));
 
 import { resolveTakeoverConfig, assertKeylessLocalBaseUrl } from "../takeover-config";
@@ -47,6 +50,7 @@ beforeEach(() => {
   envMock.NODE_ENV = "development";
   envMock.OFFLINE_MODE = false;
   listTenantProviderLinksMock.mockResolvedValue([]);
+  blockedMock.mockResolvedValue(false);
 });
 
 // ── keyless-local ──
@@ -102,6 +106,16 @@ describe("resolveTakeoverConfig — cloud target", () => {
     await expect(
       resolveTakeoverConfig(claimedLedger({ toProvider: "OPENAI", toModel: "gpt-4o", checkpoint: { messages: [], turn: 1 } })),
     ).rejects.toThrow(/no longer configured/i);
+  });
+});
+
+describe("resolveTakeoverConfig — local default (SEC-BRA-04c)", () => {
+  it("cloud target hidden by the local-default rule → privacy message, not 'no longer configured'", async () => {
+    listTenantProviderLinksMock.mockResolvedValue([]);
+    blockedMock.mockResolvedValue(true);
+    await expect(
+      resolveTakeoverConfig(claimedLedger({ toProvider: "OPENAI", toModel: "gpt-4o", checkpoint: { messages: [], turn: 1 } })),
+    ).rejects.toThrow("Yerel sağlayıcı varsayılanken bulut sağlayıcılar kullanılamaz");
   });
 });
 

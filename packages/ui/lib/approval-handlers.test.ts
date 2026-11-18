@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { resolve } from "node:path";
 import { screenHarness } from "./approval-handler-harness";
 
-const targets = [["web approvals", "app/approvals/page.tsx", "web", "queue"]] as const;
+const targets = [["web approvals", "components/approvals/ApprovalsLegacy.tsx", "web", "queue"]] as const;
 for (const [name, relative, surface, screen] of targets) {
   describe(name + " actual source decision handler", () => {
     let h: ReturnType<typeof screenHarness>;

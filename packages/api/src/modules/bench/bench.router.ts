@@ -15,6 +15,7 @@ import { systemScope } from "../../middleware/system-scope";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { runBenchSuite } from "./bench.service";
+import { BENCH_RUN_STATUS } from "./bench-run-status";
 import crypto from "node:crypto";
 
 export const benchRouter = Router();
@@ -38,7 +39,8 @@ benchRouter.get("/", systemScope("route:bench-public"), async (_req, res, next) 
     const out = [];
     for (const s of suites) {
       const runs = await prisma.benchRun.findMany({
-        where: { suiteId: s.id },
+        // FAILED/SKIPPED rows (score 0) never reach the public ranking.
+        where: { suiteId: s.id, status: BENCH_RUN_STATUS.COMPLETED },
         orderBy: { ranAt: "desc" },
         take: 200,
         select: {
@@ -70,7 +72,7 @@ benchRouter.get("/:slug", systemScope("route:bench-public"), async (req, res, ne
     const suite = await prisma.benchSuite.findUnique({ where: { slug: req.params.slug } });
     if (!suite || !suite.isPublic) throw new AppError(404, "Suite not found");
     const runs = await prisma.benchRun.findMany({
-      where: { suiteId: suite.id },
+      where: { suiteId: suite.id, status: BENCH_RUN_STATUS.COMPLETED },
       orderBy: { ranAt: "desc" },
       take: 200,
     });

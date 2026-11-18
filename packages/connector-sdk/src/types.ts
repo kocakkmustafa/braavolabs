@@ -11,4 +11,6 @@ export interface McpToolLike {
   name: string;
   description?: string;
   inputSchema?: Record<string, unknown>;
+  /** Publisher-declared capability (BRA-P1-03d). Signed when present. */
+  capability?: string;
 }

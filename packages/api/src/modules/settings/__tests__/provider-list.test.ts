@@ -109,6 +109,29 @@ describe("GET /settings/ai-config/providers", () => {
     expect(res.body.providers[0].keyMasked).toBe("••••????");
   });
 
+  it("SEC-BRA-04d: local default hides cloud rows (same set as listTenantProviderLinks)", async () => {
+    const t0 = new Date("2026-01-01T00:00:00Z");
+    userAIConfigFindMany.mockResolvedValue([
+      { provider: "OPENAI", model: "gpt-4o", isDefault: false, fallbackOrder: 1, baseUrl: null, encryptedApiKey: "enc-o", createdAt: t0 },
+      { provider: "OLLAMA", model: "gemma3:4b", isDefault: true, fallbackOrder: null, baseUrl: "http://localhost:11434/v1", encryptedApiKey: null, createdAt: t0 },
+      { provider: "LMSTUDIO", model: "qwen", isDefault: false, fallbackOrder: null, baseUrl: null, encryptedApiKey: null, createdAt: t0 },
+    ]);
+    const { res } = await invoke(handler, {});
+    expect(res.body.providers.map((p: any) => p.provider)).toEqual(["OLLAMA", "LMSTUDIO"]);
+    expect(Object.keys(res.body.providers[0]).sort()).toEqual(
+      ["baseUrl", "fallbackOrder", "isDefault", "keyMasked", "model", "provider"],
+    );
+  });
+
+  it("SEC-BRA-04d: no isDefault → first entry is the chain head (oldest row)", async () => {
+    userAIConfigFindMany.mockResolvedValue([
+      { provider: "OPENAI", model: "gpt-4o", isDefault: false, fallbackOrder: 1, baseUrl: null, encryptedApiKey: "e1", createdAt: new Date("2026-01-05T00:00:00Z") },
+      { provider: "GROQ", model: "llama", isDefault: false, fallbackOrder: null, baseUrl: null, encryptedApiKey: "e2", createdAt: new Date("2026-01-01T00:00:00Z") },
+    ]);
+    const { res } = await invoke(handler, {});
+    expect(res.body.providers.map((p: any) => p.provider)).toEqual(["GROQ", "OPENAI"]);
+  });
+
   it("empty when the tenant has no configured providers", async () => {
     userAIConfigFindMany.mockResolvedValue([]);
     const { res } = await invoke(handler, {});

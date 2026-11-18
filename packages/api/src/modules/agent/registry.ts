@@ -13,6 +13,12 @@ export interface ToolMeta {
    */
   interrupt?: "INPUT";
   /**
+   * SEC-BRA-06c: the executors (governed AND ungoverned) overwrite
+   * `input.tenantId` with the ACTING tenant after id validation. The handler
+   * then scopes its write by tenant (TOCTOU-safe) and refuses when absent.
+   */
+  injectTenantId?: boolean;
+  /**
    * Graduated autonomy (Feature D6). When true, this tool spends real money
    * (ad budgets, paid telephony, etc.) and ALWAYS requires an approval row —
    * CLAUDE.md rule #3 is inviolable, so even an AUTONOMOUS agent is gated here.
@@ -29,6 +35,12 @@ export interface ToolMeta {
    * bypassed.
    */
   externalControl?: boolean;
+  /**
+   * BRA-P1-03c: ALWAYS needs a human approval row, at every autonomy level
+   * (like money). Set by the executor for deploy / merge style tools even
+   * when DEPLOY_MERGE_TOOLS_ENABLED is on — founder-approval requirement.
+   */
+  alwaysRequiresApproval?: boolean;
 }
 
 export type AgentAutonomyLevel = "SUPERVISED" | "BALANCED" | "AUTONOMOUS";
@@ -67,6 +79,8 @@ export function requiresApprovalForAutonomy(
   // Rule #3: money is always gated, no matter the autonomy level.
   if (isMoneyTouching(meta)) return true;
   if (!meta) return false;
+  // BRA-P1-03c: deploy / merge tools are approval-gated even when AUTONOMOUS.
+  if (meta.alwaysRequiresApproval) return true;
 
   switch (autonomy) {
     case "AUTONOMOUS":
@@ -90,6 +104,12 @@ export interface ToolDefinition {
   inputSchema: Record<string, unknown>;
   handler: (input: unknown) => Promise<unknown>;
   meta?: ToolMeta;
+  /**
+   * Connector (MCP) tools only: the UNPREFIXED remote name and UNTRUNCATED
+   * remote description, so classification never sees the connector name
+   * prefix or the 1000-char display truncation.
+   */
+  remote?: { name: string; description?: string; connectorSlug?: string; connectorName?: string; declaredCapability?: string };
 }
 
 /**
@@ -869,10 +889,14 @@ registerTool({
     },
     required: ["dealId", "stage", "reason"],
   },
-  meta: { requiresApproval: false, riskLevel: "low" },
+  meta: { requiresApproval: false, riskLevel: "low", injectTenantId: true },
   handler: async (input) => {
-    const { dealId, stage, reason } = input as any;
-    const deal = await prisma.deal.update({ where: { id: dealId }, data: { stage } });
+    const { dealId, stage, reason, tenantId } = input as any;
+    if (typeof tenantId !== "string" || !tenantId) throw new Error("Tenant scope required for crm_update_deal_stage");
+    if (typeof dealId !== "string" || !dealId) throw new Error("dealId must be a string");
+    // SEC-BRA-06c: tenant filter is part of the WRITE (no check-then-update gap).
+    const res = await prisma.deal.updateMany({ where: { id: dealId, company: { tenantId } }, data: { stage } });
+    if (res.count === 0) throw new Error("Deal not found for this tenant");
     logger.info({ dealId, stage, reason }, "Deal stage updated");
     return { dealId, stage, reason };
   },
@@ -925,14 +949,24 @@ registerTool({
     },
     required: ["contactId"],
   },
-  meta: { requiresApproval: false, riskLevel: "low" },
+  meta: { requiresApproval: false, riskLevel: "low", injectTenantId: true },
   handler: async (input) => {
-    const { contactId, ...updates } = input as any;
-    const contact = await prisma.contact.update({
-      where: { id: contactId },
+    // SEC-BRA-06c: allowlist — never mass-assign ownership fields
+    // (companyId/tenantId/id/...) from model-controlled input.
+    const raw = input as Record<string, unknown>;
+    const { contactId, tenantId } = raw;
+    if (typeof tenantId !== "string" || !tenantId) throw new Error("Tenant scope required for crm_update_contact");
+    if (typeof contactId !== "string" || !contactId) throw new Error("contactId must be a string");
+    const updates: Record<string, unknown> = {};
+    for (const key of ["name", "status", "tags", "properties"]) {
+      if (raw[key] !== undefined) updates[key] = raw[key];
+    }
+    const res = await prisma.contact.updateMany({
+      where: { id: contactId, company: { tenantId } },
       data: updates as any,
     });
-    return { contactId: contact.id, name: contact.name };
+    if (res.count === 0) throw new Error("Contact not found for this tenant");
+    return { contactId, updated: updates.name !== undefined ? { name: updates.name } : {} };
   },
 });
 
@@ -1523,6 +1557,55 @@ registerTool({
         base || "main",
       );
       return { status: "COMPLETED", branch: branchStatus };
+    } catch (err) {
+      return { status: "FAILED", error: err instanceof Error ? err.message : String(err) };
+    }
+  },
+});
+
+// create_pull_request: DRY-RUN ONLY. Gerçek PR açma ayrı bilet + kurucu onayı;
+// bu araç dry-run. Ağa çıkmaz, `prUrl:null` döner (receipt'te "pr" kanıtı sayılmaz).
+registerTool({
+  name: "create_pull_request",
+  description:
+    "Dry-run of opening a pull request: validates input and returns the request that would be sent. Does NOT create a PR. Requires a GITHUB integration.",
+  inputSchema: {
+    type: "object" as const,
+    properties: {
+      companyId: { type: "string", description: "Company ID for integration lookup" },
+      repo: { type: "string", description: "Repository name" },
+      title: { type: "string", description: "Pull request title" },
+      body: { type: "string", description: "Pull request description" },
+      head: { type: "string", description: "Head branch" },
+      base: { type: "string", description: "Base branch (default: main)" },
+      draft: { type: "boolean", description: "Open as draft" },
+      owner: { type: "string", description: "Repo owner/org (optional; falls back to the integration's default owner)" },
+    },
+    required: ["companyId", "repo", "title", "body", "head"],
+  },
+  meta: { requiresApproval: true, riskLevel: "high" },
+  handler: async (input) => {
+    const { companyId, repo, title, body, head, base, draft, owner } = input as {
+      companyId: string; repo: string; title: string; body: string; head: string;
+      base?: string; draft?: boolean; owner?: string;
+    };
+    const { getActiveIntegration } = await import("../integration/checker");
+    const creds = await getActiveIntegration(companyId, "GITHUB");
+    if (!creds) {
+      return {
+        status: "MISSING_INTEGRATION",
+        provider: "GITHUB",
+        message: "GitHub integration not configured. Please add your GitHub Personal Access Token in Settings > Integrations.",
+      };
+    }
+    const resolvedOwner = owner || creds.defaultOwner;
+    if (!resolvedOwner) {
+      return { status: "FAILED", error: "No owner provided and the GitHub integration has no default owner." };
+    }
+    try {
+      const { dryRunGitHubPR } = await import("@ai-company-os/integrations");
+      const result = dryRunGitHubPR(resolvedOwner, repo, title, body ?? "", head, base || "main", draft === true);
+      return { status: "COMPLETED", dryRun: true, prUrl: null, request: result.request };
     } catch (err) {
       return { status: "FAILED", error: err instanceof Error ? err.message : String(err) };
     }

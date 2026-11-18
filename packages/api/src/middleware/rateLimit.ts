@@ -5,17 +5,19 @@ interface RateLimitOptions {
   windowMs: number;
   maxRequests: number;
   keyPrefix?: string;
+  /** Varsayılan anahtar tenantId; geçersiz kılınırsa (ör. tenantId:userId) tek üye tüm kiracıyı kilitlemez. */
+  identify?: (req: Request) => string | undefined;
 }
 
 /**
  * Redis-based rate limiter middleware.
  */
 export function rateLimit(options: RateLimitOptions) {
-  const { windowMs, maxRequests, keyPrefix = "rl" } = options;
+  const { windowMs, maxRequests, keyPrefix = "rl", identify } = options;
   const windowSec = Math.ceil(windowMs / 1000);
 
   return async (req: Request, res: Response, next: NextFunction) => {
-    const identifier = req.auth?.tenantId ?? req.ip ?? "anonymous";
+    const identifier = identify?.(req) ?? req.auth?.tenantId ?? req.ip ?? "anonymous";
     const key = `${keyPrefix}:${identifier}`;
 
     try {
@@ -47,7 +49,14 @@ export function rateLimit(options: RateLimitOptions) {
         keyPrefix.startsWith("rl:auth") ||
         keyPrefix === "rl:iap" || keyPrefix.startsWith("rl:iap:") ||
         keyPrefix === "rl:register" ||
-        keyPrefix === "rl:refresh"
+        keyPrefix === "rl:refresh" ||
+        // BRA-P0-03a: plan ucu LLM tetikleyebilir; Redis çökünce sınırsız maliyet açılmasın.
+        keyPrefix === "rl:jobs:plan" ||
+        // BRA-P0-03b: başlatma kota/maliyet harcar; Redis çökünce sınırsız açılmasın.
+        keyPrefix === "rl:jobs:start" ||
+        // BRA-UX-API-05: sohbet steer kuyruğuna yazar (ajan turuna girer = maliyet); Redis çökünce
+        // sınırsız açılmasın. Yan etki: Redis kesintisinde sohbet POST'u 503 verir (GET etkilenmez).
+        keyPrefix === "rl:run:chat"
       ) {
         res.status(503).json({ error: "Service temporarily unavailable" });
         return;

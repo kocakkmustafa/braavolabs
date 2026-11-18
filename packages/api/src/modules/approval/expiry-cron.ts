@@ -18,6 +18,11 @@
  * generic "run → CANCELLED" branch would otherwise strand the ledger on a
  * CANCELLED run that manual handoff can never re-open.
  *
+ * SANDBOX_ESCAPE exception (BRA-P2-02c, KARAR-A3): expiry = escape denied. The
+ * approval is REJECTED but the run is NOT cancelled; it goes through the same
+ * `resumeAfterEscapeDenied` as a human reject (agent told once per approval; the
+ * run resumes only if truly WAITING_APPROVAL with no other open gate).
+ *
  * Idempotent — re-running this cron twice in the same minute won't
  * double-cancel anything because each transition uses
  * `updateMany({ where: { status: PENDING } })`.
@@ -26,6 +31,10 @@
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { runWithoutTenant } from "../../lib/tenant-context";
+import { transitionRun } from "../run/transition";
+import { resumeAfterEscapeDenied } from "./escape-denied";
+import { enqueueRun } from "../pipeline/runner";
+import { revertRunAfterEnqueueFailure } from "../run/resume";
 
 const EXPIRY_INTERVAL_MS = 60 * 60 * 1000; // run hourly
 const APPROVAL_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -54,6 +63,7 @@ async function runApprovalExpiryImpl(): Promise<void> {
       id: true,
       runId: true,
       type: true,
+      metadata: true,
       run: {
         select: {
           pipeline: { select: { company: { select: { tenantId: true } } } },
@@ -90,11 +100,37 @@ async function runApprovalExpiryImpl(): Promise<void> {
     // HANDOFF exception (B6.1): the approval is REJECTED but the run is LEFT
     // ALONE (stays FAILED) and the ledger is LEFT OPEN — the operator can still
     // claim the handoff from web/CLI. Only NON-handoff approvals cancel the run.
-    if (approval.type !== "HANDOFF") {
-      await prisma.run.update({
-        where: { id: approval.runId },
-        data: { status: "CANCELLED", completedAt: new Date() },
+    // BRA-P0-02c-3: the cancel goes through transitionRun (CAS on status). A
+    // finished run (illegal edge, dual write on) or a lost race is left as is —
+    // the approval is already REJECTED — and reported in the activity row.
+    let runCancelled = false;
+    if (approval.type === "SANDBOX_ESCAPE") {
+      // KARAR-A3 (BRA-P2-02c): an expired escape request = escape denied. The run is NOT
+      // cancelled; same logic as a human reject: tell the agent (once per approval) and
+      // resume ONLY a run that is really WAITING_APPROVAL with no other open gate.
+      try {
+        const r = await resumeAfterEscapeDenied(prisma, approval.id, approval.runId, tenantId, "system:expiry", approval.metadata);
+        if (r.enqueue) {
+          try {
+            await enqueueRun(approval.runId);
+          } catch (err) {
+            const reverted = await revertRunAfterEnqueueFailure(prisma, approval.runId, tenantId, r.from).catch(() => false);
+            logger.error({ approvalId: approval.id, runId: approval.runId, reverted, err: err instanceof Error ? err.message : String(err) }, "Approval expiry: re-enqueue after escape denial failed — run put back");
+          }
+        }
+      } catch (err) {
+        logger.warn({ approvalId: approval.id, runId: approval.runId, err: err instanceof Error ? err.message : String(err) }, "Approval expiry: escape-denied resume failed (approval already REJECTED)");
+      }
+    } else if (approval.type !== "HANDOFF") {
+      const o = await transitionRun(prisma, approval.runId, "CANCELLED", {
+        tenantId,
+        extra: { completedAt: new Date() },
+        legacyUnchecked: true,
       });
+      runCancelled = o.ok;
+      if (!o.ok) {
+        logger.warn({ approvalId: approval.id, runId: approval.runId, reason: o.reason }, "Approval expiry: run not cancelled");
+      }
     }
 
     await prisma.activityLog.create({
@@ -109,7 +145,7 @@ async function runApprovalExpiryImpl(): Promise<void> {
           ttlHours: 24,
           type: approval.type,
           // Make the "run untouched, ledger stays OPEN" decision auditable.
-          runCancelled: approval.type !== "HANDOFF",
+          runCancelled,
         },
       },
     });

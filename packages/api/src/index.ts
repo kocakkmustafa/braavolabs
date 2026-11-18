@@ -18,12 +18,14 @@ import { createCorsOptions } from "./lib/cors";
 import { logger } from "./lib/logger";
 import { prisma } from "./lib/db";
 import { redis } from "./lib/redis";
+import { getReleaseInfo } from "./lib/release-info";
 import { errorHandler } from "./middleware/error";
 import { securityHeaders } from "./middleware/security";
 import { requestId } from "./middleware/requestId";
 import { companyRouter } from "./modules/company/router";
 import { pipelineRouter } from "./modules/pipeline/router";
 import { runRouter } from "./modules/run/router";
+import { jobsRouter } from "./modules/jobs/router";
 import { handoffRouter } from "./modules/run/handoff.router";
 import { approvalRouter } from "./modules/approval/router";
 import { memoryRouter } from "./modules/memory/router";
@@ -50,6 +52,8 @@ import { marketplaceRouter } from "./modules/marketplace/marketplace.router";
 import { skillsRegistryRouter } from "./modules/skills-registry/skills.router";
 import { templatesRouter } from "./modules/templates/templates.router";
 import { benchRouter } from "./modules/bench/bench.router";
+import { benchCompareRouter } from "./modules/bench/bench-compare.router";
+import { opsRouter } from "./modules/ops/router";
 import { seedBenchSuites } from "./modules/bench/bench.service";
 import { userRouter } from "./modules/user/user.router";
 import { deviceRouter } from "./modules/device/router";
@@ -59,6 +63,7 @@ import { starterRouter } from "./modules/starter/starter.router";
 import { integrationRouter } from "./modules/integration/router";
 import { settingsRouter } from "./modules/settings/router";
 import { agentVersionRouter } from "./modules/agent/version-router";
+import { tenantRepoRouter } from "./modules/repo-allowlist/router";
 import { collaborationRouter } from "./modules/collaboration/router";
 import { abTestRouter } from "./modules/ab-test/router";
 import { mediaRouter } from "./modules/media/media.router";
@@ -66,6 +71,7 @@ import { initPipelineRunner, initScheduledPipelines, initScheduledTickWorker, st
 import { initOutreachWorker } from "./modules/outreach/sequence-runner";
 import { initConsolidationCron, stopConsolidationCron } from "./modules/memory/consolidation-cron";
 import { initApprovalExpiryCron, stopApprovalExpiryCron } from "./modules/approval/expiry-cron";
+import { initPendingSweeper, stopPendingSweeper } from "./modules/run/pending-sweeper";
 
 // Import tool registry to trigger tool registration on startup
 import "./modules/agent/registry";
@@ -162,6 +168,10 @@ app.use(pinoHttp({
       "req.body.*.email",
       "req.body.*.name",
       "req.body.*.phone",
+      // BRA-P2-02e: worktree plan requests carry patch CONTENT and a work dir path (ADR-0008 "gozetim yok").
+      "req.body.patches",
+      "req.body.root",
+      "req.body.subPath",
       // Credentials JSON blobs from integration save / settings save.
       "req.body.credentials",
       "req.body.credentials.*",
@@ -254,7 +264,7 @@ async function healthHandler(req: express.Request, res: express.Response) {
     status: healthy ? "ok" : "degraded",
     ...(trusted ? { checks } : {}),
     timestamp: new Date().toISOString(),
-    version: "0.1.0",
+    ...getReleaseInfo(),
   });
 }
 
@@ -284,15 +294,20 @@ api.use("/media", mediaRouter);
 api.use("/marketplace/templates", templatesRouter);
 // Connector marketplace (public catalog + tenant install surface).
 api.use("/marketplace", marketplaceRouter);
+// BRA-P1-05-N1: ADMIN+ compare measurement (fake provider). BEFORE the public router.
+api.use("/bench/compare", benchCompareRouter);
 // Community skill registry: signed, reviewed SKILL.md packages and a revocation list.
 api.use("/skills", skillsRegistryRouter);
 // Public Braavolabs Bench leaderboard.
 api.use("/bench", benchRouter);
+// BRA-OPS-02: platform-admin-only, read-only server flag state.
+api.use("/ops", opsRouter);
 api.use("/users", userRouter);
 api.use("/devices", deviceRouter);
 api.use("/companies", companyRouter);
 api.use("/pipelines", pipelineRouter);
 api.use("/runs", runRouter);
+api.use("/jobs", jobsRouter);
 // Tenant-wide handoff ledger list (E3/T5) — the per-run history lives under
 // /runs/:id/handoffs on runRouter; this is the cross-run "what's waiting for a
 // takeover" surface for the CLI/panel.
@@ -330,6 +345,7 @@ api.use("/starters", starterRouter);
 api.use("/integrations", integrationRouter);
 api.use("/settings", settingsRouter);
 api.use("/agents", agentVersionRouter);
+api.use("/tenant-repos", tenantRepoRouter);
 api.use("/ab-tests", abTestRouter);
 api.use("/collaboration", collaborationRouter);
 api.use("/webhooks", webhookTemplateRouter);
@@ -381,6 +397,10 @@ app.listen(env.API_PORT, env.API_HOST, () => {
   // a slot in the tenant's monthly quota)
   initApprovalExpiryCron();
 
+  // BRA-P0-03e: PENDING koşu süpürücüsü (5 dk) — enqueue öncesi süreç ölümünde kuyruksuz kalan
+  // PENDING koşuyu yeniden kuyruğa alır (≤24 sa) ya da FAILED yapar (>24 sa).
+  initPendingSweeper();
+
   // Initialize the external-automation poller (30s tick) — mirrors connected
   // n8n/Make/Zapier executions into ExternalRun for the unified dashboard.
   initExternalPoller();
@@ -424,6 +444,7 @@ process.on("SIGTERM", async () => {
   stopScheduledPipelines();
   stopConsolidationCron();
   stopApprovalExpiryCron();
+  stopPendingSweeper();
   stopExternalPoller();
 
   // Close Redis

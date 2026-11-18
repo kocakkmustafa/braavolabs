@@ -21,7 +21,9 @@
     "billing": "Facturación",
     "settings": "Ajustes",
     "newWorkspace": "Nuevo espacio de trabajo",
-    "quickStart": "Inicio rápido"
+    "quickStart": "Inicio rápido",
+    "inbox": "Bandeja",
+    "start": "Nuevo trabajo"
   },
   "features": {
     "badge": "CAPACIDADES DE LA PLATAFORMA",
@@ -85,7 +87,13 @@
         "message": "Borrador de mensaje",
         "content": "Contenido generado"
       },
-      "artifactAiLabel": "Generado por IA"
+      "artifactAiLabel": "Generado por IA",
+      "loading": "Cargando aprobaciones…",
+      "loadErrorTitle": "No se pudieron cargar las aprobaciones",
+      "loadErrorBody": "El servidor no respondió correctamente, así que puede haber aprobaciones pendientes. No es una lista vacía. Inténtalo de nuevo.",
+      "refreshErrorTitle": "No se pudieron actualizar las aprobaciones",
+      "refreshErrorBody": "La lista de abajo puede estar desactualizada. Inténtalo de nuevo.",
+      "retryLoad": "Reintentar"
     },
     "companies": {
       "title": "Espacios de trabajo",
@@ -1067,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "Onboarding",
-      "runs": "Ejecuciones"
+      "runs": "Ejecuciones",
+      "models": "Modelos"
     },
     "cost": {
       "estimateLabel": "Est. {low}–{high} esta ejecución",
@@ -1206,6 +1215,619 @@
     },
     "register": {
       "freePlan": "Plan gratuito"
+    },
+    "inbox": {
+      "title": "Bandeja de trabajos",
+      "subtitle": "Todos los trabajos en un lugar: en curso, los que te esperan, terminados y atascados.",
+      "tabsLabel": "Grupos de trabajos",
+      "bucket": {
+        "working": "En curso",
+        "needs_approval": "Requiere aprobación",
+        "done": "Terminados",
+        "stuck": "Atascados"
+      },
+      "loading": "Cargando…",
+      "emptyWorking": "No hay nada en ejecución ahora.",
+      "emptyNeedsApproval": "Ningún trabajo espera aprobación.",
+      "emptyDone": "Aún no hay trabajos terminados.",
+      "emptyStuck": "No hay nada atascado.",
+      "errorTitle": "No se pudieron cargar los trabajos",
+      "errorBody": "El servidor no respondió bien, así que esta lista podría no estar vacía en realidad. Inténtalo de nuevo.",
+      "approvalsErrorTitle": "No se pudieron cargar las aprobaciones pendientes",
+      "retryLoad": "Reintentar",
+      "loadMore": "Cargar más",
+      "loadingMore": "Cargando…",
+      "loadMoreError": "No se pudo cargar más. Inténtalo de nuevo.",
+      "approvalsTitle": "Aprobaciones pendientes",
+      "jobsTitle": "Trabajos",
+      "approvalsEmpty": "No hay aprobaciones pendientes.",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "deciding": "Enviando…",
+      "amount": "Monto: {value}",
+      "openRun": "Abrir ejecución",
+      "approvalUntitled": "Solicitud de aprobación",
+      "approvalFailed": "La decisión no se guardó. Inténtalo de nuevo.",
+      "approvalConflict": "Esta aprobación ya fue decidida o cambió. Actualiza la lista.",
+      "jobUntitled": "Trabajo sin título",
+      "cost": "Costo {value}",
+      "updated": "Actualizado {value}",
+      "action": {
+        "resume": "Reanudar",
+        "pause": "Pausar",
+        "stop": "Detener",
+        "retry": "Reintentar",
+        "steer": "Orientar",
+        "receipt": "Recibo"
+      },
+      "steerLabel": "Mensaje para el agente",
+      "steerPlaceholder": "Instrucción breve…",
+      "steerSend": "Enviar",
+      "steerSent": "Mensaje enviado.",
+      "actionOk": "Acción enviada.",
+      "actionFailed": "La acción falló. Inténtalo de nuevo.",
+      "actionForbidden": "No tienes permiso para esta acción.",
+      "conflict": {
+        "retry_disabled": "El reintento aún no está habilitado en este espacio de trabajo.",
+        "run_still_running": "Este trabajo sigue en ejecución. Deténlo primero y luego reintenta.",
+        "already_retrying": "Ya hay un reintento en curso.",
+        "approval_pending": "Hay una aprobación pendiente. Decídela primero.",
+        "retry_budget_exhausted": "Se agotó el límite o el presupuesto de reintentos de este trabajo.",
+        "run_not_retryable": "Este trabajo no se puede reintentar en su estado actual.",
+        "generic": "El trabajo cambió de estado o hay una aprobación pendiente. Actualiza e inténtalo de nuevo."
+      },
+      "receipt": {
+        "title": "Recibo",
+        "loading": "Cargando recibo…",
+        "none": "Aún no hay recibo. Se escribe cuando termina el trabajo.",
+        "error": "No se pudo cargar el recibo.",
+        "verified": "VERIFICADO",
+        "unverified": "NO VERIFICADO",
+        "verifiedHint": "Se verificaron los tipos de evidencia requeridos.",
+        "unverifiedHint": "Sin confirmar: faltan evidencias o están incompletas.",
+        "noStatus": "Sin estado de resultado",
+        "outcome": "Resultado: {value}",
+        "noEvidence": "Sin evidencias adjuntas.",
+        "passed": "aprobó",
+        "failed": "falló",
+        "hide": "Ocultar recibo"
+      },
+      "state": {
+        "COMPLETED": "Completado",
+        "FAILED": "Fallido",
+        "CANCELLED": "Cancelado"
+      },
+      "artifactLabel": "Contenido a aprobar",
+      "expires": "Vence {value}",
+      "answerLabel": "Tu respuesta al agente (obligatoria)",
+      "claimFailed": "Tu aprobación de {run} se guardó, pero el trabajo no pudo reanudarse y puede quedar fallido. Revísalo en Atascados y reintenta.",
+      "dismiss": "Cerrar",
+      "approvalForbidden": "No tienes permiso para decidir aprobaciones.",
+      "actionRejected": "El trabajo no está en un estado que permita esta acción."
+    },
+    "jobs": {
+      "title": "Trabajos",
+      "drawerLabel": "Trabajo: {title}",
+      "close": "Cerrar",
+      "viewLabel": "Vista del trabajo",
+      "tab": {
+        "summary": "Resumen",
+        "output": "Resultado",
+        "kaput": "Bajo el capó"
+      },
+      "detail": {
+        "label": "Detalle",
+        "simple": "Simple",
+        "full": "Completo"
+      },
+      "state": {
+        "DRAFT": "borrador",
+        "PLANNED": "planificado",
+        "READY": "listo",
+        "RUNNING": "en curso",
+        "NEEDS_APPROVAL": "necesita aprobación",
+        "RESUMING": "reanudando",
+        "PAUSED": "en pausa",
+        "FAILED": "fallido",
+        "CANCELLED": "cancelado",
+        "COMPLETED": "terminado",
+        "unknown": "desconocido"
+      },
+      "risk": {
+        "low": "bajo",
+        "medium": "medio",
+        "high": "alto"
+      },
+      "riskLabel": "Riesgo: {value}",
+      "verified": "✔ Verificado",
+      "unverified": "No verificado",
+      "noVerification": "Sin información de verificación",
+      "field": {
+        "status": "Estado",
+        "cost": "Coste",
+        "company": "Empresa"
+      },
+      "fullInfo": "ID: {id} · estado: {state} · actualizado: {updated}",
+      "kaput": {
+        "loading": "Cargando el capó…",
+        "error": "No se pudo leer el capó.",
+        "summary": "Pasos ({steps}) · Llamadas a herramientas: {tools} · Coste: {cost} · Traspasos: {handoffs}",
+        "noSteps": "Este trabajo aún no tiene registros de pasos.",
+        "unknown": "n/d",
+        "later": "El detalle de enrutamiento y permisos llegará en una versión posterior.",
+        "runErrorTitle": "Este trabajo se detuvo por un error",
+        "runErrorPlain": "Puedes volver a intentarlo con el botón Reintentar bajo el trabajo.",
+        "budget": "Presupuesto usado: {cost} / {budget} ({percent})",
+        "agent": "Rol del agente",
+        "duration": "Duración",
+        "stepCost": "Coste",
+        "share": "{percent} del total",
+        "reasoning": "Razonamiento",
+        "tools": "Llamadas a herramientas",
+        "noTools": "Sin llamadas a herramientas",
+        "model": "Modelo",
+        "noModel": "Sin datos de modelo para este paso",
+        "mode": "Modo de modelo",
+        "modes": {
+          "DIRECT": "Directo",
+          "CASCADE": "En cascada (primero el barato)",
+          "COMPARE": "Comparar"
+        },
+        "tried": "Modelos probados",
+        "tokens": "Tokens",
+        "tokensValue": "{input} de entrada / {output} de salida",
+        "log": "Registro",
+        "noLog": "Sin datos de registro para este paso",
+        "activity": {
+          "title": "Actividad del trabajo",
+          "actorSystem": "Sistema",
+          "actorUser": "Miembro del equipo",
+          "more": "Se muestran los últimos {count} eventos; hay más.",
+          "truncated": "Algunos eventos no se muestran."
+        },
+        "logEvent": {
+          "started": "Inicio: {time}",
+          "ended": "Fin: {time}"
+        },
+        "dag": {
+          "title": "Dependencias de los pasos",
+          "noData": "No hay datos de dependencias para este trabajo. Los pasos se listan en orden más abajo.",
+          "sourceOrder": "Deducido del orden de los pasos: los pasos de una misma etapa se ejecutan en paralelo; cada etapa espera a la anterior.",
+          "sourceApi": "Dependencias tal como se informan para cada paso.",
+          "inconsistent": "Los datos de dependencias son incoherentes; se omitieron algunos vínculos.",
+          "truncated": "Se muestran los primeros {shown} de {total} pasos.",
+          "summary": "{steps} pasos en {levels} etapas, {edges} dependencias",
+          "scroll": "Grafo de dependencias de pasos, desplazable",
+          "listLabel": "Pasos con sus dependencias",
+          "dependsOn": "Depende del paso: {steps}",
+          "noDeps": "Sin dependencias",
+          "changed": "El registro del pipeline se actualizó después de esta ejecución; como no se pudo verificar el orden de los pasos, no se dibuja el grafo de dependencias.",
+          "unverified": "Según la definición actual del trabajo (se desconoce cuándo cambió)."
+        },
+        "seconds": "{value} s",
+        "millis": "{value} ms",
+        "stepStatus": {
+          "completed": "Completado",
+          "running": "En curso",
+          "failed": "Fallido",
+          "pending": "En espera",
+          "skipped": "Omitido",
+          "cancelled": "Cancelado",
+          "unknown": "Desconocido"
+        },
+        "errorLabel": "Error",
+        "overBudget": "Presupuesto superado"
+      },
+      "stuckNote": "Algunos trabajos atascados aún no se ven mientras el seguimiento de latido está desactivado.",
+      "openJob": "Abrir el trabajo {title}",
+      "openFull": "Abrir la página completa de la ejecución"
+    },
+    "workspace": {
+      "back": "Volver a trabajos",
+      "classic": "Vista de detalle clásica",
+      "loading": "Cargando el trabajo…",
+      "errorTitle": "No se pudo abrir este trabajo",
+      "errorBody": "Comprueba tu conexión e inténtalo de nuevo.",
+      "notFound": "No se encontró este trabajo o no tienes acceso.",
+      "label": "Espacio de trabajo: {title}"
+    },
+    "approvalCenter": {
+      "title": "Centro de aprobaciones y seguridad",
+      "subtitle": "Mira exactamente qué hará cada acción antes de decidir.",
+      "classic": "Vista clásica de aprobaciones",
+      "count": "{count} en espera",
+      "live": "{count} aprobaciones en espera",
+      "approvedNotice": "Aprobado.",
+      "rejectedNotice": "Rechazado.",
+      "type": {
+        "SPEND": "Gasto",
+        "INPUT": "Pregunta",
+        "HANDOFF": "Traspaso",
+        "EXTERNAL_CONTROL": "Control externo",
+        "other": "Aprobación"
+      },
+      "open": "Revisar aprobación: {title}",
+      "sheetLabel": "Detalles de la aprobación: {title}",
+      "close": "Cerrar",
+      "field": {
+        "what": "Qué hará",
+        "tool": "Herramienta",
+        "permissions": "Alcance de permisos",
+        "data": "Datos transferidos",
+        "risk": "Riesgo",
+        "amount": "Importe",
+        "reversible": "Deshacer",
+        "draft": "Borrador",
+        "requested": "Solicitado"
+      },
+      "riskLevel": {
+        "low": "Bajo",
+        "medium": "Medio",
+        "high": "Alto"
+      },
+      "reversibleYes": "Se puede revertir con una acción contraria",
+      "reversibleNo": "No se puede deshacer",
+      "unknown": "Sin información",
+      "danger": {
+        "tag": "Requiere confirmación",
+        "title": "Esta acción requiere un segundo paso",
+        "body": "Gasta dinero, es de alto riesgo o no se puede deshacer.",
+        "phraseLabel": "Escribe «{phrase}» para activar Aprobar",
+        "phrase": "Apruebo el envío",
+        "reasonLabel": "Motivo (se guarda con tu decisión)"
+      },
+      "oneByOne": "Cada aprobación se decide una por una.",
+      "alreadyDecided": "Esta aprobación ya se decidió. Se actualizó la lista.",
+      "forbidden": "No tienes permiso para decidir esta aprobación. Se actualizó la lista."
+    },
+    "plan": {
+      "title": "Describe un trabajo",
+      "workspace": "Espacio de trabajo",
+      "workspaceChoose": "Elige un espacio de trabajo",
+      "messageLabel": "¿Qué hay que hacer?",
+      "messagePlaceholder": "Ej.: preparar el informe semanal de ventas",
+      "suggest": "Proponer un plan",
+      "planning": "Preparando el plan…",
+      "empty": "Este mensaje no parece un trabajo; no se propuso ningún plan.",
+      "retry": "Reintentar",
+      "steps": "Pasos",
+      "tools": "Herramientas",
+      "risk": {
+        "label": "Riesgo",
+        "low": "Bajo",
+        "medium": "Medio",
+        "high": "Alto"
+      },
+      "cost": "Costo estimado (no garantizado)",
+      "costUnknown": "Precio desconocido para este modelo; no hay rango de costo",
+      "approvalStep": "requiere aprobación",
+      "run": "Ejecutar",
+      "cancel": "Cancelar",
+      "starting": "Iniciando…",
+      "approvalGate": "Este trabajo requiere aprobación; ahora está desactivada.",
+      "planChanged": "El plan cambió. Propón un plan de nuevo.",
+      "workspaceRequired": "Elige primero un espacio de trabajo.",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "Empezar",
+      "label": "¿Qué quieres hacer?",
+      "placeholder": "Describe un trabajo, haz una pregunta o pide un agente…",
+      "barLabel": "Barra de intención",
+      "understood": "Lo que entendí:",
+      "kind": {
+        "chat": "Chat",
+        "job": "Trabajo",
+        "agent": "Agente"
+      },
+      "submit": {
+        "chat": "Iniciar chat",
+        "job": "Planificar",
+        "agent": "Pedir agente"
+      },
+      "lowConfidence": "No estoy seguro: se trata como chat; elige “Trabajo” para planificarlo como trabajo.",
+      "previewNote": "“Lo que entendí” es una pista local; en el paso del plan el servidor decide por su cuenta.",
+      "chat": {
+        "unavailable": "El chat aún no está disponible: esta versión solo planifica trabajos y crea agentes. Tu mensaje no creó ningún registro de trabajo; no hubo gasto.",
+        "asJob": "Planificar como trabajo"
+      },
+      "plan": {
+        "tool": "herramienta: {tool}",
+        "approvalStep": "requiere aprobación, riesgo {risk}",
+        "modelRow": "Línea de modelo por paso: aún no disponible (falta la API)."
+      },
+      "agent": {
+        "title": "Agente nuevo",
+        "immediate": "Este paso guarda el agente de inmediato: aún no se puede ver un borrador antes de crearlo.",
+        "create": "Crear agente ahora",
+        "working": "Creando agente…",
+        "role": "rol: {role}",
+        "toolsLabel": "Herramientas",
+        "noTools": "ninguna",
+        "dropped": "Herramienta quitada ({count}): {tools} no está conectada; el agente se creó sin ella.",
+        "saved": "Agente guardado.",
+        "close": "Cerrar",
+        "tooShort": "La descripción del agente debe tener al menos 10 caracteres: cuenta un poco más de lo que debe hacer.",
+        "maybeSaved": "Si se cortó la conexión, el agente puede haberse guardado ya: revisa la lista de agentes antes de reintentar."
+      }
+    },
+    "models": {
+      "labelSep": ": ",
+      "pairSep": " · ",
+      "title": "Modelos y conexiones",
+      "subtitle": "Qué modelos usa su empresa, quién puede acceder a ellos y cuánto cuestan este mes. Solo lectura.",
+      "company": "Empresa",
+      "live": "{count} modelos en la lista",
+      "errorTitle": "No se pudieron cargar los modelos",
+      "errorBody": "No se pudo leer la lista de modelos. Inténtelo de nuevo.",
+      "retry": "Reintentar",
+      "noCompanyTitle": "Aún no hay empresa",
+      "noCompanyBody": "Cree una empresa para ver sus modelos aquí.",
+      "loading": "Cargando modelos…",
+      "autoLabel": "Selección automática de modelo",
+      "autoOn": "Activada",
+      "autoOff": "Desactivada",
+      "unknown": "Desconocido",
+      "emptyTitle": "Aún no hay modelos en uso",
+      "emptyBody": "Los modelos aparecen aquí cuando un agente de esta empresa tiene uno.",
+      "provider": "Proveedor",
+      "access": "Acceso",
+      "cost": "Coste este mes",
+      "runs": "Ejecuciones este mes",
+      "runCount": "Ejecuciones este mes: {count}",
+      "costNote": "El coste se asigna al modelo actual de cada agente; las ejecuciones previas a un cambio de modelo cuentan para el nuevo. El mes empieza el día 1 a las 00:00 UTC.",
+      "costSince": "Desde el {from}.",
+      "updatedAt": "Actualizado {time}.",
+      "linksTitle": "Gestionar",
+      "source": {
+        "label": "Origen",
+        "byok": "Su propia clave de API",
+        "local": "Modelo local",
+        "platform": "Plataforma",
+        "unknown": "Desconocido"
+      },
+      "badge": {
+        "byok": "BYOK",
+        "local": "LOCAL"
+      },
+      "scope": {
+        "company": "esta empresa",
+        "workspace": "este espacio de trabajo",
+        "agent": "un solo agente"
+      },
+      "mode": {
+        "read": "lectura",
+        "read_write": "lectura y escritura"
+      },
+      "links": {
+        "own": {
+          "title": "Su propia clave de API",
+          "body": "Añada o cambie claves en Ajustes → Proveedor de IA."
+        },
+        "local": {
+          "title": "Modelo local",
+          "body": "Conecte un punto de acceso autoalojado en Ajustes → Proveedor de IA."
+        },
+        "compare": {
+          "title": "Comparar modelos",
+          "body": "Ejecute la misma tarea en varios modelos lado a lado."
+        },
+        "connections": {
+          "title": "Conexiones de automatización",
+          "body": "Ejecuciones de n8n, Make y Zapier."
+        },
+        "integrations": {
+          "title": "Integraciones",
+          "body": "Slack, GitHub y otras herramientas."
+        }
+      },
+      "pickerTitle": "Cambiar un modelo",
+      "pickerHelp": "Elige dónde se aplica el modelo y cuál usar. Agente: solo ese agente. Predeterminado de la cuenta: lo usan los agentes sin modelo propio.",
+      "pickerTarget": "Se aplica a",
+      "pickerDefault": "Predeterminado de la cuenta (agentes sin modelo propio)",
+      "pickerModel": "Modelo",
+      "pickerApply": "Aplicar",
+      "pickerSaving": "Guardando…",
+      "pickerSaved": "Guardado.",
+      "pickerError": "No se pudo guardar. Inténtalo de nuevo.",
+      "pickerLoadError": "No se pudieron cargar los agentes ni los modelos.",
+      "pickerEmpty": "Aún no hay modelos configurados. Añade una clave o un modelo local en Ajustes.",
+      "pickerCurrent": "Actual: {model}",
+      "pickerCurrentUnknown": "Actual: Desconocido",
+      "pickerLocalHint": "Los proveedores locales y personalizados solo se configuran en Ajustes.",
+      "pickerForbidden": "No tienes permiso para cambiar esto.",
+      "pickerPlan": "Tu plan no lo permite."
+    },
+    "companyStatus": {
+      "title": "Estado de la empresa",
+      "subtitle": "En una línea: qué está en marcha, atascado, esperando aprobación y cuánto costó.",
+      "live": "{approvals} esperando aprobación, {stuck} atascados",
+      "loading": "Cargando el estado de la empresa…",
+      "errorTitle": "No se pudo cargar la empresa",
+      "errorBody": "No se pudo leer el estado de la empresa. Inténtelo de nuevo.",
+      "retry": "Reintentar",
+      "summaryLabel": "Resumen de la empresa",
+      "working": "En curso",
+      "stuck": "Atascados",
+      "approvals": "Esperando aprobación",
+      "done": "Terminados",
+      "cost": "Coste",
+      "unknown": "Desconocido",
+      "atLeast": "al menos {count}",
+      "note": "Los números salen de la primera página de cada estado de su lista de trabajos (25 por estado); «al menos» indica que hay más. El coste suma solo esos trabajos.",
+      "costUnknownRuns": "{count} trabajo(s) sin coste legible no se incluyen.",
+      "agents": "Agentes",
+      "agentsEmpty": "Aún no hay agentes en esta empresa.",
+      "role": "Rol",
+      "linksTitle": "Enlaces",
+      "links": {
+        "jobs": {
+          "title": "Trabajos",
+          "body": "Todo lo que está en curso, atascado o terminado."
+        },
+        "approvals": {
+          "title": "Aprobaciones",
+          "body": "Revise lo que le está esperando."
+        },
+        "risks": {
+          "title": "Riesgos",
+          "body": "Paradas de riesgo abiertas."
+        },
+        "integrations": {
+          "title": "Integraciones",
+          "body": "Herramientas conectadas."
+        },
+        "classic": {
+          "title": "Página de empresa clásica",
+          "body": "Todos los detalles, el compositor y los ajustes."
+        }
+      }
+    },
+    "companySummary": {
+      "title": "De un vistazo",
+      "loading": "Cargando el resumen de la empresa…",
+      "error": "No se pudo cargar el resumen de la empresa.",
+      "retry": "Reintentar",
+      "empty": "No hay resumen para esta empresa.",
+      "unknown": "Desconocido",
+      "bucket": {
+        "working": "En curso",
+        "needs_approval": "Pendiente de aprobación",
+        "stuck": "Atascado",
+        "done": "Hecho"
+      },
+      "pendingApprovals": "Aprobaciones pendientes",
+      "agents": "Agentes",
+      "pipelines": "Pipelines",
+      "monthCost": "Coste este mes",
+      "budget": {
+        "title": "Presupuesto mensual",
+        "noneHint": "Esta empresa no tiene presupuesto mensual.",
+        "spent": "Gastado",
+        "limit": "Límite",
+        "remaining": "Restante",
+        "used": "{pct}% usado",
+        "state": {
+          "none": "Sin presupuesto",
+          "ok": "En orden",
+          "warn": "Cerca del límite",
+          "over": "Presupuesto superado"
+        }
+      }
+    },
+    "pilotEntry": {
+      "error": {
+        "auth": "Tu sesión ha caducado. Inicia sesión de nuevo.",
+        "forbidden": "No tienes permiso para exportar esta empresa.",
+        "notFound": "Empresa no encontrada.",
+        "network": "Problema de red. Revisa tu conexión e inténtalo de nuevo.",
+        "generic": "No se pudo exportar el paquete piloto. Inténtalo de nuevo."
+      },
+      "title": "Paquete de microaplicación (piloto)",
+      "description": "Un paquete portátil de la configuración de esta empresa (agentes, flujos, etiquetas de conexiones solicitadas) con datos de ejemplo.",
+      "syntheticOnly": "Los datos de ejemplo son sintéticos.",
+      "export": "Exportar paquete piloto",
+      "exporting": "Exportando…",
+      "exported": "Paquete piloto descargado.",
+      "previewTitle": "Vista previa del paquete",
+      "previewName": "Nombre",
+      "previewAgents": "Agentes",
+      "previewPipelines": "Flujos",
+      "previewRecords": "Registros",
+      "previewConnectors": "Conexiones solicitadas",
+      "noConnectors": "Ninguna",
+      "moreConnectors": "+{count} más",
+      "noData": "Aún no hay datos. Exporta el paquete para previsualizarlo.",
+      "connectorsNote": "La vista previa muestra qué conexiones solicita el paquete; los detalles de acciones y alcances están en el archivo. El permiso de envío o escritura lo limita el alcance del conector; este paquete no lo impone."
+    },
+    "codeChange": {
+      "title": "Cambio: {title}",
+      "titleGeneric": "Cambio de código",
+      "loading": "Cargando el cambio de código…",
+      "error": "No se pudo cargar el cambio de código. Inténtalo de nuevo.",
+      "retry": "Reintentar",
+      "none": "Este trabajo no tiene registro de cambio de código.",
+      "filesTitle": "Archivos ({count})",
+      "filesNone": "No hay archivos listados",
+      "filesUnknown": "Archivos: Desconocido",
+      "moreFiles": "{count, plural, one {+# archivo más} other {+# archivos más}}",
+      "unknown": "Desconocido",
+      "totals": "Total: {added} {removed}",
+      "totalsAtLeast": "Al menos: {added} {removed}",
+      "partialNote": "Algunos archivos no tienen recuento de líneas o la lista está recortada, así que los totales son un mínimo.",
+      "testsTitle": "Pruebas",
+      "testsPassed": "{count} superadas",
+      "testsFailed": "{count} fallidas",
+      "testsSkipped": "{count} omitidas",
+      "testsPassedUnknown": "superadas: Desconocido",
+      "testsFailedUnknown": "fallidas: Desconocido",
+      "testsSkippedUnknown": "omitidas: Desconocido",
+      "testsTotal": "{count} en total",
+      "testsVerified": "Verificado",
+      "testsNotVerified": "No verificado",
+      "testsRuns": "{count, plural, one {# ejecución de pruebas} other {# ejecuciones de pruebas}}",
+      "approvalLink": "Decidir en el centro de aprobaciones",
+      "srSummary": "{title}. Archivos: {files}. Pruebas: {tests}.",
+      "stale": "No se pudo actualizar; se muestran los últimos datos conocidos."
+    },
+    "agents": {
+      "title": "Agentes",
+      "new": "Nuevo agente",
+      "company": "Espacio de trabajo",
+      "noCompany": "Crea primero un espacio de trabajo: los agentes pertenecen a uno.",
+      "companiesError": "No se pudieron cargar los espacios de trabajo.",
+      "retry": "Reintentar",
+      "composerTitle": "Nuevo agente",
+      "describe": "¿Qué tipo de compañero quieres?",
+      "placeholder": "p. ej. Resumir los correos de ventas cada mañana",
+      "tooShort": "Describe el agente con al menos 10 caracteres.",
+      "tooLong": "La descripción es demasiado larga (máximo 4000 caracteres).",
+      "draftButton": "Borrador",
+      "drafting": "Preparando borrador…",
+      "draftNote": "El borrador no guarda nada. El agente se crea solo cuando pulsas Crear.",
+      "previewTitle": "Vista previa del borrador",
+      "notSaved": "aún sin guardar",
+      "name": "Nombre",
+      "role": "Rol",
+      "tools": "Herramientas",
+      "none": "ninguna",
+      "dropped": "Herramientas quitadas ({count}), no disponibles",
+      "systemPrompt": "Instrucciones (prompt del sistema)",
+      "providerLine": "Borrador de {provider} / {model}.",
+      "create": "Crear",
+      "creating": "Creando…",
+      "discard": "Descartar borrador",
+      "created": "se creó.",
+      "maybeSaved": "Si se cortó la conexión, el agente puede estar ya guardado: revisa la lista antes de reintentar.",
+      "listTitle": "Agentes",
+      "listError": "No se pudo cargar la lista de agentes.",
+      "empty": "Aún no hay agentes en este espacio de trabajo.",
+      "status": "Estado",
+      "unknown": "Desconocido",
+      "labelSep": ": ",
+      "pairSep": "·",
+      "listSep": ", ",
+      "error": {
+        "session": "No se pudo verificar tu sesión. Inicia sesión de nuevo.",
+        "payment": "Se alcanzó un límite de plan o presupuesto (402). Revisa los límites y reintenta.",
+        "forbidden": "No tienes permiso para esto.",
+        "notFound": "No se encontró este espacio de trabajo.",
+        "rateLimit": "Demasiadas solicitudes (429). Espera un momento y reintenta.",
+        "timeout": "La solicitud agotó el tiempo.",
+        "network": "No se pudo contactar con el servidor. Revisa la conexión y reintenta.",
+        "noProvider": "No hay proveedor de IA configurado. Añade uno en Ajustes y reintenta.",
+        "badDraft": "No se aceptó el borrador. Describe el agente de otra forma y crea otro borrador.",
+        "badResponse": "No se entendió la respuesta del servidor. No se mostró nada como guardado.",
+        "generic": "Ocurrió un error inesperado. Reintenta."
+      },
+      "refreshList": "Actualizar lista",
+      "loading": "Cargando…"
     }
   },
   "static": {

@@ -1,5 +1,9 @@
+import type { InboxBucket, JobCodeSummary, JobReceipt, ModelsOverview } from "@ai-company-os/core";
+import { parseRunsPage, parseApprovalGroupsPage } from "./inboxParse";
 import { parseCompareOptions, parseCompareSession, type CompareRequest } from "./compare";
 import { parseApprovalDecision } from "./approvalDecision";
+import { parseCompanySummary } from "./company-summary/parse";
+import { parsePlanResponse, parseStartResponse, planRequestBody } from "./planCardParse";
 import { requestDeadline } from "./request-deadline";
 import { defaultLocale, localeFromCookieHeader } from "../i18n/locales";
 import {
@@ -30,7 +34,7 @@ interface FetchOptions extends RequestInit {
 }
 
 export class ApiRequestError extends Error {
-  constructor(public readonly status: number, message: string) {
+  constructor(public readonly status: number, message: string, public readonly code?: string, public readonly serverError?: string) {
     super(message);
     this.name = "ApiRequestError";
   }
@@ -143,10 +147,15 @@ async function throwApiError(res: Response, session: AuthSessionSnapshot, deadli
     body?.issues?.[0]?.message ||
     body?.error ||
     `API error: ${res.status}`;
-  throw new ApiRequestError(res.status, detail);
+  throw new ApiRequestError(res.status, detail, typeof body?.code === "string" ? body.code : undefined, typeof body?.error === "string" ? body.error : undefined);
 }
 
 export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
+  return (await apiFetchWithHeaders<T>(path, options)).data;
+}
+
+/** Same request pipeline as apiFetch, but also returns the response headers (e.g. X-Next-Cursor). */
+export async function apiFetchWithHeaders<T>(path: string, options: FetchOptions = {}): Promise<{ data: T; headers: Headers }> {
   const { token, headers, signal, timeoutMs = 180_000, ...rest } = options;
   const session = captureAuthSession();
   const requestLocale = activeRequestLocale();
@@ -209,10 +218,10 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
     await throwApiError(res, session, deadline);
   }
 
-  if (res.status === 204) return undefined as T;
+  if (res.status === 204) return { data: undefined as T, headers: res.headers };
   const data = await deadline.wait(res.json());
   assertSession(session);
-  return data;
+  return { data, headers: res.headers };
   } finally { deadline.dispose(); }
 }
 
@@ -381,6 +390,14 @@ export const api = {
   buildConfirm: (token: string, sessionId: string) =>
     apiFetch<any>(`/companies/build/${sessionId}/confirm`, { method: "POST", token }),
 
+  // BRA-UX-API-02: salt-okur model + yetki + bu ay maliyet dökümü (kaynak olmayan alan null).
+  getModelsOverview: (token: string, companyId: string) =>
+    apiFetch<ModelsOverview>(`/companies/${encodeURIComponent(companyId)}/models`, { token }),
+
+  // BRA-P0-11d: şirket tek bakış özeti; savunmacı ayrıştırma (bozuk gövde → null, eksik alan → null).
+  getCompanySummary: (token: string, companyId: string, signal?: AbortSignal) =>
+    apiFetch<unknown>(`/companies/${encodeURIComponent(companyId)}/summary`, { token, signal }).then(parseCompanySummary),
+
   // Approvals
   listApprovals: (token: string, status = "PENDING") =>
     apiFetch<any[]>(`/approvals?status=${status}`, { token }),
@@ -390,6 +407,28 @@ export const api = {
     apiFetch<unknown>(`/approvals/${id}/decide`, { method: "POST", body: JSON.stringify({ decision, note }), token })
       .then((result) => parseApprovalDecision(result, decision)),
 
+  // Inbox (BRA-P0-04e) — runs by bucket, approvals grouped by run, run actions, receipt
+  inboxRuns: (token: string, bucket: InboxBucket, cursor?: string | null, signal?: AbortSignal) =>
+    apiFetch<unknown>(`/runs?bucket=${bucket}&limit=25${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, { token, signal }).then(parseRunsPage),
+  /** BRA-P0-11a — şirketin işleri (sunucu süzgeci) + kova toplamları (`counts`). */
+  companyRuns: (token: string, companyId: string, bucket: InboxBucket, signal?: AbortSignal) =>
+    apiFetch<unknown>(`/runs?companyId=${encodeURIComponent(companyId)}&bucket=${bucket}&limit=25`, { token, signal }).then(parseRunsPage),
+  inboxApprovalGroups: (token: string, cursor?: string | null, signal?: AbortSignal) =>
+    apiFetch<unknown>(`/approvals?status=PENDING&groupBy=run&limit=25${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, { token, signal }).then(parseApprovalGroupsPage),
+  runAction: (token: string, runId: string, action: "resume" | "retry" | "pause" | "stop") =>
+    apiFetch<unknown>(`/runs/${encodeURIComponent(runId)}/${action}`, { method: "POST", body: JSON.stringify({}), token }),
+  runReceipt: (token: string, runId: string, signal?: AbortSignal) =>
+    apiFetch<JobReceipt>(`/runs/${encodeURIComponent(runId)}/receipt`, { token, signal }),
+  /** BRA-UX-05e — koşunun kod değişikliği özeti (salt-okur); yanıt `lib/ux-code/summary.ts` ile savunmacı ayrıştırılır. */
+  runCodeSummary: (token: string, runId: string, signal?: AbortSignal) =>
+    apiFetch<JobCodeSummary>(`/runs/${encodeURIComponent(runId)}/code-summary`, { token, signal }),
+
+  // Plan kartı (BRA-P0-03c) — POST /jobs/plan (LLM'siz kart) ve POST /jobs/start (onaylı kart → koşu)
+  jobPlan: (token: string, message: string, workspaceId?: string, signal?: AbortSignal) =>
+    apiFetch<unknown>("/jobs/plan", { method: "POST", body: JSON.stringify(planRequestBody(message, workspaceId)), token, signal, timeoutMs: 60_000 }).then(parsePlanResponse),
+  jobStart: (token: string, body: { message: string; workspaceId?: string; planHash: string; idempotencyKey: string }, signal?: AbortSignal) =>
+    apiFetch<unknown>("/jobs/start", { method: "POST", body: JSON.stringify(body), token, signal, timeoutMs: 60_000 }).then(parseStartResponse),
+
   // Drafts
   listDrafts: (token: string, companyId: string) =>
     apiFetch<any[]>(`/drafts?companyId=${companyId}`, { token }),
@@ -398,6 +437,9 @@ export const api = {
 
   // Runs
   getRun: (token: string, id: string) => apiFetch<any>(`/runs/${id}`, { token }),
+  /** BRA-P2-05: koşu olay günlüğü (newest first). Ham yanıt döner; ayrıştırma `parseActivity`'de. */
+  getRunActivity: (token: string, id: string, limit = 50) =>
+    apiFetch<unknown>(`/runs/${encodeURIComponent(id)}/activity?limit=${limit}`, { token }),
   triggerRun: (token: string, pipelineId: string, input = {}) =>
     apiFetch<any>(`/pipelines/${pipelineId}/run`, { method: "POST", body: JSON.stringify({ input }), token }),
 
@@ -631,6 +673,12 @@ export const api = {
       method: "POST", body: JSON.stringify({ description }), token,
     }),
 
+  // BRA-UX-05g — "Taslak → Oluştur" (BRA-UX-API-03). Taslak ucu KAYIT YAZMAZ; confirm taslağı kaydeder (LLM çağrısı yok).
+  composeAgentDraft: (token: string, companyId: string, description: string) =>
+    apiFetch<unknown>(`/companies/${companyId}/agents/compose/draft`, { method: "POST", body: JSON.stringify({ description }), token }),
+  composeAgentConfirm: (token: string, companyId: string, draft: unknown) =>
+    apiFetch<unknown>(`/companies/${companyId}/agents/compose/confirm`, { method: "POST", body: JSON.stringify({ draft }), token }),
+
   // Pipeline CRUD
   getPipeline: (token: string, id: string) =>
     apiFetch<any>(`/pipelines/${id}`, { token }),
@@ -681,6 +729,9 @@ export const api = {
     apiFetch<string>(`/export/${companyId}/claude-md`, { token, headers: { Accept: "text/markdown" } }),
   exportSkills: (token: string, companyId: string) =>
     apiFetch<any>(`/export/${companyId}/skills`, { token }),
+  /** BRA-P1-07-N3 — pilot paketi (mevcut uç: manifest + sentetik veri). */
+  exportMicroApp: (token: string, companyId: string) =>
+    apiFetch<unknown>(`/export/${encodeURIComponent(companyId)}/micro-app`, { token }),
   exportHooks: (token: string, companyId: string) =>
     apiFetch<any>(`/export/${companyId}/hooks`, { token }),
 
@@ -786,6 +837,9 @@ export const api = {
       body: JSON.stringify(data),
       token,
     }),
+  /** BRA-P0-06b: yalnız sağlayıcı+model (anahtar gönderilmez; sunucu mevcut anahtarı yeniden kullanır). */
+  setDefaultModel: (token: string, data: { provider: string; model: string }) =>
+    apiFetch<{ success: boolean }>("/settings/ai-config", { method: "PUT", body: JSON.stringify(data), token }),
   deleteAIConfig: (token: string) =>
     apiFetch<{ success: boolean }>("/settings/ai-config", { method: "DELETE", token }),
   testAIConfig: (token: string) =>

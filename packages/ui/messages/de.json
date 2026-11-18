@@ -21,7 +21,9 @@
     "billing": "Abrechnung",
     "settings": "Einstellungen",
     "newWorkspace": "Neuer Arbeitsbereich",
-    "quickStart": "Schnellstart"
+    "quickStart": "Schnellstart",
+    "inbox": "Posteingang",
+    "start": "Neuer Auftrag"
   },
   "features": {
     "badge": "PLATTFORM-FUNKTIONEN",
@@ -85,7 +87,13 @@
         "message": "Nachrichtenentwurf",
         "content": "Generierter Inhalt"
       },
-      "artifactAiLabel": "KI-generiert"
+      "artifactAiLabel": "KI-generiert",
+      "loading": "Freigaben werden geladen…",
+      "loadErrorTitle": "Freigaben konnten nicht geladen werden",
+      "loadErrorBody": "Der Server hat nicht richtig geantwortet, es könnten Freigaben warten. Das ist keine leere Liste. Versuche es erneut.",
+      "refreshErrorTitle": "Freigaben konnten nicht aktualisiert werden",
+      "refreshErrorBody": "Die Liste unten ist möglicherweise veraltet. Versuche es erneut.",
+      "retryLoad": "Erneut versuchen"
     },
     "companies": {
       "title": "Arbeitsbereiche",
@@ -1067,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "Onboarding",
-      "runs": "Läufe"
+      "runs": "Läufe",
+      "models": "Modelle"
     },
     "cost": {
       "estimateLabel": "Geschätzt {low}–{high} für diesen Lauf",
@@ -1206,6 +1215,619 @@
     },
     "register": {
       "freePlan": "Kostenloser Tarif"
+    },
+    "inbox": {
+      "title": "Posteingang",
+      "subtitle": "Alle Aufträge an einem Ort: laufend, wartend auf Sie, erledigt und hängend.",
+      "tabsLabel": "Auftragsgruppen",
+      "bucket": {
+        "working": "Läuft",
+        "needs_approval": "Freigabe nötig",
+        "done": "Erledigt",
+        "stuck": "Hängt"
+      },
+      "loading": "Wird geladen…",
+      "emptyWorking": "Aktuell läuft nichts.",
+      "emptyNeedsApproval": "Kein Auftrag wartet auf Freigabe.",
+      "emptyDone": "Noch keine erledigten Aufträge.",
+      "emptyStuck": "Nichts hängt.",
+      "errorTitle": "Aufträge konnten nicht geladen werden",
+      "errorBody": "Der Server hat nicht korrekt geantwortet, die Liste ist also möglicherweise gar nicht leer. Bitte erneut versuchen.",
+      "approvalsErrorTitle": "Offene Freigaben konnten nicht geladen werden",
+      "retryLoad": "Erneut versuchen",
+      "loadMore": "Mehr laden",
+      "loadingMore": "Wird geladen…",
+      "loadMoreError": "Weitere Einträge konnten nicht geladen werden. Bitte erneut versuchen.",
+      "approvalsTitle": "Offene Freigaben",
+      "jobsTitle": "Aufträge",
+      "approvalsEmpty": "Keine offenen Freigaben.",
+      "approve": "Freigeben",
+      "reject": "Ablehnen",
+      "deciding": "Wird gesendet…",
+      "amount": "Betrag: {value}",
+      "openRun": "Lauf öffnen",
+      "approvalUntitled": "Freigabeanfrage",
+      "approvalFailed": "Die Entscheidung wurde nicht gespeichert. Bitte erneut versuchen.",
+      "approvalConflict": "Diese Freigabe wurde bereits entschieden oder geändert. Liste aktualisieren.",
+      "jobUntitled": "Unbenannter Auftrag",
+      "cost": "Kosten {value}",
+      "updated": "Aktualisiert {value}",
+      "action": {
+        "resume": "Fortsetzen",
+        "pause": "Pausieren",
+        "stop": "Stoppen",
+        "retry": "Wiederholen",
+        "steer": "Steuern",
+        "receipt": "Beleg"
+      },
+      "steerLabel": "Nachricht an den Agenten",
+      "steerPlaceholder": "Kurze Anweisung…",
+      "steerSend": "Senden",
+      "steerSent": "Nachricht gesendet.",
+      "actionOk": "Aktion gesendet.",
+      "actionFailed": "Die Aktion ist fehlgeschlagen. Bitte erneut versuchen.",
+      "actionForbidden": "Für diese Aktion fehlt die Berechtigung.",
+      "conflict": {
+        "retry_disabled": "Wiederholen ist für diesen Arbeitsbereich noch nicht aktiviert.",
+        "run_still_running": "Dieser Auftrag läuft noch. Zuerst stoppen, dann wiederholen.",
+        "already_retrying": "Eine Wiederholung läuft bereits.",
+        "approval_pending": "Eine Freigabe wartet. Bitte zuerst entscheiden.",
+        "retry_budget_exhausted": "Das Wiederholungslimit oder -budget dieses Auftrags ist aufgebraucht.",
+        "run_not_retryable": "Dieser Auftrag kann im aktuellen Zustand nicht wiederholt werden.",
+        "generic": "Der Auftragsstatus hat sich geändert oder eine Freigabe wartet. Aktualisieren und erneut versuchen."
+      },
+      "receipt": {
+        "title": "Beleg",
+        "loading": "Beleg wird geladen…",
+        "none": "Noch kein Beleg. Er wird beim Abschluss des Auftrags erstellt.",
+        "error": "Beleg konnte nicht geladen werden.",
+        "verified": "VERIFIZIERT",
+        "unverified": "NICHT VERIFIZIERT",
+        "verifiedHint": "Die erforderlichen Nachweisarten wurden verifiziert.",
+        "unverifiedHint": "Nicht bestätigt: Nachweise fehlen oder sind unvollständig.",
+        "noStatus": "Kein Ergebnisstatus",
+        "outcome": "Ergebnis: {value}",
+        "noEvidence": "Keine Nachweise angehängt.",
+        "passed": "bestanden",
+        "failed": "fehlgeschlagen",
+        "hide": "Beleg ausblenden"
+      },
+      "state": {
+        "COMPLETED": "Abgeschlossen",
+        "FAILED": "Fehlgeschlagen",
+        "CANCELLED": "Abgebrochen"
+      },
+      "artifactLabel": "Zu genehmigender Inhalt",
+      "expires": "Läuft ab {value}",
+      "answerLabel": "Ihre Antwort an den Agenten (erforderlich)",
+      "claimFailed": "Ihre Freigabe für {run} wurde gespeichert, aber der Auftrag konnte nicht fortgesetzt werden und bleibt möglicherweise fehlgeschlagen. Unter Hängt prüfen und wiederholen.",
+      "dismiss": "Schließen",
+      "approvalForbidden": "Sie haben keine Berechtigung, Freigaben zu entscheiden.",
+      "actionRejected": "Der Auftrag befindet sich in keinem Zustand, der diese Aktion erlaubt."
+    },
+    "jobs": {
+      "title": "Aufgaben",
+      "drawerLabel": "Aufgabe: {title}",
+      "close": "Schließen",
+      "viewLabel": "Aufgabenansicht",
+      "tab": {
+        "summary": "Zusammenfassung",
+        "output": "Ergebnis",
+        "kaput": "Unter der Haube"
+      },
+      "detail": {
+        "label": "Detailgrad",
+        "simple": "Einfach",
+        "full": "Vollständig"
+      },
+      "state": {
+        "DRAFT": "Entwurf",
+        "PLANNED": "geplant",
+        "READY": "bereit",
+        "RUNNING": "läuft",
+        "NEEDS_APPROVAL": "wartet auf Freigabe",
+        "RESUMING": "wird fortgesetzt",
+        "PAUSED": "pausiert",
+        "FAILED": "fehlgeschlagen",
+        "CANCELLED": "abgebrochen",
+        "COMPLETED": "erledigt",
+        "unknown": "unbekannt"
+      },
+      "risk": {
+        "low": "niedrig",
+        "medium": "mittel",
+        "high": "hoch"
+      },
+      "riskLabel": "Risiko: {value}",
+      "verified": "✔ Verifiziert",
+      "unverified": "Nicht verifiziert",
+      "noVerification": "Keine Verifizierungsinfo",
+      "field": {
+        "status": "Status",
+        "cost": "Kosten",
+        "company": "Unternehmen"
+      },
+      "fullInfo": "ID: {id} · Zustand: {state} · aktualisiert: {updated}",
+      "kaput": {
+        "loading": "Haube wird geladen…",
+        "error": "Haube konnte nicht gelesen werden.",
+        "summary": "Schritte ({steps}) · Tool-Aufrufe: {tools} · Kosten: {cost} · Übergaben: {handoffs}",
+        "noSteps": "Diese Aufgabe hat noch keine Schrittprotokolle.",
+        "unknown": "k. A.",
+        "later": "Routing- und Berechtigungsdetails folgen in einer späteren Version.",
+        "runErrorTitle": "Dieser Auftrag wurde mit einem Fehler beendet",
+        "runErrorPlain": "Mit der Schaltfläche „Erneut versuchen“ unter dem Auftrag kannst du es noch einmal probieren.",
+        "budget": "Budget genutzt: {cost} / {budget} ({percent})",
+        "agent": "Agentenrolle",
+        "duration": "Dauer",
+        "stepCost": "Kosten",
+        "share": "{percent} der Gesamtkosten",
+        "reasoning": "Begründung",
+        "tools": "Werkzeugaufrufe",
+        "noTools": "Keine Werkzeugaufrufe",
+        "model": "Modell",
+        "noModel": "Keine Modelldaten für diesen Schritt",
+        "mode": "Modellmodus",
+        "modes": {
+          "DIRECT": "Direkt",
+          "CASCADE": "Kaskade (erst das günstige)",
+          "COMPARE": "Vergleich"
+        },
+        "tried": "Getestete Modelle",
+        "tokens": "Tokens",
+        "tokensValue": "{input} ein / {output} aus",
+        "log": "Protokoll",
+        "noLog": "Keine Protokolldaten für diesen Schritt",
+        "activity": {
+          "title": "Auftragsaktivität",
+          "actorSystem": "System",
+          "actorUser": "Teammitglied",
+          "more": "Die letzten {count} Ereignisse werden angezeigt; es gibt weitere.",
+          "truncated": "Einige Ereignisse werden nicht aufgeführt."
+        },
+        "logEvent": {
+          "started": "Gestartet: {time}",
+          "ended": "Beendet: {time}"
+        },
+        "dag": {
+          "title": "Schrittabhängigkeiten",
+          "noData": "Keine Abhängigkeitsdaten für diesen Auftrag. Die Schritte stehen unten der Reihe nach.",
+          "sourceOrder": "Aus der Schrittreihenfolge abgeleitet: Schritte derselben Stufe laufen parallel; jede Stufe wartet auf die vorherige.",
+          "sourceApi": "Abhängigkeiten wie für jeden Schritt gemeldet.",
+          "inconsistent": "Abhängigkeitsdaten sind inkonsistent; einige Verbindungen wurden übersprungen.",
+          "truncated": "Die ersten {shown} von {total} Schritten werden angezeigt.",
+          "summary": "{steps} Schritte in {levels} Stufen, {edges} Abhängigkeiten",
+          "scroll": "Abhängigkeitsgraph der Schritte, scrollbar",
+          "listLabel": "Schritte mit ihren Abhängigkeiten",
+          "dependsOn": "Hängt ab von Schritt: {steps}",
+          "noDeps": "Keine Abhängigkeiten",
+          "changed": "Der Pipeline-Eintrag wurde nach diesem Lauf aktualisiert; die Schrittreihenfolge ließ sich nicht verifizieren, daher wird kein Abhängigkeitsgraph gezeichnet.",
+          "unverified": "Basiert auf der aktuellen Auftragsdefinition (Änderungszeitpunkt unbekannt)."
+        },
+        "seconds": "{value} s",
+        "millis": "{value} ms",
+        "stepStatus": {
+          "completed": "Abgeschlossen",
+          "running": "Läuft",
+          "failed": "Fehlgeschlagen",
+          "pending": "Wartet",
+          "skipped": "Übersprungen",
+          "cancelled": "Abgebrochen",
+          "unknown": "Unbekannt"
+        },
+        "errorLabel": "Fehler",
+        "overBudget": "Budget überschritten"
+      },
+      "stuckNote": "Einige hängende Aufgaben sind noch nicht sichtbar, solange die Heartbeat-Überwachung aus ist.",
+      "openJob": "Aufgabe {title} öffnen",
+      "openFull": "Vollständige Lauf-Seite öffnen"
+    },
+    "workspace": {
+      "back": "Zurück zu den Aufgaben",
+      "classic": "Klassische Detailansicht",
+      "loading": "Aufgabe wird geladen …",
+      "errorTitle": "Aufgabe konnte nicht geöffnet werden",
+      "errorBody": "Prüfe deine Verbindung und versuche es erneut.",
+      "notFound": "Diese Aufgabe wurde nicht gefunden oder du hast keinen Zugriff.",
+      "label": "Aufgaben-Arbeitsbereich: {title}"
+    },
+    "approvalCenter": {
+      "title": "Freigabe- und Sicherheitszentrale",
+      "subtitle": "Sieh genau, was jede Aktion tut, bevor du entscheidest.",
+      "classic": "Klassische Freigabeansicht",
+      "count": "{count} wartend",
+      "live": "{count} Freigaben warten",
+      "approvedNotice": "Freigegeben.",
+      "rejectedNotice": "Abgelehnt.",
+      "type": {
+        "SPEND": "Ausgabe",
+        "INPUT": "Frage",
+        "HANDOFF": "Übergabe",
+        "EXTERNAL_CONTROL": "Externe Steuerung",
+        "other": "Freigabe"
+      },
+      "open": "Freigabe prüfen: {title}",
+      "sheetLabel": "Freigabedetails: {title}",
+      "close": "Schließen",
+      "field": {
+        "what": "Was passiert",
+        "tool": "Werkzeug",
+        "permissions": "Berechtigungsumfang",
+        "data": "Übertragene Daten",
+        "risk": "Risiko",
+        "amount": "Betrag",
+        "reversible": "Rückgängig",
+        "draft": "Entwurf",
+        "requested": "Angefragt"
+      },
+      "riskLevel": {
+        "low": "Niedrig",
+        "medium": "Mittel",
+        "high": "Hoch"
+      },
+      "reversibleYes": "Durch eine Gegenaktion umkehrbar",
+      "reversibleNo": "Nicht rückgängig zu machen",
+      "unknown": "Keine Angabe",
+      "danger": {
+        "tag": "Bestätigung nötig",
+        "title": "Diese Aktion braucht einen zweiten Schritt",
+        "body": "Sie gibt Geld aus, ist hochriskant oder nicht rückgängig zu machen.",
+        "phraseLabel": "Tippe „{phrase}“, um Freigeben zu aktivieren",
+        "phrase": "Ich genehmige das Senden",
+        "reasonLabel": "Grund (wird mit deiner Entscheidung gespeichert)"
+      },
+      "oneByOne": "Jede Freigabe wird einzeln entschieden.",
+      "alreadyDecided": "Diese Freigabe wurde bereits entschieden. Die Liste wurde aktualisiert.",
+      "forbidden": "Du hast keine Berechtigung, diese Freigabe zu entscheiden. Die Liste wurde aktualisiert."
+    },
+    "plan": {
+      "title": "Auftrag beschreiben",
+      "workspace": "Arbeitsbereich",
+      "workspaceChoose": "Arbeitsbereich wählen",
+      "messageLabel": "Was soll erledigt werden?",
+      "messagePlaceholder": "Z. B. den wöchentlichen Verkaufsbericht erstellen",
+      "suggest": "Plan vorschlagen",
+      "planning": "Plan wird erstellt …",
+      "empty": "Diese Nachricht sieht nicht nach einem Auftrag aus; es wurde kein Plan vorgeschlagen.",
+      "retry": "Erneut versuchen",
+      "steps": "Schritte",
+      "tools": "Werkzeuge",
+      "risk": {
+        "label": "Risiko",
+        "low": "Niedrig",
+        "medium": "Mittel",
+        "high": "Hoch"
+      },
+      "cost": "Geschätzte Kosten (keine Garantie)",
+      "costUnknown": "Preis für dieses Modell unbekannt; keine Kostenspanne verfügbar",
+      "approvalStep": "Freigabe nötig",
+      "run": "Ausführen",
+      "cancel": "Abbrechen",
+      "starting": "Wird gestartet …",
+      "approvalGate": "Dieser Auftrag braucht eine Freigabe; sie ist derzeit ausgeschaltet.",
+      "planChanged": "Der Plan hat sich geändert. Bitte erneut einen Plan vorschlagen.",
+      "workspaceRequired": "Bitte zuerst einen Arbeitsbereich wählen.",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "Start",
+      "label": "Was möchtest du tun?",
+      "placeholder": "Beschreibe eine Aufgabe, stelle eine Frage oder fordere einen Agenten an…",
+      "barLabel": "Absichtsleiste",
+      "understood": "Ich habe verstanden:",
+      "kind": {
+        "chat": "Chat",
+        "job": "Aufgabe",
+        "agent": "Agent"
+      },
+      "submit": {
+        "chat": "Chat starten",
+        "job": "Planen",
+        "agent": "Agent anfordern"
+      },
+      "lowConfidence": "Ich bin unsicher: es wird als Chat behandelt; wähle „Aufgabe“, um es als Aufgabe zu planen.",
+      "previewNote": "„Ich habe verstanden“ ist ein lokaler Hinweis; im Planschritt entscheidet der Server selbst.",
+      "chat": {
+        "unavailable": "Chat ist noch nicht verfügbar: diese Version plant nur Aufgaben und erstellt Agenten. Deine Nachricht hat keinen Aufgabeneintrag erzeugt; es fielen keine Kosten an.",
+        "asJob": "Als Aufgabe planen"
+      },
+      "plan": {
+        "tool": "Werkzeug: {tool}",
+        "approvalStep": "Freigabe nötig, {risk} Risiko",
+        "modelRow": "Modellzeile pro Schritt: noch nicht verfügbar (API folgt)."
+      },
+      "agent": {
+        "title": "Neuer Agent",
+        "immediate": "Dieser Schritt speichert den Agenten sofort: ein Entwurf vor dem Erstellen ist noch nicht möglich.",
+        "create": "Agent jetzt erstellen",
+        "working": "Agent wird erstellt…",
+        "role": "Rolle: {role}",
+        "toolsLabel": "Werkzeuge",
+        "noTools": "keine",
+        "dropped": "Entferntes Werkzeug ({count}): {tools} ist nicht verbunden; der Agent wurde ohne es erstellt.",
+        "saved": "Agent gespeichert.",
+        "close": "Schließen",
+        "tooShort": "Die Agentenbeschreibung braucht mindestens 10 Zeichen: sag etwas mehr dazu, was er tun soll.",
+        "maybeSaved": "Wenn die Verbindung abbrach, ist der Agent eventuell schon gespeichert: prüfe die Agentenliste, bevor du es erneut versuchst."
+      }
+    },
+    "models": {
+      "labelSep": ": ",
+      "pairSep": " · ",
+      "title": "Modelle und Verbindungen",
+      "subtitle": "Welche Modelle Ihr Unternehmen nutzt, wer darauf zugreifen kann und was sie diesen Monat kosten. Nur Lesen.",
+      "company": "Unternehmen",
+      "live": "{count} Modelle aufgelistet",
+      "errorTitle": "Modelle konnten nicht geladen werden",
+      "errorBody": "Die Modellliste konnte nicht gelesen werden. Versuchen Sie es erneut.",
+      "retry": "Erneut versuchen",
+      "noCompanyTitle": "Noch kein Unternehmen",
+      "noCompanyBody": "Erstellen Sie ein Unternehmen, um seine Modelle hier zu sehen.",
+      "loading": "Modelle werden geladen …",
+      "autoLabel": "Automatische Modellauswahl",
+      "autoOn": "An",
+      "autoOff": "Aus",
+      "unknown": "Unbekannt",
+      "emptyTitle": "Noch keine Modelle in Nutzung",
+      "emptyBody": "Modelle erscheinen hier, sobald ein Agent dieses Unternehmens eines hat.",
+      "provider": "Anbieter",
+      "access": "Zugriff",
+      "cost": "Kosten diesen Monat",
+      "runs": "Läufe diesen Monat",
+      "runCount": "Läufe diesen Monat: {count}",
+      "costNote": "Die Kosten werden dem aktuellen Modell jedes Agenten zugeordnet; Läufe vor einem Modellwechsel zählen daher zum neuen Modell. Der Monat beginnt am 1. um 00:00 UTC.",
+      "costSince": "Seit {from}.",
+      "updatedAt": "Aktualisiert: {time}.",
+      "linksTitle": "Verwalten",
+      "source": {
+        "label": "Quelle",
+        "byok": "Eigener API-Schlüssel",
+        "local": "Lokales Modell",
+        "platform": "Plattform",
+        "unknown": "Unbekannt"
+      },
+      "badge": {
+        "byok": "BYOK",
+        "local": "LOKAL"
+      },
+      "scope": {
+        "company": "dieses Unternehmen",
+        "workspace": "dieser Arbeitsbereich",
+        "agent": "ein Agent"
+      },
+      "mode": {
+        "read": "lesen",
+        "read_write": "lesen und schreiben"
+      },
+      "links": {
+        "own": {
+          "title": "Eigener API-Schlüssel",
+          "body": "Schlüssel unter Einstellungen → KI-Anbieter hinzufügen oder ändern."
+        },
+        "local": {
+          "title": "Lokales Modell",
+          "body": "Einen selbst gehosteten Endpunkt unter Einstellungen → KI-Anbieter verbinden."
+        },
+        "compare": {
+          "title": "Modelle vergleichen",
+          "body": "Dieselbe Aufgabe nebeneinander auf mehreren Modellen ausführen."
+        },
+        "connections": {
+          "title": "Automatisierungsverbindungen",
+          "body": "Läufe aus n8n, Make und Zapier."
+        },
+        "integrations": {
+          "title": "Integrationen",
+          "body": "Slack, GitHub und weitere Werkzeuge."
+        }
+      },
+      "pickerTitle": "Modell ändern",
+      "pickerHelp": "Wähle, wo das Modell gilt und welches Modell genutzt wird. Agent: nur dieser Agent. Kontostandard: gilt für Agenten ohne eigenes Modell.",
+      "pickerTarget": "Gilt für",
+      "pickerDefault": "Kontostandard (alle Agenten ohne eigenes Modell)",
+      "pickerModel": "Modell",
+      "pickerApply": "Anwenden",
+      "pickerSaving": "Speichern…",
+      "pickerSaved": "Gespeichert.",
+      "pickerError": "Speichern fehlgeschlagen. Erneut versuchen.",
+      "pickerLoadError": "Agenten oder Modelloptionen konnten nicht geladen werden.",
+      "pickerEmpty": "Noch keine Modelle konfiguriert. Füge in den Einstellungen einen Schlüssel oder ein lokales Modell hinzu.",
+      "pickerCurrent": "Aktuell: {model}",
+      "pickerCurrentUnknown": "Aktuell: Unbekannt",
+      "pickerLocalHint": "Lokale und eigene Anbieter lassen sich nur in den Einstellungen festlegen.",
+      "pickerForbidden": "Dir fehlt die Berechtigung dafür.",
+      "pickerPlan": "Dein Tarif erlaubt das nicht."
+    },
+    "companyStatus": {
+      "title": "Unternehmensstatus",
+      "subtitle": "Eine Zeile dazu, was läuft, hängt, auf Freigabe wartet und was es gekostet hat.",
+      "live": "{approvals} warten auf Freigabe, {stuck} hängen",
+      "loading": "Unternehmensstatus wird geladen …",
+      "errorTitle": "Unternehmen konnte nicht geladen werden",
+      "errorBody": "Der Unternehmensstatus konnte nicht gelesen werden. Versuchen Sie es erneut.",
+      "retry": "Erneut versuchen",
+      "summaryLabel": "Unternehmensübersicht",
+      "working": "Läuft",
+      "stuck": "Hängt",
+      "approvals": "Wartet auf Freigabe",
+      "done": "Fertig",
+      "cost": "Kosten",
+      "unknown": "Unbekannt",
+      "atLeast": "mindestens {count}",
+      "note": "Die Zahlen stammen von der ersten Seite jedes Status in Ihrer Auftragsliste (25 Aufträge je Status); „mindestens“ heißt, es gibt mehr. Die Kosten summieren nur diese Aufträge.",
+      "costUnknownRuns": "Bei {count} Auftrag/Aufträgen sind die Kosten nicht lesbar; sie fehlen in der Summe.",
+      "agents": "Agenten",
+      "agentsEmpty": "In diesem Unternehmen gibt es noch keine Agenten.",
+      "role": "Rolle",
+      "linksTitle": "Links",
+      "links": {
+        "jobs": {
+          "title": "Aufträge",
+          "body": "Alles, was läuft, hängt oder fertig ist."
+        },
+        "approvals": {
+          "title": "Freigaben",
+          "body": "Prüfen Sie, was auf Sie wartet."
+        },
+        "risks": {
+          "title": "Risiken",
+          "body": "Offene Risikostopps."
+        },
+        "integrations": {
+          "title": "Integrationen",
+          "body": "Verbundene Werkzeuge."
+        },
+        "classic": {
+          "title": "Klassische Unternehmensseite",
+          "body": "Alle Details, Agenten-Composer und Einstellungen."
+        }
+      }
+    },
+    "companySummary": {
+      "title": "Auf einen Blick",
+      "loading": "Firmenübersicht wird geladen…",
+      "error": "Die Firmenübersicht konnte nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "empty": "Für diese Firma gibt es keine Übersicht.",
+      "unknown": "Unbekannt",
+      "bucket": {
+        "working": "Läuft",
+        "needs_approval": "Wartet auf Freigabe",
+        "stuck": "Hängt",
+        "done": "Erledigt"
+      },
+      "pendingApprovals": "Offene Freigaben",
+      "agents": "Agenten",
+      "pipelines": "Pipelines",
+      "monthCost": "Kosten diesen Monat",
+      "budget": {
+        "title": "Monatsbudget",
+        "noneHint": "Für diese Firma ist kein Monatsbudget festgelegt.",
+        "spent": "Ausgegeben",
+        "limit": "Limit",
+        "remaining": "Verbleibend",
+        "used": "{pct} % verbraucht",
+        "state": {
+          "none": "Kein Budget",
+          "ok": "Im Plan",
+          "warn": "Nahe am Limit",
+          "over": "Budget überschritten"
+        }
+      }
+    },
+    "pilotEntry": {
+      "error": {
+        "auth": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an.",
+        "forbidden": "Sie dürfen dieses Unternehmen nicht exportieren.",
+        "notFound": "Unternehmen nicht gefunden.",
+        "network": "Netzwerkproblem. Prüfen Sie Ihre Verbindung und versuchen Sie es erneut.",
+        "generic": "Das Pilotpaket konnte nicht exportiert werden. Versuchen Sie es erneut."
+      },
+      "title": "Mikro-App-Paket (Pilot)",
+      "description": "Ein portables Paket der Konfiguration dieses Unternehmens (Agenten, Pipelines, angeforderte Verbindungsbezeichnungen) samt Beispieldaten.",
+      "syntheticOnly": "Die Beispieldaten sind synthetisch.",
+      "export": "Pilotpaket exportieren",
+      "exporting": "Wird exportiert…",
+      "exported": "Pilotpaket heruntergeladen.",
+      "previewTitle": "Paketvorschau",
+      "previewName": "Name",
+      "previewAgents": "Agenten",
+      "previewPipelines": "Pipelines",
+      "previewRecords": "Datensätze",
+      "previewConnectors": "Angeforderte Verbindungen",
+      "noConnectors": "Keine",
+      "moreConnectors": "+{count} weitere",
+      "noData": "Noch keine Daten. Exportieren Sie das Paket für die Vorschau.",
+      "connectorsNote": "Die Vorschau zeigt, welche Verbindungen das Paket anfordert; Details zu Aktionen und Scopes stehen in der Datei. Sende- oder Schreibrechte werden durch den Connector-Scope begrenzt; dieses Paket erzwingt das nicht."
+    },
+    "codeChange": {
+      "title": "Änderung: {title}",
+      "titleGeneric": "Codeänderung",
+      "loading": "Codeänderung wird geladen…",
+      "error": "Die Codeänderung konnte nicht geladen werden. Versuche es erneut.",
+      "retry": "Erneut versuchen",
+      "none": "Für diesen Auftrag gibt es keinen Codeänderungs-Eintrag.",
+      "filesTitle": "Dateien ({count})",
+      "filesNone": "Keine Dateien aufgelistet",
+      "filesUnknown": "Dateien: Unbekannt",
+      "moreFiles": "{count, plural, one {+# weitere Datei} other {+# weitere Dateien}}",
+      "unknown": "Unbekannt",
+      "totals": "Gesamt: {added} {removed}",
+      "totalsAtLeast": "Mindestens: {added} {removed}",
+      "partialNote": "Bei manchen Dateien fehlen Zeilenzahlen oder die Liste ist gekürzt, daher sind die Summen eine Untergrenze.",
+      "testsTitle": "Tests",
+      "testsPassed": "{count} bestanden",
+      "testsFailed": "{count} fehlgeschlagen",
+      "testsSkipped": "{count} übersprungen",
+      "testsPassedUnknown": "bestanden: Unbekannt",
+      "testsFailedUnknown": "fehlgeschlagen: Unbekannt",
+      "testsSkippedUnknown": "übersprungen: Unbekannt",
+      "testsTotal": "{count} insgesamt",
+      "testsVerified": "Verifiziert",
+      "testsNotVerified": "Nicht verifiziert",
+      "testsRuns": "{count, plural, one {# Testlauf} other {# Testläufe}}",
+      "approvalLink": "Im Genehmigungscenter entscheiden",
+      "srSummary": "{title}. Dateien: {files}. Tests: {tests}.",
+      "stale": "Aktualisierung fehlgeschlagen; zuletzt bekannte Daten werden angezeigt."
+    },
+    "agents": {
+      "title": "Agenten",
+      "new": "Neuer Agent",
+      "company": "Arbeitsbereich",
+      "noCompany": "Lege zuerst einen Arbeitsbereich an: Agenten gehören zu einem Arbeitsbereich.",
+      "companiesError": "Arbeitsbereiche konnten nicht geladen werden.",
+      "retry": "Erneut versuchen",
+      "composerTitle": "Neuer Agent",
+      "describe": "Was für einen Kollegen möchtest du?",
+      "placeholder": "z. B. Verkaufs-E-Mails jeden Morgen zusammenfassen",
+      "tooShort": "Beschreibe den Agenten mit mindestens 10 Zeichen.",
+      "tooLong": "Die Beschreibung ist zu lang (höchstens 4000 Zeichen).",
+      "draftButton": "Entwurf",
+      "drafting": "Entwurf wird erstellt…",
+      "draftNote": "Der Entwurf speichert nichts. Der Agent entsteht erst, wenn du auf Erstellen drückst.",
+      "previewTitle": "Entwurfsvorschau",
+      "notSaved": "noch nicht gespeichert",
+      "name": "Name",
+      "role": "Rolle",
+      "tools": "Werkzeuge",
+      "none": "keine",
+      "dropped": "Entfernte Werkzeuge ({count}), nicht verfügbar",
+      "systemPrompt": "Anweisungen (Systemprompt)",
+      "providerLine": "Entwurf von {provider} / {model}.",
+      "create": "Erstellen",
+      "creating": "Wird erstellt…",
+      "discard": "Entwurf verwerfen",
+      "created": "wurde erstellt.",
+      "maybeSaved": "Falls die Verbindung abbrach, ist der Agent evtl. schon gespeichert: prüfe die Liste vor einem neuen Versuch.",
+      "listTitle": "Agenten",
+      "listError": "Die Agentenliste konnte nicht geladen werden.",
+      "empty": "In diesem Arbeitsbereich gibt es noch keine Agenten.",
+      "status": "Status",
+      "unknown": "Unbekannt",
+      "labelSep": ": ",
+      "pairSep": "·",
+      "listSep": ", ",
+      "error": {
+        "session": "Deine Anmeldung konnte nicht bestätigt werden. Melde dich neu an.",
+        "payment": "Ein Tarif- oder Budgetlimit wurde erreicht (402). Prüfe die Limits und versuche es erneut.",
+        "forbidden": "Dafür fehlt dir die Berechtigung.",
+        "notFound": "Dieser Arbeitsbereich wurde nicht gefunden.",
+        "rateLimit": "Zu viele Anfragen (429). Warte kurz und versuche es erneut.",
+        "timeout": "Die Anfrage hat zu lange gedauert.",
+        "network": "Der Server ist nicht erreichbar. Prüfe die Verbindung und versuche es erneut.",
+        "noProvider": "Kein KI-Anbieter eingerichtet. Füge in den Einstellungen einen hinzu und versuche es erneut.",
+        "badDraft": "Der Entwurf wurde nicht akzeptiert. Beschreibe den Agenten anders und erstelle einen neuen Entwurf.",
+        "badResponse": "Die Serverantwort wurde nicht verstanden. Nichts wurde als gespeichert angezeigt.",
+        "generic": "Ein unerwarteter Fehler ist aufgetreten. Versuche es erneut."
+      },
+      "refreshList": "Liste aktualisieren",
+      "loading": "Wird geladen…"
     }
   },
   "static": {

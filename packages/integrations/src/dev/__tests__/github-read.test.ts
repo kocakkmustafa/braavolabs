@@ -3,6 +3,7 @@ import {
   getGitHubPRStatus,
   getGitHubBranchStatus,
   listGitHubPRs,
+  dryRunGitHubPR,
   type GitHubConfig,
 } from "../github";
 
@@ -218,5 +219,64 @@ describe("github read helpers (E3 T4)", () => {
       fetchMock.mockResolvedValueOnce(jsonResponse({ message: "Bad creds" }, { ok: false, status: 401 }));
       await expect(listGitHubPRs(config, "o", "r")).rejects.toThrow(/401/);
     });
+  });
+});
+
+describe("dryRunGitHubPR (BRA-P1-03a)", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("returns the would-be request without calling fetch and without token/headers", () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const out = dryRunGitHubPR("o", "r", "T", "B", "feat/x", "main", true);
+    expect(out.dryRun).toBe(true);
+    expect(out.request.method).toBe("POST");
+    expect(out.request.url).toBe("https://api.github.com/repos/o/r/pulls");
+    expect(out.request.body).toEqual({ title: "T", body: "B", head: "feat/x", base: "main", draft: true });
+    expect(Object.keys(out.request.body)).toEqual(["title", "body", "head", "base", "draft"]);
+    expect(JSON.stringify(out)).not.toMatch(/ghp_|authorization|headers/i);
+    expect(fetchMock).toHaveBeenCalledTimes(0);
+  });
+
+  it("defaults draft to false", () => {
+    expect(dryRunGitHubPR("o", "r", "T", "", "h", "main").request.body.draft).toBe(false);
+  });
+
+  it.each([
+    ["owner ..", ["..", "r", "T", "B", "h", "main"]],
+    ["owner .", [".", "r", "T", "B", "h", "main"]],
+    ["owner slash", ["a/b", "r", "T", "B", "h", "main"]],
+    ["repo empty", ["o", "", "T", "B", "h", "main"]],
+    ["empty title", ["o", "r", "  ", "B", "h", "main"]],
+    ["long title", ["o", "r", "x".repeat(257), "B", "h", "main"]],
+    ["control char title", ["o", "r", "a\nb", "B", "h", "main"]],
+    ["empty head", ["o", "r", "T", "B", "", "main"]],
+    ["control char base", ["o", "r", "T", "B", "h", "ma\u0000in"]],
+    ["owner too long", ["o".repeat(101), "r", "T", "B", "h", "main"]],
+    ["repo too long", ["o", "r".repeat(101), "T", "B", "h", "main"]],
+    ["head too long", ["o", "r", "T", "B", "h".repeat(256), "main"]],
+    ["base too long", ["o", "r", "T", "B", "h", "m".repeat(256)]],
+    ["body too long", ["o", "r", "T", "x".repeat(65537), "h", "main"]],
+    ["body object", ["o", "r", "T", { a: 1 }, "h", "main"]],
+    ["bidi U+202E in title", ["o", "r", "a\u202eb", "B", "h", "main"]],
+    ["C1 U+0085 in title", ["o", "r", "a\u0085b", "B", "h", "main"]],
+    ["U+2028 in title", ["o", "r", "a\u2028b", "B", "h", "main"]],
+    ["zero-width in title", ["o", "r", "a\u200bb", "B", "h", "main"]],
+    ["BOM in head", ["o", "r", "T", "B", "a\ufeffb", "main"]],
+    ["leading space title", ["o", "r", " T", "B", "h", "main"]],
+    ["trailing space head", ["o", "r", "T", "B", "h ", "main"]],
+    ["inner space head", ["o", "r", "T", "B", "a b", "main"]],
+    ["dotdot head", ["o", "r", "T", "B", "a..b", "main"]],
+    ["colon base", ["o", "r", "T", "B", "h", "a:b"]],
+    ["caret head", ["o", "r", "T", "B", "a^b", "main"]],
+    ["bracket head", ["o", "r", "T", "B", "a[b", "main"]],
+    ["backslash base", ["o", "r", "T", "B", "h", "a\\b"]],
+  ] as const)("rejects invalid input: %s", (_n, a) => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    expect(() => (dryRunGitHubPR as any)(...a)).toThrow(/invalid/);
+    expect(fetchMock).toHaveBeenCalledTimes(0);
   });
 });

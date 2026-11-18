@@ -21,7 +21,9 @@
     "billing": "账单",
     "settings": "设置",
     "newWorkspace": "新建工作区",
-    "quickStart": "快速入门"
+    "quickStart": "快速入门",
+    "inbox": "收件箱",
+    "start": "新任务"
   },
   "features": {
     "badge": "平台能力",
@@ -85,7 +87,13 @@
         "message": "消息草稿",
         "content": "生成的内容"
       },
-      "artifactAiLabel": "AI 生成"
+      "artifactAiLabel": "AI 生成",
+      "loading": "正在加载审批…",
+      "loadErrorTitle": "无法加载审批",
+      "loadErrorBody": "服务器未正确响应，可能有待处理的审批。这不是空列表。请重试。",
+      "refreshErrorTitle": "无法刷新审批",
+      "refreshErrorBody": "下方列表可能已过期。请重试。",
+      "retryLoad": "重试"
     },
     "companies": {
       "title": "工作区",
@@ -1067,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "入门引导",
-      "runs": "运行"
+      "runs": "运行",
+      "models": "模型"
     },
     "cost": {
       "estimateLabel": "此次运行预计 {low}–{high}",
@@ -1206,6 +1215,619 @@
     },
     "register": {
       "freePlan": "免费方案"
+    },
+    "inbox": {
+      "title": "收件箱",
+      "subtitle": "所有任务集中在一处：进行中、等你处理、已完成、已卡住。",
+      "tabsLabel": "任务分组",
+      "bucket": {
+        "working": "进行中",
+        "needs_approval": "待审批",
+        "done": "已完成",
+        "stuck": "已卡住"
+      },
+      "loading": "加载中…",
+      "emptyWorking": "目前没有正在运行的任务。",
+      "emptyNeedsApproval": "没有等待审批的任务。",
+      "emptyDone": "还没有已完成的任务。",
+      "emptyStuck": "没有卡住的任务。",
+      "errorTitle": "无法加载任务",
+      "errorBody": "服务器未正确响应，因此此列表可能并非真的为空。请重试。",
+      "approvalsErrorTitle": "无法加载待审批项",
+      "retryLoad": "重试",
+      "loadMore": "加载更多",
+      "loadingMore": "加载中…",
+      "loadMoreError": "无法加载更多。请重试。",
+      "approvalsTitle": "待审批",
+      "jobsTitle": "任务",
+      "approvalsEmpty": "没有待审批项。",
+      "approve": "批准",
+      "reject": "拒绝",
+      "deciding": "发送中…",
+      "amount": "金额：{value}",
+      "openRun": "打开运行",
+      "approvalUntitled": "审批请求",
+      "approvalFailed": "决定未保存。请重试。",
+      "approvalConflict": "此审批已被处理或已变更。请刷新列表。",
+      "jobUntitled": "未命名任务",
+      "cost": "费用 {value}",
+      "updated": "更新于 {value}",
+      "action": {
+        "resume": "继续",
+        "pause": "暂停",
+        "stop": "停止",
+        "retry": "重试",
+        "steer": "引导",
+        "receipt": "回执"
+      },
+      "steerLabel": "给智能体的消息",
+      "steerPlaceholder": "简短指令…",
+      "steerSend": "发送",
+      "steerSent": "消息已发送。",
+      "actionOk": "操作已发送。",
+      "actionFailed": "操作失败。请重试。",
+      "actionForbidden": "你没有执行此操作的权限。",
+      "conflict": {
+        "retry_disabled": "此工作区尚未启用重试。",
+        "run_still_running": "该任务仍在运行。请先停止，再重试。",
+        "already_retrying": "重试已在进行中。",
+        "approval_pending": "有一项审批在等待。请先处理。",
+        "retry_budget_exhausted": "该任务的重试次数或预算已用完。",
+        "run_not_retryable": "该任务在当前状态下无法重试。",
+        "generic": "任务状态已变化或有审批在等待。请刷新后重试。"
+      },
+      "receipt": {
+        "title": "回执",
+        "loading": "正在加载回执…",
+        "none": "暂无回执。任务结束时会生成。",
+        "error": "无法加载回执。",
+        "verified": "已验证",
+        "unverified": "未验证",
+        "verifiedHint": "所需的证据类型已验证。",
+        "unverifiedHint": "未确认：证据缺失或不完整。",
+        "noStatus": "无结果状态",
+        "outcome": "结果：{value}",
+        "noEvidence": "未附带证据。",
+        "passed": "通过",
+        "failed": "失败",
+        "hide": "隐藏回执"
+      },
+      "state": {
+        "COMPLETED": "已完成",
+        "FAILED": "已失败",
+        "CANCELLED": "已取消"
+      },
+      "artifactLabel": "待批准的内容",
+      "expires": "到期 {value}",
+      "answerLabel": "你对智能体的回答（必填）",
+      "claimFailed": "你对 {run} 的批准已保存，但任务无法继续，可能仍处于失败状态。请在“已卡住”标签中查看并重试。",
+      "dismiss": "关闭",
+      "approvalForbidden": "你没有处理审批的权限。",
+      "actionRejected": "任务当前状态不允许此操作。"
+    },
+    "jobs": {
+      "title": "任务",
+      "drawerLabel": "任务：{title}",
+      "close": "关闭",
+      "viewLabel": "任务视图",
+      "tab": {
+        "summary": "摘要",
+        "output": "输出",
+        "kaput": "底层详情"
+      },
+      "detail": {
+        "label": "详细程度",
+        "simple": "简洁",
+        "full": "完整"
+      },
+      "state": {
+        "DRAFT": "草稿",
+        "PLANNED": "已规划",
+        "READY": "就绪",
+        "RUNNING": "运行中",
+        "NEEDS_APPROVAL": "等待审批",
+        "RESUMING": "恢复中",
+        "PAUSED": "已暂停",
+        "FAILED": "失败",
+        "CANCELLED": "已取消",
+        "COMPLETED": "已完成",
+        "unknown": "未知"
+      },
+      "risk": {
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "riskLabel": "风险：{value}",
+      "verified": "✔ 已验证",
+      "unverified": "未验证",
+      "noVerification": "无验证信息",
+      "field": {
+        "status": "状态",
+        "cost": "成本",
+        "company": "公司"
+      },
+      "fullInfo": "ID：{id} · 状态：{state} · 更新：{updated}",
+      "kaput": {
+        "loading": "正在加载底层详情…",
+        "error": "无法读取底层详情。",
+        "summary": "步骤（{steps}）· 工具调用：{tools} · 成本：{cost} · 交接：{handoffs}",
+        "noSteps": "此任务暂无步骤记录。",
+        "unknown": "暂无",
+        "later": "路由和权限详情将在后续版本提供。",
+        "runErrorTitle": "此任务因错误而停止",
+        "runErrorPlain": "你可以使用任务下方的“重试”按钮再试一次。",
+        "budget": "已用预算：{cost} / {budget}（{percent}）",
+        "agent": "智能体角色",
+        "duration": "耗时",
+        "stepCost": "费用",
+        "share": "占总额的 {percent}",
+        "reasoning": "依据",
+        "tools": "工具调用",
+        "noTools": "没有工具调用",
+        "model": "模型",
+        "noModel": "此步骤没有模型数据",
+        "mode": "模型模式",
+        "modes": {
+          "DIRECT": "直接",
+          "CASCADE": "级联（先用便宜的）",
+          "COMPARE": "对比"
+        },
+        "tried": "已尝试的模型",
+        "tokens": "令牌",
+        "tokensValue": "输入 {input} / 输出 {output}",
+        "log": "日志",
+        "noLog": "此步骤没有日志数据",
+        "activity": {
+          "title": "任务活动",
+          "actorSystem": "系统",
+          "actorUser": "团队成员",
+          "more": "显示最近 {count} 条事件；还有更多。",
+          "truncated": "部分事件未列出。"
+        },
+        "logEvent": {
+          "started": "开始：{time}",
+          "ended": "结束：{time}"
+        },
+        "dag": {
+          "title": "步骤依赖关系",
+          "noData": "此任务没有依赖关系数据。步骤按顺序列在下方。",
+          "sourceOrder": "根据步骤顺序推导：同一阶段的步骤并行运行，每个阶段等待上一阶段。",
+          "sourceApi": "按各步骤上报的依赖关系显示。",
+          "inconsistent": "依赖关系数据不一致，已跳过部分连线。",
+          "truncated": "共 {total} 个步骤，显示前 {shown} 个。",
+          "summary": "{levels} 个阶段中有 {steps} 个步骤，{edges} 条依赖",
+          "scroll": "步骤依赖关系图，可滚动",
+          "listLabel": "步骤及其依赖关系",
+          "dependsOn": "依赖步骤：{steps}",
+          "noDeps": "无依赖",
+          "changed": "流水线记录在此次运行之后已更新；由于无法验证步骤顺序，未绘制依赖关系图。",
+          "unverified": "基于任务当前的定义（变更时间未知）。"
+        },
+        "seconds": "{value} 秒",
+        "millis": "{value} 毫秒",
+        "stepStatus": {
+          "completed": "已完成",
+          "running": "运行中",
+          "failed": "失败",
+          "pending": "等待中",
+          "skipped": "已跳过",
+          "cancelled": "已取消",
+          "unknown": "未知"
+        },
+        "errorLabel": "错误",
+        "overBudget": "已超出预算"
+      },
+      "stuckNote": "心跳追踪关闭时，部分卡住的任务暂时不可见。",
+      "openJob": "打开任务 {title}",
+      "openFull": "打开完整运行页面"
+    },
+    "workspace": {
+      "back": "返回任务",
+      "classic": "经典详情视图",
+      "loading": "正在加载任务…",
+      "errorTitle": "无法打开此任务",
+      "errorBody": "请检查网络连接后重试。",
+      "notFound": "未找到此任务，或你没有访问权限。",
+      "label": "任务工作区：{title}"
+    },
+    "approvalCenter": {
+      "title": "审批与安全中心",
+      "subtitle": "在做决定之前，清楚看到每个操作具体会做什么。",
+      "classic": "经典审批视图",
+      "count": "{count} 项待处理",
+      "live": "{count} 项审批待处理",
+      "approvedNotice": "已批准。",
+      "rejectedNotice": "已拒绝。",
+      "type": {
+        "SPEND": "支出",
+        "INPUT": "提问",
+        "HANDOFF": "交接",
+        "EXTERNAL_CONTROL": "外部控制",
+        "other": "审批"
+      },
+      "open": "查看审批：{title}",
+      "sheetLabel": "审批详情：{title}",
+      "close": "关闭",
+      "field": {
+        "what": "将执行的操作",
+        "tool": "工具",
+        "permissions": "权限范围",
+        "data": "传输的数据",
+        "risk": "风险",
+        "amount": "金额",
+        "reversible": "撤销",
+        "draft": "草稿",
+        "requested": "请求时间"
+      },
+      "riskLevel": {
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "reversibleYes": "可通过相反操作撤回",
+      "reversibleNo": "无法撤销",
+      "unknown": "暂无信息",
+      "danger": {
+        "tag": "需要确认",
+        "title": "此操作需要第二步确认",
+        "body": "它会花钱、风险高或无法撤销。",
+        "phraseLabel": "输入“{phrase}”以启用批准",
+        "phrase": "我批准发送",
+        "reasonLabel": "原因（随你的决定一起保存）"
+      },
+      "oneByOne": "每项审批都需逐一决定。",
+      "alreadyDecided": "此审批已被处理。列表已刷新。",
+      "forbidden": "你无权处理此审批。列表已刷新。"
+    },
+    "plan": {
+      "title": "描述任务",
+      "workspace": "工作区",
+      "workspaceChoose": "选择工作区",
+      "messageLabel": "需要做什么？",
+      "messagePlaceholder": "例如：准备每周销售报告",
+      "suggest": "建议方案",
+      "planning": "正在准备方案…",
+      "empty": "此消息不像任务请求，未建议方案。",
+      "retry": "重试",
+      "steps": "步骤",
+      "tools": "工具",
+      "risk": {
+        "label": "风险",
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "cost": "预估成本（不作保证）",
+      "costUnknown": "该模型价格未知，无法给出成本范围",
+      "approvalStep": "需要审批",
+      "run": "运行",
+      "cancel": "取消",
+      "starting": "正在启动…",
+      "approvalGate": "此任务需要审批，但目前已关闭。",
+      "planChanged": "方案已变化，请重新建议方案。",
+      "workspaceRequired": "请先选择工作区。",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "开始",
+      "label": "你想做什么？",
+      "placeholder": "描述一项工作、提出问题或请求一个智能体…",
+      "barLabel": "意图栏",
+      "understood": "我的理解：",
+      "kind": {
+        "chat": "聊天",
+        "job": "工作",
+        "agent": "智能体"
+      },
+      "submit": {
+        "chat": "开始聊天",
+        "job": "制定计划",
+        "agent": "请求智能体"
+      },
+      "lowConfidence": "我不太确定：将按聊天处理；若要作为工作来规划，请选择“工作”。",
+      "previewNote": "“我的理解”只是本地提示；在计划步骤中由服务器自行决定。",
+      "chat": {
+        "unavailable": "聊天暂不可用：此版本只能规划工作和创建智能体。你的消息没有创建工作记录，也没有产生费用。",
+        "asJob": "作为工作来规划"
+      },
+      "plan": {
+        "tool": "工具：{tool}",
+        "approvalStep": "需要批准，{risk}风险",
+        "modelRow": "每步模型行：暂不可用（等待 API）。"
+      },
+      "agent": {
+        "title": "新智能体",
+        "immediate": "此步骤会立即保存智能体：创建前预览草稿暂不支持。",
+        "create": "立即创建智能体",
+        "working": "正在创建智能体…",
+        "role": "角色：{role}",
+        "toolsLabel": "工具",
+        "noTools": "无",
+        "dropped": "已移除的工具（{count}）：{tools} 未连接；智能体已在没有这些工具的情况下创建。",
+        "saved": "智能体已保存。",
+        "close": "关闭",
+        "tooShort": "智能体描述至少需要 10 个字符：请多说明一下它要做什么。",
+        "maybeSaved": "如果连接中断，智能体可能已经保存：重试前请先查看智能体列表。"
+      }
+    },
+    "models": {
+      "labelSep": "：",
+      "pairSep": " · ",
+      "title": "模型与连接",
+      "subtitle": "查看公司使用的模型、谁可以访问以及本月费用。只读。",
+      "company": "公司",
+      "live": "已列出 {count} 个模型",
+      "errorTitle": "无法加载模型",
+      "errorBody": "无法读取模型列表。请重试。",
+      "retry": "重试",
+      "noCompanyTitle": "还没有公司",
+      "noCompanyBody": "创建公司后，可在此查看其模型。",
+      "loading": "正在加载模型…",
+      "autoLabel": "自动选择模型",
+      "autoOn": "开启",
+      "autoOff": "关闭",
+      "unknown": "未知",
+      "emptyTitle": "尚无使用中的模型",
+      "emptyBody": "该公司的代理设置模型后会显示在这里。",
+      "provider": "提供商",
+      "access": "访问权限",
+      "cost": "本月费用",
+      "runs": "本月运行次数",
+      "runCount": "本月运行次数：{count}",
+      "costNote": "费用计入每个代理当前的模型，因此更换模型之前的运行会计入新模型。每月从 1 日 00:00 UTC 开始计算。",
+      "costSince": "自 {from} 起。",
+      "updatedAt": "更新于 {time}。",
+      "linksTitle": "管理",
+      "source": {
+        "label": "来源",
+        "byok": "自己的 API 密钥",
+        "local": "本地模型",
+        "platform": "平台",
+        "unknown": "未知"
+      },
+      "badge": {
+        "byok": "BYOK",
+        "local": "本地"
+      },
+      "scope": {
+        "company": "此公司",
+        "workspace": "此工作区",
+        "agent": "单个代理"
+      },
+      "mode": {
+        "read": "只读",
+        "read_write": "读写"
+      },
+      "links": {
+        "own": {
+          "title": "自己的 API 密钥",
+          "body": "在 设置 → AI 提供商 中添加或更改密钥。"
+        },
+        "local": {
+          "title": "本地模型",
+          "body": "在 设置 → AI 提供商 中连接自托管端点。"
+        },
+        "compare": {
+          "title": "比较模型",
+          "body": "在多个模型上并排运行同一任务。"
+        },
+        "connections": {
+          "title": "自动化连接",
+          "body": "n8n、Make 和 Zapier 的运行。"
+        },
+        "integrations": {
+          "title": "集成",
+          "body": "Slack、GitHub 等工具。"
+        }
+      },
+      "pickerTitle": "更换模型",
+      "pickerHelp": "选择模型的适用范围和要使用的模型。智能体：仅该智能体。账户默认：没有自有模型的智能体使用。",
+      "pickerTarget": "适用于",
+      "pickerDefault": "账户默认（所有没有自有模型的智能体）",
+      "pickerModel": "模型",
+      "pickerApply": "应用",
+      "pickerSaving": "正在保存…",
+      "pickerSaved": "已保存。",
+      "pickerError": "保存失败，请重试。",
+      "pickerLoadError": "无法加载智能体或模型选项。",
+      "pickerEmpty": "尚未配置模型。请在设置中添加密钥或本地模型。",
+      "pickerCurrent": "当前：{model}",
+      "pickerCurrentUnknown": "当前：未知",
+      "pickerLocalHint": "本地和自定义提供商只能在设置中选择。",
+      "pickerForbidden": "你没有权限更改此项。",
+      "pickerPlan": "你的套餐不允许此操作。"
+    },
+    "companyStatus": {
+      "title": "公司状态",
+      "subtitle": "一行显示正在运行、卡住、等待审批的任务以及费用。",
+      "live": "{approvals} 个等待审批，{stuck} 个卡住",
+      "loading": "正在加载公司状态…",
+      "errorTitle": "无法加载公司",
+      "errorBody": "无法读取公司状态。请重试。",
+      "retry": "重试",
+      "summaryLabel": "公司概览",
+      "working": "运行中",
+      "stuck": "卡住",
+      "approvals": "等待审批",
+      "done": "已完成",
+      "cost": "费用",
+      "unknown": "未知",
+      "atLeast": "至少 {count}",
+      "note": "数字来自任务列表中每个状态的第一页(每个状态 25 个任务);“至少”表示还有更多。费用仅汇总这些任务。",
+      "costUnknownRuns": "{count} 个任务的费用无法读取，未计入合计。",
+      "agents": "代理",
+      "agentsEmpty": "此公司还没有代理。",
+      "role": "角色",
+      "linksTitle": "链接",
+      "links": {
+        "jobs": {
+          "title": "任务",
+          "body": "所有运行中、卡住或已完成的内容。"
+        },
+        "approvals": {
+          "title": "审批",
+          "body": "查看等待你处理的事项。"
+        },
+        "risks": {
+          "title": "风险",
+          "body": "未解决的风险停止。"
+        },
+        "integrations": {
+          "title": "集成",
+          "body": "已连接的工具。"
+        },
+        "classic": {
+          "title": "经典公司页面",
+          "body": "完整详情、创建器和设置。"
+        }
+      }
+    },
+    "companySummary": {
+      "title": "一览",
+      "loading": "正在加载公司概览…",
+      "error": "无法加载公司概览。",
+      "retry": "重试",
+      "empty": "此公司暂无概览。",
+      "unknown": "未知",
+      "bucket": {
+        "working": "运行中",
+        "needs_approval": "等待审批",
+        "stuck": "卡住",
+        "done": "已完成"
+      },
+      "pendingApprovals": "待审批",
+      "agents": "智能体",
+      "pipelines": "流水线",
+      "monthCost": "本月成本",
+      "budget": {
+        "title": "月度预算",
+        "noneHint": "此公司未设置月度预算。",
+        "spent": "已花费",
+        "limit": "额度",
+        "remaining": "剩余",
+        "used": "已使用 {pct}%",
+        "state": {
+          "none": "无预算",
+          "ok": "正常",
+          "warn": "接近额度",
+          "over": "已超预算"
+        }
+      }
+    },
+    "pilotEntry": {
+      "error": {
+        "auth": "您的会话已过期，请重新登录。",
+        "forbidden": "您无权导出此公司。",
+        "notFound": "未找到公司。",
+        "network": "网络问题。请检查连接后重试。",
+        "generic": "无法导出试点包，请重试。"
+      },
+      "title": "微应用包（试点）",
+      "description": "此公司配置（智能体、流水线、请求的连接标签）加示例数据的可移植包。",
+      "syntheticOnly": "示例数据为合成数据。",
+      "export": "导出试点包",
+      "exporting": "正在导出…",
+      "exported": "试点包已下载。",
+      "previewTitle": "包预览",
+      "previewName": "名称",
+      "previewAgents": "智能体",
+      "previewPipelines": "流水线",
+      "previewRecords": "记录",
+      "previewConnectors": "请求的连接",
+      "noConnectors": "无",
+      "moreConnectors": "另有 {count} 项",
+      "noData": "暂无数据。导出试点包后即可预览。",
+      "connectorsNote": "预览显示该包请求了哪些连接；操作和范围的详细信息在文件中。发送或写入权限由连接器范围限制，此包不会强制执行。"
+    },
+    "codeChange": {
+      "title": "变更：{title}",
+      "titleGeneric": "代码变更",
+      "loading": "正在加载代码变更…",
+      "error": "无法加载代码变更。请重试。",
+      "retry": "重试",
+      "none": "此任务没有代码变更记录。",
+      "filesTitle": "文件（{count}）",
+      "filesNone": "未列出文件",
+      "filesUnknown": "文件：未知",
+      "moreFiles": "另有 {count, number} 个文件",
+      "unknown": "未知",
+      "totals": "合计：{added} {removed}",
+      "totalsAtLeast": "至少：{added} {removed}",
+      "partialNote": "部分文件没有行数，或列表已被截断，因此合计为下限。",
+      "testsTitle": "测试",
+      "testsPassed": "{count} 个通过",
+      "testsFailed": "{count} 个失败",
+      "testsSkipped": "{count} 个跳过",
+      "testsPassedUnknown": "通过：未知",
+      "testsFailedUnknown": "失败：未知",
+      "testsSkippedUnknown": "跳过：未知",
+      "testsTotal": "共 {count} 个",
+      "testsVerified": "已验证",
+      "testsNotVerified": "未验证",
+      "testsRuns": "{count, number} 次测试运行",
+      "approvalLink": "在审批中心决定",
+      "srSummary": "{title}。文件：{files}。测试：{tests}。",
+      "stale": "刷新失败；正在显示最近一次的数据。"
+    },
+    "agents": {
+      "title": "智能体",
+      "new": "新建智能体",
+      "company": "工作区",
+      "noCompany": "请先创建工作区：智能体属于某个工作区。",
+      "companiesError": "无法加载工作区。",
+      "retry": "重试",
+      "composerTitle": "新建智能体",
+      "describe": "你想要什么样的伙伴？",
+      "placeholder": "例如：每天早上汇总销售邮件",
+      "tooShort": "请用至少 10 个字符描述智能体。",
+      "tooLong": "描述过长（最多 4000 个字符）。",
+      "draftButton": "草稿",
+      "drafting": "正在生成草稿…",
+      "draftNote": "草稿不会保存任何内容。只有点击“创建”后才会创建智能体。",
+      "previewTitle": "草稿预览",
+      "notSaved": "尚未保存",
+      "name": "名称",
+      "role": "角色",
+      "tools": "工具",
+      "none": "无",
+      "dropped": "已移除的工具（{count}），不可用",
+      "systemPrompt": "指令（系统提示）",
+      "providerLine": "草稿由 {provider} / {model} 生成。",
+      "create": "创建",
+      "creating": "正在创建…",
+      "discard": "放弃草稿",
+      "created": "已创建。",
+      "maybeSaved": "如果连接中断，智能体可能已经保存：重试前请先查看列表。",
+      "listTitle": "智能体",
+      "listError": "无法加载智能体列表。",
+      "empty": "此工作区还没有智能体。",
+      "status": "状态",
+      "unknown": "未知",
+      "labelSep": "：",
+      "pairSep": "·",
+      "listSep": "、",
+      "error": {
+        "session": "无法验证你的登录。请重新登录。",
+        "payment": "已达到套餐或预算上限（402）。请检查上限后重试。",
+        "forbidden": "你没有执行此操作的权限。",
+        "notFound": "未找到该工作区。",
+        "rateLimit": "请求过多（429）。请稍等片刻再试。",
+        "timeout": "请求超时。",
+        "network": "无法连接服务器。请检查网络后重试。",
+        "noProvider": "尚未配置 AI 提供商。请先在设置中添加，然后重试。",
+        "badDraft": "草稿未被接受。请换一种方式描述智能体，然后重新生成草稿。",
+        "badResponse": "无法理解服务器的响应。未显示为已保存。",
+        "generic": "发生意外错误。请重试。"
+      },
+      "refreshList": "刷新列表",
+      "loading": "加载中…"
     }
   },
   "static": {

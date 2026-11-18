@@ -1,0 +1,83 @@
+/**
+ * Real-run price table (BRA-P1-05-N3). The founder may edit this file.
+ *
+ * USD per 1,000,000 tokens (input / output). Sources: provider public price
+ * pages as mirrored in `lib/modelPricing.ts` (captured 2026-11-01..18). They
+ * are ESTIMATES used only for the pre-run cap check and the running total;
+ * a wrong entry makes the estimate wrong, so verify before a live run.
+ *
+ * All cost math is integer micro-USD (1 USD = 1_000_000). A price of
+ * P USD/1M tokens equals P micro-USD per token; prices are stored in
+ * milli-micro (x1000) integers so fractional list prices stay exact.
+ */
+
+export interface RealRunPrice {
+  /** USD per 1M input tokens. */
+  inputPerM: number;
+  /** USD per 1M output tokens. */
+  outputPerM: number;
+  /** Date (YYYY-MM-DD) the price was captured. */
+  asOf: string;
+  /** Where the price came from. */
+  source: string;
+}
+
+/** Flip to true ONLY after the founder has checked every price below. */
+export const PRICES_VERIFIED_BY_FOUNDER = false;
+export const PRICE_WARNING = "prices not verified by the founder; check pricing.ts before a live run";
+
+const SRC = "lib/modelPricing.ts (public list prices mirror)";
+export const REAL_RUN_PRICES: Record<string, RealRunPrice> = {
+  "ANTHROPIC/claude-sonnet-5-5": { inputPerM: 2, outputPerM: 10, asOf: "2026-11-01", source: SRC },
+  "OPENAI/gpt-4o": { inputPerM: 2.5, outputPerM: 10, asOf: "2026-06-01", source: SRC },
+  "GOOGLE/gemini-1.5-pro": { inputPerM: 1.25, outputPerM: 5, asOf: "2026-06-01", source: SRC },
+};
+
+/**
+ * Providers whose billed usage can exceed what the response reports (Google
+ * "thinking" tokens are not counted by ai-client): each call is charged
+ * max(reported, single-attempt worst case) and flagged `costEstimated`.
+ */
+export const CONSERVATIVE_COST_PROVIDERS: ReadonlySet<string> = new Set(["GOOGLE"]);
+
+export const REAL_RUN_DEFAULT_MODELS: Record<string, string> = {
+  ANTHROPIC: "claude-sonnet-5-5",
+  OPENAI: "gpt-4o",
+  GOOGLE: "gemini-1.5-pro",
+};
+
+/** GOOGLE's default model may be retired: it joins a run only with an explicit --model-GOOGLE. */
+export const REAL_RUN_DEFAULT_PROVIDERS: readonly string[] = ["ANTHROPIC", "OPENAI"];
+
+export function priceFor(provider: string, model: string, table = REAL_RUN_PRICES): RealRunPrice | null {
+  return table[`${provider}/${model}`] ?? null;
+}
+
+/** Conservative input-token estimate: 1 token per 3 characters, rounded up. */
+export function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 3);
+}
+
+/** Integer micro-USD for a token usage; always rounded UP (never under-counts). */
+export function costMicroUsd(
+  inputTokens: number,
+  outputTokens: number,
+  price: Pick<RealRunPrice, "inputPerM" | "outputPerM">,
+): number {
+  const inMilli = Math.round(price.inputPerM * 1000);
+  const outMilli = Math.round(price.outputPerM * 1000);
+  const i = Math.max(0, Math.floor(inputTokens));
+  const o = Math.max(0, Math.floor(outputTokens));
+  return Math.ceil((i * inMilli + o * outMilli) / 1000);
+}
+
+/** Worst case for ONE attempt: estimated input + the full maxTokens output. */
+export function worstCaseMicroUsd(
+  inputTokenEstimate: number,
+  maxTokens: number,
+  price: Pick<RealRunPrice, "inputPerM" | "outputPerM">,
+): number {
+  return costMicroUsd(inputTokenEstimate, maxTokens, price);
+}
+
+export const usdFromMicro = (micro: number): number => micro / 1_000_000;

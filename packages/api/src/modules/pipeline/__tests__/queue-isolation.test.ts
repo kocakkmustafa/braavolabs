@@ -48,7 +48,7 @@ vi.mock("../../../lib/queue", () => ({
 
 const prismaMock = vi.hoisted(() => ({
   pipeline: { findUnique: vi.fn(), update: vi.fn() },
-  run: { create: vi.fn(), findUnique: vi.fn() },
+  run: { create: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn().mockResolvedValue(null) },
 }));
 vi.mock("../../../lib/db", () => ({ prisma: prismaMock }));
 

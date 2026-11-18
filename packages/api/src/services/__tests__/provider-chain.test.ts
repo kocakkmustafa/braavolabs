@@ -59,6 +59,7 @@ import {
   resetProviderCircuits,
   buildTenantProviderChain,
   listTenantProviderLinks,
+  isCloudBlockedByLocalDefault,
   resolveTenantCompletionLink,
   commitTrialCompletion,
   extractProviderErrorStatus,
@@ -501,6 +502,130 @@ describe("listTenantProviderLinks — configured providers as compare candidates
     const links = await listTenantProviderLinks(TENANT);
 
     expect(links.map((l) => l.provider)).toEqual(["OLLAMA"]);
+  });
+
+  // SEC-BRA-04c: cascade / compare / handoff / takeover all read this list.
+  it("local default → cloud candidates are dropped (cascade/compare/handoff never offer cloud)", async () => {
+    seedRows([
+      { provider: "OLLAMA", model: "gemma3:4b", key: null, isDefault: true, createdAtDay: 3 },
+      { provider: "OPENAI", model: "gpt-4o", key: "sk-oai", fallbackOrder: 1, createdAtDay: 1 },
+      { provider: "LMSTUDIO", model: "qwen", key: null, createdAtDay: 2 },
+      { provider: "GROQ", model: "llama", key: "gsk-1", createdAtDay: 4 },
+    ]);
+
+    const links = await listTenantProviderLinks(TENANT);
+
+    expect(links.map((l) => l.provider)).toEqual(["OLLAMA", "LMSTUDIO"]);
+  });
+
+  it("scenario A: no default row — old local (fallbackOrder null) + new cloud (fallbackOrder 1): list and chain agree", async () => {
+    seedRows([
+      { provider: "OLLAMA", model: "gemma3:4b", key: null, createdAtDay: 1 },
+      { provider: "OPENAI", model: "gpt-4o", key: "sk-oai", fallbackOrder: 1, createdAtDay: 5 },
+    ]);
+
+    const list = await listTenantProviderLinks(TENANT);
+    const chain = await buildTenantProviderChain(TENANT);
+
+    expect(list.map((l) => l.provider)).toEqual(["OLLAMA"]);
+    expect(chain.map((l) => l.provider)).toEqual(["OLLAMA"]);
+  });
+
+  it("CUSTOM-led list drops cloud; single local link and empty list pass through", async () => {
+    seedRows([
+      { provider: "CUSTOM", model: "my-model", key: null, isDefault: true, baseUrl: "http://gpu:8000/v1" },
+      { provider: "ANTHROPIC", model: "claude", key: "sk-a", fallbackOrder: 1 },
+    ]);
+    expect((await listTenantProviderLinks(TENANT)).map((l) => l.provider)).toEqual(["CUSTOM"]);
+
+    seedRows([{ provider: "OLLAMA", model: "gemma3:4b", key: null, isDefault: true }]);
+    expect((await listTenantProviderLinks(TENANT)).map((l) => l.provider)).toEqual(["OLLAMA"]);
+
+    seedRows([]);
+    expect(await listTenantProviderLinks(TENANT)).toEqual([]);
+  });
+
+  it("isCloudBlockedByLocalDefault: true only for cloud providers behind a local default", async () => {
+    seedRows([
+      { provider: "OLLAMA", model: "gemma3:4b", key: null, isDefault: true },
+      { provider: "OPENAI", model: "gpt-4o", key: "sk-oai", fallbackOrder: 1 },
+    ]);
+    expect(await isCloudBlockedByLocalDefault(TENANT, "OPENAI")).toBe(true);
+    expect(await isCloudBlockedByLocalDefault(TENANT, "OLLAMA")).toBe(false);
+
+    seedRows([{ provider: "OPENAI", model: "gpt-4o", key: "sk-oai", isDefault: true }]);
+    expect(await isCloudBlockedByLocalDefault(TENANT, "ANTHROPIC")).toBe(false);
+  });
+
+  // SEC-BRA-04d (1): list head must equal the chain head (pickDefaultRow).
+  it("no isDefault row: list head is the chain head (oldest), not the lowest fallbackOrder", async () => {
+    seedRows([
+      { provider: "OPENAI", model: "gpt-4o", key: "sk-oai", fallbackOrder: 1, createdAtDay: 5 },
+      { provider: "GROQ", model: "llama", key: "gsk-1", fallbackOrder: null, createdAtDay: 1 },
+    ]);
+    const list = await listTenantProviderLinks(TENANT);
+    const chain = await buildTenantProviderChain(TENANT);
+    expect(list[0]).toMatchObject({ provider: "GROQ", source: "byok-default" });
+    expect(list[0]!.provider).toBe(chain[0]!.provider);
+    expect(list.map((l) => l.provider)).toEqual(["GROQ", "OPENAI"]);
+  });
+
+  it("several isDefault rows: list head is the oldest default (chain head)", async () => {
+    seedRows([
+      { provider: "OPENAI", model: "gpt-4o", key: "sk-oai", isDefault: true, fallbackOrder: 1, createdAtDay: 5 },
+      { provider: "GROQ", model: "llama", key: "gsk-1", isDefault: true, fallbackOrder: 3, createdAtDay: 2 },
+    ]);
+    const list = await listTenantProviderLinks(TENANT);
+    const chain = await buildTenantProviderChain(TENANT);
+    expect(list[0]!.provider).toBe("GROQ");
+    expect(chain[0]!.provider).toBe("GROQ");
+  });
+
+  it("no isDefault, old local head hides newer cloud (no leak via list head)", async () => {
+    seedRows([
+      { provider: "LMSTUDIO", model: "qwen", key: null, fallbackOrder: null, createdAtDay: 1 },
+      { provider: "OPENAI", model: "gpt-4o", key: "sk-oai", fallbackOrder: 1, createdAtDay: 5 },
+    ]);
+    expect((await listTenantProviderLinks(TENANT)).map((l) => l.provider)).toEqual(["LMSTUDIO"]);
+  });
+
+  // SEC-BRA-04d (2)
+  it("isCloudBlockedByLocalDefault: false when no keyed row exists for that cloud provider", async () => {
+    seedRows([
+      { provider: "OLLAMA", model: "gemma3:4b", key: null, isDefault: true },
+      { provider: "GROQ", model: "llama", key: null, fallbackOrder: 1 }, // keyless cloud row
+    ]);
+    expect(await isCloudBlockedByLocalDefault(TENANT, "OPENAI")).toBe(false); // absent
+    expect(await isCloudBlockedByLocalDefault(TENANT, "GROQ")).toBe(false); // no key
+    seedRows([
+      { provider: "OLLAMA", model: "gemma3:4b", key: null, isDefault: true },
+      { provider: "GROQ", model: "llama", key: "gsk-1" },
+    ]);
+    expect(await isCloudBlockedByLocalDefault(TENANT, "GROQ")).toBe(true);
+  });
+
+  // SEC-BRA-04d (4)
+  it("dropping cloud links never logs at warn level (list + chain in one request)", async () => {
+    seedRows([
+      { provider: "OLLAMA", model: "gemma3:4b", key: null, isDefault: true },
+      { provider: "OPENAI", model: "gpt-4o", key: "sk-oai", fallbackOrder: 1 },
+    ]);
+    await listTenantProviderLinks(TENANT);
+    await buildTenantProviderChain(TENANT);
+    const { logger } = await import("../../lib/logger");
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("cloud default → local fallbacks and cloud candidates are both kept (no regression)", async () => {
+    seedRows([
+      { provider: "DEEPSEEK", model: "deepseek-chat", key: "sk-ds", isDefault: true },
+      { provider: "OPENAI", model: "gpt-4o", key: "sk-oai", fallbackOrder: 1 },
+      { provider: "OLLAMA", model: "gemma3:4b", key: null, fallbackOrder: 2 },
+    ]);
+
+    const links = await listTenantProviderLinks(TENANT);
+
+    expect(links.map((l) => l.provider)).toEqual(["DEEPSEEK", "OPENAI", "OLLAMA"]);
   });
 });
 

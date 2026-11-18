@@ -25,7 +25,10 @@
 import crypto from "node:crypto";
 import { prisma, tenantTx } from "../../lib/db";
 import { assertCompanyCapacity } from "../company/company-capacity";
+import { seedCreatorAsOwner } from "../company/owner-seed";
+import { z } from "zod";
 import { AppError } from "../../middleware/error";
+import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } from "../run/list-cursor";
 
 // ── Snapshot shape ──────────────────────────────────────────
 
@@ -139,6 +142,7 @@ export async function installTemplate(
   templateId: string,
   tenantId: string,
   opts: { companyNameOverride?: string } = {},
+  userId?: string,
 ): Promise<{ companyId: string; slug: string }> {
   const template = await prisma.companyTemplate.findUnique({ where: { id: templateId } });
   if (!template) throw new AppError(404, "Template not found");
@@ -154,7 +158,7 @@ export async function installTemplate(
   }
 
   const snapshot = template.snapshot as unknown as CompanyTemplateSnapshot;
-  return materialiseTemplate(template.id, tenantId, snapshot, opts);
+  return materialiseTemplate(template.id, tenantId, snapshot, opts, userId);
 }
 
 export async function materialiseTemplate(
@@ -162,6 +166,7 @@ export async function materialiseTemplate(
   tenantId: string,
   snapshot: CompanyTemplateSnapshot,
   opts: { companyNameOverride?: string } = {},
+  userId?: string, // oluşturan; yoksa (sistem yolu) OWNER eklenmez
 ): Promise<{ companyId: string; slug: string }> {
   const name = opts.companyNameOverride ?? snapshot.name;
   const slug =
@@ -182,6 +187,7 @@ export async function materialiseTemplate(
         status: "DRAFT",
       },
     });
+    await seedCreatorAsOwner(tx, { tenantId, companyId: company.id, userId });
 
     const handleToNewId = new Map<string, string>();
     for (const a of snapshot.agents) {
@@ -300,4 +306,102 @@ export async function rateTemplate(
       },
     });
   });
+}
+
+// ── Public catalog listing ──────────────────────────────────
+
+export const TEMPLATE_LIST_DEFAULT_LIMIT = 24;
+export const TEMPLATE_LIST_MAX_LIMIT = 100;
+const PRIMITIVE_VALUES = [
+  "ACQUISITION", "SALES", "DELIVERY", "CONTENT", "OPERATIONS",
+  "FINANCE", "ANALYTICS", "MEMORY", "GOVERNANCE",
+] as const;
+const primitiveEnum = z.enum(PRIMITIVE_VALUES);
+
+/**
+ * Query contract. Everything is a plain string (Express gives strings or
+ * arrays); repeated params / unknown keys fail `.strict()` -> 400.
+ *   category   one primitive (the catalog has no separate category column;
+ *              a template's category is the primitive it touches)
+ *   primitives comma list, ALL must be present on the template
+ *   pricing    FREE | PAID
+ * category and primitives are ANDed: category=X&primitives=Y,Z requires
+ * X, Y and Z all on the template.
+ * q is a Prisma contains (insensitive) match: percent and underscore are NOT
+ * escaped, exactly as the pre-filter endpoint behaved (LIKE wildcards pass).
+ */
+export const templateListQuerySchema = z.object({
+  q: z.string().max(200).optional(),
+  category: primitiveEnum.optional(),
+  primitives: z.string().max(200).optional(),
+  pricing: z.enum(["FREE", "PAID"]).optional(),
+  // sort=rating (default) is the legacy order; sort=newest enables keyset paging.
+  sort: z.enum(["rating", "newest"]).default("rating"),
+  limit: z.string().optional(),
+  cursor: z.string().optional(),
+}).strict();
+
+/**
+ * Server-side hard cap for the legacy (sort=rating, no limit) listing. The
+ * pre-filter endpoint was unbounded and the catalog is small, so existing
+ * callers keep working; but an unbounded read is a resource-exhaustion
+ * vector as the catalog grows. Anything past this is only reachable through
+ * sort=newest + cursor paging.
+ */
+export const LEGACY_LIST_HARD_MAX = 500;
+
+const LEGACY_ORDER = [{ ratingAvg: "desc" as const }, { installCount: "desc" as const }, { name: "asc" as const }];
+
+export async function listPublicTemplates(rawQuery: unknown): Promise<{ items: unknown[]; nextCursor: string | null; truncated: boolean }> {
+  const q = templateListQuerySchema.parse(rawQuery ?? {});
+  const newest = q.sort === "newest";
+  // Keyset paging needs a total order made of IMMUTABLE columns. The legacy
+  // order (ratingAvg, installCount) changes on every rating/install, so a
+  // cursor over it would skip/duplicate rows between pages. Hence cursors
+  // exist only for sort=newest (createdAt desc, id desc).
+  if (!newest && q.cursor !== undefined) throw new AppError(400, "cursor sort=newest gerektirir");
+  // newest: default 24 / max 100. rating: limit (max 100) is a plain cap;
+  // without limit the hard cap LEGACY_LIST_HARD_MAX applies (take = cap + 1 to detect truncation).
+  const limit = parseLimit(q.limit, TEMPLATE_LIST_DEFAULT_LIMIT, TEMPLATE_LIST_MAX_LIMIT);
+  if (limit === null) throw new AppError(400, "Invalid limit. Use an integer between 1 and " + TEMPLATE_LIST_MAX_LIMIT + ".");
+  const take = newest ? limit + 1 : q.limit === undefined ? LEGACY_LIST_HARD_MAX + 1 : limit;
+  const cursor = q.cursor === undefined ? undefined : decodeCursor(q.cursor);
+  if (cursor === null) throw new AppError(400, "Invalid cursor.");
+
+  const wanted = new Set<string>();
+  if (q.category) wanted.add(q.category);
+  if (q.primitives !== undefined) {
+    for (const raw of q.primitives.split(",")) {
+      const parsed = primitiveEnum.safeParse(raw.trim());
+      if (!parsed.success) throw new AppError(400, "Invalid primitives filter.");
+      wanted.add(parsed.data);
+    }
+  }
+
+  const and: any[] = [];
+  const text = q.q?.trim();
+  if (text) and.push({ OR: [{ name: { contains: text, mode: "insensitive" } }, { description: { contains: text, mode: "insensitive" } }] });
+  for (const p of wanted) and.push({ primitives: { array_contains: [p] } });
+  if (cursor) and.push(afterCursorWhere(cursor));
+  // PUBLIC + approved only: UNLISTED is slug-only, PRIVATE never listed.
+  const where: any = { visibility: "PUBLIC", isApproved: true, ...(q.pricing ? { pricing: q.pricing } : {}), ...(and.length ? { AND: and } : {}) };
+
+  const rows = await prisma.companyTemplate.findMany({
+    where,
+    orderBy: newest ? LIST_ORDER : LEGACY_ORDER,
+    ...(take !== undefined ? { take } : {}),
+    select: {
+      id: true, slug: true, name: true, version: true, vendor: true, description: true,
+      iconUrl: true, screenshotUrls: true, primitives: true, pricing: true, priceUsd: true,
+      installCount: true, ratingAvg: true, ratingCount: true, createdAt: true,
+    },
+  });
+  if (!newest) {
+    const truncated = q.limit === undefined && rows.length > LEGACY_LIST_HARD_MAX;
+    return { items: truncated ? rows.slice(0, LEGACY_LIST_HARD_MAX) : rows, nextCursor: null, truncated };
+  }
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  const last = items[items.length - 1];
+  return { items, nextCursor: hasMore && last ? encodeCursor(last) : null, truncated: false };
 }

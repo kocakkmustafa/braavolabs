@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
-import { prisma } from "../../lib/db";
+import { prisma, tenantTx } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { rateLimit } from "../../middleware/rateLimit";
 import { logger } from "../../lib/logger";
@@ -14,11 +14,28 @@ import { chatCompletion, getTenantAIConfig, LOCAL_PROVIDERS, type AIProviderType
 // /:id/handoff route's getTenantAIConfig call is a best-effort AUDIT lookup
 // (records fromProvider on the ledger, never dials the LLM) and stays on the
 // plain getTenantAIConfig import.
-import { listTenantProviderLinks, resolveTenantCompletionLink, commitTrialCompletion, refundTrialCompletion } from "../../services/provider-chain";
+import { listTenantProviderLinks, isCloudBlockedByLocalDefault, LOCAL_DEFAULT_CLOUD_BLOCKED_MESSAGE, resolveTenantCompletionLink, commitTrialCompletion, refundTrialCompletion } from "../../services/provider-chain";
 import { assertKeylessLocalBaseUrl } from "../../services/takeover-config";
-import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun } from "./handoff.service";
+import { createHandoff, claimHandoff, HandoffClaimError, cancelOpenHandoffForRun, reopenClaimedHandoff } from "./handoff.service";
+import { hasOpenApproval } from "../approval/exact-action";
+import { isStepApprovalGateEnabled, resolveStepByIdentity, stepRequiresApproval } from "../pipeline/step-approval";
+import { transitionRun, isJobStateDualWriteEnabled, currentJobState } from "./transition";
+import { assertTransitioned, resumeToRunning, AlreadyRunningError, revertRunAfterEnqueueFailure } from "./resume";
+import { decideResume, toLegacyStatus, type JobState } from "./job-state";
+import { evaluateRetryBudget, retryLimit } from "./retry";
+import { toJobReceiptDto } from "./receipt";
+import { assignRunOwner, approveRunDelivery } from "./delivery";
+import { buildCodeSummary, buildReceiptSummaries, CODE_SUMMARY_TOOL_NAMES, MAX_SUMMARY_CALLS } from "./code-summary";
+import { buildEvidencePack, EVIDENCE_PACK_TOOL_NAMES, MAX_PACK_APPROVALS, MAX_PACK_CALLS, MAX_PACK_STEPS } from "./evidence-pack";
 import { env } from "../../config/env";
-import type { RunEvent } from "@ai-company-os/core";
+import { toPublicCompany } from "../company/redact";
+import { INBOX_BUCKETS, jobBucket, type InboxBucket, type RunEvent } from "@ai-company-os/core";
+import { bucketWhere, isInboxBucket, jobStaleAfterMs } from "./job-bucket-query";
+import { loadRunActivity } from "./activity";
+import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } from "./list-cursor";
+import { deriveStepGraph } from "./step-graph";
+import { loadChat, postChat, CHAT_RATE_LIMIT } from "./chat";
+import { rowSummarySelect, withRowSummary } from "./row-summary";
 
 export const runRouter = Router();
 runRouter.use(authMiddleware);
@@ -29,6 +46,8 @@ const explainLimiter = rateLimit({ windowMs: 60_000, maxRequests: 10, keyPrefix:
 
 // Handoff create/continue can enqueue a run — throttle per-tenant so a
 // mis-scripted client can't stack ledgers/jobs (same shape as explainLimiter).
+// Ayarlar chat.ts CHAT_RATE_LIMIT (testle paylaşılır). Redis çökünce fail-closed (rateLimit.ts).
+const chatLimiter = rateLimit(CHAT_RATE_LIMIT);
 const handoffLimiter = rateLimit({ windowMs: 60_000, maxRequests: 30, keyPrefix: "rl:run:handoff" });
 
 /**
@@ -64,12 +83,94 @@ async function assertValidTakeoverTarget(
   // Cloud provider: must be a link the tenant actually configured.
   const links = await listTenantProviderLinks(tenantId);
   if (!links.some((l) => l.provider === provider)) {
+    if (await isCloudBlockedByLocalDefault(tenantId, provider)) {
+      throw new AppError(400, LOCAL_DEFAULT_CLOUD_BLOCKED_MESSAGE);
+    }
     throw new AppError(
       400,
       `Provider ${provider} is not configured for this workspace. Add it in Settings → AI Provider, or hand off to a self-hosted provider with a base URL.`,
     );
   }
 }
+
+// GET /api/v1/runs — işler gelen kutusu listesi (BRA-P0-04b).
+// ?bucket=working|needs_approval|done|stuck (yoksa hepsi, DRAFT hariç) · ?limit=1..100 (25) · ?cursor=opak
+// · ?companyId=<id> (BRA-P0-11a: şirkete süzer; başka kiracının şirketi sızdırmadan boş döner ve `counts` hep 0).
+// companyId verilirse yanıta `counts` (kova başına TOPLAM, sayfa/cursor/bucket'tan bağımsız) eklenir.
+// Dar select: ham Run satırı / Company.config DÖNMEZ (BRA-SEC-01).
+runRouter.get("/", async (req, res, next) => {
+  try {
+    const { bucket: bucketQ, cursor: cursorQ, companyId: companyQ } = req.query;
+    if (bucketQ !== undefined && !isInboxBucket(bucketQ)) {
+      throw new AppError(400, "Invalid bucket. Use working, needs_approval, done or stuck.");
+    }
+    const limit = parseLimit(req.query.limit, 25);
+    if (limit === null) throw new AppError(400, "Invalid limit. Use an integer between 1 and 100.");
+    const cursor = cursorQ === undefined ? undefined : decodeCursor(cursorQ);
+    if (cursor === null) throw new AppError(400, "Invalid cursor.");
+    if (companyQ !== undefined && (typeof companyQ !== "string" || companyQ.length === 0 || companyQ.length > 128)) {
+      throw new AppError(400, "Invalid companyId.");
+    }
+    const companyId = companyQ as string | undefined;
+
+    const now = new Date();
+    const staleAfterMs = jobStaleAfterMs();
+    const tenantScope = { pipeline: { company: { tenantId: req.auth!.tenantId } } };
+    const companyScope = companyId ? [{ pipeline: { companyId } }] : [];
+    const rows = await prisma.run.findMany({
+      where: {
+        AND: [
+          tenantScope,
+          ...companyScope,
+          bucketWhere(bucketQ as InboxBucket | undefined, now, staleAfterMs),
+          ...(cursor ? [afterCursorWhere(cursor)] : []),
+        ],
+      },
+      select: {
+        id: true,
+        pipelineId: true,
+        status: true,
+        state: true,
+        resultStatus: true,
+        trigger: true,
+        costUsd: true,
+        startedAt: true,
+        completedAt: true,
+        heartbeatAt: true,
+        createdAt: true,
+        updatedAt: true,
+        pipeline: { select: { id: true, name: true, company: { select: { id: true, name: true } } } },
+        ...rowSummarySelect(req.auth!.tenantId), // BRA-UX-API-04: agentName + riskLevel (tek sorgu, iç içe select)
+      },
+      orderBy: LIST_ORDER,
+      take: limit + 1,
+    });
+    const page = rows.slice(0, limit);
+    const runs = page.map((raw) => withRowSummary(raw)).map((r) => ({
+      ...r,
+      bucket: jobBucket({
+        state: r.state,
+        status: r.status,
+        resultStatus: r.resultStatus,
+        heartbeatAt: r.heartbeatAt,
+        now,
+        staleAfterMs,
+      }),
+    }));
+    const nextCursor = rows.length > limit ? encodeCursor(page[page.length - 1]) : null;
+    if (!companyId) {
+      res.json({ runs, nextCursor });
+      return;
+    }
+    // Kova sayıları: aynı kiracı+şirket kapsamı, bucketWhere ile (SQL tarafı; sayfa kırpmasından etkilenmez).
+    const buckets = INBOX_BUCKETS as readonly InboxBucket[];
+    const totals = await Promise.all(
+      buckets.map((b) => prisma.run.count({ where: { AND: [tenantScope, ...companyScope, bucketWhere(b, now, staleAfterMs)] } })),
+    );
+    const counts = Object.fromEntries(buckets.map((b, i) => [b, totals[i]]));
+    res.json({ runs, nextCursor, counts });
+  } catch (err) { next(err); }
+});
 
 // GET /api/v1/runs/:id — run detail with steps and tool calls
 runRouter.get("/:id", async (req, res, next) => {
@@ -88,7 +189,11 @@ runRouter.get("/:id", async (req, res, next) => {
     if (!run || run.pipeline.company.tenantId !== req.auth!.tenantId) {
       throw new AppError(404, "Run not found");
     }
-    res.json(run);
+    // BRA-SEC-01: tenant check above used the raw row; strip company secrets from the response.
+    // BRA-P2-04: adımlara order/group/dependsOn/parentStepId ek alanları (saf türetme, migration yok).
+    const graph = deriveStepGraph(run.steps, run.pipeline);
+    const steps = run.steps.map((s) => ({ ...s, ...graph.get(s.id) }));
+    res.json({ ...run, steps, pipeline: { ...run.pipeline, company: toPublicCompany(run.pipeline.company) } });
   } catch (err) { next(err); }
 });
 
@@ -226,23 +331,32 @@ runRouter.post("/:id/stop", async (req, res, next) => {
     if (!run || run.pipeline.company.tenantId !== req.auth!.tenantId) {
       throw new AppError(404, "Run not found");
     }
-    if (run.status !== "RUNNING" && run.status !== "PAUSED" && run.status !== "WAITING_APPROVAL") {
+    // ADR-0001 table: with JOB_STATE_DUAL_WRITE on, a not-yet-started (PENDING)
+    // run can be cancelled too; off, PENDING is still a 400 as before.
+    const stoppable =
+      run.status === "RUNNING" || run.status === "PAUSED" || run.status === "WAITING_APPROVAL" ||
+      (run.status === "PENDING" && isJobStateDualWriteEnabled());
+    if (!stoppable) {
       throw new AppError(400, "Run is not in a stoppable state");
     }
 
-    await prisma.run.update({
-      where: { id: run.id },
-      data: { status: "CANCELLED", completedAt: new Date() },
-    });
-
-    await prisma.activityLog.create({
-      data: {
+    await tenantTx(async (tx) => {
+      const o = await transitionRun(tx, run.id, "CANCELLED", {
         tenantId: req.auth!.tenantId,
-        actor: req.auth!.userId,
-        action: "run.stop",
-        resource: "run",
-        resourceId: run.id,
-      },
+        extra: { completedAt: new Date() },
+        legacyUnchecked: true,
+      });
+      assertTransitioned(o, { status: 400, message: "Run is not in a stoppable state" });
+      if (o.ok && o.noop) return;
+      await tx.activityLog.create({
+        data: {
+          tenantId: req.auth!.tenantId,
+          actor: req.auth!.userId,
+          action: "run.stop",
+          resource: "run",
+          resourceId: run.id,
+        },
+      });
     });
 
     res.json({ success: true, status: "CANCELLED" });
@@ -260,9 +374,11 @@ runRouter.post("/:id/pause", async (req, res, next) => {
       throw new AppError(404, "Run not found");
     }
 
-    await prisma.run.update({
-      where: { id: run.id },
-      data: { status: "PAUSED" },
+    // Off: unconditional status write as before. On: a finished run
+    // (COMPLETED/FAILED/CANCELLED) is refused with 409 (ADR-0001 table).
+    await tenantTx(async (tx) => {
+      const o = await transitionRun(tx, run.id, "PAUSED", { tenantId: req.auth!.tenantId, legacyUnchecked: true });
+      assertTransitioned(o, { status: 409, message: "Run is finished and cannot be paused" });
     });
 
     res.json({ success: true, status: "PAUSED" });
@@ -291,25 +407,157 @@ runRouter.post("/:id/resume", async (req, res, next) => {
     if (run.status !== "PAUSED" && run.status !== "WAITING_APPROVAL") {
       throw new AppError(400, "Run is not paused or waiting on approval");
     }
+    // BRA-P0-05 bypass guard: resume must never stand in for the decision. An
+    // undecided approval is answered via POST /approvals/:id/decide, which
+    // needs approval:decide (fail-closed, also for not-yet-expired-by-cron rows).
+    if (await hasOpenApproval(prisma, run.id)) {
+      throw new AppError(409, "Run has an undecided approval; decide it via /approvals/:id/decide");
+    }
 
-    await prisma.run.update({
-      where: { id: run.id },
-      data: { status: "RUNNING" },
-    });
+    let startedFrom: JobState = "PAUSED";
+    try {
+      await tenantTx(async (tx) => {
+        startedFrom = (await resumeToRunning(tx, run.id, req.auth!.tenantId, { rejectIfAlreadyRunning: true })).from;
+        await tx.activityLog.create({
+          data: {
+            tenantId: req.auth!.tenantId,
+            actor: req.auth!.userId,
+            action: "run.resume",
+            resource: "run",
+            resourceId: run.id,
+          },
+        });
+      });
+    } catch (err) {
+      // Duplicate resume that lost to a concurrent one: same answer as the
+      // up-front status check gives a duplicate today (400), nothing written/enqueued.
+      if (err instanceof AlreadyRunningError) throw new AppError(400, "Run is not paused or waiting on approval");
+      throw err;
+    }
 
-    await enqueueRun(run.id);
-
-    await prisma.activityLog.create({
-      data: {
-        tenantId: req.auth!.tenantId,
-        actor: req.auth!.userId,
-        action: "run.resume",
-        resource: "run",
-        resourceId: run.id,
-      },
-    });
+    // Only after the CAS won (a lost race threw above): exactly one enqueue. If
+    // it fails the run is already committed RUNNING with no job (and /resume would
+    // answer 400): put it back where this request found it, but only while the run
+    // is still RUNNING (never revives a run /stop, completion or failure moved on).
+    try {
+      await enqueueRun(run.id);
+    } catch (err) {
+      await tenantTx((tx) => revertRunAfterEnqueueFailure(tx, run.id, req.auth!.tenantId, startedFrom)).catch(() => undefined);
+      throw err;
+    }
 
     res.json({ success: true, status: "RUNNING" });
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/runs/:id/retry — BRA-P0-04d (ADR-0003).
+//
+// Restart a run that is stuck (FAILED, or PAUSED with no open approval) under a
+// retry QUOTA: `retryCount + 1` is measured against `jobBudget.maxRetries`
+// (default 3) with the other budget dimensions, so there is no endless retry.
+// Idempotent: the FAILED/PAUSED → RESUMING compare-and-set has exactly one
+// winner; a second/concurrent request gets 409 already_retrying and nothing is
+// enqueued. A RUNNING run with a stale heartbeat is NOT retried here (409
+// run_still_running; stop it first — 04e). An undecided approval is never
+// skipped. Dark with JOB_STATE_DUAL_WRITE off (409 retry_disabled): the
+// heartbeat and `retry_count` are only maintained with the flag on.
+const retryCodes = (status: number, code: string, details?: unknown) => new AppError(status, code, details, code);
+class RetryConflict extends Error {}
+class RetryBudgetRace extends Error {}
+
+runRouter.post("/:id/retry", async (req, res, next) => {
+  try {
+    const tenantId = req.auth!.tenantId;
+    const run = await prisma.run.findUnique({
+      where: { id: req.params.id },
+      include: {
+        pipeline: { include: { company: true } },
+        steps: { select: { status: true, promptTokens: true, completionTokens: true } },
+      },
+    });
+    if (!run || run.pipeline.company.tenantId !== tenantId) throw new AppError(404, "Run not found");
+    if (!isJobStateDualWriteEnabled()) throw retryCodes(409, "retry_disabled");
+    // Hiyerarşik koşu retry'ı AÇIK (BRA-P0-04j): hiyerarşik yürütücü aynı koşunun önceki COMPLETED
+    // delegasyonlarını atlar ve maliyeti onlardan tohumlar (pipeline/hierarchical-resume.ts).
+
+    const cur = currentJobState(run.status, run.state);
+    const bucket = jobBucket({
+      state: cur,
+      status: run.status,
+      resultStatus: run.resultStatus,
+      heartbeatAt: run.heartbeatAt,
+      now: new Date(),
+      staleAfterMs: jobStaleAfterMs(),
+    });
+    if (cur === "RUNNING" && bucket === "stuck") throw retryCodes(409, "run_still_running");
+    if (decideResume(cur, "retry") === "already") throw retryCodes(409, "already_retrying");
+    if (cur !== "FAILED" && cur !== "PAUSED") throw retryCodes(409, "run_not_retryable");
+
+    // BRA-P0-05: a retry must never stand in for the decision on an approval.
+    if (await hasOpenApproval(prisma, run.id)) {
+      throw retryCodes(409, "approval_pending", "Run has an undecided approval; decide it via /approvals/:id/decide");
+    }
+
+    const budget = evaluateRetryBudget({ jobBudget: run.jobBudget, retryCount: run.retryCount, costUsd: run.costUsd, steps: run.steps });
+    if (!budget.allowed) throw retryCodes(409, "retry_budget_exhausted", { reason: budget.reason, stopped: budget.stopped });
+
+    const limit = retryLimit(run.jobBudget);
+    const tenantScope = { pipeline: { company: { tenantId } } };
+    let retryCount = (run.retryCount ?? 0) + 1; // tx içinde GÜNCEL değerle değiştirilir
+    try {
+      await tenantTx(async (tx) => {
+        const first = await transitionRun(tx, run.id, "RESUMING", { tenantId, dualWrite: true, onlyIfStatus: ["FAILED", "PAUSED"] });
+        if (!first.ok) {
+          if (first.reason === "not_found") throw new AppError(404, "Run not found");
+          throw new RetryConflict(); // fresh read no longer FAILED/PAUSED, or lost race: someone else won
+        }
+        assertTransitioned(await transitionRun(tx, run.id, "RUNNING", { tenantId, dualWrite: true }), {
+          status: 409,
+          message: "Run cannot be resumed from its current state",
+        });
+        // Retry accounting + a fresh heartbeat (the old one is stale) in the winner's tx.
+        // Koşullu artış: kota kararı CAS öncesi okumaya dayanır; araya başka retry girdiyse
+        // sayaç limitin altında kalmazsa artmaz → tx rollback, limit asla aşılmaz.
+        const acct = await tx.run.updateMany({
+          where: { id: run.id, status: "RUNNING", retryCount: { lt: limit }, ...tenantScope },
+          data: { retryCount: { increment: 1 }, heartbeatAt: new Date() },
+        });
+        if (acct.count !== 1) throw new RetryBudgetRace();
+        // Yanıt/log/iade koşulu için artırılmış GÜNCEL değer (bayat okuma değil).
+        const fresh = (await tx.run.findFirst({ where: { id: run.id, ...tenantScope }, select: { retryCount: true } })) as { retryCount: number | null } | null;
+        retryCount = fresh?.retryCount ?? retryCount;
+        await tx.activityLog.create({
+          data: {
+            tenantId,
+            actor: req.auth!.userId,
+            action: "run.retry",
+            resource: "run",
+            resourceId: run.id,
+            details: { from: first.from, retryCount },
+          },
+        });
+      });
+    } catch (err) {
+      if (err instanceof RetryConflict) throw retryCodes(409, "already_retrying");
+      if (err instanceof RetryBudgetRace) throw retryCodes(409, "retry_budget_exhausted", { reason: "retry limit reached concurrently", stopped: ["retries"] });
+      throw err;
+    }
+
+    // Only the CAS winner reaches here: exactly one enqueue. A failed enqueue puts
+    // the run back (only while it is still RUNNING) and refunds the retry.
+    try {
+      await enqueueRun(run.id);
+    } catch (err) {
+      // Geri alma + iade TEK tx'te; iade yalnız retryCount hâlâ bizim artırdığımız değerdeyse (CAS).
+      await tenantTx(async (tx) => {
+        const reverted = await revertRunAfterEnqueueFailure(tx, run.id, tenantId, cur);
+        if (!reverted) return;
+        await tx.run.updateMany({ where: { id: run.id, status: toLegacyStatus(cur), retryCount, ...tenantScope }, data: { retryCount: { decrement: 1 } } });
+      }).catch(() => undefined);
+      throw err;
+    }
+
+    res.json({ success: true, status: "RUNNING", retryCount });
   } catch (err) { next(err); }
 });
 
@@ -372,7 +620,17 @@ runRouter.post("/:id/handoff", handoffLimiter, async (req, res, next) => {
     });
 
     if (wasRunning) {
-      await prisma.run.update({ where: { id: run.id }, data: { status: "PAUSED" } });
+      try {
+        await tenantTx(async (tx) => {
+          const o = await transitionRun(tx, run.id, "PAUSED", { tenantId: req.auth!.tenantId, legacyUnchecked: true });
+          assertTransitioned(o, { status: 409, message: "Run is no longer running; handoff not started" });
+        });
+      } catch (err) {
+        // The run moved under us (finished / paused by someone else): the OPEN
+        // ledger just created must not outlive a handoff that did not start.
+        await cancelOpenHandoffForRun(run.id, "pause lost race", req.auth!.userId).catch(() => { /* best-effort */ });
+        throw err;
+      }
     }
 
     await prisma.activityLog.create({
@@ -424,6 +682,13 @@ runRouter.post("/:id/continue", handoffLimiter, async (req, res, next) => {
     });
     if (!run) throw new AppError(404, "Run not found");
 
+    // BRA-P0-05 bypass guard: /handoff + /continue must not flip a run to
+    // RUNNING while an approval it is waiting on is still undecided. Checked
+    // BEFORE any claim/ledger write so a refusal has no side effect.
+    if (await hasOpenApproval(prisma, run.id)) {
+      throw new AppError(409, "Run has an undecided approval; decide it via /approvals/:id/decide");
+    }
+
     const ledger = await prisma.handoffLedger.findFirst({
       where: { runId: run.id, status: "OPEN" },
     });
@@ -441,6 +706,18 @@ runRouter.post("/:id/continue", handoffLimiter, async (req, res, next) => {
     const { PROVIDER_DEFAULT_MODELS } = await import("../../services/ai-client");
     const resolvedModel = model || PROVIDER_DEFAULT_MODELS[provider];
 
+    // JOB_STATE_DUAL_WRITE on: decide from the state machine BEFORE claiming, so a
+    // finished run is refused (409) with the ledger untouched, and a run that is
+    // already RUNNING/RESUMING is "already": claimed as before but NOT enqueued a
+    // second time (ADR-0001 table). Off: no state check, legacy behaviour.
+    // This up-front read is only a cheap early refusal and may be stale: the
+    // binding decision ("already" / illegal) is taken from the in-tx fresh read.
+    const dual = isJobStateDualWriteEnabled();
+    if (dual) {
+      const cur: JobState = currentJobState(run.status, run.state);
+      if (decideResume(cur, "retry") === "reject") throw new AppError(409, "Run cannot be continued from its current state");
+    }
+
     // Claim — 409 CHECKPOINT_PENDING while the live loop hasn't frozen the
     // checkpoint (client retries). We persist baseUrl for the takeover leg (T6)
     // by writing it into the ledger's checkpoint-adjacent claim fields via the
@@ -456,14 +733,79 @@ runRouter.post("/:id/continue", handoffLimiter, async (req, res, next) => {
         claimedBy: req.auth!.userId,
       });
     } catch (err) {
-      if (err instanceof HandoffClaimError && err.code === "CHECKPOINT_PENDING") {
+      if (err instanceof HandoffClaimError && (err.code === "CHECKPOINT_PENDING" || err.code === "NOT_OPEN")) {
+        // CHECKPOINT_PENDING: client retries. NOT_OPEN: a concurrent /continue
+        // claimed it first (the up-front OPEN lookup passed, the atomic claim lost).
         throw new AppError(409, err.message);
       }
       throw err;
     }
 
-    await prisma.run.update({ where: { id: run.id }, data: { status: "RUNNING" } });
-    await enqueueRun(run.id);
+    let alreadyRunning = false;
+    let startedFrom: JobState = "PAUSED";
+    try {
+      startedFrom = (await tenantTx((tx) => resumeToRunning(tx, run.id, req.auth!.tenantId, { rejectIfAlreadyRunning: dual }))).from;
+    } catch (err) {
+      if (err instanceof AlreadyRunningError) {
+        alreadyRunning = true; // dual write on only: claimed as before, no second enqueue
+      } else {
+        // The run did not start (lost CAS / finished meanwhile): give the ledger
+        // back so the operator can retry /continue instead of "No open handoff".
+        await reopenClaimedHandoff(claimed.id, claimed.claimedAt as Date).catch((e) =>
+          logger.warn({ runId: run.id, handoffId: claimed.id, err: (e as Error).message }, "handoff reopen after lost /continue failed"));
+        throw err;
+      }
+    }
+    // BRA-P0-02c-3 (flag on): the takeover is done, so a still-PENDING HANDOFF
+    // proposal for this run is obsolete — close it (REJECTED by "system:continue";
+    // the enum has no CANCELLED and 02c adds no migration). Otherwise a later
+    // `decide` on it would act on a run that is already running. Best-effort:
+    // `decide`'s run-state guard covers the gap if this write fails.
+    if (dual) {
+      await tenantTx(async (tx) => {
+        const open = (await tx.approval.findMany({
+          where: { runId: run.id, type: "HANDOFF", status: "PENDING" },
+          select: { id: true },
+        })) as Array<{ id: string }>;
+        for (const a of open) {
+          const closed = await tx.approval.updateMany({
+            where: { id: a.id, status: "PENDING" },
+            data: { status: "REJECTED", decidedBy: "system:continue", decidedAt: new Date() },
+          });
+          if (closed.count !== 1) continue;
+          // Rule #9: the system decision is logged like approval.rejected / approval.expired.
+          await tx.activityLog.create({
+            data: {
+              tenantId: req.auth!.tenantId,
+              actor: req.auth!.userId,
+              action: "approval.closed_by_continue",
+              resource: "approval",
+              resourceId: a.id,
+              details: { runId: run.id, handoffId: claimed.id },
+            },
+          });
+        }
+      }).catch((e) =>
+        logger.warn({ runId: run.id, err: (e as Error).message }, "close pending HANDOFF approval after /continue failed"));
+    }
+
+    if (!alreadyRunning) {
+      try {
+        await enqueueRun(run.id);
+      } catch (err) {
+        // 02c-3: the run was committed RUNNING and the ledger CLAIMED; without a job
+        // neither can be recovered by /resume or /continue. Put the run back to where
+        // THIS request found it (only while it is still RUNNING and only if our own
+        // transition started it) and, ONLY if that happened, give the ledger back by
+        // our own claim token. A run that was already RUNNING / moved on is left alone.
+        const reverted = await tenantTx((tx) => revertRunAfterEnqueueFailure(tx, run.id, req.auth!.tenantId, startedFrom)).catch(() => false);
+        if (reverted) {
+          await reopenClaimedHandoff(claimed.id, claimed.claimedAt as Date).catch((e) =>
+            logger.warn({ runId: run.id, handoffId: claimed.id, err: (e as Error).message }, "handoff reopen after enqueue failure failed"));
+        }
+        throw err;
+      }
+    }
 
     res.json({
       success: true,
@@ -499,6 +841,36 @@ runRouter.get("/:id/handoffs", async (req, res, next) => {
       },
     });
     res.json({ handoffs: ledgers });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/runs/:id/activity — BRA-P2-05: koşunun olay günlüğü (salt-okur, newest first, imleçli).
+// Mantık run/activity.ts'te; yanıtta yalnız {id, action, at, actor?, summary} (ham details YOK).
+runRouter.get("/:id/activity", async (req, res, next) => {
+  try {
+    res.json(await loadRunActivity(prisma, {
+      tenantId: req.auth!.tenantId,
+      runId: req.params.id as string,
+      limitRaw: req.query.limit,
+      cursorRaw: req.query.cursor,
+    }));
+  } catch (err) { next(err); }
+});
+
+// GET/POST /api/v1/runs/:id/chat — BRA-UX-API-05: işe bağlı sohbet geçmişi + kullanıcı mesajı (mantık run/chat.ts).
+// POST mesajı kaydeder ve canlı koşuya mevcut steer kanalıyla iletir; eylem tetiklemez (onay kapıları aynen).
+runRouter.get("/:id/chat", async (req, res, next) => {
+  try {
+    res.json(await loadChat(prisma, {
+      tenantId: req.auth!.tenantId, userId: req.auth!.userId,
+      runId: req.params.id as string, limitRaw: req.query.limit, cursorRaw: req.query.cursor,
+    }));
+  } catch (err) { next(err); }
+});
+runRouter.post("/:id/chat", chatLimiter, async (req, res, next) => {
+  try {
+    const out = await postChat(prisma, { tenantId: req.auth!.tenantId, userId: req.auth!.userId, runId: req.params.id as string, body: req.body });
+    res.status(201).json(out);
   } catch (err) { next(err); }
 });
 
@@ -778,6 +1150,49 @@ runRouter.post("/steps/:id/rerun", async (req, res, next) => {
     if (relatedHandoff?.status === "CLAIMED") {
       throw new AppError(409, "A handoff is already resuming this run — cancel or complete it before rerunning the step.");
     }
+
+    // Import and execute the step
+    const { executeStep } = await import("../pipeline/executor");
+    const stepDef: { name: string; agentRole: string; order: number; config?: Record<string, unknown> } = {
+      name: step.name,
+      agentRole: step.name, // Will be resolved from pipeline steps
+      order: step.stepIndex,
+    };
+
+    // Get the pipeline step definition for agentRole
+    const pipeline = step.run.pipeline;
+    const pipelineSteps = pipeline.steps as Array<{ name: string; agentRole: string; order: number; config?: Record<string, unknown> }>;
+    let matchingStep: (typeof pipelineSteps)[number] | undefined;
+    if (isStepApprovalGateEnabled()) {
+      // BRA-P0-03d fail-closed: kapı açıkken adım KESİN kimlikle (runner'ın global indeksi + ad) bulunmalı;
+      // gevşek ad/sıra eşleşmesi başka adımın config'iyle kapıyı atlatabilir. Bulunamazsa rerun reddedilir.
+      const id = resolveStepByIdentity<(typeof pipelineSteps)[number]>(pipelineSteps, step.stepIndex, step.name);
+      if (!id.ok) {
+        throw new AppError(409, "Step cannot be matched to its pipeline definition; rerun refused (step_identity_unresolved)");
+      }
+      matchingStep = id.step;
+    } else {
+      matchingStep = pipelineSteps.find((s) => s.name === step.name || s.order === step.stepIndex);
+    }
+    if (matchingStep) {
+      stepDef.agentRole = matchingStep.agentRole;
+      // BRA-P0-03d: config YALNIZ kapı açıkken taşınır (kapalıyken rerun prompt'u eskisiyle birebir aynı:
+      // executeStep config'i "Step configuration" olarak prompt'a yazar). Taşınmazsa kapı atlanırdı.
+      if (isStepApprovalGateEnabled() && matchingStep.config !== undefined && matchingStep.config !== null) {
+        stepDef.config = matchingStep.config; // false/0/"" dahil: stepRequiresApproval fail-closed gated sayar
+      }
+    }
+    // Kapı açık + gated adım: bitmiş koşuya rerun onay kapısına giremez (FAILED/CANCELLED/COMPLETED →
+    // WAITING_APPROVAL geçişi yok); okunur 409. Yolu: /runs/:id/retry (koşuyu kapıyla baştan yürütür).
+    if (
+      isStepApprovalGateEnabled() &&
+      stepRequiresApproval(stepDef.config) &&
+      ["COMPLETED", "CANCELLED", "FAILED"].includes(step.run.status)
+    ) {
+      throw new AppError(409, "Step requires approval and its run is finished; use /runs/:id/retry (step_gate_requires_retry)");
+    }
+
+    // Stale açık handoff yalnız rerun KABUL edildikten sonra iptal edilir (kimlik/kapı 409'ları durum yazmaz).
     if (relatedHandoff?.status === "OPEN") {
       await cancelOpenHandoffForRun(step.runId, "rerun", req.auth!.userId);
     }
@@ -793,28 +1208,17 @@ runRouter.post("/steps/:id/rerun", async (req, res, next) => {
       },
     });
 
-    // Import and execute the step
-    const { executeStep } = await import("../pipeline/executor");
-    const stepDef = {
-      name: step.name,
-      agentRole: step.name, // Will be resolved from pipeline steps
-      order: step.stepIndex,
-    };
-
-    // Get the pipeline step definition for agentRole
-    const pipeline = step.run.pipeline;
-    const pipelineSteps = pipeline.steps as Array<{ name: string; agentRole: string; order: number }>;
-    const matchingStep = pipelineSteps.find((s) => s.name === step.name || s.order === step.stepIndex);
-    if (matchingStep) {
-      stepDef.agentRole = matchingStep.agentRole;
-    }
-
     const result = await executeStep(
       step.runId,
       stepDef,
       step.stepIndex,
       step.input,
     );
+
+    // BRA-P0-03d: kapı adımı çalıştırmadı (onay bekliyor): satır RUNNING'te takılı kalmasın.
+    if (result.stepId === "") {
+      await prisma.runStep.update({ where: { id: step.id }, data: { status: step.status, completedAt: step.completedAt } });
+    }
 
     await prisma.activityLog.create({
       data: {
@@ -828,5 +1232,147 @@ runRouter.post("/steps/:id/rerun", async (req, res, next) => {
     });
 
     res.json(result);
+  } catch (err) { next(err); }
+});
+
+// ── BRA-P0-04c: iş makbuzu okuma ucu (dosyanın en sonu; 04b liste rotasıyla çakışmasın) ──
+// GET /api/v1/runs/:id/receipt — kiracı kapsamlı; en son makbuz (FAILED → yeniden dene → COMPLETED
+// durumunda yeni satır eskisinin önüne geçer). Ham koşu satırı / Company.config dönmez.
+runRouter.get("/:id/receipt", async (req, res, next) => {
+  try {
+    const tenantId = req.auth!.tenantId;
+    const run = await prisma.run.findFirst({
+      where: { id: req.params.id, pipeline: { company: { tenantId } } },
+      select: { id: true },
+    });
+    if (!run) throw new AppError(404, "Run not found");
+    const receipt = await prisma.jobReceipt.findFirst({
+      where: { runId: run.id, tenantId },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!receipt) {
+      res.status(404).json({ error: "receipt_not_found" });
+      return;
+    }
+    // BRA-P1-03-N3: eklemeli, salt-okur türetilmiş bölümler (yol + sayı; veri yoksa null). Var olan alanlar değişmez.
+    const { calls, truncated } = await loadCodeSummaryCalls(run.id, tenantId);
+    res.json({ ...toJobReceiptDto(receipt), ...buildReceiptSummaries(run.id, calls, truncated) });
+  } catch (err) { next(err); }
+});
+
+// ── BRA-UX-API-06: kod işi özeti (diff dosya +/−, test sayıları) — salt-okur, migration yok ──
+// GET /api/v1/runs/:id/code-summary — kiracı kapsamlı; yalnız izinli diff/test araçlarının
+// `tool_calls` satırlarından okuma anında türetilir. Yanıtta yalnız dosya yolu + sayı vardır
+// (diff gövdesi, test çıktısı, dosya içeriği, araç girdisi dönmez). Veri yoksa alan `null`.
+runRouter.get("/:id/code-summary", async (req, res, next) => {
+  try {
+    const tenantId = req.auth!.tenantId;
+    const run = await prisma.run.findFirst({
+      where: { id: req.params.id, pipeline: { company: { tenantId } } },
+      select: { id: true },
+    });
+    if (!run) throw new AppError(404, "Run not found");
+    const { calls, truncated } = await loadCodeSummaryCalls(run.id, tenantId);
+    res.json(buildCodeSummary(run.id, calls, new Date(), truncated));
+  } catch (err) { next(err); }
+});
+
+/** code-summary ve makbuz ortak okuyucusu: kiracı + koşu kapsamlı, yalnız izinli diff/test araçları. */
+async function loadCodeSummaryCalls(runId: string, tenantId: string) {
+  // En YENİ çağrılar okunur (nihai durum sondadır); sınır aşılırsa en eskiler atılır ve diff `complete:false` olur.
+  const rows = await prisma.toolCall.findMany({
+    where: {
+      runStep: { runId, run: { pipeline: { company: { tenantId } } } },
+      OR: CODE_SUMMARY_TOOL_NAMES.map((n) => ({ toolName: { equals: n, mode: "insensitive" as const } })),
+    },
+    orderBy: [{ runStep: { stepIndex: "desc" } }, { createdAt: "desc" }, { id: "desc" }], // `id`: aynı createdAt'te belirleyici sıra
+    take: MAX_SUMMARY_CALLS + 1,
+    select: { toolName: true, status: true, input: true, output: true },
+  });
+  return { calls: rows.slice(0, MAX_SUMMARY_CALLS).reverse(), truncated: rows.length > MAX_SUMMARY_CALLS };
+}
+
+// ── BRA-P1-06-N2: job owner + insan onaylı teslim (mantık delivery.ts'te) ──
+// PATCH /api/v1/runs/:id/owner — body { ownerUserId: string | null }; ADMIN+ ya da mevcut owner.
+runRouter.patch("/:id/owner", async (req, res, next) => {
+  try {
+    const raw = (req.body ?? {}).ownerUserId;
+    if (raw !== null && (typeof raw !== "string" || raw.length === 0 || raw.length > 128)) {
+      throw new AppError(400, "ownerUserId must be a user id or null");
+    }
+    const out = await assignRunOwner(req.auth!, req.params.id, raw as string | null);
+    res.json(out);
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/runs/:id/delivery/approve — yalnız owner ya da ADMIN+; başarılı terminal koşu; bir kez.
+runRouter.post("/:id/delivery/approve", async (req, res, next) => {
+  try {
+    const out = await approveRunDelivery(req.auth!, req.params.id);
+    res.json({ success: true, ...out });
+  } catch (err) { next(err); }
+});
+
+// ── BRA-P0-09b: kanıt paketi (makbuz yanında türetilmiş, salt-okur; migration yok) ──
+// GET /api/v1/runs/:id/evidence — makbuz ucuyla aynı kapsam (kiracı + koşu; aynı auth). Ayrı uç seçildi:
+// makbuz yanıt anahtar sözleşmesi (receipt-route testi) kilitli, paket ise ayrı `packHash`/sürüm taşır.
+// Makbuz yoksa 404 receipt_not_found (paket makbuza bağlıdır). Yalnız yol/sayı/ref döner.
+runRouter.get("/:id/evidence", async (req, res, next) => {
+  try {
+    const tenantId = req.auth!.tenantId;
+    const run = await prisma.run.findFirst({
+      where: { id: req.params.id, pipeline: { company: { tenantId } } },
+      select: {
+        id: true,
+        costUsd: true,
+        steps: {
+          orderBy: { stepIndex: "asc" },
+          take: MAX_PACK_STEPS + 1,
+          select: { stepIndex: true, name: true, status: true, costUsd: true, startedAt: true, completedAt: true },
+        },
+        approvals: {
+          orderBy: { createdAt: "asc" },
+          take: MAX_PACK_APPROVALS + 1,
+          select: { id: true, type: true, status: true, decidedBy: true, decidedAt: true, createdAt: true, amountUsd: true },
+        },
+      },
+    });
+    if (!run) throw new AppError(404, "Run not found");
+    const receipt = await prisma.jobReceipt.findFirst({
+      where: { runId: run.id, tenantId },
+      orderBy: { createdAt: "desc" },
+    });
+    if (!receipt) {
+      res.status(404).json({ error: "receipt_not_found" });
+      return;
+    }
+    const summaryCalls = await loadCodeSummaryCalls(run.id, tenantId);
+    // Makbuzdan sonra gelen çağrılar süzülmez: paket "şimdiki durum" görünümüdür; makbuz contentHash'i kendi anındaki kanıtı bağlar.
+    const rows = await prisma.toolCall.findMany({
+      where: {
+        runStep: { runId: run.id, run: { pipeline: { company: { tenantId } } } },
+        OR: EVIDENCE_PACK_TOOL_NAMES.map((n) => ({ toolName: { equals: n, mode: "insensitive" as const } })),
+      },
+      orderBy: [{ runStep: { stepIndex: "desc" } }, { createdAt: "desc" }, { id: "desc" }],
+      take: MAX_PACK_CALLS + 1,
+      select: { id: true, toolName: true, status: true, output: true, createdAt: true },
+    });
+    res.json(
+      buildEvidencePack({
+        runId: run.id,
+        receipt: toJobReceiptDto(receipt),
+        runCostUsd: run.costUsd,
+        steps: run.steps.slice(0, MAX_PACK_STEPS),
+        approvals: run.approvals.slice(0, MAX_PACK_APPROVALS),
+        calls: rows.slice(0, MAX_PACK_CALLS).reverse(),
+        summaries: buildReceiptSummaries(run.id, summaryCalls.calls, summaryCalls.truncated),
+        truncated: {
+          calls: rows.length > MAX_PACK_CALLS,
+          steps: run.steps.length > MAX_PACK_STEPS,
+          approvals: run.approvals.length > MAX_PACK_APPROVALS,
+          summaryCalls: summaryCalls.truncated,
+        },
+      }),
+    );
   } catch (err) { next(err); }
 });

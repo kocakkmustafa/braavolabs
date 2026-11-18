@@ -8,6 +8,7 @@
     "build": "tsc",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:db": "vitest run .db.test.ts",
     "test:xtenant": "vitest run src/__tests__/integration/cross-tenant.test.ts",
     "test:watch": "vitest",
     "start": "node dist/index.js",
@@ -60,6 +61,7 @@
     "@types/node-cron": "^3.0.11",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0",
-    "vitest": "^3.2.6"
+    "vitest": "^3.2.6",
+    "yaml": "2.9.0"
   }
 }

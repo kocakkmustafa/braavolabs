@@ -56,6 +56,8 @@ vi.mock("../../../lib/db", () => ({
   },
 }));
 
+const recordReplyMock = vi.hoisted(() => vi.fn());
+vi.mock("../../run/chat-reply", () => ({ recordAssistantReply: (...a: unknown[]) => recordReplyMock(...a) }));
 const publishRunEventMock = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/runEvents", () => ({
   publishRunEvent: (...a: unknown[]) => publishRunEventMock(...a),
@@ -213,6 +215,8 @@ beforeEach(() => {
   seedTenantProvider({ ...GROQ_CONFIG });
   tenantFindUnique.mockResolvedValue({ plan: "PRO" });
   activityLogCreate.mockResolvedValue({});
+  steeringFindMany.mockReset();
+  recordReplyMock.mockReset();
   steeringFindMany.mockResolvedValue([]);
   steeringUpdateMany.mockResolvedValue({ count: 0 });
   executeToolMock.mockResolvedValue({ status: "SUCCESS", output: { ok: true }, durationMs: 3 });
@@ -326,6 +330,61 @@ describe("unified loop — steering drain (v2 moat, every provider)", () => {
       "run-1",
       expect.objectContaining({ type: "STEERING_APPLIED" }),
     );
+  });
+});
+
+describe("unified loop — assistant chat reply (BRA-UX-API-05b)", () => {
+  const steerRow = { id: "s1", kind: "STEER", content: "shorten it", targetAgentId: null };
+  const run = (toolNames: string[] = []) => runAgentLoop({ systemPrompt: "sys", userMessage: "go", toolNames, tenantId: "tenant-1", govContext: GOV });
+  it("records the turn's own text for a drained steer (no extra LLM call)", async () => {
+    steeringFindMany.mockResolvedValueOnce([steerRow]).mockResolvedValue([]);
+    chatCompletionMock.mockResolvedValue(completion({ content: "done, shortened" }));
+    await run();
+    expect(chatCompletionMock).toHaveBeenCalledTimes(1);
+    expect(recordReplyMock).toHaveBeenCalledOnce();
+    expect(recordReplyMock.mock.calls[0][1]).toMatchObject({ tenantId: GOV.tenantId, runId: "run-1", content: "done, shortened", steers: [{ kind: "STEER", content: "shorten it" }] });
+  });
+  it("no steer -> no reply", async () => {
+    steeringFindMany.mockResolvedValue([]);
+    chatCompletionMock.mockResolvedValue(completion({ content: "ok" }));
+    await run();
+    expect(recordReplyMock).not.toHaveBeenCalled();
+  });
+  it("over budget -> no reply written", async () => {
+    steeringFindMany.mockResolvedValueOnce([steerRow]).mockResolvedValue([]);
+    chatCompletionMock.mockResolvedValue(completion({ content: "spendy", model: "gpt-4-turbo", provider: "OPENAI", inputTokens: 100_000, outputTokens: 50_000 }));
+    await runAgentLoop({ systemPrompt: "sys", userMessage: "go", toolNames: [], tenantId: "tenant-1", govContext: GOV, budgetUsd: 1 } as never);
+    expect(recordReplyMock).not.toHaveBeenCalled();
+  });
+  it("tool turn -> no write; later tool-free turn -> ONE reply bound to all accumulated steers", async () => {
+    steeringFindMany.mockResolvedValueOnce([steerRow]).mockResolvedValueOnce([{ ...steerRow, id: "s2", content: "and add a summary" }]).mockResolvedValue([]);
+    chatCompletionMock
+      .mockResolvedValueOnce(completion({ content: "narration", toolCalls: [{ id: "c1", name: "get_time", argumentsJson: "{}" }], stopReason: "tool_calls" }))
+      .mockResolvedValueOnce(completion({ content: "final answer" }));
+    await run(["get_time"]);
+    expect(recordReplyMock).toHaveBeenCalledOnce();
+    expect(recordReplyMock.mock.calls[0][1]).toMatchObject({ content: "final answer" });
+    expect(recordReplyMock.mock.calls[0][1].steers.map((s: any) => s.content)).toEqual(["shorten it", "and add a summary"]);
+  });
+  it("tool turn that never reaches a tool-free turn -> no write", async () => {
+    steeringFindMany.mockResolvedValueOnce([steerRow]).mockResolvedValue([]);
+    chatCompletionMock.mockResolvedValue(completion({ content: "narr", toolCalls: [{ id: "c1", name: "get_time", argumentsJson: "{}" }], stopReason: "tool_calls" }));
+    await runAgentLoop({ systemPrompt: "sys", userMessage: "go", toolNames: ["get_time"], tenantId: "tenant-1", govContext: GOV, maxTurns: 1 } as never);
+    expect(recordReplyMock).not.toHaveBeenCalled();
+  });
+  it("PENDING_APPROVAL tool result -> no write", async () => {
+    steeringFindMany.mockResolvedValueOnce([steerRow]).mockResolvedValue([]);
+    executeToolMock.mockResolvedValue({ status: "PENDING_APPROVAL", output: {}, durationMs: 1, approvalId: "ap1" });
+    chatCompletionMock.mockResolvedValue(completion({ content: "narr", toolCalls: [{ id: "c1", name: "get_time", argumentsJson: "{}" }], stopReason: "tool_calls" }));
+    await runAgentLoop({ systemPrompt: "sys", userMessage: "go", toolNames: ["get_time"], tenantId: "tenant-1", govContext: GOV, maxTurns: 1 } as never);
+    expect(recordReplyMock).not.toHaveBeenCalled();
+  });
+  it("recorder failure never breaks the loop", async () => {
+    steeringFindMany.mockResolvedValueOnce([steerRow]).mockResolvedValue([]);
+    recordReplyMock.mockRejectedValueOnce(new Error("db down"));
+    chatCompletionMock.mockResolvedValue(completion({ content: "fine" }));
+    const r = await run();
+    expect(r.finalContent).toBe("fine");
   });
 });
 
@@ -740,6 +799,12 @@ describe("implicit zero-capability requests", () => {
     benchRunCreate.mockResolvedValue({id: "synthetic-bench"});
     await expect(runBenchSuite({suiteSlug: "synthetic-suite", provider: "OLLAMA", model: "synthetic-local-model"})).rejects.toThrow("Tool calls are not allowed");
     expect(chatCompletionMock).toHaveBeenCalledTimes(stage === "judge" ? 2 : 1);
-    expect(benchRunCreate).not.toHaveBeenCalled(); expect(registryToolHandler).not.toHaveBeenCalled(); expect(executeToolMock).not.toHaveBeenCalled();
+    // BRA-P1-05-N2: the failed run leaves exactly one FAILED audit row (constant code, no raw error).
+    expect(benchRunCreate).toHaveBeenCalledTimes(1);
+    const row = benchRunCreate.mock.calls[0][0].data;
+    expect(row).toMatchObject({status: "FAILED", errorCode: "RUN_ERROR", scoresByTask: [], scoreNormalised: 0});
+    expect(JSON.stringify(row)).not.toContain("Tool calls are not allowed");
+    expect(row.notes).toBeUndefined();
+    expect(registryToolHandler).not.toHaveBeenCalled(); expect(executeToolMock).not.toHaveBeenCalled();
   });
 });

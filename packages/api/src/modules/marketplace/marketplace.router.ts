@@ -9,6 +9,7 @@
  *   GET    /marketplace/installed            list this tenant's installs
  *   POST   /marketplace/connectors/:slug/install   { credentials, spendCapUsd? }
  *   POST   /marketplace/connectors/:slug/refresh   re-fetch the live manifest
+ *   POST   /marketplace/connectors/:slug/revoke    destroy credentials + disable
  *   POST   /marketplace/connectors/:slug/uninstall
  *
  * Publisher surfaces (auth required):
@@ -31,7 +32,9 @@ import { logger } from "../../lib/logger";
 import { assertSafeExternalUrl, SsrfError } from "../../lib/ssrf";
 import { listTools, type McpTool } from "../../lib/mcp";
 import { connectorManifestSchema } from "@ai-company-os/connector-sdk";
-import { signManifest, verifyManifest, isSignedManifest } from "./manifest-signature";
+import { signManifest, verifyManifest, isSignedManifest, carryDeclaredCapabilities } from "./manifest-signature";
+import { refreshInstall, revokeInstall, uninstallInstall, audienceOf, toInstalledView } from "./connector-lifecycle";
+import { firstOffSiteCredentialUrl } from "./same-site";
 import { claimQuota } from "../billing/metering";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { PLAN_LIMITS } from "@ai-company-os/core";
@@ -103,6 +106,8 @@ tenantRouter.use(authMiddleware);
 const installSchema = z.object({
   credentials: z.record(z.string(), z.string()).default({}),
   spendCapUsd: z.number().min(0.01).max(10_000).nullable().optional(),
+  // Allowed remote tool names; empty/omitted = unrestricted (legacy).
+  scopes: z.array(z.string().min(1).max(120)).max(200).optional(),
 });
 
 function aadFor(tenantId: string, connectorId: string): string {
@@ -129,7 +134,7 @@ tenantRouter.get("/installed", async (req, res, next) => {
       },
       orderBy: { createdAt: "desc" },
     });
-    res.json(installs);
+    res.json(installs.map(toInstalledView));
   } catch (err) { next(err); }
 });
 
@@ -148,6 +153,13 @@ tenantRouter.post("/connectors/:slug/install", async (req, res, next) => {
       throw new AppError(404, "Connector not found");
     }
 
+    // BRA-P1-02a-2: a tokenUrl outside the connector's own domain would receive the
+    // refresh token / clientSecret at refresh time. Reject at registration (no credential in the message).
+    const offSite = firstOffSiteCredentialUrl(body.credentials, connector.mcpServerUrl);
+    if (offSite) {
+      throw new AppError(400, `${offSite} bağlayıcının alanıyla (alan adı veya alt alanı) eşleşmeli`);
+    }
+
     const credsBlob = JSON.stringify(body.credentials);
     const encryptedCredentials = encrypt(credsBlob, aadFor(req.auth!.tenantId, connector.id));
 
@@ -157,9 +169,20 @@ tenantRouter.post("/connectors/:slug/install", async (req, res, next) => {
     let manifest: unknown = connector.toolsManifest;
     let probedTools: McpTool[] | null = null;
     try {
-      probedTools = await listTools(connector.mcpServerUrl, connector.authMethod, body.credentials);
+      probedTools = carryDeclaredCapabilities(
+        connector.toolsManifest,
+        await listTools(connector.mcpServerUrl, connector.authMethod, body.credentials),
+      );
       manifest = probedTools as any;
     } catch (err) {
+      // Cleartext-with-credentials and a malformed connector header are hard, deliberate
+      // fail-fast refusals (the same credential would fail on every call), not probe hiccups.
+      if (err instanceof AppError && err.statusCode === 400 && err.message === "Bağlayıcı başlığı geçersiz") {
+        throw err;
+      }
+      if (err instanceof AppError && err.statusCode === 400 && /HTTPS is required/.test(err.message)) {
+        throw new AppError(400, "Bağlayıcı URL'si HTTPS olmalı: kimlik bilgisi düz metin gönderilemez. Bağlayıcı sahibi URL'yi https'e çevirmeli.");
+      }
       logger.warn(
         { err, slug: connector.slug, tenantId: req.auth!.tenantId },
         "Connector probe failed during install — caching publish-time manifest instead",
@@ -199,12 +222,18 @@ tenantRouter.post("/connectors/:slug/install", async (req, res, next) => {
         cachedToolsManifest: manifest as any,
         cachedAt: new Date(),
         spendCapUsd: body.spendCapUsd ?? null,
+        scopes: body.scopes ?? [],
+        audience: audienceOf(connector.mcpServerUrl),
       },
       update: {
         encryptedCredentials,
         cachedToolsManifest: manifest as any,
         cachedAt: new Date(),
         spendCapUsd: body.spendCapUsd ?? null,
+        // Re-install keeps the existing scopes unless the body sets them.
+        ...(body.scopes !== undefined ? { scopes: body.scopes } : {}),
+        audience: audienceOf(connector.mcpServerUrl),
+        revokedAt: null,
         isEnabled: true,
       },
     });
@@ -228,55 +257,21 @@ tenantRouter.post("/connectors/:slug/install", async (req, res, next) => {
 
 tenantRouter.post("/connectors/:slug/refresh", async (req, res, next) => {
   try {
-    const connector = await prisma.connector.findUnique({ where: { slug: req.params.slug } });
-    if (!connector) throw new AppError(404, "Connector not found");
-    const install = await prisma.tenantConnector.findUnique({
-      where: { tenantId_connectorId: { tenantId: req.auth!.tenantId, connectorId: connector.id } },
-    });
-    if (!install) throw new AppError(404, "Connector not installed");
-    let creds: Record<string, string> | undefined;
-    try {
-      creds = JSON.parse(decrypt(install.encryptedCredentials, aadFor(req.auth!.tenantId, connector.id)));
-    } catch {
-      throw new AppError(500, "Failed to decrypt connector credentials");
-    }
-    const tools = await listTools(connector.mcpServerUrl, connector.authMethod, creds);
+    const { toolCount } = await refreshInstall(req.auth!.tenantId, req.params.slug);
+    res.json({ success: true, toolCount });
+  } catch (err) { next(err); }
+});
 
-    // ── Manifest HMAC verification (E5/T5) ───────────────────────
-    // Refresh is the exact post-approval-swap attack surface: a publisher
-    // changes the MCP server's tool set after approval and every tenant's
-    // refresh silently pulls it. Verify the re-probed surface against the
-    // signed manifest; a mismatch refuses to cache the tampered tools.
-    if (isSignedManifest(connector.manifestSignature)) {
-      const ok = verifyManifest(connector.publisherTenantId ?? "", connector.manifestSignature, {
-        slug: connector.slug,
-        version: connector.version,
-        tools,
-      });
-      if (!ok) {
-        throw new AppError(
-          409,
-          "Connector manifest signature mismatch — the live tool set does not match the signed manifest. " +
-            "Refresh refused; the connector may have been tampered with after publish.",
-        );
-      }
-    }
-
-    await prisma.tenantConnector.update({
-      where: { id: install.id },
-      data: { cachedToolsManifest: tools as any, cachedAt: new Date() },
-    });
-    res.json({ success: true, toolCount: tools.length });
+tenantRouter.post("/connectors/:slug/revoke", async (req, res, next) => {
+  try {
+    const { revokedAt } = await revokeInstall(req.auth!.tenantId, req.auth!.userId, req.params.slug);
+    res.json({ success: true, revokedAt });
   } catch (err) { next(err); }
 });
 
 tenantRouter.post("/connectors/:slug/uninstall", async (req, res, next) => {
   try {
-    const connector = await prisma.connector.findUnique({ where: { slug: req.params.slug } });
-    if (!connector) throw new AppError(404, "Connector not found");
-    await prisma.tenantConnector.deleteMany({
-      where: { tenantId: req.auth!.tenantId, connectorId: connector.id },
-    });
+    await uninstallInstall(req.auth!.tenantId, req.auth!.userId, req.params.slug);
     res.json({ success: true });
   } catch (err) { next(err); }
 });
@@ -306,6 +301,7 @@ const publishSchema = z.object({
         description: z.string().max(1000).optional(),
         inputSchema: z.record(z.string(), z.unknown()).optional(),
         riskHint: z.enum(["low", "medium", "high", "money"]).optional(),
+        capability: z.enum(["read", "write", "deploy", "merge", "destructive"]).optional(),
       }),
     )
     .max(200)
@@ -361,7 +357,15 @@ tenantRouter.post("/publish", async (req, res, next) => {
     // SSRF guard on the MCP server URL — same as every other tenant-
     // supplied URL across the platform.
     try {
-      await assertSafeExternalUrl(body.mcpServerUrl);
+      let hasQuery = false;
+      try {
+        hasQuery = new URL(body.mcpServerUrl).search !== "";
+      } catch {
+        /* assertSafeExternalUrl reports the invalid URL */
+      }
+      await assertSafeExternalUrl(body.mcpServerUrl, {
+        requireHttps: body.authMethod !== "NONE" || hasQuery,
+      });
     } catch (err) {
       if (err instanceof SsrfError) {
         throw new AppError(400, `mcpServerUrl rejected: ${err.message}`);
@@ -438,6 +442,7 @@ tenantRouter.post("/publish", async (req, res, next) => {
         name: t.name,
         description: t.description ?? "",
         inputSchema: t.inputSchema ?? { type: "object", properties: {} },
+        ...(t.capability ? { capability: t.capability } : {}),
       }));
     } else {
       try {

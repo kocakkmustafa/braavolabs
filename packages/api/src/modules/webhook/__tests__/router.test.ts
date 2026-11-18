@@ -21,11 +21,12 @@ const companyFindMany = vi.hoisted(() => vi.fn());
 const pipelineFindMany = vi.hoisted(() => vi.fn());
 const runCreate = vi.hoisted(() => vi.fn());
 const activityLogCreate = vi.hoisted(() => vi.fn());
+const runUpdateMany = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/db", () => ({
   prisma: {
     company: { findMany: (...a: unknown[]) => companyFindMany(...a) },
     pipeline: { findMany: (...a: unknown[]) => pipelineFindMany(...a) },
-    run: { create: (...a: unknown[]) => runCreate(...a) },
+    run: { create: (...a: unknown[]) => runCreate(...a), updateMany: (...a: unknown[]) => runUpdateMany(...a) },
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
   },
 }));
@@ -45,6 +46,12 @@ const enqueueRunMock = vi.hoisted(() => vi.fn());
 vi.mock("../../pipeline/runner", () => ({ enqueueRun: (...a: unknown[]) => enqueueRunMock(...a) }));
 
 const claimQuotaMock = vi.hoisted(() => vi.fn());
+const receiptMock = vi.hoisted(() => vi.fn());
+vi.mock("../../run/transition", async (orig) => ({
+  ...(await orig<typeof import("../../run/transition")>()),
+  tryWriteReceipt: (...a: unknown[]) => receiptMock(...a),
+}));
+
 const releaseQuotaMock = vi.hoisted(() => vi.fn());
 vi.mock("../../billing/metering", () => ({
   claimQuota: (...a: unknown[]) => claimQuotaMock(...a),
@@ -120,6 +127,9 @@ describe("POST /hooks/:companySlug/:event", () => {
     claimQuotaMock.mockResolvedValue({ claimed: true, value: 1, limit: 100 });
     releaseQuotaMock.mockResolvedValue(undefined);
     enqueueRunMock.mockResolvedValue(undefined);
+    runUpdateMany.mockResolvedValue({ count: 1 });
+    receiptMock.mockResolvedValue(undefined);
+    delete process.env.JOB_STATE_DUAL_WRITE;
   });
 
   function validReq(overrides: Record<string, unknown> = {}) {
@@ -302,6 +312,109 @@ describe("POST /hooks/:companySlug/:event", () => {
     expect(releaseQuotaMock).toHaveBeenCalledWith("tenant-1", "runs");
   });
 
+  it("BRA-P0-03e-b: enqueue hatası → koşu PENDING→FAILED (CAS) kapanır + TEK iade (sweeper çift iade yapamaz)", async () => {
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+    runCreate.mockResolvedValue({ id: "run-1" });
+    enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
+
+    await invoke(handler, validReq());
+
+    expect(runUpdateMany).toHaveBeenCalledTimes(1);
+    expect(runUpdateMany).toHaveBeenCalledWith({ where: { id: "run-1", status: "PENDING" }, data: { status: "FAILED", error: "enqueue_failed" } });
+    expect(releaseQuotaMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("BRA-P0-03e-b: CAS sırası — önce PENDING→FAILED, sonra iade", async () => {
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+    runCreate.mockResolvedValue({ id: "run-1" });
+    enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
+    await invoke(handler, validReq());
+    expect(runUpdateMany.mock.invocationCallOrder[0]).toBeLessThan(releaseQuotaMock.mock.invocationCallOrder[0]);
+  });
+
+  it("BRA-P0-03e-b: bayrak AÇIK → CAS state FAILED yazar + FAILED makbuzu", async () => {
+    process.env.JOB_STATE_DUAL_WRITE = "true";
+    try {
+      pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+      runCreate.mockResolvedValue({ id: "run-1" });
+      enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
+      await invoke(handler, validReq());
+      expect(runUpdateMany).toHaveBeenCalledWith({ where: { id: "run-1", status: "PENDING" }, data: { status: "FAILED", state: "FAILED", error: "enqueue_failed" } });
+      expect(receiptMock.mock.calls[0].slice(1)).toEqual(["run-1", "FAILED", "tenant-1"]);
+    } finally {
+      delete process.env.JOB_STATE_DUAL_WRITE;
+    }
+  });
+
+  it("BRA-P0-03e-b: bayrak KAPALI → `state` adlandırılmaz, makbuz yok", async () => {
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+    runCreate.mockResolvedValue({ id: "run-1" });
+    enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
+    await invoke(handler, validReq());
+    expect(Object.keys((runUpdateMany.mock.calls[0][0] as any).data)).not.toContain("state");
+    expect(receiptMock).not.toHaveBeenCalled();
+  });
+
+  it("BRA-P0-03e-b: bayrak AÇIK + CAS kaybı → makbuz yok", async () => {
+    process.env.JOB_STATE_DUAL_WRITE = "true";
+    try {
+      pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+      runCreate.mockResolvedValue({ id: "run-1" });
+      enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
+      runUpdateMany.mockResolvedValue({ count: 0 });
+      await invoke(handler, validReq());
+      expect(receiptMock).not.toHaveBeenCalled();
+    } finally {
+      delete process.env.JOB_STATE_DUAL_WRITE;
+    }
+  });
+
+  it("BRA-P0-03e-b: CAS kaybı (count 0, işçi aldı) → iade YOK", async () => {
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+    runCreate.mockResolvedValue({ id: "run-1" });
+    enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
+    runUpdateMany.mockResolvedValue({ count: 0 });
+    const { res } = await invoke(handler, validReq());
+    expect(res.statusCode).toBe(200);
+    expect(releaseQuotaMock).not.toHaveBeenCalled();
+  });
+
+  it("BRA-P0-03e-b: CAS throw → iade YOK (sweeper yönetir), teslimat yine 200", async () => {
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+    runCreate.mockResolvedValue({ id: "run-1" });
+    enqueueRunMock.mockRejectedValue(new Error("queue unavailable"));
+    runUpdateMany.mockRejectedValue(new Error("db down"));
+    const { res } = await invoke(handler, validReq());
+    expect(res.statusCode).toBe(200);
+    expect(releaseQuotaMock).not.toHaveBeenCalled();
+  });
+
+  it("BRA-P0-03e-b: ay dönümü (claim ile iade farklı UTC ay) → iade atlanır", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+      runCreate.mockResolvedValue({ id: "run-1" });
+      vi.setSystemTime(new Date(Date.UTC(2026, 9, 31, 23, 59, 59)));
+      enqueueRunMock.mockImplementation(async () => {
+        vi.setSystemTime(new Date(Date.UTC(2026, 10, 1, 0, 0, 1)));
+        throw new Error("queue unavailable");
+      });
+      await invoke(handler, validReq());
+      expect(runUpdateMany).toHaveBeenCalledTimes(1);
+      expect(releaseQuotaMock).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("run.create hatası: işaretlenecek koşu yok (updateMany çağrılmaz), iade yapılır", async () => {
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+    runCreate.mockRejectedValue(new Error("db"));
+    await invoke(handler, validReq());
+    expect(runUpdateMany).not.toHaveBeenCalled();
+    expect(releaseQuotaMock).toHaveBeenCalledTimes(1);
+  });
+
   it("multiple matching pipelines each claim quota independently and all appear in triggeredRuns", async () => {
     pipelineFindMany.mockResolvedValue([
       { id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true },
@@ -314,6 +427,36 @@ describe("POST /hooks/:companySlug/:event", () => {
 
     expect(res.body.triggeredRuns).toEqual(["run-1", "run-2"]);
     expect(claimQuotaMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("BRA-P0-02c-1: run.create writes tenantId + workspaceId of the verified company (no idempotencyKey / jobBudget)", async () => {
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+    runCreate.mockResolvedValue({ id: "run-1" });
+
+    await invoke(handler, validReq());
+
+    expect(runCreate).toHaveBeenCalledTimes(1);
+    const data = runCreate.mock.calls[0]![0].data;
+    expect(data).toMatchObject({ pipelineId: "pipe-1", tenantId: "tenant-1", workspaceId: "company-1" });
+    // The only replay guard is a Redis signature marker, not a delivery id:
+    // nothing is promoted to runs.idempotency_key. Payload never feeds a budget.
+    expect(data).not.toHaveProperty("idempotencyKey");
+    expect(data).not.toHaveProperty("jobBudget");
+  });
+
+  it("BRA-P0-02c-1: slug shared by two tenants — the run is owned by the tenant whose secret verified, never the other", async () => {
+    const other = { id: "company-2", tenantId: "tenant-2", slug: "acme", status: "ACTIVE", config: { webhookSecret: "whsec_other" } };
+    companyFindMany.mockResolvedValue([other, COMPANY]);
+    pipelineFindMany.mockResolvedValue([{ id: "pipe-1", companyId: "company-1", trigger: "WEBHOOK", enabled: true }]);
+
+    await invoke(handler, validReq());
+
+    expect(pipelineFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: expect.objectContaining({ companyId: "company-1" }) }),
+    );
+    const data = runCreate.mock.calls[0]![0].data;
+    expect(data.tenantId).toBe("tenant-1");
+    expect(data.workspaceId).toBe("company-1");
   });
 
   it("empty body (no Content-Type) is normalized to an empty buffer and still verified", async () => {

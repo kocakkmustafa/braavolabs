@@ -10,7 +10,7 @@ import { useAppStore } from "../lib/store";
 
 // slug → i18n key (resolved per-locale at render). Reuses nav.* where labels
 // match; breadcrumb-only labels live under app.breadcrumb.
-const ROUTE_LABEL_KEYS: Record<string, string> = {
+export const ROUTE_LABEL_KEYS: Record<string, string> = {
   "": "nav.home",
   dashboard: "nav.dashboard",
   companies: "nav.workspaces",
@@ -24,7 +24,9 @@ const ROUTE_LABEL_KEYS: Record<string, string> = {
   billing: "nav.billing",
   onboarding: "app.breadcrumb.onboarding",
   runs: "app.breadcrumb.runs",
+  models: "app.breadcrumb.models",
 };
+
 
 // Simple cache for company name lookups
 const nameCache: Record<string, string> = {};

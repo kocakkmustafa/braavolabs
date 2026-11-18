@@ -21,7 +21,9 @@
     "billing": "お支払い",
     "settings": "設定",
     "newWorkspace": "新規ワークスペース",
-    "quickStart": "クイックスタート"
+    "quickStart": "クイックスタート",
+    "inbox": "受信トレイ",
+    "start": "新しいジョブ"
   },
   "features": {
     "badge": "プラットフォームの機能",
@@ -85,7 +87,13 @@
         "message": "メッセージの下書き",
         "content": "生成コンテンツ"
       },
-      "artifactAiLabel": "AI生成"
+      "artifactAiLabel": "AI生成",
+      "loading": "承認を読み込み中…",
+      "loadErrorTitle": "承認を読み込めませんでした",
+      "loadErrorBody": "サーバーが正しく応答しなかったため、承認待ちがある可能性があります。これは空のリストではありません。もう一度お試しください。",
+      "refreshErrorTitle": "承認を更新できませんでした",
+      "refreshErrorBody": "下のリストは最新でない可能性があります。もう一度お試しください。",
+      "retryLoad": "再試行"
     },
     "companies": {
       "title": "ワークスペース",
@@ -1067,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "初期設定",
-      "runs": "実行"
+      "runs": "実行",
+      "models": "モデル"
     },
     "cost": {
       "estimateLabel": "この実行の見積もり：{low}〜{high}",
@@ -1206,6 +1215,619 @@
     },
     "register": {
       "freePlan": "無料プラン"
+    },
+    "inbox": {
+      "title": "受信トレイ",
+      "subtitle": "すべてのジョブを一か所で。実行中、対応待ち、完了、停止中を確認できます。",
+      "tabsLabel": "ジョブの分類",
+      "bucket": {
+        "working": "実行中",
+        "needs_approval": "承認待ち",
+        "done": "完了",
+        "stuck": "停止中"
+      },
+      "loading": "読み込み中…",
+      "emptyWorking": "現在実行中のジョブはありません。",
+      "emptyNeedsApproval": "承認待ちのジョブはありません。",
+      "emptyDone": "完了したジョブはまだありません。",
+      "emptyStuck": "停止中のジョブはありません。",
+      "errorTitle": "ジョブを読み込めませんでした",
+      "errorBody": "サーバーが正しく応答しなかったため、この一覧は実際には空ではない可能性があります。もう一度お試しください。",
+      "approvalsErrorTitle": "保留中の承認を読み込めませんでした",
+      "retryLoad": "再試行",
+      "loadMore": "さらに読み込む",
+      "loadingMore": "読み込み中…",
+      "loadMoreError": "続きを読み込めませんでした。もう一度お試しください。",
+      "approvalsTitle": "保留中の承認",
+      "jobsTitle": "ジョブ",
+      "approvalsEmpty": "保留中の承認はありません。",
+      "approve": "承認",
+      "reject": "却下",
+      "deciding": "送信中…",
+      "amount": "金額: {value}",
+      "openRun": "実行を開く",
+      "approvalUntitled": "承認リクエスト",
+      "approvalFailed": "決定が保存されませんでした。もう一度お試しください。",
+      "approvalConflict": "この承認はすでに決定済みか、変更されています。一覧を更新してください。",
+      "jobUntitled": "無題のジョブ",
+      "cost": "コスト {value}",
+      "updated": "更新 {value}",
+      "action": {
+        "resume": "再開",
+        "pause": "一時停止",
+        "stop": "停止",
+        "retry": "再試行",
+        "steer": "指示",
+        "receipt": "レシート"
+      },
+      "steerLabel": "エージェントへのメッセージ",
+      "steerPlaceholder": "短い指示…",
+      "steerSend": "送信",
+      "steerSent": "メッセージを送信しました。",
+      "actionOk": "操作を送信しました。",
+      "actionFailed": "操作に失敗しました。もう一度お試しください。",
+      "actionForbidden": "この操作の権限がありません。",
+      "conflict": {
+        "retry_disabled": "このワークスペースでは再試行はまだ有効ではありません。",
+        "run_still_running": "このジョブはまだ実行中です。先に停止してから再試行してください。",
+        "already_retrying": "再試行はすでに進行中です。",
+        "approval_pending": "承認が待機中です。先に承認を決定してください。",
+        "retry_budget_exhausted": "このジョブの再試行回数または予算の上限に達しました。",
+        "run_not_retryable": "このジョブは現在の状態では再試行できません。",
+        "generic": "ジョブの状態が変わったか、承認が待機中です。更新してもう一度お試しください。"
+      },
+      "receipt": {
+        "title": "レシート",
+        "loading": "レシートを読み込み中…",
+        "none": "レシートはまだありません。ジョブ完了時に作成されます。",
+        "error": "レシートを読み込めませんでした。",
+        "verified": "検証済み",
+        "unverified": "未検証",
+        "verifiedHint": "必要な種類の証拠が検証されました。",
+        "unverifiedHint": "未確認: 証拠が不足または不完全です。",
+        "noStatus": "結果ステータスなし",
+        "outcome": "結果: {value}",
+        "noEvidence": "添付された証拠はありません。",
+        "passed": "合格",
+        "failed": "不合格",
+        "hide": "レシートを隠す"
+      },
+      "state": {
+        "COMPLETED": "完了",
+        "FAILED": "失敗",
+        "CANCELLED": "キャンセル"
+      },
+      "artifactLabel": "承認する内容",
+      "expires": "有効期限 {value}",
+      "answerLabel": "エージェントへの回答（必須）",
+      "claimFailed": "{run} の承認は保存されましたが、ジョブを再開できず失敗のままになる可能性があります。「停止中」タブで確認し、再試行してください。",
+      "dismiss": "閉じる",
+      "approvalForbidden": "承認を決定する権限がありません。",
+      "actionRejected": "ジョブはこの操作を許可する状態ではありません。"
+    },
+    "jobs": {
+      "title": "ジョブ",
+      "drawerLabel": "ジョブ: {title}",
+      "close": "閉じる",
+      "viewLabel": "ジョブ表示",
+      "tab": {
+        "summary": "概要",
+        "output": "出力",
+        "kaput": "内部の動き"
+      },
+      "detail": {
+        "label": "詳細度",
+        "simple": "シンプル",
+        "full": "フル"
+      },
+      "state": {
+        "DRAFT": "下書き",
+        "PLANNED": "計画済み",
+        "READY": "準備完了",
+        "RUNNING": "実行中",
+        "NEEDS_APPROVAL": "承認待ち",
+        "RESUMING": "再開中",
+        "PAUSED": "一時停止",
+        "FAILED": "失敗",
+        "CANCELLED": "キャンセル",
+        "COMPLETED": "完了",
+        "unknown": "不明"
+      },
+      "risk": {
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "riskLabel": "リスク: {value}",
+      "verified": "✔ 検証済み",
+      "unverified": "未検証",
+      "noVerification": "検証情報なし",
+      "field": {
+        "status": "状態",
+        "cost": "コスト",
+        "company": "会社"
+      },
+      "fullInfo": "ID: {id} · 状態: {state} · 更新: {updated}",
+      "kaput": {
+        "loading": "内部の動きを読み込み中…",
+        "error": "内部の動きを読み取れませんでした。",
+        "summary": "ステップ ({steps}) · ツール呼び出し: {tools} · コスト: {cost} · 引き継ぎ: {handoffs}",
+        "noSteps": "このジョブにはまだステップ記録がありません。",
+        "unknown": "情報なし",
+        "later": "ルーティングと権限の詳細は次のリリースで追加されます。",
+        "runErrorTitle": "このジョブはエラーで停止しました",
+        "runErrorPlain": "ジョブの下にある「再試行」ボタンでもう一度実行できます。",
+        "budget": "予算の使用状況: {cost} / {budget}（{percent}）",
+        "agent": "エージェントの役割",
+        "duration": "所要時間",
+        "stepCost": "コスト",
+        "share": "全体の{percent}",
+        "reasoning": "理由",
+        "tools": "ツール呼び出し",
+        "noTools": "ツール呼び出しはありません",
+        "model": "モデル",
+        "noModel": "このステップのモデルデータはありません",
+        "mode": "モデルモード",
+        "modes": {
+          "DIRECT": "直接",
+          "CASCADE": "段階的（安価なものを先に）",
+          "COMPARE": "比較"
+        },
+        "tried": "試したモデル",
+        "tokens": "トークン",
+        "tokensValue": "入力 {input} / 出力 {output}",
+        "log": "ログ",
+        "noLog": "このステップのログデータはありません",
+        "activity": {
+          "title": "ジョブのアクティビティ",
+          "actorSystem": "システム",
+          "actorUser": "チームメンバー",
+          "more": "最新の {count} 件を表示しています。さらにあります。",
+          "truncated": "一部のイベントは表示されていません。"
+        },
+        "logEvent": {
+          "started": "開始: {time}",
+          "ended": "終了: {time}"
+        },
+        "dag": {
+          "title": "ステップの依存関係",
+          "noData": "このジョブには依存関係のデータがありません。ステップは下に順番に表示します。",
+          "sourceOrder": "ステップの順序から導出: 同じ段階のステップは並行して実行され、各段階は前の段階を待ちます。",
+          "sourceApi": "各ステップについて報告された依存関係です。",
+          "inconsistent": "依存関係のデータに矛盾があり、一部のリンクを省略しました。",
+          "truncated": "{total} 件中、最初の {shown} 件のステップを表示しています。",
+          "summary": "{levels} 段階に {steps} ステップ、依存関係 {edges} 件",
+          "scroll": "ステップ依存関係グラフ（スクロール可能）",
+          "listLabel": "ステップと依存関係",
+          "dependsOn": "依存するステップ: {steps}",
+          "noDeps": "依存関係なし",
+          "changed": "この実行の後にパイプラインの記録が更新されており、ステップの順序を確認できないため、依存関係グラフは描画していません。",
+          "unverified": "ジョブの現在の定義に基づく（変更時刻は不明）。"
+        },
+        "seconds": "{value} 秒",
+        "millis": "{value} ミリ秒",
+        "stepStatus": {
+          "completed": "完了",
+          "running": "実行中",
+          "failed": "失敗",
+          "pending": "待機中",
+          "skipped": "スキップ",
+          "cancelled": "キャンセル",
+          "unknown": "不明"
+        },
+        "errorLabel": "エラー",
+        "overBudget": "予算超過"
+      },
+      "stuckNote": "ハートビート監視がオフの間、停止中のジョブの一部はまだ表示されません。",
+      "openJob": "ジョブ {title} を開く",
+      "openFull": "実行の詳細ページを開く"
+    },
+    "workspace": {
+      "back": "ジョブ一覧に戻る",
+      "classic": "従来の詳細ビュー",
+      "loading": "ジョブを読み込み中…",
+      "errorTitle": "このジョブを開けませんでした",
+      "errorBody": "接続を確認して、もう一度お試しください。",
+      "notFound": "このジョブが見つからないか、アクセス権がありません。",
+      "label": "ジョブの作業スペース: {title}"
+    },
+    "approvalCenter": {
+      "title": "承認とセキュリティのセンター",
+      "subtitle": "決める前に、各操作が何をするのかを正確に確認できます。",
+      "classic": "従来の承認表示",
+      "count": "{count} 件待機中",
+      "live": "{count} 件の承認が待機中",
+      "approvedNotice": "承認しました。",
+      "rejectedNotice": "却下しました。",
+      "type": {
+        "SPEND": "支出",
+        "INPUT": "質問",
+        "HANDOFF": "引き継ぎ",
+        "EXTERNAL_CONTROL": "外部制御",
+        "other": "承認"
+      },
+      "open": "承認を確認: {title}",
+      "sheetLabel": "承認の詳細: {title}",
+      "close": "閉じる",
+      "field": {
+        "what": "実行内容",
+        "tool": "ツール",
+        "permissions": "権限の範囲",
+        "data": "送信されるデータ",
+        "risk": "リスク",
+        "amount": "金額",
+        "reversible": "取り消し",
+        "draft": "下書き",
+        "requested": "依頼時刻"
+      },
+      "riskLevel": {
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "reversibleYes": "逆の操作で元に戻せます",
+      "reversibleNo": "取り消せません",
+      "unknown": "情報なし",
+      "danger": {
+        "tag": "確認が必要",
+        "title": "この操作には2つ目の手順が必要です",
+        "body": "費用が発生する、リスクが高い、または取り消せない操作です。",
+        "phraseLabel": "「{phrase}」と入力すると承認できます",
+        "phrase": "送信を承認します",
+        "reasonLabel": "理由（決定と一緒に保存されます）"
+      },
+      "oneByOne": "承認は1件ずつ判断します。",
+      "alreadyDecided": "この承認はすでに判断済みです。一覧を更新しました。",
+      "forbidden": "この承認を判断する権限がありません。一覧を更新しました。"
+    },
+    "plan": {
+      "title": "ジョブを説明",
+      "workspace": "ワークスペース",
+      "workspaceChoose": "ワークスペースを選択",
+      "messageLabel": "何をしますか？",
+      "messagePlaceholder": "例：週次の売上レポートを作成",
+      "suggest": "プランを提案",
+      "planning": "プランを作成中…",
+      "empty": "このメッセージはジョブの依頼ではないようです。プランは提案されませんでした。",
+      "retry": "再試行",
+      "steps": "ステップ",
+      "tools": "ツール",
+      "risk": {
+        "label": "リスク",
+        "low": "低",
+        "medium": "中",
+        "high": "高"
+      },
+      "cost": "推定コスト（保証ではありません）",
+      "costUnknown": "このモデルの価格が不明なため、コスト範囲を表示できません",
+      "approvalStep": "承認が必要",
+      "run": "実行",
+      "cancel": "キャンセル",
+      "starting": "開始中…",
+      "approvalGate": "このジョブには承認が必要ですが、現在オフになっています。",
+      "planChanged": "プランが変更されました。もう一度プランを提案してください。",
+      "workspaceRequired": "先にワークスペースを選択してください。",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "スタート",
+      "label": "何をしますか？",
+      "placeholder": "作業を説明する、質問する、またはエージェントを依頼してください…",
+      "barLabel": "意図バー",
+      "understood": "理解した内容：",
+      "kind": {
+        "chat": "チャット",
+        "job": "ジョブ",
+        "agent": "エージェント"
+      },
+      "submit": {
+        "chat": "チャットを開始",
+        "job": "計画する",
+        "agent": "エージェントを依頼"
+      },
+      "lowConfidence": "確信がありません。チャットとして扱います。ジョブとして計画するには「ジョブ」を選んでください。",
+      "previewNote": "「理解した内容」はローカルのヒントです。計画の段階ではサーバーが独自に判断します。",
+      "chat": {
+        "unavailable": "チャットはまだ利用できません。このバージョンではジョブの計画とエージェントの作成のみ可能です。メッセージからジョブ記録は作成されず、費用も発生していません。",
+        "asJob": "ジョブとして計画"
+      },
+      "plan": {
+        "tool": "ツール: {tool}",
+        "approvalStep": "承認が必要、リスク{risk}",
+        "modelRow": "ステップごとのモデル行: まだありません（API待ち）。"
+      },
+      "agent": {
+        "title": "新しいエージェント",
+        "immediate": "この手順はエージェントをすぐに保存します。作成前に下書きを確認することはまだできません。",
+        "create": "今すぐエージェントを作成",
+        "working": "エージェントを作成中…",
+        "role": "役割: {role}",
+        "toolsLabel": "ツール",
+        "noTools": "なし",
+        "dropped": "除外したツール（{count}件）: {tools} は未接続のため、エージェントはそれらなしで作成されました。",
+        "saved": "エージェントを保存しました。",
+        "close": "閉じる",
+        "tooShort": "エージェントの説明は10文字以上で入力してください。何をさせたいかもう少し詳しく書いてください。",
+        "maybeSaved": "接続が切れた場合、エージェントはすでに保存されている可能性があります。再試行する前にエージェント一覧を確認してください。"
+      }
+    },
+    "models": {
+      "labelSep": "：",
+      "pairSep": "・",
+      "title": "モデルと接続",
+      "subtitle": "会社が使っているモデル、アクセスできる範囲、今月の費用を表示します。読み取り専用です。",
+      "company": "会社",
+      "live": "{count} 件のモデルを表示",
+      "errorTitle": "モデルを読み込めませんでした",
+      "errorBody": "モデル一覧を読み取れませんでした。もう一度お試しください。",
+      "retry": "再試行",
+      "noCompanyTitle": "会社がまだありません",
+      "noCompanyBody": "会社を作成すると、そのモデルがここに表示されます。",
+      "loading": "モデルを読み込み中…",
+      "autoLabel": "モデルの自動選択",
+      "autoOn": "オン",
+      "autoOff": "オフ",
+      "unknown": "不明",
+      "emptyTitle": "使用中のモデルはまだありません",
+      "emptyBody": "この会社のエージェントにモデルが設定されると、ここに表示されます。",
+      "provider": "プロバイダー",
+      "access": "アクセス",
+      "cost": "今月の費用",
+      "runs": "今月の実行数",
+      "runCount": "今月の実行数：{count}",
+      "costNote": "費用は各エージェントの現在のモデルに割り当てられます。モデル変更前の実行も新しいモデルに計上されます。月は毎月1日 00:00 UTC に始まります。",
+      "costSince": "{from} 以降。",
+      "updatedAt": "更新：{time}。",
+      "linksTitle": "管理",
+      "source": {
+        "label": "ソース",
+        "byok": "自分の API キー",
+        "local": "ローカルモデル",
+        "platform": "プラットフォーム",
+        "unknown": "不明"
+      },
+      "badge": {
+        "byok": "BYOK",
+        "local": "ローカル"
+      },
+      "scope": {
+        "company": "この会社",
+        "workspace": "このワークスペース",
+        "agent": "エージェント単位"
+      },
+      "mode": {
+        "read": "読み取り",
+        "read_write": "読み取りと書き込み"
+      },
+      "links": {
+        "own": {
+          "title": "自分の API キー",
+          "body": "キーの追加・変更は 設定 → AI プロバイダー で行います。"
+        },
+        "local": {
+          "title": "ローカルモデル",
+          "body": "自前のエンドポイントは 設定 → AI プロバイダー で接続します。"
+        },
+        "compare": {
+          "title": "モデルを比較",
+          "body": "同じタスクを複数のモデルで並べて実行します。"
+        },
+        "connections": {
+          "title": "自動化の接続",
+          "body": "n8n、Make、Zapier の実行。"
+        },
+        "integrations": {
+          "title": "連携",
+          "body": "Slack、GitHub などのツール。"
+        }
+      },
+      "pickerTitle": "モデルを変更",
+      "pickerHelp": "モデルを適用する対象と使うモデルを選びます。エージェント：そのエージェントのみ。アカウント既定：専用モデルのないエージェントが使います。",
+      "pickerTarget": "適用先",
+      "pickerDefault": "アカウント既定（専用モデルのないすべてのエージェント）",
+      "pickerModel": "モデル",
+      "pickerApply": "適用",
+      "pickerSaving": "保存中…",
+      "pickerSaved": "保存しました。",
+      "pickerError": "保存できませんでした。もう一度お試しください。",
+      "pickerLoadError": "エージェントまたはモデルの選択肢を読み込めませんでした。",
+      "pickerEmpty": "設定済みのモデルがまだありません。設定でキーまたはローカルモデルを追加してください。",
+      "pickerCurrent": "現在：{model}",
+      "pickerCurrentUnknown": "現在：不明",
+      "pickerLocalHint": "ローカルとカスタムのプロバイダーは設定でのみ選べます。",
+      "pickerForbidden": "これを変更する権限がありません。",
+      "pickerPlan": "ご利用のプランでは許可されていません。"
+    },
+    "companyStatus": {
+      "title": "会社の状況",
+      "subtitle": "実行中・停滞・承認待ち・費用を1行で表示します。",
+      "live": "承認待ち {approvals} 件、停滞 {stuck} 件",
+      "loading": "会社の状況を読み込み中…",
+      "errorTitle": "会社を読み込めませんでした",
+      "errorBody": "会社の状況を読み取れませんでした。もう一度お試しください。",
+      "retry": "再試行",
+      "summaryLabel": "会社の概要",
+      "working": "実行中",
+      "stuck": "停滞",
+      "approvals": "承認待ち",
+      "done": "完了",
+      "cost": "費用",
+      "unknown": "不明",
+      "atLeast": "{count} 件以上",
+      "note": "件数は、ジョブ一覧の各ステータスの最初のページ(ステータスごとに25件)から取得しています。「以上」はさらに多くあることを示します。費用はそれらのジョブのみの合計です。",
+      "costUnknownRuns": "費用を読み取れないジョブが {count} 件あり、合計に含まれていません。",
+      "agents": "エージェント",
+      "agentsEmpty": "この会社にはまだエージェントがありません。",
+      "role": "役割",
+      "linksTitle": "リンク",
+      "links": {
+        "jobs": {
+          "title": "ジョブ",
+          "body": "実行中・停滞・完了のすべて。"
+        },
+        "approvals": {
+          "title": "承認",
+          "body": "あなたを待っている項目を確認します。"
+        },
+        "risks": {
+          "title": "リスク",
+          "body": "未解決のリスク停止。"
+        },
+        "integrations": {
+          "title": "連携",
+          "body": "接続済みのツール。"
+        },
+        "classic": {
+          "title": "従来の会社ページ",
+          "body": "詳細、作成ツール、設定。"
+        }
+      }
+    },
+    "companySummary": {
+      "title": "ひと目で確認",
+      "loading": "会社の概要を読み込み中…",
+      "error": "会社の概要を読み込めませんでした。",
+      "retry": "再試行",
+      "empty": "この会社の概要はありません。",
+      "unknown": "不明",
+      "bucket": {
+        "working": "実行中",
+        "needs_approval": "承認待ち",
+        "stuck": "停止中",
+        "done": "完了"
+      },
+      "pendingApprovals": "保留中の承認",
+      "agents": "エージェント",
+      "pipelines": "パイプライン",
+      "monthCost": "今月のコスト",
+      "budget": {
+        "title": "月次予算",
+        "noneHint": "この会社には月次予算が設定されていません。",
+        "spent": "使用済み",
+        "limit": "上限",
+        "remaining": "残り",
+        "used": "{pct}% 使用",
+        "state": {
+          "none": "予算なし",
+          "ok": "順調",
+          "warn": "上限に近い",
+          "over": "予算超過"
+        }
+      }
+    },
+    "pilotEntry": {
+      "error": {
+        "auth": "セッションの有効期限が切れました。もう一度サインインしてください。",
+        "forbidden": "この会社をエクスポートする権限がありません。",
+        "notFound": "会社が見つかりません。",
+        "network": "ネットワークの問題です。接続を確認してもう一度お試しください。",
+        "generic": "パイロットパッケージをエクスポートできませんでした。もう一度お試しください。"
+      },
+      "title": "マイクロアプリパッケージ（パイロット）",
+      "description": "この会社の構成（エージェント、パイプライン、要求される接続ラベル）とサンプルデータを持ち運べるパッケージです。",
+      "syntheticOnly": "サンプルデータは合成データです。",
+      "export": "パイロットパッケージをエクスポート",
+      "exporting": "エクスポート中…",
+      "exported": "パイロットパッケージをダウンロードしました。",
+      "previewTitle": "パッケージのプレビュー",
+      "previewName": "名前",
+      "previewAgents": "エージェント",
+      "previewPipelines": "パイプライン",
+      "previewRecords": "レコード",
+      "previewConnectors": "要求された接続",
+      "noConnectors": "なし",
+      "moreConnectors": "ほか {count} 件",
+      "noData": "まだデータがありません。パッケージをエクスポートするとプレビューできます。",
+      "connectorsNote": "プレビューにはパッケージが要求する接続が表示されます。操作やスコープの詳細はファイルに含まれます。送信や書き込みの権限はコネクターのスコープで制限され、このパッケージはそれを強制しません。"
+    },
+    "codeChange": {
+      "title": "変更: {title}",
+      "titleGeneric": "コードの変更",
+      "loading": "コードの変更を読み込み中…",
+      "error": "コードの変更を読み込めませんでした。もう一度お試しください。",
+      "retry": "再試行",
+      "none": "このジョブにはコード変更の記録がありません。",
+      "filesTitle": "ファイル ({count})",
+      "filesNone": "一覧にファイルがありません",
+      "filesUnknown": "ファイル: 不明",
+      "moreFiles": "ほか {count, number} ファイル",
+      "unknown": "不明",
+      "totals": "合計: {added} {removed}",
+      "totalsAtLeast": "少なくとも: {added} {removed}",
+      "partialNote": "行数のないファイルがあるか一覧が省略されているため、合計は下限値です。",
+      "testsTitle": "テスト",
+      "testsPassed": "{count} 件成功",
+      "testsFailed": "{count} 件失敗",
+      "testsSkipped": "{count} 件スキップ",
+      "testsPassedUnknown": "成功: 不明",
+      "testsFailedUnknown": "失敗: 不明",
+      "testsSkippedUnknown": "スキップ: 不明",
+      "testsTotal": "合計 {count} 件",
+      "testsVerified": "検証済み",
+      "testsNotVerified": "未検証",
+      "testsRuns": "テスト実行 {count, number} 回",
+      "approvalLink": "承認センターで判断する",
+      "srSummary": "{title}。ファイル: {files}。テスト: {tests}。",
+      "stale": "更新できませんでした。最後に取得したデータを表示しています。"
+    },
+    "agents": {
+      "title": "エージェント",
+      "new": "新しいエージェント",
+      "company": "ワークスペース",
+      "noCompany": "先にワークスペースを作成してください。エージェントはワークスペースに属します。",
+      "companiesError": "ワークスペースを読み込めませんでした。",
+      "retry": "再試行",
+      "composerTitle": "新しいエージェント",
+      "describe": "どんな仲間がほしいですか？",
+      "placeholder": "例：毎朝、営業メールを要約する",
+      "tooShort": "エージェントの説明は10文字以上で入力してください。",
+      "tooLong": "説明が長すぎます（最大4000文字）。",
+      "draftButton": "下書き",
+      "drafting": "下書きを作成中…",
+      "draftNote": "下書きは何も保存しません。作成を押したときだけエージェントが作られます。",
+      "previewTitle": "下書きのプレビュー",
+      "notSaved": "未保存",
+      "name": "名前",
+      "role": "役割",
+      "tools": "ツール",
+      "none": "なし",
+      "dropped": "除外されたツール（{count}件）、利用できません",
+      "systemPrompt": "指示（システムプロンプト）",
+      "providerLine": "{provider} / {model} が作成した下書きです。",
+      "create": "作成",
+      "creating": "作成中…",
+      "discard": "下書きを破棄",
+      "created": "を作成しました。",
+      "maybeSaved": "接続が切れた場合、エージェントはすでに保存されている可能性があります。再試行する前に一覧を確認してください。",
+      "listTitle": "エージェント",
+      "listError": "エージェント一覧を読み込めませんでした。",
+      "empty": "このワークスペースにはまだエージェントがありません。",
+      "status": "状態",
+      "unknown": "不明",
+      "labelSep": "：",
+      "pairSep": "・",
+      "listSep": "、",
+      "error": {
+        "session": "サインインを確認できませんでした。もう一度サインインしてください。",
+        "payment": "プランまたは予算の上限に達しました（402）。上限を確認してから再試行してください。",
+        "forbidden": "この操作の権限がありません。",
+        "notFound": "ワークスペースが見つかりません。",
+        "rateLimit": "リクエストが多すぎます（429）。しばらく待ってからやり直してください。",
+        "timeout": "リクエストがタイムアウトしました。",
+        "network": "サーバーに接続できません。接続を確認して再試行してください。",
+        "noProvider": "AIプロバイダーが設定されていません。設定で追加してから再試行してください。",
+        "badDraft": "下書きは受け付けられませんでした。説明を変えて、もう一度下書きを作成してください。",
+        "badResponse": "サーバーの応答を理解できませんでした。保存済みとは表示していません。",
+        "generic": "予期しないエラーが発生しました。もう一度お試しください。"
+      },
+      "refreshList": "一覧を更新",
+      "loading": "読み込み中…"
     }
   },
   "static": {

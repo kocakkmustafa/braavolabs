@@ -25,6 +25,7 @@ import { AppError } from "../../middleware/error";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { env } from "../../config/env";
+import { toPublicCompany } from "../company/redact";
 import {
   bindMachine,
   encryptForMachine,
@@ -332,7 +333,7 @@ async function buildPlaintextBundle(
       kind: "tenant-bundle",
       exportedAt: new Date().toISOString(),
       tenantId,
-      companies,
+      companies: companies.map((c) => toPublicCompany(c)),
     },
     null,
     2,

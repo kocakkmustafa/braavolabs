@@ -6,6 +6,7 @@
  */
 
 import { Router } from "express";
+import { toPublicCompany } from "../company/redact";
 import { z } from "zod";
 import { authMiddleware } from "../../middleware/auth";
 import { rateLimit } from "../../middleware/rateLimit";
@@ -21,6 +22,7 @@ import {
 import { classifyProviderError } from "../../services/provider-chain";
 import { isKnownProvider } from "../settings/provider-models";
 import { assertCompanyCapacity } from "../company/company-capacity";
+import { seedCreatorAsOwner } from "../company/owner-seed";
 
 export const onboardingRouter = Router();
 onboardingRouter.use(authMiddleware);
@@ -109,6 +111,7 @@ onboardingRouter.post("/hero-company", async (req, res, next) => {
           },
         },
       });
+      await seedCreatorAsOwner(tx, { tenantId, companyId: company.id, userId: req.auth!.userId });
 
       // Create agents
       const contentAgent = await tx.agent.create({
@@ -213,7 +216,7 @@ onboardingRouter.post("/hero-company", async (req, res, next) => {
     );
 
     res.status(201).json({
-      company,
+      company: toPublicCompany(company),
       agents: [contentAgent, analyticsAgent],
       pipeline,
       nextStep: "Run your first pipeline to generate content!",

@@ -4,6 +4,7 @@
  */
 
 import { prisma } from "../../lib/db";
+import { transitionRun } from "../run/transition";
 import { logger } from "../../lib/logger";
 import {
   getTool,
@@ -16,7 +17,15 @@ import {
 } from "./registry";
 import { notifyTenantUsers } from "../../services/push";
 import { publishRunEvent } from "../../lib/runEvents";
-import { disabledFeatureForTool, outboundFeatureDisabledError } from "../../lib/outbound-gates";
+import { disabledFeatureForTool, isDeployMergeCall, outboundFeatureDisabledError, type ToolCallGateOpts } from "../../lib/outbound-gates";
+import {
+  buildApprovalStamp,
+  computeActionHash,
+  consumeGrant,
+  isExactActionApprovalEnabled,
+  type ApprovalStamp,
+  type ExactAction,
+} from "../approval/exact-action";
 
 export interface ToolExecResult {
   output: unknown;
@@ -24,6 +33,38 @@ export interface ToolExecResult {
   durationMs: number;
   error?: string;
   approvalId?: string;
+}
+
+/**
+ * SEC-BRA-06 shared guards (governed executor AND the ungoverned loops in
+ * claude.ts / claude-local.ts — one definition, no copies).
+ * `toolTakesCompanyId`: the tool's input schema declares a companyId.
+ * `inputHasCompanyId`: the call carries a companyId key (any type); safe for
+ * non-object input (string/null/array never throws).
+ */
+export function toolTakesCompanyId(tool: Pick<ToolDefinition, "inputSchema"> | undefined): boolean {
+  const props = (tool?.inputSchema as { properties?: unknown } | undefined)?.properties;
+  return !!props && typeof props === "object" && Object.prototype.hasOwnProperty.call(props, "companyId");
+}
+
+export function inputHasCompanyId(input: unknown): boolean {
+  return (
+    !!input &&
+    typeof input === "object" &&
+    !Array.isArray(input) &&
+    (input as Record<string, unknown>).companyId !== undefined
+  );
+}
+
+/**
+ * Ungoverned callers have NO acting company to inject or compare against, so a
+ * tool that takes a companyId (by schema or by input) must not run there.
+ */
+export function requiresGovernedTenantScope(
+  tool: Pick<ToolDefinition, "inputSchema"> | undefined,
+  input: unknown,
+): boolean {
+  return toolTakesCompanyId(tool) || inputHasCompanyId(input);
 }
 
 /**
@@ -92,6 +133,9 @@ const SECONDARY_ID_VALIDATORS: Record<
   // external_control acts on a tenant's connected automation — the connection
   // must belong to the acting tenant (ExternalConnection is tenant-scoped
   // directly, not via company).
+  // delegate (hierarchical manager) names a worker Agent; Agent → company → tenant.
+  agentId: async (id, tenantId) =>
+    !!(await prisma.agent.findFirst({ where: { id, company: { tenantId } }, select: { id: true } })),
   connectionId: async (id, tenantId) =>
     !!(await prisma.externalConnection.findFirst({ where: { id, tenantId }, select: { id: true } })),
 };
@@ -130,7 +174,13 @@ export async function enforceTenantScopedSecondaryIds(
         `Unrecognised tenant-scoped id field "${key}" on tool "${toolName}" — refusing for tenant safety`,
       );
     }
-    if (typeof value !== "string" || value.length === 0) continue;
+    if (value === undefined || value === null) continue;
+    // Non-string (object/array/number — e.g. a Prisma operator object) must
+    // never reach a handler's `where`.
+    if (typeof value !== "string") {
+      throw new Error(`Tenant isolation violation: ${key} must be a string`);
+    }
+    if (value.length === 0) continue;
     if (!(await validator(value, tenantId))) {
       throw new Error(
         `Tenant isolation violation: ${key} "${value}" does not belong to tenant "${tenantId}"`,
@@ -138,6 +188,84 @@ export async function enforceTenantScopedSecondaryIds(
     }
   }
 }
+
+/** Overwrite any model-supplied tenantId with the acting tenant (meta.injectTenantId tools). */
+export function withActingTenant(input: unknown, tenantId: string): Record<string, unknown> {
+  const obj = input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
+  return { ...obj, tenantId };
+}
+
+function isTenantRowIdKey(key: string): boolean {
+  return /[a-z]Id$/.test(key) && !SAFE_INPUT_ID_FIELDS.has(key);
+}
+
+/**
+ * SEC-BRA-06c: shared fail-closed guard for the UNGOVERNED paths (claude.ts
+ * ungoverned branch, claude-local.ts). Returns an error string, or null when
+ * the call may run.
+ *  - companyId tools never run ungoverned (no acting company to compare).
+ *  - tools that name tenant rows by a secondary `*Id` (dealId, contactId, ...)
+ *    run ONLY when the caller knows the acting tenant; every id in the input
+ *    is then validated with the same logic as the governed path
+ *    (enforceTenantScopedSecondaryIds, fails closed on unknown `*Id`).
+ *    Without a tenantId (local CLI mode) they are refused.
+ *  - tools without any tenant-scoped field (ask_user, delegate, generate_post)
+ *    are untouched.
+ */
+export async function guardUngovernedTenantScope(
+  tool: Pick<ToolDefinition, "inputSchema"> | undefined,
+  input: unknown,
+  toolName: string,
+  tenantId?: string,
+): Promise<string | null> {
+  if (requiresGovernedTenantScope(tool, input)) {
+    return `Tool "${toolName}" requires a tenant-scoped pipeline run (companyId in input)`;
+  }
+  const props = (tool?.inputSchema as { properties?: unknown } | undefined)?.properties;
+  const schemaKeys = props && typeof props === "object" ? Object.keys(props) : [];
+  const inputKeys =
+    input && typeof input === "object" && !Array.isArray(input) ? Object.keys(input as object) : [];
+  const touchesTenantRows = [...schemaKeys, ...inputKeys].some(isTenantRowIdKey);
+  if (!touchesTenantRows) return null;
+  if (!tenantId) {
+    return `Tool "${toolName}" requires a tenant-scoped pipeline run (tenant-scoped id in input)`;
+  }
+  try {
+    await enforceTenantScopedSecondaryIds(input, tenantId, toolName);
+  } catch (err) {
+    return err instanceof Error ? err.message : String(err);
+  }
+  return null;
+}
+
+/**
+ * BRA-P0-02c-3: drive the run into WAITING_APPROVAL through `transitionRun`
+ * (graph state NEEDS_APPROVAL). Called right AFTER the gate's approval row is
+ * created; if the transition cannot happen (CAS lost to a concurrent /stop or
+ * /pause, or — with JOB_STATE_DUAL_WRITE on — an illegal edge such as a
+ * finished run) the just-created approval is removed again so a lost race
+ * leaves no orphaned PENDING approval, and the caller returns a FAILED tool
+ * result without any push / event / activity row.
+ */
+async function enterWaitingApproval(runId: string, tenantId: string, approvalId: string): Promise<boolean> {
+  const o = await transitionRun(prisma, runId, "NEEDS_APPROVAL", { tenantId, legacyUnchecked: true });
+  if (o.ok) return true;
+  logger.warn({ runId, approvalId, reason: o.reason }, "Approval gate: run could not enter WAITING_APPROVAL — approval withdrawn");
+  await prisma.approval
+    .deleteMany({ where: { id: approvalId, status: "PENDING" } })
+    .catch((err) => logger.warn({ approvalId, err: (err as Error).message }, "Approval gate: withdrawing approval failed"));
+  return false;
+}
+
+function gateTransitionFailed(start: number): ToolExecResult {
+  return {
+    output: null,
+    status: "FAILED",
+    durationMs: Date.now() - start,
+    error: "Run is no longer active; approval was not requested",
+  };
+}
+
 
 /**
  * Execute a tool call with governance checks.
@@ -173,7 +301,7 @@ export async function executeTool(
   // They are per-tenant and MUST NOT be resolvable by any other request.
   const dynamicTool = context.extraTools?.get(toolName);
   const tool = dynamicTool ?? getTool(toolName);
-  const meta = dynamicTool ? dynamicTool.meta : getToolMeta(toolName);
+  let meta = dynamicTool ? dynamicTool.meta : getToolMeta(toolName);
 
   if (!tool) {
     return {
@@ -187,8 +315,57 @@ export async function executeTool(
   // B-06: outbound-contact tools (outreach enrollment, voice dialing) are
   // refused while their feature flag is off — before any approval row is
   // created, so nothing approvable reaches the approvals queue.
-  const disabledFeature = dynamicTool ? null : disabledFeatureForTool(toolName);
+  // BRA-P1-03c: this single choke point also refuses deploy / merge style
+  // tools (static or connector) until the founder-approved flag is on.
+  // Classification uses the tool's own name + untruncated description, never
+  // the connector-name prefix.
+  const remote = dynamicTool?.remote;
+  const gateOpts: ToolCallGateOpts = dynamicTool
+    ? remote
+      ? {
+          dynamic: true,
+          remoteName: remote.name,
+          remoteDescription: remote.description,
+          connectorSlug: remote.connectorSlug,
+          connectorName: remote.connectorName,
+          declaredCapability: remote.declaredCapability,
+        }
+      : { dynamic: true, remoteDescription: dynamicTool.description }
+    : {};
+  // Classified ONCE; the gate and the forced-approval meta below share it.
+  const isDeployMerge = isDeployMergeCall(toolName, gateOpts);
+  const disabledFeature = disabledFeatureForTool(toolName, { ...gateOpts, deployMerge: isDeployMerge });
+  // Founder-approval requirement: a deploy/merge tool needs a human approval
+  // row even when the flag is ON and the agent is AUTONOMOUS. moneyTouching
+  // defaults to false so the approval row does not look like a SPEND.
+  if (isDeployMerge) {
+    meta = {
+      ...(meta ?? {}),
+      riskLevel: "high",
+      requiresApproval: true,
+      alwaysRequiresApproval: true,
+      moneyTouching: meta?.moneyTouching ?? false,
+    };
+  }
   if (disabledFeature) {
+    if (disabledFeature === "deploy_merge" && context.runStepId) {
+      // Refusal row for audit; no input/output (never log args or tokens).
+      try {
+        await prisma.toolCall.create({
+          data: {
+            runStepId: context.runStepId,
+            toolName,
+            input: {} as any,
+            output: {} as any,
+            status: "FAILED",
+            durationMs: Date.now() - start,
+            error: "DEPLOY_MERGE_TOOLS_DISABLED",
+          },
+        });
+      } catch (logErr) {
+        logger.warn({ toolName }, "Could not record refused deploy/merge tool call");
+      }
+    }
     const disabled = outboundFeatureDisabledError(disabledFeature);
     return {
       output: null,
@@ -205,15 +382,38 @@ export async function executeTool(
   //     draftId) — see CRIT-3 in the security audit.
   let scopedInput = input;
   try {
-    const scoped = await enforceTenantScopedCompany(input, context.tenantId);
-    if (scoped && input && typeof input === "object") {
-      scopedInput = { ...(input as Record<string, unknown>), companyId: scoped.id };
+    // SEC-BRA-06: a static tool that takes a companyId must run against the
+    // ACTING company only. The model's value is never trusted: absent →
+    // injected; non-string (object/array/null — Prisma operator objects) or a
+    // different company → refused. Connector tools are excluded: their args
+    // belong to the remote server, not to our Prisma queries.
+    const takesCompanyId = !dynamicTool && toolTakesCompanyId(tool);
+    const inputObj = input && typeof input === "object" && !Array.isArray(input) ? (input as Record<string, unknown>) : null;
+    const hasCompanyKey = inputHasCompanyId(input);
+    if (!dynamicTool && (takesCompanyId || hasCompanyKey)) {
+      if (hasCompanyKey) {
+        const v = inputObj?.companyId;
+        // non-string (object/array/null) or empty/blank: never reaches a Prisma where
+        if (typeof v !== "string" || v.trim() === "") {
+          throw new Error("Tenant isolation violation: companyId is invalid");
+        }
+      } else if (takesCompanyId) {
+        scopedInput = { ...(inputObj ?? {}), companyId: context.companyId };
+      }
+    }
+    const scoped = await enforceTenantScopedCompany(scopedInput, context.tenantId);
+    if (scoped && !dynamicTool && scoped.id !== context.companyId) {
+      throw new Error("Tenant isolation violation: companyId is not the acting company");
+    }
+    if (scoped && scopedInput && typeof scopedInput === "object") {
+      scopedInput = { ...(scopedInput as Record<string, unknown>), companyId: scoped.id };
     }
     // Cross-ID tenant scoping. Any tool input field that names a row in a
     // tenant-isolated table must trace back to this tenant. Otherwise an
     // agent prompt-injection can mutate a victim tenant's CRM/draft/seq.
     // Fails closed on unrecognised `*Id` fields (FINDINGS H2).
     await enforceTenantScopedSecondaryIds(scopedInput, context.tenantId, toolName);
+    if (!dynamicTool && tool.meta?.injectTenantId) scopedInput = withActingTenant(scopedInput, context.tenantId);
   } catch (err) {
     const error = err instanceof Error ? err.message : String(err);
     logger.warn({ toolName, tenantId: context.tenantId, error }, "Tool tenant isolation blocked");
@@ -248,6 +448,8 @@ export async function executeTool(
     const approval = await prisma.approval.create({
       data: {
         runId: context.runId,
+        // SEC-BRA-05: owner written directly (not only via exact-action stamp).
+        tenantId: context.tenantId,
         type: "INPUT",
         description: question.slice(0, 2000),
         metadata: { toolName, question } as any,
@@ -255,10 +457,9 @@ export async function executeTool(
       },
     });
 
-    await prisma.run.update({
-      where: { id: context.runId },
-      data: { status: "WAITING_APPROVAL" },
-    });
+    if (!(await enterWaitingApproval(context.runId, context.tenantId, approval.id))) {
+      return gateTransitionFailed(start);
+    }
 
     await prisma.activityLog.create({
       data: {
@@ -342,17 +543,18 @@ export async function executeTool(
     const approval = await prisma.approval.create({
       data: {
         runId: context.runId,
+        tenantId: context.tenantId, // SEC-BRA-05
         type: "EXTERNAL_CONTROL",
         description: description.slice(0, 2000),
-        metadata: { toolName, connectionId, action, targetId } as any,
+        // BRA-UX-API-01c: riskLevel registry meta'sından; TRIGGER geri alınamaz, PAUSE/RESUME birbirinin tersi.
+        metadata: { toolName, connectionId, action, targetId, riskLevel: meta.riskLevel, reversible: action !== "TRIGGER" } as any,
         status: "PENDING",
       },
     });
 
-    await prisma.run.update({
-      where: { id: context.runId },
-      data: { status: "WAITING_APPROVAL" },
-    });
+    if (!(await enterWaitingApproval(context.runId, context.tenantId, approval.id))) {
+      return gateTransitionFailed(start);
+    }
 
     await prisma.activityLog.create({
       data: {
@@ -431,53 +633,114 @@ export async function executeTool(
       ? `Approval required for tool: ${toolName}`
       : `Action needs your approval: ${toolName}`;
 
-    const approval = await prisma.approval.create({
-      data: {
-        runId: context.runId,
-        type: "SPEND",
-        description,
-        amountUsd: amountUsd as any,
-        metadata: { toolName, input: scopedInput, costField, moneyTouching: money, autonomy } as any,
-        status: "PENDING",
-      },
-    });
+    // Exact-action approval (BRA-P0-05, ADR-0002; EXACT_ACTION_APPROVAL, default
+    // OFF). When on, an APPROVED approval is a single-use grant bound to this
+    // tenant + run + the canonical action (tool, input, amount): the call runs
+    // only if it can atomically spend such a grant, otherwise a new PENDING
+    // approval is stamped with nonce + action hash + expiry. A changed input
+    // hashes differently, so an old approval cannot authorise it.
+    let exactStamp: ApprovalStamp | undefined;
+    let grantConsumed = false;
+    if (isExactActionApprovalEnabled()) {
+      try {
+        const action: ExactAction = {
+          tenantId: context.tenantId,
+          runId: context.runId,
+          type: "SPEND",
+          toolName,
+          input: scopedInput,
+          amountUsd,
+        };
+        const actionHash = computeActionHash(action);
+        const grant = await consumeGrant(prisma, { tenantId: context.tenantId, runId: context.runId, actionHash });
+        if (grant.ok) {
+          grantConsumed = true;
+          await prisma.activityLog.create({
+            data: {
+              tenantId: context.tenantId,
+              actor: "system",
+              action: "approval.consumed",
+              resource: "approval",
+              resourceId: grant.approvalId,
+              details: { toolName, runId: context.runId, amountUsd } as any,
+            },
+          });
+          logger.info({ toolName, approvalId: grant.approvalId }, "Exact-action grant consumed — tool may run");
+        } else {
+          exactStamp = buildApprovalStamp(action);
+        }
+      } catch (err) {
+        // Un-hashable input (BigInt, non-finite number, …): never run it unbound.
+        logger.error({ toolName, err: (err as Error).message }, "Exact-action binding failed — blocking");
+        return {
+          output: null,
+          status: "FAILED",
+          durationMs: Date.now() - start,
+          error: `Tool "${toolName}" input cannot be bound to an approval`,
+        };
+      }
+    }
 
-    // Drive the run into WAITING_APPROVAL so the next step-group iteration
-    // in the runner sees a non-RUNNING status and exits cleanly. Without
-    // this the BullMQ job kept iterating and the run completed normally
-    // while the approval row sat orphaned at PENDING — see ISS-022.
-    await prisma.run.update({
-      where: { id: context.runId },
-      data: { status: "WAITING_APPROVAL" },
-    });
+    if (!grantConsumed) {
+      const approval = await prisma.approval.create({
+        data: {
+          runId: context.runId,
+          tenantId: context.tenantId, // SEC-BRA-05 (exactStamp below writes the same value)
+          type: "SPEND",
+          description,
+          amountUsd: amountUsd as any,
+          // BRA-UX-API-01c: riskLevel registry meta'sından; para harcayan çağrı geri alınamaz (geri alma yolu yok),
+          // diğer araçlar için kaynak yok → alan yazılmaz (details.reversible null).
+          metadata: {
+            toolName,
+            input: scopedInput,
+            costField,
+            moneyTouching: money,
+            autonomy,
+            riskLevel: meta?.riskLevel,
+            ...(money ? { reversible: false } : {}),
+          } as any,
+          status: "PENDING",
+          ...(exactStamp ?? {}),
+        },
+      });
 
-    await prisma.activityLog.create({
-      data: {
-        tenantId: context.tenantId,
-        actor: "system",
-        action: "approval.requested",
-        resource: "tool_call",
-        details: { toolName, approvalId: approval.id, amountUsd } as any,
-      },
-    });
+      // Drive the run into WAITING_APPROVAL so the next step-group iteration
+      // in the runner sees a non-RUNNING status and exits cleanly. Without
+      // this the BullMQ job kept iterating and the run completed normally
+      // while the approval row sat orphaned at PENDING — see ISS-022.
+      if (!(await enterWaitingApproval(context.runId, context.tenantId, approval.id))) {
+        return gateTransitionFailed(start);
+      }
 
-    // Fire push notifications to every device in the tenant whose user
-    // has the `approvals` pref enabled (default ON). Fire-and-forget —
-    // we never want a push hiccup to block the executor.
-    notifyTenantUsers(context.tenantId, "approval", {
-      title: "Approval needed",
-      body: `Tool ${toolName} is waiting for your decision`,
-      localized: { title: "push.toolApprovalTitle", body: "push.toolApprovalBody", parameters: { toolName } },
-      data: { kind: "approval", id: approval.id, toolName },
-    }).catch(() => {});
+      await prisma.activityLog.create({
+        data: {
+          tenantId: context.tenantId,
+          actor: "system",
+          action: "approval.requested",
+          resource: "tool_call",
+          details: { toolName, approvalId: approval.id, amountUsd } as any,
+        },
+      });
 
-    logger.info({ toolName, approvalId: approval.id }, "Tool requires approval — paused");
-    return {
-      output: null,
-      status: "PENDING_APPROVAL",
-      durationMs: Date.now() - start,
-      approvalId: approval.id,
-    };
+      // Fire push notifications to every device in the tenant whose user
+      // has the `approvals` pref enabled (default ON). Fire-and-forget —
+      // we never want a push hiccup to block the executor.
+      notifyTenantUsers(context.tenantId, "approval", {
+        title: "Approval needed",
+        body: `Tool ${toolName} is waiting for your decision`,
+        localized: { title: "push.toolApprovalTitle", body: "push.toolApprovalBody", parameters: { toolName } },
+        data: { kind: "approval", id: approval.id, toolName },
+      }).catch(() => {});
+
+      logger.info({ toolName, approvalId: approval.id }, "Tool requires approval — paused");
+      return {
+        output: null,
+        status: "PENDING_APPROVAL",
+        durationMs: Date.now() - start,
+        approvalId: approval.id,
+      };
+    }
   }
 
   // --- Rate limit check ---

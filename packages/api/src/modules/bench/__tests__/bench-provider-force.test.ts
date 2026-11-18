@@ -155,7 +155,7 @@ describe("resolveBenchProviderConfig — env key resolution", () => {
 // ── Skip path: no key → report, no error, no phantom row ──
 
 describe("runBenchSuite — skip without keys", () => {
-  it("skips a cloud combination with no key: reports, spends nothing, writes no BenchRun row", async () => {
+  it("skips a cloud combination with no key: reports, spends nothing, writes only a SKIPPED audit row", async () => {
     const result = await runBenchSuite({
       suiteSlug: "agent-reasoning",
       provider: "GROQ",
@@ -169,7 +169,13 @@ describe("runBenchSuite — skip without keys", () => {
       reason: expect.stringContaining("BENCH_GROQ_KEY"),
     });
     expect(runAgentLoopMock).not.toHaveBeenCalled();
-    expect(benchRunCreate).not.toHaveBeenCalled();
+    expect(benchRunCreate).toHaveBeenCalledExactlyOnceWith({
+      data: expect.objectContaining({
+        suiteId: "suite-1", provider: "GROQ", scoresByTask: [], scoreNormalised: 0,
+        costUsd: 0, status: "SKIPPED", errorCode: "NO_CANDIDATE_KEY",
+        durationMs: expect.any(Number),
+      }),
+    });
   });
 
   it("skips when the judge (ANTHROPIC) key is missing — BEFORE burning candidate tokens", async () => {
@@ -187,7 +193,9 @@ describe("runBenchSuite — skip without keys", () => {
       reason: expect.stringContaining("judge"),
     });
     expect(runAgentLoopMock).not.toHaveBeenCalled();
-    expect(benchRunCreate).not.toHaveBeenCalled();
+    expect(benchRunCreate).toHaveBeenCalledExactlyOnceWith({
+      data: expect.objectContaining({ status: "SKIPPED", errorCode: "NO_JUDGE_KEY", scoreNormalised: 0 }),
+    });
   });
 });
 
@@ -254,5 +262,62 @@ describe("runBenchSuite — provider×model genuinely forced (D-010)", () => {
         ],
       }),
     });
+  });
+});
+
+// ── BRA-P1-05-N2: failure audit row ──
+
+describe("runBenchSuite — FAILED audit row", () => {
+  it("writes a FAILED row (constant code, no raw error) and rethrows the original error", async () => {
+    process.env.BENCH_GROQ_KEY = "gsk-bench";
+    runAgentLoopMock.mockRejectedValue(new Error("boom sk-secret-123 stack"));
+
+    await expect(
+      runBenchSuite({ suiteSlug: "agent-reasoning", provider: "GROQ", model: "m", notes: "n" }),
+    ).rejects.toThrow("boom");
+
+    expect(benchRunCreate).toHaveBeenCalledExactlyOnceWith({
+      data: expect.objectContaining({
+        suiteId: "suite-1", provider: "GROQ", model: "m", scoresByTask: [], scoreNormalised: 0,
+        costUsd: 0, status: "FAILED", errorCode: "RUN_ERROR", notes: "n",
+        durationMs: expect.any(Number),
+      }),
+    });
+    expect(JSON.stringify(benchRunCreate.mock.calls[0][0])).not.toContain("sk-secret");
+  });
+
+  it("FAILED row carries the cost spent before the failure", async () => {
+    process.env.BENCH_GROQ_KEY = "gsk-bench";
+    let n = 0;
+    runAgentLoopMock.mockImplementation(async (cfg: { aiConfigOverride?: { provider: string } }) => {
+      if (++n > 2) throw new Error("boom");
+      return cfg.aiConfigOverride?.provider === "ANTHROPIC"
+        ? loopResult({ finalContent: '{"score": 6, "notes": "ok"}', totalCostUsd: 0.002 })
+        : loopResult();
+    });
+    await expect(
+      runBenchSuite({ suiteSlug: "agent-reasoning", provider: "GROQ", model: "m" }),
+    ).rejects.toThrow("boom");
+    const row = benchRunCreate.mock.calls[0][0].data;
+    expect(row.status).toBe("FAILED");
+    expect(row.costUsd).toBeCloseTo(0.012, 9);
+  });
+
+  it("a failing audit-row write never masks the original error", async () => {
+    process.env.BENCH_GROQ_KEY = "gsk-bench";
+    runAgentLoopMock.mockRejectedValue(new Error("boom"));
+    benchRunCreate.mockRejectedValue(new Error("db down"));
+    await expect(
+      runBenchSuite({ suiteSlug: "agent-reasoning", provider: "GROQ", model: "m" }),
+    ).rejects.toThrow("boom");
+  });
+
+  it("writes no row when the suite is unknown", async () => {
+    process.env.BENCH_GROQ_KEY = "gsk-bench";
+    benchSuiteFindUnique.mockResolvedValue(null);
+    await expect(
+      runBenchSuite({ suiteSlug: "nope", provider: "GROQ", model: "m" }),
+    ).rejects.toThrow("not found");
+    expect(benchRunCreate).not.toHaveBeenCalled();
   });
 });

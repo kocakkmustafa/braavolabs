@@ -20,6 +20,13 @@ describe("existing IAP limiter outage contract", () => {
       });
     }
   }
+  it("rl:jobs:plan (LLM tetikleyen plan ucu) Redis çökünce fail-closed 503", async () => {
+    m.incr.mockRejectedValue(new Error("synthetic Redis unavailable"));
+    const res = response(); const next = vi.fn();
+    await rateLimit({ windowMs: 60_000, maxRequests: 20, keyPrefix: "rl:jobs:plan" })({ auth: { tenantId: "fixture" } } as any, res as any, next);
+    expect(res.status).toHaveBeenCalledWith(503);
+    expect(next).not.toHaveBeenCalled();
+  });
   it("preserves normal IAP requests and their existing bucket headers", async () => {
     const res = response(); const next = vi.fn();
     await rateLimit({ windowMs: 60_000, maxRequests: 20, keyPrefix: "rl:iap:verify" })({ auth: { tenantId: "fixture" } } as any, res as any, next);

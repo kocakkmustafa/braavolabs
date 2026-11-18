@@ -2,12 +2,15 @@ import { Router } from "express";
 import { authMiddleware } from "../../middleware/auth";
 import { prisma, tenantTx } from "../../lib/db";
 import { AppError } from "../../middleware/error";
+import { toPublicCompany } from "../company/redact";
 import { rateLimit } from "../../middleware/rateLimit";
 import { z } from "zod";
 import { enqueueRun, registerSchedule, removeSchedule } from "./runner";
 import { scheduleQueue } from "../../lib/queue";
 import * as cron from "node-cron";
 import { claimQuota } from "../billing/metering";
+import { parseJobBudget } from "../run/job-budget";
+import type { Prisma } from "@prisma/client";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { getTenantAIConfig, chatCompletion, type AIProviderType, type ChatMessage } from "../../services/ai-client";
@@ -438,6 +441,14 @@ pipelineRouter.post("/:id/run", runTriggerLimiter, async (req, res, next) => {
       );
     }
 
+    // ── Optional job budget (BRA-P0-02c-1, ADR-0002) ─────────────────────
+    // Validated BEFORE the quota claim: a malformed budget must not consume a
+    // quota unit (the claim is not refunded). Absent/null → NULL (no limit).
+    const parsedBudget = parseJobBudget(req.body?.budget);
+    if (!parsedBudget.ok) {
+      throw new AppError(400, `Invalid budget: ${parsedBudget.error}`);
+    }
+
     // ── Atomic quota claim (ISS-010) ────────────────────────────────────
     // Single SQL statement claims one run from the meter or refuses if over
     // limit. Closes the read-then-write TOCTOU window that previously let
@@ -456,6 +467,12 @@ pipelineRouter.post("/:id/run", runTriggerLimiter, async (req, res, next) => {
         status: "PENDING",
         trigger: "manual",
         input: req.body.input ?? {},
+        // Owner is the already-resolved Pipeline → Company (no extra query).
+        tenantId: pipeline.company.tenantId,
+        workspaceId: pipeline.companyId,
+        // BRA-P1-06-N2: varsayılan owner = koşuyu başlatan kullanıcı.
+        ownerUserId: req.auth!.userId,
+        ...(parsedBudget.budget ? { jobBudget: parsedBudget.budget as Prisma.InputJsonValue } : {}),
       },
     });
 
@@ -547,7 +564,7 @@ pipelineRouter.get("/:id", async (req, res, next) => {
     if (!pipeline || pipeline.company.tenantId !== req.auth!.tenantId) {
       throw new AppError(404, "Pipeline not found");
     }
-    res.json(pipeline);
+    res.json({ ...pipeline, company: toPublicCompany(pipeline.company) });
   } catch (err) { next(err); }
 });
 
@@ -753,6 +770,68 @@ pipelineRouter.post("/:id/revisions/restore", async (req, res, next) => {
     res.json(restored);
   } catch (err) { next(err); }
 });
+
+// POST /api/v1/pipelines/:id/schedule/pause|resume — BRA-P1-04b.
+// Pause = enabled:false + tear the BullMQ scheduler down; resume = enabled:true
+// + re-register it. Both are idempotent (repeat → 200, same state). Only a
+// SCHEDULED pipeline with a valid cron has a schedule to pause/resume (else
+// 409). Tenant isolation mirrors the other :id routes (foreign → 404).
+async function setScheduleEnabled(
+  req: import("express").Request,
+  res: import("express").Response,
+  next: import("express").NextFunction,
+  enable: boolean,
+) {
+  try {
+    const pipeline = await prisma.pipeline.findUnique({
+      where: { id: req.params.id as string },
+      include: { company: true },
+    });
+    if (!pipeline || !pipeline.company || pipeline.company.tenantId !== req.auth!.tenantId) {
+      throw new AppError(404, "Pipeline not found");
+    }
+    if (pipeline.trigger !== "SCHEDULED" || !pipeline.schedule || !cron.validate(pipeline.schedule)) {
+      throw new AppError(409, "Pipeline has no registered schedule");
+    }
+
+    // Ordering (BRA-P1-04b review):
+    //  - resume: register FIRST; if it throws the DB is untouched (enabled keeps
+    //    its old value, so DB never claims "running" without a scheduler).
+    //  - pause: DB false FIRST, then removeSchedule. If removeSchedule throws the
+    //    response is 500 but enabled=false already holds (safe direction: the
+    //    tick re-checks enabled and no-ops) and an idempotent retry completes it.
+    if (enable) {
+      await registerSchedule({ id: pipeline.id, schedule: pipeline.schedule });
+    }
+    // Tenant-scoped write: id alone is never enough.
+    const { count } = await prisma.pipeline.updateMany({
+      where: { id: pipeline.id, company: { tenantId: req.auth!.tenantId } },
+      data: { enabled: enable },
+    });
+    if (count === 0) {
+      throw new AppError(404, "Pipeline not found");
+    }
+    if (!enable) {
+      await removeSchedule(pipeline.id);
+    }
+
+    await prisma.activityLog.create({
+      data: {
+        tenantId: req.auth!.tenantId,
+        actor: req.auth!.userId,
+        action: enable ? "pipeline.schedule.resume" : "pipeline.schedule.pause",
+        resource: "pipeline",
+        resourceId: pipeline.id,
+        details: { wasEnabled: pipeline.enabled },
+      },
+    });
+
+    res.json({ id: pipeline.id, enabled: enable, schedule: pipeline.schedule });
+  } catch (err) { next(err); }
+}
+
+pipelineRouter.post("/:id/schedule/pause", (req, res, next) => setScheduleEnabled(req, res, next, false));
+pipelineRouter.post("/:id/schedule/resume", (req, res, next) => setScheduleEnabled(req, res, next, true));
 
 // DELETE /api/v1/pipelines/:id — delete pipeline
 pipelineRouter.delete("/:id", async (req, res, next) => {

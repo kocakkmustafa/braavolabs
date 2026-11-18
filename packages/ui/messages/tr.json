@@ -21,7 +21,9 @@
     "billing": "Faturalandırma",
     "settings": "Ayarlar",
     "newWorkspace": "Yeni Çalışma Alanı",
-    "quickStart": "Hızlı Başlangıç"
+    "quickStart": "Hızlı Başlangıç",
+    "inbox": "Gelen kutusu",
+    "start": "Yeni iş"
   },
   "features": {
     "badge": "PLATFORM YETKİNLİKLERİ",
@@ -85,7 +87,13 @@
         "message": "Taslak mesaj",
         "content": "Üretilen içerik"
       },
-      "artifactAiLabel": "Yapay zekâ üretimi"
+      "artifactAiLabel": "Yapay zekâ üretimi",
+      "loading": "Onaylar yükleniyor…",
+      "loadErrorTitle": "Onaylar yüklenemedi",
+      "loadErrorBody": "Sunucu doğru yanıt vermedi; bekleyen onaylar olabilir. Bu boş bir liste değildir. Yeniden dene.",
+      "refreshErrorTitle": "Onaylar yenilenemedi",
+      "refreshErrorBody": "Aşağıdaki liste güncel olmayabilir. Yeniden dene.",
+      "retryLoad": "Yeniden dene"
     },
     "companies": {
       "title": "Çalışma Alanları",
@@ -1067,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "Başlangıç",
-      "runs": "Çalıştırmalar"
+      "runs": "Çalıştırmalar",
+      "models": "Modeller"
     },
     "cost": {
       "estimateLabel": "Bu çalıştırma için tahmini {low}–{high}",
@@ -1206,6 +1215,619 @@
     },
     "register": {
       "freePlan": "Ücretsiz plan"
+    },
+    "inbox": {
+      "title": "Gelen kutusu",
+      "subtitle": "Tüm işler tek yerde: çalışanlar, sizi bekleyenler, biten ve takılanlar.",
+      "tabsLabel": "İş kovaları",
+      "bucket": {
+        "working": "Çalışıyor",
+        "needs_approval": "Onay bekliyor",
+        "done": "Bitti",
+        "stuck": "Takıldı"
+      },
+      "loading": "Yükleniyor…",
+      "emptyWorking": "Şu an çalışan bir iş yok.",
+      "emptyNeedsApproval": "Onay bekleyen iş yok.",
+      "emptyDone": "Henüz biten iş yok.",
+      "emptyStuck": "Takılan bir iş yok.",
+      "errorTitle": "İşler yüklenemedi",
+      "errorBody": "Sunucu doğru yanıt vermedi; bu liste gerçekten boş olmayabilir. Yeniden deneyin.",
+      "approvalsErrorTitle": "Bekleyen onaylar yüklenemedi",
+      "retryLoad": "Yeniden dene",
+      "loadMore": "Daha fazla yükle",
+      "loadingMore": "Yükleniyor…",
+      "loadMoreError": "Daha fazlası yüklenemedi. Yeniden deneyin.",
+      "approvalsTitle": "Bekleyen onaylar",
+      "jobsTitle": "İşler",
+      "approvalsEmpty": "Bekleyen onay yok.",
+      "approve": "Onayla",
+      "reject": "Reddet",
+      "deciding": "Gönderiliyor…",
+      "amount": "Tutar: {value}",
+      "openRun": "Koşuyu aç",
+      "approvalUntitled": "Onay isteği",
+      "approvalFailed": "Karar kaydedilmedi. Yeniden deneyin.",
+      "approvalConflict": "Bu onay zaten karara bağlanmış ya da değişmiş. Listeyi yenileyin.",
+      "jobUntitled": "Adsız iş",
+      "cost": "Maliyet {value}",
+      "updated": "Güncellendi {value}",
+      "action": {
+        "resume": "Devam et",
+        "pause": "Duraklat",
+        "stop": "Durdur",
+        "retry": "Yeniden dene",
+        "steer": "Yönlendir",
+        "receipt": "Makbuz"
+      },
+      "steerLabel": "Ajana mesaj",
+      "steerPlaceholder": "Kısa talimat…",
+      "steerSend": "Gönder",
+      "steerSent": "Mesaj gönderildi.",
+      "actionOk": "Eylem gönderildi.",
+      "actionFailed": "Eylem başarısız oldu. Yeniden deneyin.",
+      "actionForbidden": "Bu eylem için yetkiniz yok.",
+      "conflict": {
+        "retry_disabled": "Yeniden deneme bu çalışma alanında henüz açık değil.",
+        "run_still_running": "Bu iş hâlâ çalışıyor. Önce durdurun, sonra yeniden deneyin.",
+        "already_retrying": "Yeniden deneme zaten sürüyor.",
+        "approval_pending": "Bir onay bekliyor. Önce onu karara bağlayın.",
+        "retry_budget_exhausted": "Bu işin yeniden deneme sınırı ya da bütçesi doldu.",
+        "run_not_retryable": "Bu iş mevcut durumunda yeniden denenemez.",
+        "generic": "İşin durumu değişti ya da bir onay bekliyor. Yenileyip tekrar deneyin."
+      },
+      "receipt": {
+        "title": "Makbuz",
+        "loading": "Makbuz yükleniyor…",
+        "none": "Henüz makbuz yok. İş bitince yazılır.",
+        "error": "Makbuz yüklenemedi.",
+        "verified": "DOĞRULANDI",
+        "unverified": "DOĞRULANMADI",
+        "verifiedHint": "Gerekli kanıt türleri doğrulandı.",
+        "unverifiedHint": "Doğrulanmadı: kanıt eksik ya da yetersiz.",
+        "noStatus": "Sonuç durumu yok",
+        "outcome": "Sonuç: {value}",
+        "noEvidence": "Kanıt eklenmemiş.",
+        "passed": "geçti",
+        "failed": "kaldı",
+        "hide": "Makbuzu gizle"
+      },
+      "state": {
+        "COMPLETED": "Tamamlandı",
+        "FAILED": "Başarısız",
+        "CANCELLED": "İptal edildi"
+      },
+      "artifactLabel": "Onaylanacak içerik",
+      "expires": "Son geçerlilik {value}",
+      "answerLabel": "Ajana yanıtınız (zorunlu)",
+      "claimFailed": "{run} için onayınız kaydedildi, ancak iş devam ettirilemedi ve başarısız kalabilir. Takıldı sekmesinden kontrol edip yeniden deneyin.",
+      "dismiss": "Kapat",
+      "approvalForbidden": "Onay kararı vermek için yetkiniz yok.",
+      "actionRejected": "İş bu eyleme izin veren bir durumda değil."
+    },
+    "jobs": {
+      "title": "İşler",
+      "drawerLabel": "İş: {title}",
+      "close": "Kapat",
+      "viewLabel": "İş kipi",
+      "tab": {
+        "summary": "Özet",
+        "output": "Çıktı",
+        "kaput": "Kaput"
+      },
+      "detail": {
+        "label": "Ayrıntı",
+        "simple": "Sade",
+        "full": "Tam"
+      },
+      "state": {
+        "DRAFT": "taslak",
+        "PLANNED": "planlandı",
+        "READY": "hazır",
+        "RUNNING": "çalışıyor",
+        "NEEDS_APPROVAL": "onay bekliyor",
+        "RESUMING": "sürdürülüyor",
+        "PAUSED": "duraklatıldı",
+        "FAILED": "başarısız",
+        "CANCELLED": "iptal edildi",
+        "COMPLETED": "bitti",
+        "unknown": "bilinmiyor"
+      },
+      "risk": {
+        "low": "düşük",
+        "medium": "orta",
+        "high": "yüksek"
+      },
+      "riskLabel": "Risk: {value}",
+      "verified": "✔ Doğrulandı",
+      "unverified": "Doğrulanmadı",
+      "noVerification": "Doğrulama bilgisi yok",
+      "field": {
+        "status": "Durum",
+        "cost": "Maliyet",
+        "company": "Şirket"
+      },
+      "fullInfo": "Kimlik: {id} · durum: {state} · güncellendi: {updated}",
+      "kaput": {
+        "loading": "Kaput yükleniyor…",
+        "error": "Kaput okunamadı.",
+        "summary": "Adımlar ({steps}) · Araç çağrısı: {tools} · Maliyet: {cost} · El değiştirme: {handoffs}",
+        "noSteps": "Bu işte henüz adım kaydı yok.",
+        "unknown": "bilgi yok",
+        "later": "Yönlendirme ve yetki dökümü sonraki sürümde gelecek.",
+        "runErrorTitle": "Bu iş bir hatayla durdu",
+        "runErrorPlain": "İşin altındaki Yeniden dene düğmesiyle tekrar deneyebilirsin.",
+        "budget": "Kullanılan bütçe: {cost} / {budget} ({percent})",
+        "agent": "Ajan rolü",
+        "duration": "Süre",
+        "stepCost": "Maliyet",
+        "share": "toplamın {percent}'i",
+        "reasoning": "Gerekçe",
+        "tools": "Araç çağrıları",
+        "noTools": "Araç çağrısı yok",
+        "model": "Model",
+        "noModel": "Bu adım için model verisi yok",
+        "mode": "Model kipi",
+        "modes": {
+          "DIRECT": "Doğrudan",
+          "CASCADE": "Kademeli (önce ucuz)",
+          "COMPARE": "Karşılaştırma"
+        },
+        "tried": "Denenen modeller",
+        "tokens": "Token",
+        "tokensValue": "{input} giriş / {output} çıkış",
+        "log": "Günlük",
+        "noLog": "Bu adım için günlük verisi yok",
+        "activity": {
+          "title": "İş etkinliği",
+          "actorSystem": "Sistem",
+          "actorUser": "Ekip üyesi",
+          "more": "Son {count} olay gösteriliyor; daha fazlası var.",
+          "truncated": "Bazı olaylar listelenmedi."
+        },
+        "logEvent": {
+          "started": "Başladı: {time}",
+          "ended": "Bitti: {time}"
+        },
+        "dag": {
+          "title": "Adım bağımlılıkları",
+          "noData": "Bu iş için bağımlılık verisi yok. Adımlar aşağıda sırayla listelenir.",
+          "sourceOrder": "İşin adım sırasından çıkarıldı: aynı aşamadaki adımlar paralel çalışır; her aşama öncekini bekler.",
+          "sourceApi": "Bağımlılıklar her adım için bildirildiği gibi.",
+          "inconsistent": "Bağımlılık verisi tutarsız; bazı bağlantılar atlandı.",
+          "truncated": "{total} adımdan ilk {shown} tanesi gösteriliyor.",
+          "summary": "{levels} aşamada {steps} adım, {edges} bağımlılık",
+          "scroll": "Adım bağımlılık grafiği, kaydırılabilir",
+          "listLabel": "Adımlar ve bağımlılıkları",
+          "dependsOn": "Bağlı olduğu adım: {steps}",
+          "noDeps": "Bağımlılık yok",
+          "changed": "Hat kaydı bu koşudan sonra güncellenmiş; adım sırası doğrulanamadığı için bağımlılık grafiği çizilmedi.",
+          "unverified": "İşin güncel tanımına göre (değişiklik zamanı bilinmiyor)."
+        },
+        "seconds": "{value} sn",
+        "millis": "{value} ms",
+        "stepStatus": {
+          "completed": "Tamamlandı",
+          "running": "Çalışıyor",
+          "failed": "Başarısız",
+          "pending": "Bekliyor",
+          "skipped": "Atlandı",
+          "cancelled": "İptal edildi",
+          "unknown": "Bilinmiyor"
+        },
+        "errorLabel": "Hata",
+        "overBudget": "Bütçe aşıldı"
+      },
+      "stuckNote": "Kalp atışı izleme kapalıyken bazı takılmalar henüz görünmüyor.",
+      "openJob": "{title} işini aç",
+      "openFull": "Tüm ayrıntı sayfasını aç"
+    },
+    "workspace": {
+      "back": "İşlere dön",
+      "classic": "Klasik ayrıntı görünümü",
+      "loading": "İş yükleniyor…",
+      "errorTitle": "İş açılamadı",
+      "errorBody": "Bağlantını kontrol edip yeniden dene.",
+      "notFound": "Bu iş bulunamadı ya da erişimin yok.",
+      "label": "İş çalışma alanı: {title}"
+    },
+    "approvalCenter": {
+      "title": "Onay ve güvenlik merkezi",
+      "subtitle": "Karar vermeden önce her eylemin tam olarak ne yapacağını gör.",
+      "classic": "Klasik onay görünümü",
+      "count": "{count} bekliyor",
+      "live": "{count} onay bekliyor",
+      "approvedNotice": "Onaylandı.",
+      "rejectedNotice": "Reddedildi.",
+      "type": {
+        "SPEND": "Harcama",
+        "INPUT": "Soru",
+        "HANDOFF": "El değiştirme",
+        "EXTERNAL_CONTROL": "Dış kontrol",
+        "other": "Onay"
+      },
+      "open": "Onayı incele: {title}",
+      "sheetLabel": "Onay ayrıntıları: {title}",
+      "close": "Kapat",
+      "field": {
+        "what": "Ne yapacak",
+        "tool": "Araç",
+        "permissions": "Yetki kapsamı",
+        "data": "Aktarılan veri",
+        "risk": "Risk",
+        "amount": "Tutar",
+        "reversible": "Geri alma",
+        "draft": "Taslak",
+        "requested": "İstenme zamanı"
+      },
+      "riskLevel": {
+        "low": "Düşük",
+        "medium": "Orta",
+        "high": "Yüksek"
+      },
+      "reversibleYes": "Karşıt eylemle döndürülebilir",
+      "reversibleNo": "Geri alınamaz",
+      "unknown": "Bilgi yok",
+      "danger": {
+        "tag": "Doğrulama gerekir",
+        "title": "Bu eylem ikinci bir adım ister",
+        "body": "Para harcıyor, yüksek riskli ya da geri alınamaz.",
+        "phraseLabel": "Onayla'yı açmak için “{phrase}” yaz",
+        "phrase": "Gönderimi onaylıyorum",
+        "reasonLabel": "Sebep (kararınla birlikte kaydedilir)"
+      },
+      "oneByOne": "Her onay tek tek karara bağlanır.",
+      "alreadyDecided": "Bu onay zaten karara bağlanmış. Liste yenilendi.",
+      "forbidden": "Bu onayı karara bağlama yetkin yok. Liste yenilendi."
+    },
+    "plan": {
+      "title": "Bir iş tarif et",
+      "workspace": "Çalışma alanı",
+      "workspaceChoose": "Çalışma alanı seç",
+      "messageLabel": "Ne yapılmasını istiyorsun?",
+      "messagePlaceholder": "Örn. haftalık satış raporunu hazırla",
+      "suggest": "Plan öner",
+      "planning": "Plan hazırlanıyor…",
+      "empty": "Bu mesaj bir iş talebi gibi görünmüyor; plan önerilmedi.",
+      "retry": "Yeniden dene",
+      "steps": "Adımlar",
+      "tools": "Araçlar",
+      "risk": {
+        "label": "Risk",
+        "low": "Düşük",
+        "medium": "Orta",
+        "high": "Yüksek"
+      },
+      "cost": "Tahmini maliyet (garanti değil)",
+      "costUnknown": "Bu model için fiyat bilinmiyor; maliyet aralığı verilemedi",
+      "approvalStep": "onay gerekli",
+      "run": "Çalıştır",
+      "cancel": "Vazgeç",
+      "starting": "Başlatılıyor…",
+      "approvalGate": "Bu iş onay gerektirir; adım onay kapısı şu an kapalı.",
+      "planChanged": "Plan değişti. Lütfen yeniden plan öner.",
+      "workspaceRequired": "Önce bir çalışma alanı seç.",
+      "replan": "Planı yeniden öner",
+      "noCompany": "Önce bir şirket oluştur.",
+      "createCompany": "Şirket oluştur",
+      "keyConflict": "Bu istek anahtarı başka bir planla kullanılmış. Planı yeniden öner.",
+      "companyInactive": "Şirket duraklatılmış veya arşivlenmiş; yeni iş başlatılamaz.",
+      "noAgent": "Bu çalışma alanında işi yürütecek ajan yok.",
+      "validation": "İstek doğrulanamadı. Mesajı kontrol edip yeniden dene."
+    },
+    "intent": {
+      "title": "Başla",
+      "label": "Ne yapmak istiyorsun?",
+      "placeholder": "Bir iş tarif et, soru sor ya da bir ajan iste…",
+      "barLabel": "Niyet çubuğu",
+      "understood": "Anladığım:",
+      "kind": {
+        "chat": "Sohbet",
+        "job": "İş",
+        "agent": "Ajan"
+      },
+      "submit": {
+        "chat": "Sohbet başlat",
+        "job": "Planla",
+        "agent": "Ajan iste"
+      },
+      "lowConfidence": "Emin değilim: sohbet olarak ele alınır; iş için “İş”i seç.",
+      "previewNote": "“Anladığım” yerel bir ipucudur; plan adımında sunucu kendi kararını verir.",
+      "chat": {
+        "unavailable": "Sohbet henüz yok: bu sürümde yalnız iş planlama ve ajan oluşturma çalışır. Mesajın iş kaydı oluşturmadı; harcama yok.",
+        "asJob": "İş olarak planla"
+      },
+      "plan": {
+        "tool": "araç: {tool}",
+        "approvalStep": "onay gerekli, {risk} risk",
+        "modelRow": "Adım başına model satırı: henüz yok (API bekleniyor)."
+      },
+      "agent": {
+        "title": "Yeni ajan",
+        "immediate": "Bu adım ajanı hemen kaydeder: önce taslak görüp sonra oluşturma henüz yok.",
+        "create": "Ajanı hemen oluştur",
+        "working": "Ajan oluşturuluyor…",
+        "role": "rol: {role}",
+        "toolsLabel": "Araçlar",
+        "noTools": "yok",
+        "dropped": "Çıkarılan araç ({count}): {tools} bağlı değil; ajan bunlar olmadan oluşturuldu.",
+        "saved": "Ajan kaydedildi.",
+        "close": "Kapat",
+        "tooShort": "Ajan tarifi en az 10 karakter olmalı: ne yapacağını biraz daha anlat.",
+        "maybeSaved": "Bağlantı koptuysa ajan zaten kaydedilmiş olabilir: yeniden denemeden önce ajan listesine bak."
+      }
+    },
+    "models": {
+      "labelSep": ": ",
+      "pairSep": " · ",
+      "title": "Modeller ve bağlantılar",
+      "subtitle": "Şirketinizin hangi modelleri kullandığı, kimin erişebildiği ve bu ay ne kadar tuttuğu. Salt okunur.",
+      "company": "Şirket",
+      "live": "{count} model listelendi",
+      "errorTitle": "Modeller yüklenemedi",
+      "errorBody": "Model listesi okunamadı. Yeniden deneyin.",
+      "retry": "Yeniden dene",
+      "noCompanyTitle": "Henüz şirket yok",
+      "noCompanyBody": "Modellerini burada görmek için bir şirket oluşturun.",
+      "loading": "Modeller yükleniyor…",
+      "autoLabel": "Otomatik model seçimi",
+      "autoOn": "Açık",
+      "autoOff": "Kapalı",
+      "unknown": "Bilinmiyor",
+      "emptyTitle": "Kullanılan model yok",
+      "emptyBody": "Bu şirketteki bir ajanın modeli olunca burada görünür.",
+      "provider": "Sağlayıcı",
+      "access": "Erişim",
+      "cost": "Bu ay maliyet",
+      "runs": "Bu ay koşu",
+      "runCount": "Bu ay koşu: {count}",
+      "costNote": "Maliyet her ajanın şu anki modeline atfedilir; model değiştirildiyse önceki koşular yeni modele yazılır. Ay, 1'inde UTC gece yarısı başlar.",
+      "costSince": "{from} tarihinden beri.",
+      "updatedAt": "Güncellendi: {time}.",
+      "linksTitle": "Yönet",
+      "source": {
+        "label": "Kaynak",
+        "byok": "Kendi API anahtarın",
+        "local": "Yerel model",
+        "platform": "Platform",
+        "unknown": "Bilinmiyor"
+      },
+      "badge": {
+        "byok": "BYOK",
+        "local": "YEREL"
+      },
+      "scope": {
+        "company": "bu şirket",
+        "workspace": "bu çalışma alanı",
+        "agent": "tek ajan"
+      },
+      "mode": {
+        "read": "okuma",
+        "read_write": "okuma ve yazma"
+      },
+      "links": {
+        "own": {
+          "title": "Kendi API anahtarım",
+          "body": "Anahtarları Ayarlar → Yapay zekâ sağlayıcısı bölümünden ekleyin ya da değiştirin."
+        },
+        "local": {
+          "title": "Yerel model",
+          "body": "Kendi barındırdığınız bir uç noktayı Ayarlar → Yapay zekâ sağlayıcısı bölümünden bağlayın."
+        },
+        "compare": {
+          "title": "Modelleri karşılaştır",
+          "body": "Aynı işi birkaç modelde yan yana çalıştırın."
+        },
+        "connections": {
+          "title": "Otomasyon bağlantıları",
+          "body": "n8n, Make ve Zapier koşuları."
+        },
+        "integrations": {
+          "title": "Entegrasyonlar",
+          "body": "Slack, GitHub ve diğer araçlar."
+        }
+      },
+      "pickerTitle": "Model değiştir",
+      "pickerHelp": "Modelin nereye uygulanacağını ve hangi modelin kullanılacağını seç. Ajan: yalnız o ajan. Hesap varsayılanı: kendi modeli olmayan ajanlar kullanır.",
+      "pickerTarget": "Uygulanacak yer",
+      "pickerDefault": "Hesap varsayılanı (kendi modeli olmayan tüm ajanlar)",
+      "pickerModel": "Model",
+      "pickerApply": "Uygula",
+      "pickerSaving": "Kaydediliyor…",
+      "pickerSaved": "Kaydedildi.",
+      "pickerError": "Kaydedilemedi. Yeniden dene.",
+      "pickerLoadError": "Ajanlar veya model seçenekleri yüklenemedi.",
+      "pickerEmpty": "Henüz yapılandırılmış model yok. Ayarlar'dan anahtar ya da yerel model ekle.",
+      "pickerCurrent": "Şu an: {model}",
+      "pickerCurrentUnknown": "Şu an: Bilinmiyor",
+      "pickerLocalHint": "Yerel ve özel sağlayıcılar yalnız Ayarlar'dan seçilir.",
+      "pickerForbidden": "Bunu değiştirme yetkin yok.",
+      "pickerPlan": "Planın buna izin vermiyor."
+    },
+    "companyStatus": {
+      "title": "Şirket durumu",
+      "subtitle": "Neyin çalıştığı, takıldığı, onay beklediği ve ne tuttuğu tek satırda.",
+      "live": "{approvals} onay bekliyor, {stuck} takıldı",
+      "loading": "Şirket durumu yükleniyor…",
+      "errorTitle": "Şirket yüklenemedi",
+      "errorBody": "Şirket durumu okunamadı. Yeniden deneyin.",
+      "retry": "Yeniden dene",
+      "summaryLabel": "Şirket özeti",
+      "working": "Çalışan",
+      "stuck": "Takılan",
+      "approvals": "Onay bekleyen",
+      "done": "Biten",
+      "cost": "Maliyet",
+      "unknown": "Bilinmiyor",
+      "atLeast": "en az {count}",
+      "note": "Sayılar iş listenizdeki her durumun ilk sayfasından gelir (durum başına 25 iş); «en az» daha fazlası olduğunu gösterir. Maliyet yalnız bu işleri toplar.",
+      "costUnknownRuns": "{count} işin maliyeti okunamadı ve toplama katılmadı.",
+      "agents": "Ajanlar",
+      "agentsEmpty": "Bu şirkette henüz ajan yok.",
+      "role": "Rol",
+      "linksTitle": "Bağlantılar",
+      "links": {
+        "jobs": {
+          "title": "İşler",
+          "body": "Çalışan, takılan ve biten her şey."
+        },
+        "approvals": {
+          "title": "Onaylar",
+          "body": "Sizi bekleyenleri inceleyin."
+        },
+        "risks": {
+          "title": "Riskler",
+          "body": "Açık risk durdurmaları."
+        },
+        "integrations": {
+          "title": "Entegrasyonlar",
+          "body": "Bağlı araçlar."
+        },
+        "classic": {
+          "title": "Klasik şirket sayfası",
+          "body": "Tüm ayrıntılar, ajan oluşturucu ve ayarlar."
+        }
+      }
+    },
+    "companySummary": {
+      "title": "Tek bakış",
+      "loading": "Şirket özeti yükleniyor…",
+      "error": "Şirket özeti yüklenemedi.",
+      "retry": "Tekrar dene",
+      "empty": "Bu şirket için özet yok.",
+      "unknown": "Bilinmiyor",
+      "bucket": {
+        "working": "Çalışıyor",
+        "needs_approval": "Onay bekliyor",
+        "stuck": "Takıldı",
+        "done": "Bitti"
+      },
+      "pendingApprovals": "Bekleyen onaylar",
+      "agents": "Ajanlar",
+      "pipelines": "Pipeline'lar",
+      "monthCost": "Bu ay maliyet",
+      "budget": {
+        "title": "Aylık bütçe",
+        "noneHint": "Bu şirket için aylık bütçe belirlenmemiş.",
+        "spent": "Harcanan",
+        "limit": "Limit",
+        "remaining": "Kalan",
+        "used": "%{pct} kullanıldı",
+        "state": {
+          "none": "Bütçe yok",
+          "ok": "Yolunda",
+          "warn": "Limite yakın",
+          "over": "Bütçe aşıldı"
+        }
+      }
+    },
+    "pilotEntry": {
+      "error": {
+        "auth": "Oturumunuzun süresi doldu. Lütfen yeniden giriş yapın.",
+        "forbidden": "Bu şirketi dışa aktarma izniniz yok.",
+        "notFound": "Şirket bulunamadı.",
+        "network": "Ağ sorunu. Bağlantınızı kontrol edip yeniden deneyin.",
+        "generic": "Pilot paketi dışa aktarılamadı. Yeniden deneyin."
+      },
+      "title": "Mikro-uygulama paketi (pilot)",
+      "description": "Bu şirketin yapılandırmasının (ajanlar, akışlar, istenen bağlantı etiketleri) taşınabilir paketi ve örnek veri.",
+      "syntheticOnly": "Örnek veri sentetiktir.",
+      "export": "Pilot paketini dışa aktar",
+      "exporting": "Dışa aktarılıyor…",
+      "exported": "Pilot paketi indirildi.",
+      "previewTitle": "Paket önizlemesi",
+      "previewName": "Ad",
+      "previewAgents": "Ajanlar",
+      "previewPipelines": "Akışlar",
+      "previewRecords": "Kayıtlar",
+      "previewConnectors": "İstenen bağlantılar",
+      "noConnectors": "Yok",
+      "moreConnectors": "+{count} daha",
+      "noData": "Henüz veri yok. Önizlemek için paketi dışa aktarın.",
+      "connectorsNote": "Önizleme paketin hangi bağlantıları istediğini gösterir; eylem ve kapsam ayrıntıları dosyadadır. Gönderim/yazma yetkisi bağlayıcı kapsamıyla sınırlanır; bu paket bunu zorlamaz."
+    },
+    "codeChange": {
+      "title": "Değişiklik: {title}",
+      "titleGeneric": "Kod değişikliği",
+      "loading": "Kod değişikliği yükleniyor…",
+      "error": "Kod değişikliği yüklenemedi. Yeniden dene.",
+      "retry": "Yeniden dene",
+      "none": "Bu işte kod değişikliği kaydı yok.",
+      "filesTitle": "Dosyalar ({count})",
+      "filesNone": "Listelenen dosya yok",
+      "filesUnknown": "Dosyalar: Bilinmiyor",
+      "moreFiles": "+{count, number} dosya daha",
+      "unknown": "Bilinmiyor",
+      "totals": "Toplam: {added} {removed}",
+      "totalsAtLeast": "En az: {added} {removed}",
+      "partialNote": "Bazı dosyalarda satır sayısı yok ya da liste kısaltıldı; toplamlar alt sınırdır.",
+      "testsTitle": "Testler",
+      "testsPassed": "{count} geçti",
+      "testsFailed": "{count} kaldı",
+      "testsSkipped": "{count} atlandı",
+      "testsPassedUnknown": "geçen: Bilinmiyor",
+      "testsFailedUnknown": "kalan: Bilinmiyor",
+      "testsSkippedUnknown": "atlanan: Bilinmiyor",
+      "testsTotal": "toplam {count}",
+      "testsVerified": "Doğrulandı",
+      "testsNotVerified": "Doğrulanmadı",
+      "testsRuns": "{count, number} test koşusu",
+      "approvalLink": "Onay merkezinde karar ver",
+      "srSummary": "{title}. Dosyalar: {files}. Testler: {tests}.",
+      "stale": "Yenilenemedi; son bilinen veri gösteriliyor."
+    },
+    "agents": {
+      "title": "Ajanlar",
+      "new": "Yeni ajan",
+      "company": "Çalışma alanı",
+      "noCompany": "Önce bir çalışma alanı oluştur: ajanlar bir çalışma alanına bağlıdır.",
+      "companiesError": "Çalışma alanları yüklenemedi.",
+      "retry": "Yeniden dene",
+      "composerTitle": "Yeni ajan",
+      "describe": "Nasıl bir iş arkadaşı istiyorsun?",
+      "placeholder": "örn. Her sabah satış e-postalarını özetle",
+      "tooShort": "Ajan tarifi en az 10 karakter olmalı.",
+      "tooLong": "Tarif çok uzun (en fazla 4000 karakter).",
+      "draftButton": "Taslak",
+      "drafting": "Taslak hazırlanıyor…",
+      "draftNote": "Taslak hiçbir şey kaydetmez. Ajan yalnız Oluştur'a bastığında oluşur.",
+      "previewTitle": "Taslak önizleme",
+      "notSaved": "henüz kaydedilmedi",
+      "name": "Ad",
+      "role": "Rol",
+      "tools": "Araçlar",
+      "none": "yok",
+      "dropped": "Çıkarılan araçlar ({count}), kullanılamıyor",
+      "systemPrompt": "Yönergeler (sistem isteği)",
+      "providerLine": "Taslağı {provider} / {model} hazırladı.",
+      "create": "Oluştur",
+      "creating": "Oluşturuluyor…",
+      "discard": "Taslaktan vazgeç",
+      "created": "oluşturuldu.",
+      "maybeSaved": "Bağlantı koptuysa ajan zaten kaydedilmiş olabilir: yeniden denemeden önce listeye bak.",
+      "listTitle": "Ajanlar",
+      "listError": "Ajan listesi yüklenemedi.",
+      "empty": "Bu çalışma alanında henüz ajan yok.",
+      "status": "Durum",
+      "unknown": "Bilinmiyor",
+      "labelSep": ": ",
+      "pairSep": "·",
+      "listSep": ", ",
+      "error": {
+        "session": "Oturumun doğrulanamadı. Yeniden giriş yap.",
+        "payment": "Plan veya bütçe sınırına ulaşıldı (402). Sınırları kontrol edip yeniden dene.",
+        "forbidden": "Bunun için yetkin yok.",
+        "notFound": "Çalışma alanı bulunamadı.",
+        "rateLimit": "Çok fazla istek (429). Biraz bekleyip yeniden dene.",
+        "timeout": "İstek zaman aşımına uğradı.",
+        "network": "Sunucuya ulaşılamadı. Bağlantıyı kontrol edip yeniden dene.",
+        "noProvider": "Yapay zekâ sağlayıcısı ayarlı değil. Ayarlar'dan ekle, sonra yeniden dene.",
+        "badDraft": "Taslak kabul edilmedi. Ajanı farklı anlatıp yeniden taslak hazırla.",
+        "badResponse": "Sunucu yanıtı anlaşılamadı. Hiçbir şey kayıtlı gösterilmedi.",
+        "generic": "Beklenmeyen bir hata oluştu. Yeniden dene."
+      },
+      "refreshList": "Listeyi yenile",
+      "loading": "Yükleniyor…"
     }
   },
   "static": {

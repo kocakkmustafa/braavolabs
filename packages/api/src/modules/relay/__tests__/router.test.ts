@@ -348,7 +348,7 @@ describe("relay router — transport smoke (mocked Redis)", () => {
 
   const snapshot = {
     type: "panel-snapshot",
-    company: { name: "YULA Lab" },
+    company: { name: "Yula Lab" },
     agents: [
       { id: "ag_9f8e7d6c-5b4a-4c3d-9e2f-1a0b9c8d7e6f", name: "General Manager", role: "ceo", managerId: null, model: "OLLAMA/qwen3:8b", effort: "medium", status: "idle", runsThisMonth: 3 },
       { id: "ag_1a2b3c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d", name: "Market Analyst sk-live_abcdefghijklmnop", role: "market-analyst", managerId: "ag_9f8e7d6c-5b4a-4c3d-9e2f-1a0b9c8d7e6f", model: null, effort: "low", status: "error", runsThisMonth: 0 },

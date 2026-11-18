@@ -3,7 +3,7 @@ import { tenantTx } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 
 type AgentChanges = Pick<Prisma.AgentUpdateInput,
-  "name" | "role" | "systemPrompt" | "model" | "maxTokens" | "tools" | "autonomy">;
+  "name" | "role" | "systemPrompt" | "model" | "maxTokens" | "tools" | "autonomy" | "modelMode" | "modelModeConfig">;
 
 /** The snapshot, mutation and audit commit together on the RLS-bound connection. */
 export function updateAgentWithHistory(input: {
@@ -47,6 +47,7 @@ export function updateAgentWithHistory(input: {
           name: agent.name, role: agent.role, systemPrompt: agent.systemPrompt,
           model: agent.model, maxTokens: agent.maxTokens, tools: agent.tools,
           autonomy: agent.autonomy,
+          modelMode: agent.modelMode, modelModeConfig: agent.modelModeConfig,
         },
         changeSummary: input.kind === "nl-edit"
           ? `Applied NL edit: name=${input.data.name}, role=${input.data.role}, model=${input.data.model}`

@@ -134,3 +134,39 @@ describe("signManifest / verifyManifest", () => {
     expect(verifyManifest(tenantA, sig, withProps)).toBe(false);
   });
 });
+
+import { carryDeclaredCapabilities } from "../manifest-signature";
+
+describe("BRA-P1-03d capability signing", () => {
+  const tools = [{ name: "run", description: "d", inputSchema: { type: "object" } }];
+  const manifest = (capability?: string) => ({ ...base, tools: [{ ...tools[0]!, ...(capability ? { capability } : {}) }] });
+
+  it("capability change (deploy -> read, or removal) fails verification", () => {
+    const sig = signManifest(tenantA, manifest("deploy"));
+    expect(verifyManifest(tenantA, sig, manifest("deploy"))).toBe(true);
+    expect(verifyManifest(tenantA, sig, manifest("read"))).toBe(false);
+    expect(verifyManifest(tenantA, sig, manifest())).toBe(false);
+  });
+
+  it("legacy capability-less manifest signature is unchanged and verifies", () => {
+    const legacy = signManifest(tenantA, base);
+    expect(verifyManifest(tenantA, legacy, base)).toBe(true);
+    // explicit undefined capability must not alter the signed input
+    const withUndef = { ...base, tools: base.tools.map((t) => ({ ...t, capability: undefined })) };
+    expect(signManifest(tenantA, withUndef)).toBe(legacy);
+  });
+
+  it("probe keeps publish-time capability; cannot drop or self-declare one", () => {
+    const published = [{ name: "run", capability: "deploy" }, { name: "ls" }];
+    const probed = [
+      { name: "run", description: "", inputSchema: {} },
+      { name: "ls", description: "", inputSchema: {}, capability: "deploy" },
+      { name: "newtool", description: "", inputSchema: {} },
+    ];
+    const out = carryDeclaredCapabilities(published, probed);
+    expect(out[0]!.capability).toBe("deploy");
+    expect(out[1]!.capability).toBeUndefined();
+    expect(out[2]!.capability).toBeUndefined();
+    expect(carryDeclaredCapabilities(null, probed).every((t) => t.capability === undefined)).toBe(true);
+  });
+});

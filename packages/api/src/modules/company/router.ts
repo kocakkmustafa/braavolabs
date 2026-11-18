@@ -5,7 +5,8 @@ import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { AppError } from "../../middleware/error";
 import { rateLimit } from "../../middleware/rateLimit";
-import { PLAN_LIMITS } from "@ai-company-os/core";
+import { PLAN_LIMITS, MODEL_MODES, type ModelMode } from "@ai-company-os/core";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { applyNaturalLanguageEdit, AgentConfig } from "../agent/nl-editor";
 import {
@@ -16,17 +17,38 @@ import {
 } from "./builder";
 import { updateAgentWithHistory } from "./agent-update";
 import { composeAgent } from "../agent/composer";
+import { sanitizeComposedDraft } from "../agent/compose-draft";
 import { assertCompanyCapacity } from "./company-capacity";
+import { createAgentGuarded, precheckAgentCapacity } from "./agent-capacity";
+import { seedCreatorAsOwner } from "./owner-seed";
+import { companyMembersRouter } from "./members";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
+import { toPublicCompany } from "./redact";
+import { buildModelsOverview } from "./models-overview";
+import { buildCompanySummary } from "./summary";
+import { buildProjectBudget } from "./budget-projects";
+import { loadCompanyActivity } from "./activity";
+import { BUDGET_CONFIG_KEY, validateBudgetInput } from "./budget";
+import {
+  applyCompanyModeSettings,
+  extractModeSettings,
+  validateCompanyModeSettingsInput,
+  validateModelModeConfigInput,
+} from "./model-mode-settings";
 
 export const companyRouter = Router();
 companyRouter.use(authMiddleware);
+// BRA-P1-06-N1: şirket üyeleri (bilgilendirici model; erişim kontrolünü değiştirmez).
+companyRouter.use("/:id/members", companyMembersRouter);
 
 // Expensive: freeform builder triggers Claude clarification loop (expensive tokens).
 const buildStartLimiter = rateLimit({ windowMs: 60_000, maxRequests: 5, keyPrefix: "rl:company:build" });
 const buildAnswerLimiter = rateLimit({ windowMs: 60_000, maxRequests: 20, keyPrefix: "rl:company:build:answer" });
 // Composer: one LLM round-trip per call, cheaper than build but still costs tokens.
 const agentComposeLimiter = rateLimit({ windowMs: 60_000, maxRequests: 10, keyPrefix: "rl:agent:compose" });
+// Confirm LLM çağırmaz; ucuz tenant-bazlı sınır. LLM limiter'dan AYRI örnek (draft'ı etkilemez).
+export const AGENT_COMPOSE_CONFIRM_MAX_PER_MIN = 30;
+const agentComposeConfirmLimiter = rateLimit({ windowMs: 60_000, maxRequests: AGENT_COMPOSE_CONFIRM_MAX_PER_MIN, keyPrefix: "rl:agent:compose-confirm" });
 
 const createSchema = z.object({
   name: z.string().min(1).max(100),
@@ -67,7 +89,7 @@ companyRouter.get("/", async (req, res, next) => {
       },
     });
 
-    res.json(companies);
+    res.json(companies.map((c) => toPublicCompany(c)));
   } catch (err) { next(err); }
 });
 
@@ -79,7 +101,7 @@ companyRouter.get("/:id", async (req, res, next) => {
       include: { agents: true, pipelines: true },
     });
     if (!company) throw new AppError(404, "Company not found");
-    res.json(company);
+    res.json(toPublicCompany(company));
   } catch (err) { next(err); }
 });
 
@@ -89,11 +111,19 @@ companyRouter.post("/", async (req, res, next) => {
     const data = createSchema.parse(req.body);
     const tenantId = req.auth!.tenantId;
 
+    // BRA-P0-06a-2: oluşturmada gelen kip anahtarları da PATCH /:id/model-mode ile aynı kuralla doğrulanır.
+    const modeKeys = extractModeSettings(data.config);
+    if (modeKeys) {
+      const v = validateCompanyModeSettingsInput(modeKeys);
+      if (!v.ok) throw new AppError(400, v.error);
+    }
+
     const company = await tenantTx(async (tx) => {
       await assertCompanyCapacity(tx, tenantId);
       const created = await tx.company.create({
         data: { ...data, config: data.config as any, tenantId },
       });
+      await seedCreatorAsOwner(tx, { tenantId, companyId: created.id, userId: req.auth!.userId });
       await tx.activityLog.create({
         data: {
           tenantId,
@@ -108,7 +138,7 @@ companyRouter.post("/", async (req, res, next) => {
     });
 
     logger.info({ companyId: company.id }, "Company created");
-    res.status(201).json(company);
+    res.status(201).json(toPublicCompany(company));
   } catch (err) { next(err); }
 });
 
@@ -145,62 +175,87 @@ companyRouter.patch("/:id", async (req, res, next) => {
       sanitizedData = { ...data, config: filteredConfig };
     }
 
-    // Merge over existing config so a partial PATCH doesn't blow away
-    // unrelated allowlisted keys. Read existing first.
-    if (sanitizedData.config && typeof sanitizedData.config === "object") {
-      const existing = await prisma.company.findFirst({
-        where: { id: req.params.id, tenantId: req.auth!.tenantId },
-        select: { config: true },
-      });
-      if (existing?.config && typeof existing.config === "object") {
-        const merged: Record<string, unknown> = { ...(existing.config as Record<string, unknown>) };
-        for (const [k, v] of Object.entries(sanitizedData.config as Record<string, unknown>)) {
-          merged[k] = v;
-        }
-        sanitizedData = { ...sanitizedData, config: merged };
-      }
-    }
+    const tenantId = req.auth!.tenantId;
 
     // Channel enforcement — `config.channels` must be a subset of the
     // tenant's plan-allowed channels. Onboarding hard-codes the right
     // list, but a Free user PATCHing this endpoint directly could
     // otherwise add `instagram` / `youtube` and use paid features.
-    if (sanitizedData.config && typeof sanitizedData.config === "object" && "channels" in sanitizedData.config) {
-      const proposedChannels = sanitizedData.config.channels;
-      if (Array.isArray(proposedChannels)) {
-        const tenant = await prisma.tenant.findUnique({
-          where: { id: req.auth!.tenantId },
-          select: { plan: true },
-        });
-        const plan = await getEffectivePlan(req.auth!.tenantId, tenant?.plan);
-        const allowed = new Set(PLAN_LIMITS[plan].channels);
-        const denied = proposedChannels.filter(
-          (c) => typeof c !== "string" || !allowed.has(c),
-        );
-        if (denied.length > 0) {
-          throw new AppError(
-            403,
-            `Plan "${plan}" does not allow channels: ${denied.join(", ")}. Allowed: ${[...allowed].join(", ")}.`,
+    // NOT: Denetim BİRLEŞİK config üzerinde yapılır (eski kodla aynı): mevcut config'te plan dışı
+    // kanal kalmışsa ilgisiz bir yama da 403 alır — bilinçli, davranış korunur.
+    // Plan/izinli küme ilk ihtiyaçta bir kez hesaplanır; yeniden denemelerde tekrar sorgulanmaz.
+    let planCache: { plan: string; allowed: Set<string> } | undefined;
+    const enforceChannels = async (cfg: unknown) => {
+      if (cfg && typeof cfg === "object" && "channels" in cfg) {
+        const proposedChannels = (cfg as Record<string, unknown>).channels;
+        if (Array.isArray(proposedChannels)) {
+          if (!planCache) {
+            const tenant = await prisma.tenant.findUnique({
+              where: { id: tenantId },
+              select: { plan: true },
+            });
+            const p = await getEffectivePlan(tenantId, tenant?.plan);
+            planCache = { plan: p, allowed: new Set<string>(PLAN_LIMITS[p].channels) };
+          }
+          const { plan, allowed } = planCache;
+          const denied = proposedChannels.filter(
+            (c) => typeof c !== "string" || !allowed.has(c),
           );
+          if (denied.length > 0) {
+            throw new AppError(
+              403,
+              `Plan "${plan}" does not allow channels: ${denied.join(", ")}. Allowed: ${[...allowed].join(", ")}.`,
+            );
+          }
         }
       }
-    }
+    };
 
-    const company = await prisma.company.updateMany({
-      where: { id: req.params.id, tenantId: req.auth!.tenantId },
-      data: { ...sanitizedData, config: sanitizedData.config as any },
-    });
-    if (company.count === 0) throw new AppError(404, "Company not found");
-
-    await prisma.activityLog.create({
+    const logUpdate = () => prisma.activityLog.create({
       data: {
-        tenantId: req.auth!.tenantId,
+        tenantId,
         actor: req.auth!.userId,
         action: "company.update",
         resource: "company",
         resourceId: req.params.id,
       },
     });
+
+    // config yazımı: oku-birleştir-yaz, updatedAt iyimser kilidiyle (bütçe/kip uçlarıyla aynı kalıp).
+    // Eşzamanlı bir yazım config'in başka anahtarını değiştirirse updateMany count 0 döner ve yeniden denenir.
+    if (sanitizedData.config && typeof sanitizedData.config === "object") {
+      for (let attempt = 0; attempt < 3; attempt++) {
+        const existing = await prisma.company.findFirst({
+          where: { id: req.params.id, tenantId },
+          select: { config: true, updatedAt: true },
+        });
+        if (!existing) throw new AppError(404, "Company not found");
+        const merged: Record<string, unknown> =
+          existing.config && typeof existing.config === "object" && !Array.isArray(existing.config)
+            ? { ...(existing.config as Record<string, unknown>) } : {};
+        for (const [k, v] of Object.entries(sanitizedData.config as Record<string, unknown>)) {
+          merged[k] = v;
+        }
+        await enforceChannels(merged);
+        const result = await prisma.company.updateMany({
+          where: { id: req.params.id, tenantId, updatedAt: existing.updatedAt },
+          data: { ...sanitizedData, config: merged as any },
+        });
+        if (result.count === 0) continue;
+        await logUpdate();
+        res.json({ success: true });
+        return;
+      }
+      throw new AppError(409, "Company was modified concurrently; retry");
+    }
+
+    const company = await prisma.company.updateMany({
+      where: { id: req.params.id, tenantId },
+      data: { ...sanitizedData, config: sanitizedData.config as any },
+    });
+    if (company.count === 0) throw new AppError(404, "Company not found");
+
+    await logUpdate();
 
     res.json({ success: true });
   } catch (err) { next(err); }
@@ -327,7 +382,7 @@ companyRouter.post("/build/:sessionId/answer", buildAnswerLimiter, async (req, r
 // POST /api/v1/companies/build/:sessionId/confirm — confirm and create the company
 companyRouter.post("/build/:sessionId/confirm", async (req, res, next) => {
   try {
-    const session = await confirmBuild(req.params.sessionId, req.auth!.tenantId);
+    const session = await confirmBuild(req.params.sessionId, req.auth!.tenantId, req.auth!.userId);
 
     res.status(201).json({
       sessionId: session.sessionId,
@@ -394,6 +449,132 @@ companyRouter.get("/:id/agents", async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// GET /api/v1/companies/:id/models — salt-okur model + yetki dökümü (BRA-UX-API-02)
+companyRouter.get("/:id/models", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+      select: { id: true },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+    res.json(await buildModelsOverview(req.auth!.tenantId, company.id));
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/companies/:id/summary — salt-okur şirket özeti (BRA-P0-11b)
+companyRouter.get("/:id/summary", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+      select: { id: true, config: true },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+    res.json(await buildCompanySummary(req.auth!.tenantId, company.id, new Date(), company.config));
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/companies/:id/budget/projects — proje (=pipeline) bazlı bu ay harcaması (BRA-P1-06-N3).
+// Yetki: router-wide authMiddleware (/summary ile aynı okuma erişimi); salt-okur, yeni rbac eylemi yok.
+companyRouter.get("/:id/budget/projects", async (req, res, next) => {
+  try {
+    const company = await prisma.company.findFirst({
+      where: { id: req.params.id, tenantId: req.auth!.tenantId },
+      select: { id: true, config: true },
+    });
+    if (!company) throw new AppError(404, "Company not found");
+    res.json(await buildProjectBudget(req.auth!.tenantId, company.id, company.config));
+  } catch (err) { next(err); }
+});
+
+// PATCH /api/v1/companies/:id/budget — aylık bütçe (Company.config.monthlyBudgetUsd; BRA-P0-11c).
+// Yetki: requirePermission("billing:budget") (ADMIN+; billing/router.ts tenant bütçe ucuyla aynı izin).
+// config'in diğer anahtarları korunur; eşzamanlı yazma updatedAt iyimser kilidiyle yakalanır.
+const budgetSchema = z.object({ monthlyBudgetUsd: z.unknown().refine((v) => v !== undefined, "monthlyBudgetUsd is required") });
+companyRouter.patch("/:id/budget", requirePermission("billing:budget"), async (req, res, next) => {
+  try {
+    const body = budgetSchema.parse(req.body ?? {});
+    let value: number | null = null;
+    if (body.monthlyBudgetUsd !== null) {
+      const v = validateBudgetInput(body.monthlyBudgetUsd);
+      if (!v.ok) throw new AppError(400, v.error);
+      value = v.value;
+    }
+    const tenantId = req.auth!.tenantId;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const existing = await prisma.company.findFirst({
+        where: { id: req.params.id, tenantId },
+        select: { config: true, updatedAt: true },
+      });
+      if (!existing) throw new AppError(404, "Company not found");
+      const base = existing.config && typeof existing.config === "object" && !Array.isArray(existing.config)
+        ? { ...(existing.config as Record<string, unknown>) } : {};
+      if (value === null) delete base[BUDGET_CONFIG_KEY]; else base[BUDGET_CONFIG_KEY] = value;
+      const result = await prisma.company.updateMany({
+        where: { id: req.params.id, tenantId, updatedAt: existing.updatedAt },
+        data: { config: base as any },
+      });
+      if (result.count === 0) continue;
+      await prisma.activityLog.create({
+        data: {
+          tenantId,
+          actor: req.auth!.userId,
+          action: "company.budget.update",
+          resource: "company",
+          resourceId: req.params.id,
+          details: { monthlyBudgetUsd: value },
+        },
+      });
+      res.json({ success: true, monthlyBudgetUsd: value });
+      return;
+    }
+    throw new AppError(409, "Company was modified concurrently; retry");
+  } catch (err) { next(err); }
+});
+
+// PATCH /api/v1/companies/:id/model-mode — şirket model kipi + autoSelection (BRA-P0-06a-2).
+// Body: { modelMode?: "DIRECT"|"CASCADE"|"COMPARE"|null, autoSelection?: { enabled: boolean }|null }; null = ayarı sil.
+// Yetki: şirket PATCH'iyle aynı kapı (kimliği doğrulanmış kiracı üyesi; kurucu kararı 2026-11-15 "mevcut kapı kalır").
+// Genel PATCH /:id bu anahtarları KABUL ETMEZ (allowlist dışı); oluşturmada (POST /) aynı doğrulama uygulanır.
+// Yetki bilinçli olarak şirket PATCH'iyle aynı (en düşük üye rolü dahil); budget ucu gibi ADMIN şartı YOK.
+// config'in diğer anahtarları korunur; eşzamanlı yazma updatedAt iyimser kilidiyle yakalanır.
+companyRouter.patch("/:id/model-mode", async (req, res, next) => {
+  try {
+    const v = validateCompanyModeSettingsInput(req.body ?? {});
+    if (!v.ok) throw new AppError(400, v.error);
+    const tenantId = req.auth!.tenantId;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const existing = await prisma.company.findFirst({
+        where: { id: req.params.id, tenantId },
+        select: { config: true, updatedAt: true },
+      });
+      if (!existing) throw new AppError(404, "Company not found");
+      const merged = applyCompanyModeSettings(existing.config, v.value);
+      const result = await prisma.company.updateMany({
+        where: { id: req.params.id, tenantId, updatedAt: existing.updatedAt },
+        data: { config: merged as any },
+      });
+      if (result.count === 0) continue;
+      await prisma.activityLog.create({
+        data: {
+          tenantId,
+          actor: req.auth!.userId,
+          action: "company.model_mode.update",
+          resource: "company",
+          resourceId: req.params.id,
+          details: v.value as any,
+        },
+      });
+      res.json({
+        success: true,
+        modelMode: (merged.modelMode as ModelMode | undefined) ?? null,
+        autoSelection: (merged.autoSelection as { enabled: boolean } | undefined) ?? null,
+      });
+      return;
+    }
+    throw new AppError(409, "Company was modified concurrently; retry");
+  } catch (err) { next(err); }
+});
+
 // POST /api/v1/companies/:id/agents — create agent for a company
 const agentCreateSchema = z.object({
   name: z.string().min(1),
@@ -401,7 +582,26 @@ const agentCreateSchema = z.object({
   systemPrompt: z.string().optional(),
   tools: z.array(z.string()).optional(),
   config: z.record(z.string(), z.unknown()).optional(),
+  // BRA-P0-06a-2: ajan model kipi; null/yok = şirket ayarını miras al.
+  modelMode: z.enum(MODEL_MODES).nullable().optional(),
+  modelModeConfig: z.unknown().optional(),
 });
+
+/** Kip alanlarını Prisma verisine çevirir; geçersiz modelModeConfig -> 400. null = temizle. */
+function agentModeFields(input: { modelMode?: ModelMode | null; modelModeConfig?: unknown }) {
+  const out: { modelMode?: ModelMode | null; modelModeConfig?: Prisma.InputJsonValue | typeof Prisma.DbNull } = {};
+  if (input.modelMode !== undefined) out.modelMode = input.modelMode;
+  if (input.modelModeConfig !== undefined) {
+    if (input.modelModeConfig === null) {
+      out.modelModeConfig = Prisma.DbNull;
+    } else {
+      const v = validateModelModeConfigInput(input.modelModeConfig);
+      if (!v.ok) throw new AppError(400, v.error);
+      out.modelModeConfig = v.value as Prisma.InputJsonValue;
+    }
+  }
+  return out;
+}
 
 const agentUpdateSchema = z.object({
   name: z.string().min(1).optional(),
@@ -419,6 +619,9 @@ const agentUpdateSchema = z.object({
   // Graduated autonomy (Feature D6) — how eager this agent is to pause for
   // approval on non-money tools. Money always needs approval regardless.
   autonomy: z.enum(["SUPERVISED", "BALANCED", "AUTONOMOUS"]).optional(),
+  // BRA-P0-06a-2: model kipi (DIRECT/CASCADE/COMPARE) ve kip ayarı; null = temizle (şirketi miras al).
+  modelMode: z.enum(MODEL_MODES).nullable().optional(),
+  modelModeConfig: z.unknown().optional(),
 });
 
 companyRouter.post("/:id/agents", async (req, res, next) => {
@@ -429,15 +632,16 @@ companyRouter.post("/:id/agents", async (req, res, next) => {
     if (!company) throw new AppError(404, "Company not found");
 
     const data = agentCreateSchema.parse(req.body);
-    const agent = await prisma.agent.create({
+    const agent = await createAgentGuarded(req.auth!.tenantId, (db) => db.agent.create({
       data: {
         companyId: company.id,
         name: data.name,
         role: data.role,
         systemPrompt: data.systemPrompt ?? "",
         tools: (data.tools ?? []) as any,
+        ...agentModeFields(data),
       },
-    });
+    }));
 
     await prisma.activityLog.create({
       data: {
@@ -466,6 +670,106 @@ const agentComposeSchema = z.object({
   description: z.string().min(10).max(4000),
 });
 
+async function runComposer(tenantId: string, description: string) {
+  try {
+    return await composeAgent(tenantId, description);
+  } catch (err) {
+    // Surface common composer failures as 400 with actionable copy
+    // instead of a generic 500. Two big buckets:
+    //  - missing/invalid AI key → user must visit Settings
+    //  - LLM returned non-JSON / bad shape → suggest a different provider
+    const msg = err instanceof Error ? err.message : String(err);
+    if (/no ai provider|api key|not initialized|configure/i.test(msg)) {
+      throw new AppError(
+        400,
+        "Configure an AI provider in Settings → AI Provider before composing agents. Anthropic, OpenAI, Gemini, Groq, or self-hosted Ollama all work.",
+      );
+    }
+    if (/json|valid agent spec|did not return/i.test(msg)) {
+      throw new AppError(400, msg);
+    }
+    throw err;
+  }
+}
+
+// Tek kayıt yolu: eski compose ve yeni confirm aynı satırı/aynı audit'i yazar.
+async function persistComposedAgent(
+  req: { auth?: { tenantId: string; userId: string } },
+  companyId: string,
+  composed: { name: string; role: string; systemPrompt: string; tools: string[] },
+  details: Record<string, unknown>,
+) {
+  const agent = await createAgentGuarded(req.auth!.tenantId, (db) => db.agent.create({
+    data: {
+      companyId,
+      name: composed.name,
+      role: composed.role,
+      systemPrompt: composed.systemPrompt,
+      tools: composed.tools as any,
+    },
+  }));
+  await prisma.activityLog.create({
+    data: {
+      tenantId: req.auth!.tenantId,
+      actor: req.auth!.userId,
+      action: "agent.compose",
+      resource: "agent",
+      resourceId: agent.id,
+      details: { companyId, ...details },
+    },
+  });
+  return agent;
+}
+
+async function findOwnCompany(req: { auth?: { tenantId: string } }, companyId: string) {
+  const company = await prisma.company.findFirst({
+    where: { id: companyId, tenantId: req.auth!.tenantId },
+  });
+  if (!company) throw new AppError(404, "Company not found");
+  return company;
+}
+
+// POST /api/v1/companies/:id/agents/compose/draft — Taslak (KAYIT YOK)
+//
+// Tasarım 04-design §5.5 "Taslak → Oluştur" 1. adım. Aynı LLM çağrısı ve aynı
+// oran sınırı; ajan YAZILMAZ, activity_log YAZILMAZ. İstemci taslağı tutar,
+// düzenler ve POST …/agents/compose/confirm ile oluşturur (draftId/migration yok).
+companyRouter.post("/:id/agents/compose/draft", agentComposeLimiter, async (req, res, next) => {
+  try {
+    const companyId = req.params.id as string;
+    await findOwnCompany(req, companyId);
+    const { description } = agentComposeSchema.parse(req.body);
+    await precheckAgentCapacity(req.auth!.tenantId); // BRA-UX-API-03k: no LLM spend for a tenant already at its agent limit
+    const result = await runComposer(req.auth!.tenantId, description);
+    res.json({
+      draft: result.agent,
+      droppedTools: result.droppedTools,
+      provider: result.provider,
+      model: result.model,
+      tokens: { input: result.inputTokens, output: result.outputTokens },
+    });
+  } catch (err) { next(err); }
+});
+
+// POST /api/v1/companies/:id/agents/compose/confirm — Taslağı onayla ve kaydet
+//
+// LLM çağrısı YOK. Gövdedeki taslak güvenilmez istemci verisidir: composer'ın
+// zod şeması + araç beyaz listesi yeniden uygulanır, sonra eski compose ile
+// aynı kayıt yolu kullanılır.
+const agentComposeConfirmSchema = z.object({ draft: z.unknown() });
+
+// Ajan kotası: BRA-UX-API-03k, AGENT_QUOTA_ENABLED bayrağı arkasında (varsayılan KAPALI; sayılar kurucudan, agent-capacity.ts).
+companyRouter.post("/:id/agents/compose/confirm", agentComposeConfirmLimiter, async (req, res, next) => {
+  try {
+    const companyId = req.params.id as string;
+    const company = await findOwnCompany(req, companyId);
+    const { draft } = agentComposeConfirmSchema.parse(req.body);
+    const { agent: composed, droppedTools } = sanitizeComposedDraft(draft);
+    const agent = await persistComposedAgent(req, company.id, composed, { source: "draft", droppedTools });
+    res.status(201).json({ agent, droppedTools });
+  } catch (err) { next(err); }
+});
+
 companyRouter.post("/:id/agents/compose", agentComposeLimiter, async (req, res, next) => {
   try {
     // Cast to string — when this endpoint chains through agentComposeLimiter
@@ -473,60 +777,19 @@ companyRouter.post("/:id/agents/compose", agentComposeLimiter, async (req, res, 
     // `string | string[]` which Prisma rejects. Other endpoints in this file
     // skip the cast because they don't compose through this middleware.
     const companyId = req.params.id as string;
-    const company = await prisma.company.findFirst({
-      where: { id: companyId, tenantId: req.auth!.tenantId },
-    });
-    if (!company) throw new AppError(404, "Company not found");
+    const company = await findOwnCompany(req, companyId);
 
     const { description } = agentComposeSchema.parse(req.body);
-    let result;
-    try {
-      result = await composeAgent(req.auth!.tenantId, description);
-    } catch (err) {
-      // Surface common composer failures as 400 with actionable copy
-      // instead of a generic 500. Two big buckets:
-      //  - missing/invalid AI key → user must visit Settings
-      //  - LLM returned non-JSON / bad shape → suggest a different provider
-      const msg = err instanceof Error ? err.message : String(err);
-      if (/no ai provider|api key|not initialized|configure/i.test(msg)) {
-        throw new AppError(
-          400,
-          "Configure an AI provider in Settings → AI Provider before composing agents. Anthropic, OpenAI, Gemini, Groq, or self-hosted Ollama all work.",
-        );
-      }
-      if (/json|valid agent spec|did not return/i.test(msg)) {
-        throw new AppError(400, msg);
-      }
-      throw err;
-    }
+    await precheckAgentCapacity(req.auth!.tenantId); // BRA-UX-API-03k: no LLM spend / trial usage for a tenant already at its agent limit
+    const result = await runComposer(req.auth!.tenantId, description);
 
-    const agent = await prisma.agent.create({
-      data: {
-        companyId: company.id,
-        name: result.agent.name,
-        role: result.agent.role,
-        systemPrompt: result.agent.systemPrompt,
-        tools: result.agent.tools as any,
-      },
-    });
-
-    await prisma.activityLog.create({
-      data: {
-        tenantId: req.auth!.tenantId,
-        actor: req.auth!.userId,
-        action: "agent.compose",
-        resource: "agent",
-        resourceId: agent.id,
-        details: {
-          companyId: company.id,
-          provider: result.provider,
-          model: result.model,
-          inputTokens: result.inputTokens,
-          outputTokens: result.outputTokens,
-          droppedTools: result.droppedTools,
-          descriptionLength: description.length,
-        },
-      },
+    const agent = await persistComposedAgent(req, company.id, result.agent, {
+      provider: result.provider,
+      model: result.model,
+      inputTokens: result.inputTokens,
+      outputTokens: result.outputTokens,
+      droppedTools: result.droppedTools,
+      descriptionLength: description.length,
     });
 
     res.status(201).json({
@@ -542,13 +805,13 @@ companyRouter.post("/:id/agents/compose", agentComposeLimiter, async (req, res, 
 // PATCH /api/v1/companies/:companyId/agents/:agentId — update agent
 companyRouter.patch("/:companyId/agents/:agentId", async (req, res, next) => {
   try {
-    const updateData = agentUpdateSchema.parse(req.body);
+    const { modelMode, modelModeConfig, ...updateData } = agentUpdateSchema.parse(req.body);
     const { agent: updated } = await updateAgentWithHistory({
       tenantId: req.auth!.tenantId,
       companyId: req.params.companyId,
       agentId: req.params.agentId,
       actor: req.auth!.userId,
-      data: { ...updateData, tools: updateData.tools as any },
+      data: { ...updateData, tools: updateData.tools as any, ...agentModeFields({ modelMode, modelModeConfig }) },
       kind: "update",
     });
 
@@ -684,6 +947,8 @@ companyRouter.post("/:companyId/agents/:agentId/nl-edit/apply", async (req, res,
   } catch (err) { next(err); }
 });
 
+// NOT (BRA-P2-03c): bu uç ham ActivityLog satırı döndürür (logs/total/offset); mobil (companies/[id].tsx, lib/api.ts)
+// buna bağlı, şekli DEĞİŞMEZ. Mobil `activity-feed` `items`'a taşınınca bu uç sanitize/kapatılacak (ayrı bilet).
 // GET /api/v1/companies/:id/activity — company-specific activity timeline
 companyRouter.get("/:id/activity", async (req, res, next) => {
   try {
@@ -719,6 +984,21 @@ companyRouter.get("/:id/activity", async (req, res, next) => {
     const total = await prisma.activityLog.count({ where: whereClause });
 
     res.json({ logs, total, limit, offset });
+  } catch (err) { next(err); }
+});
+
+// GET /api/v1/companies/:id/activity-feed — BRA-P2-03c: sanitize, salt-okur, imleçli şirket olay günlüğü.
+// Yetki: router düzeyinde authMiddleware (tenant üyesi okur; /summary, /members GET ile aynı); yeni PrivilegedAction yok.
+// `offset` desteklenmez (imleç modeli) → 400. Mantık + maskeleme company/activity.ts'te.
+companyRouter.get("/:id/activity-feed", async (req, res, next) => {
+  try {
+    res.json(await loadCompanyActivity(prisma, {
+      tenantId: req.auth!.tenantId,
+      companyId: req.params.id,
+      limitRaw: req.query.limit,
+      cursorRaw: req.query.cursor,
+      offsetRaw: req.query.offset,
+    }));
   } catch (err) { next(err); }
 });
 

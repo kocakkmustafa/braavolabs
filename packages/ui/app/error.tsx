@@ -3,6 +3,7 @@ import { useTranslations as useLegacyTranslations } from "next-intl";
 
 
 import { useEffect, useState } from "react";
+import MainContentTarget from "../components/MainContentTarget";
 import { classifyFailure, useLocalizedFailure } from "../lib/localized-error";
 
 /**
@@ -48,6 +49,7 @@ export default function GlobalError({
   const reference = error.digest ?? null;
 
   return (
+    <MainContentTarget>
     <div
       className="min-h-screen flex items-center justify-center px-6"
       style={{ background: "var(--color-background)" }}
@@ -118,5 +120,6 @@ export default function GlobalError({
         </div>
       </div>
     </div>
+    </MainContentTarget>
   );
 }

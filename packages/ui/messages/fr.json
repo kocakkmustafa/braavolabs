@@ -21,7 +21,9 @@
     "billing": "Facturation",
     "settings": "Paramètres",
     "newWorkspace": "Nouvel espace de travail",
-    "quickStart": "Démarrage rapide"
+    "quickStart": "Démarrage rapide",
+    "inbox": "Boîte de réception",
+    "start": "Nouvelle tâche"
   },
   "features": {
     "badge": "CAPACITÉS DE LA PLATEFORME",
@@ -85,7 +87,13 @@
         "message": "Brouillon de message",
         "content": "Contenu généré"
       },
-      "artifactAiLabel": "Généré par IA"
+      "artifactAiLabel": "Généré par IA",
+      "loading": "Chargement des approbations…",
+      "loadErrorTitle": "Impossible de charger les approbations",
+      "loadErrorBody": "Le serveur n'a pas répondu correctement, des approbations sont peut-être en attente. Ce n'est pas une liste vide. Réessayez.",
+      "refreshErrorTitle": "Impossible d'actualiser les approbations",
+      "refreshErrorBody": "La liste ci-dessous est peut-être obsolète. Réessayez.",
+      "retryLoad": "Réessayer"
     },
     "companies": {
       "title": "Espaces de travail",
@@ -1067,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "Intégration",
-      "runs": "Exécutions"
+      "runs": "Exécutions",
+      "models": "Modèles"
     },
     "cost": {
       "estimateLabel": "Est. {low}–{high} pour cette exécution",
@@ -1206,6 +1215,619 @@
     },
     "register": {
       "freePlan": "Offre gratuite"
+    },
+    "inbox": {
+      "title": "Boîte de réception",
+      "subtitle": "Toutes les tâches au même endroit : en cours, en attente de vous, terminées et bloquées.",
+      "tabsLabel": "Groupes de tâches",
+      "bucket": {
+        "working": "En cours",
+        "needs_approval": "Approbation requise",
+        "done": "Terminées",
+        "stuck": "Bloquées"
+      },
+      "loading": "Chargement…",
+      "emptyWorking": "Rien n’est en cours pour le moment.",
+      "emptyNeedsApproval": "Aucune tâche n’attend d’approbation.",
+      "emptyDone": "Aucune tâche terminée pour l’instant.",
+      "emptyStuck": "Rien n’est bloqué.",
+      "errorTitle": "Impossible de charger les tâches",
+      "errorBody": "Le serveur n’a pas répondu correctement ; cette liste n’est peut-être pas vraiment vide. Réessayez.",
+      "approvalsErrorTitle": "Impossible de charger les approbations en attente",
+      "retryLoad": "Réessayer",
+      "loadMore": "Charger plus",
+      "loadingMore": "Chargement…",
+      "loadMoreError": "Impossible de charger la suite. Réessayez.",
+      "approvalsTitle": "Approbations en attente",
+      "jobsTitle": "Tâches",
+      "approvalsEmpty": "Aucune approbation en attente.",
+      "approve": "Approuver",
+      "reject": "Refuser",
+      "deciding": "Envoi…",
+      "amount": "Montant : {value}",
+      "openRun": "Ouvrir l’exécution",
+      "approvalUntitled": "Demande d’approbation",
+      "approvalFailed": "La décision n’a pas été enregistrée. Réessayez.",
+      "approvalConflict": "Cette approbation a déjà été traitée ou modifiée. Actualisez la liste.",
+      "jobUntitled": "Tâche sans titre",
+      "cost": "Coût {value}",
+      "updated": "Mis à jour {value}",
+      "action": {
+        "resume": "Reprendre",
+        "pause": "Mettre en pause",
+        "stop": "Arrêter",
+        "retry": "Réessayer",
+        "steer": "Guider",
+        "receipt": "Reçu"
+      },
+      "steerLabel": "Message pour l’agent",
+      "steerPlaceholder": "Consigne courte…",
+      "steerSend": "Envoyer",
+      "steerSent": "Message envoyé.",
+      "actionOk": "Action envoyée.",
+      "actionFailed": "L’action a échoué. Réessayez.",
+      "actionForbidden": "Vous n’avez pas l’autorisation pour cette action.",
+      "conflict": {
+        "retry_disabled": "La nouvelle tentative n’est pas encore activée pour cet espace de travail.",
+        "run_still_running": "Cette tâche est encore en cours. Arrêtez-la d’abord, puis réessayez.",
+        "already_retrying": "Une nouvelle tentative est déjà en cours.",
+        "approval_pending": "Une approbation est en attente. Traitez-la d’abord.",
+        "retry_budget_exhausted": "La limite ou le budget de nouvelles tentatives de cette tâche est épuisé.",
+        "run_not_retryable": "Cette tâche ne peut pas être relancée dans son état actuel.",
+        "generic": "L’état de la tâche a changé ou une approbation est en attente. Actualisez et réessayez."
+      },
+      "receipt": {
+        "title": "Reçu",
+        "loading": "Chargement du reçu…",
+        "none": "Pas encore de reçu. Il est créé à la fin de la tâche.",
+        "error": "Impossible de charger le reçu.",
+        "verified": "VÉRIFIÉ",
+        "unverified": "NON VÉRIFIÉ",
+        "verifiedHint": "Les types de preuves requis ont été vérifiés.",
+        "unverifiedHint": "Non confirmé : preuves manquantes ou incomplètes.",
+        "noStatus": "Aucun statut de résultat",
+        "outcome": "Résultat : {value}",
+        "noEvidence": "Aucune preuve jointe.",
+        "passed": "réussi",
+        "failed": "échoué",
+        "hide": "Masquer le reçu"
+      },
+      "state": {
+        "COMPLETED": "Terminée",
+        "FAILED": "Échouée",
+        "CANCELLED": "Annulée"
+      },
+      "artifactLabel": "Contenu à approuver",
+      "expires": "Expire {value}",
+      "answerLabel": "Votre réponse à l’agent (obligatoire)",
+      "claimFailed": "Votre approbation pour {run} a été enregistrée, mais la tâche n’a pas pu reprendre et peut rester en échec. Vérifiez dans Bloquées puis réessayez.",
+      "dismiss": "Fermer",
+      "approvalForbidden": "Vous n’avez pas l’autorisation de décider des approbations.",
+      "actionRejected": "La tâche n’est pas dans un état qui permet cette action."
+    },
+    "jobs": {
+      "title": "Tâches",
+      "drawerLabel": "Tâche : {title}",
+      "close": "Fermer",
+      "viewLabel": "Vue de la tâche",
+      "tab": {
+        "summary": "Résumé",
+        "output": "Résultat",
+        "kaput": "Sous le capot"
+      },
+      "detail": {
+        "label": "Détail",
+        "simple": "Simple",
+        "full": "Complet"
+      },
+      "state": {
+        "DRAFT": "brouillon",
+        "PLANNED": "planifiée",
+        "READY": "prête",
+        "RUNNING": "en cours",
+        "NEEDS_APPROVAL": "en attente d'approbation",
+        "RESUMING": "reprise",
+        "PAUSED": "en pause",
+        "FAILED": "échouée",
+        "CANCELLED": "annulée",
+        "COMPLETED": "terminée",
+        "unknown": "inconnu"
+      },
+      "risk": {
+        "low": "faible",
+        "medium": "moyen",
+        "high": "élevé"
+      },
+      "riskLabel": "Risque : {value}",
+      "verified": "✔ Vérifié",
+      "unverified": "Non vérifié",
+      "noVerification": "Aucune information de vérification",
+      "field": {
+        "status": "Statut",
+        "cost": "Coût",
+        "company": "Entreprise"
+      },
+      "fullInfo": "ID : {id} · état : {state} · mis à jour : {updated}",
+      "kaput": {
+        "loading": "Chargement du capot…",
+        "error": "Impossible de lire le capot.",
+        "summary": "Étapes ({steps}) · Appels d'outils : {tools} · Coût : {cost} · Transferts : {handoffs}",
+        "noSteps": "Cette tâche n'a pas encore d'étapes enregistrées.",
+        "unknown": "n/d",
+        "later": "Le détail du routage et des autorisations arrivera dans une version ultérieure.",
+        "runErrorTitle": "Ce travail s'est arrêté sur une erreur",
+        "runErrorPlain": "Tu peux réessayer avec le bouton Réessayer sous le travail.",
+        "budget": "Budget utilisé : {cost} / {budget} ({percent})",
+        "agent": "Rôle de l'agent",
+        "duration": "Durée",
+        "stepCost": "Coût",
+        "share": "{percent} du total",
+        "reasoning": "Justification",
+        "tools": "Appels d'outils",
+        "noTools": "Aucun appel d'outil",
+        "model": "Modèle",
+        "noModel": "Aucune donnée de modèle pour cette étape",
+        "mode": "Mode de modèle",
+        "modes": {
+          "DIRECT": "Direct",
+          "CASCADE": "En cascade (le moins cher d'abord)",
+          "COMPARE": "Comparaison"
+        },
+        "tried": "Modèles essayés",
+        "tokens": "Jetons",
+        "tokensValue": "{input} en entrée / {output} en sortie",
+        "log": "Journal",
+        "noLog": "Aucune donnée de journal pour cette étape",
+        "activity": {
+          "title": "Activité de la tâche",
+          "actorSystem": "Système",
+          "actorUser": "Membre de l'équipe",
+          "more": "Affichage des {count} derniers événements ; il y en a d'autres.",
+          "truncated": "Certains événements ne sont pas listés."
+        },
+        "logEvent": {
+          "started": "Début : {time}",
+          "ended": "Fin : {time}"
+        },
+        "dag": {
+          "title": "Dépendances des étapes",
+          "noData": "Aucune donnée de dépendance pour cette tâche. Les étapes sont listées dans l'ordre ci-dessous.",
+          "sourceOrder": "Déduit de l'ordre des étapes : les étapes d'une même phase s'exécutent en parallèle ; chaque phase attend la précédente.",
+          "sourceApi": "Dépendances telles que signalées pour chaque étape.",
+          "inconsistent": "Les données de dépendance sont incohérentes ; certains liens ont été ignorés.",
+          "truncated": "Affichage des {shown} premières étapes sur {total}.",
+          "summary": "{steps} étapes en {levels} phases, {edges} dépendances",
+          "scroll": "Graphe des dépendances des étapes, défilable",
+          "listLabel": "Étapes et leurs dépendances",
+          "dependsOn": "Dépend de l'étape : {steps}",
+          "noDeps": "Aucune dépendance",
+          "changed": "L'enregistrement du pipeline a été mis à jour après cette exécution ; l'ordre des étapes n'ayant pas pu être vérifié, aucun graphe de dépendances n'est tracé.",
+          "unverified": "D'après la définition actuelle de la tâche (date de modification inconnue)."
+        },
+        "seconds": "{value} s",
+        "millis": "{value} ms",
+        "stepStatus": {
+          "completed": "Terminé",
+          "running": "En cours",
+          "failed": "Échoué",
+          "pending": "En attente",
+          "skipped": "Ignoré",
+          "cancelled": "Annulé",
+          "unknown": "Inconnu"
+        },
+        "errorLabel": "Erreur",
+        "overBudget": "Budget dépassé"
+      },
+      "stuckNote": "Certaines tâches bloquées ne sont pas encore visibles tant que le suivi du signal de vie est désactivé.",
+      "openJob": "Ouvrir la tâche {title}",
+      "openFull": "Ouvrir la page complète de l'exécution"
+    },
+    "workspace": {
+      "back": "Retour aux tâches",
+      "classic": "Vue détaillée classique",
+      "loading": "Chargement de la tâche…",
+      "errorTitle": "Impossible d'ouvrir cette tâche",
+      "errorBody": "Vérifie ta connexion et réessaie.",
+      "notFound": "Cette tâche est introuvable ou tu n'y as pas accès.",
+      "label": "Espace de travail : {title}"
+    },
+    "approvalCenter": {
+      "title": "Centre d'approbation et de sécurité",
+      "subtitle": "Voyez exactement ce que fera chaque action avant de décider.",
+      "classic": "Vue classique des approbations",
+      "count": "{count} en attente",
+      "live": "{count} approbations en attente",
+      "approvedNotice": "Approuvé.",
+      "rejectedNotice": "Refusé.",
+      "type": {
+        "SPEND": "Dépense",
+        "INPUT": "Question",
+        "HANDOFF": "Transfert",
+        "EXTERNAL_CONTROL": "Contrôle externe",
+        "other": "Approbation"
+      },
+      "open": "Examiner l'approbation : {title}",
+      "sheetLabel": "Détails de l'approbation : {title}",
+      "close": "Fermer",
+      "field": {
+        "what": "Ce que ça fera",
+        "tool": "Outil",
+        "permissions": "Portée des autorisations",
+        "data": "Données transférées",
+        "risk": "Risque",
+        "amount": "Montant",
+        "reversible": "Annulation",
+        "draft": "Brouillon",
+        "requested": "Demandé"
+      },
+      "riskLevel": {
+        "low": "Faible",
+        "medium": "Moyen",
+        "high": "Élevé"
+      },
+      "reversibleYes": "Peut être inversé par une action contraire",
+      "reversibleNo": "Irréversible",
+      "unknown": "Aucune information",
+      "danger": {
+        "tag": "Confirmation requise",
+        "title": "Cette action demande une seconde étape",
+        "body": "Elle dépense de l'argent, est à haut risque ou est irréversible.",
+        "phraseLabel": "Saisissez « {phrase} » pour activer Approuver",
+        "phrase": "J'approuve l'envoi",
+        "reasonLabel": "Motif (enregistré avec votre décision)"
+      },
+      "oneByOne": "Chaque approbation est décidée une par une.",
+      "alreadyDecided": "Cette approbation a déjà été décidée. La liste a été actualisée.",
+      "forbidden": "Vous n'avez pas l'autorisation de décider cette approbation. La liste a été actualisée."
+    },
+    "plan": {
+      "title": "Décrire une tâche",
+      "workspace": "Espace de travail",
+      "workspaceChoose": "Choisir un espace de travail",
+      "messageLabel": "Que faut-il faire ?",
+      "messagePlaceholder": "Ex. : préparer le rapport de ventes hebdomadaire",
+      "suggest": "Proposer un plan",
+      "planning": "Préparation du plan…",
+      "empty": "Ce message ne ressemble pas à une tâche ; aucun plan proposé.",
+      "retry": "Réessayer",
+      "steps": "Étapes",
+      "tools": "Outils",
+      "risk": {
+        "label": "Risque",
+        "low": "Faible",
+        "medium": "Moyen",
+        "high": "Élevé"
+      },
+      "cost": "Coût estimé (non garanti)",
+      "costUnknown": "Prix inconnu pour ce modèle ; aucune fourchette de coût",
+      "approvalStep": "approbation requise",
+      "run": "Lancer",
+      "cancel": "Annuler",
+      "starting": "Démarrage…",
+      "approvalGate": "Cette tâche requiert une approbation ; elle est actuellement désactivée.",
+      "planChanged": "Le plan a changé. Proposez à nouveau un plan.",
+      "workspaceRequired": "Choisissez d'abord un espace de travail.",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "Démarrer",
+      "label": "Que veux-tu faire ?",
+      "placeholder": "Décris une tâche, pose une question ou demande un agent…",
+      "barLabel": "Barre d'intention",
+      "understood": "Ce que j'ai compris :",
+      "kind": {
+        "chat": "Discussion",
+        "job": "Tâche",
+        "agent": "Agent"
+      },
+      "submit": {
+        "chat": "Lancer la discussion",
+        "job": "Planifier",
+        "agent": "Demander un agent"
+      },
+      "lowConfidence": "Je ne suis pas sûr : c'est traité comme une discussion ; choisis « Tâche » pour la planifier comme tâche.",
+      "previewNote": "« Ce que j'ai compris » est un indice local ; à l'étape du plan, le serveur décide lui-même.",
+      "chat": {
+        "unavailable": "La discussion n'est pas encore disponible : cette version planifie seulement des tâches et crée des agents. Ton message n'a créé aucun enregistrement de tâche ; rien n'a été dépensé.",
+        "asJob": "Planifier comme tâche"
+      },
+      "plan": {
+        "tool": "outil : {tool}",
+        "approvalStep": "approbation requise, risque {risk}",
+        "modelRow": "Ligne de modèle par étape : pas encore disponible (API en attente)."
+      },
+      "agent": {
+        "title": "Nouvel agent",
+        "immediate": "Cette étape enregistre l'agent immédiatement : voir un brouillon avant de créer n'est pas encore possible.",
+        "create": "Créer l'agent maintenant",
+        "working": "Création de l'agent…",
+        "role": "rôle : {role}",
+        "toolsLabel": "Outils",
+        "noTools": "aucun",
+        "dropped": "Outil retiré ({count}) : {tools} n'est pas connecté ; l'agent a été créé sans lui.",
+        "saved": "Agent enregistré.",
+        "close": "Fermer",
+        "tooShort": "La description de l'agent doit faire au moins 10 caractères : précise un peu ce qu'il doit faire.",
+        "maybeSaved": "Si la connexion a coupé, l'agent est peut-être déjà enregistré : vérifie la liste des agents avant de réessayer."
+      }
+    },
+    "models": {
+      "labelSep": " : ",
+      "pairSep": " · ",
+      "title": "Modèles et connexions",
+      "subtitle": "Les modèles utilisés par votre entreprise, qui peut y accéder et ce qu'ils coûtent ce mois-ci. Lecture seule.",
+      "company": "Entreprise",
+      "live": "{count} modèles listés",
+      "errorTitle": "Impossible de charger les modèles",
+      "errorBody": "La liste des modèles n'a pas pu être lue. Réessayez.",
+      "retry": "Réessayer",
+      "noCompanyTitle": "Aucune entreprise pour l'instant",
+      "noCompanyBody": "Créez une entreprise pour voir ses modèles ici.",
+      "loading": "Chargement des modèles…",
+      "autoLabel": "Sélection automatique du modèle",
+      "autoOn": "Activée",
+      "autoOff": "Désactivée",
+      "unknown": "Inconnu",
+      "emptyTitle": "Aucun modèle utilisé pour l'instant",
+      "emptyBody": "Les modèles apparaissent ici dès qu'un agent de cette entreprise en a un.",
+      "provider": "Fournisseur",
+      "access": "Accès",
+      "cost": "Coût ce mois-ci",
+      "runs": "Exécutions ce mois-ci",
+      "runCount": "Exécutions ce mois-ci : {count}",
+      "costNote": "Le coût est attribué au modèle actuel de chaque agent ; les exécutions antérieures à un changement de modèle comptent donc pour le nouveau. Le mois commence le 1er à 00:00 UTC.",
+      "costSince": "Depuis le {from}.",
+      "updatedAt": "Mis à jour {time}.",
+      "linksTitle": "Gérer",
+      "source": {
+        "label": "Source",
+        "byok": "Votre propre clé API",
+        "local": "Modèle local",
+        "platform": "Plateforme",
+        "unknown": "Inconnue"
+      },
+      "badge": {
+        "byok": "BYOK",
+        "local": "LOCAL"
+      },
+      "scope": {
+        "company": "cette entreprise",
+        "workspace": "cet espace de travail",
+        "agent": "un seul agent"
+      },
+      "mode": {
+        "read": "lecture",
+        "read_write": "lecture et écriture"
+      },
+      "links": {
+        "own": {
+          "title": "Votre propre clé API",
+          "body": "Ajoutez ou changez les clés dans Paramètres → Fournisseur d'IA."
+        },
+        "local": {
+          "title": "Modèle local",
+          "body": "Connectez un point d'accès auto-hébergé dans Paramètres → Fournisseur d'IA."
+        },
+        "compare": {
+          "title": "Comparer les modèles",
+          "body": "Lancez la même tâche sur plusieurs modèles côte à côte."
+        },
+        "connections": {
+          "title": "Connexions d'automatisation",
+          "body": "Exécutions n8n, Make et Zapier."
+        },
+        "integrations": {
+          "title": "Intégrations",
+          "body": "Slack, GitHub et autres outils."
+        }
+      },
+      "pickerTitle": "Changer de modèle",
+      "pickerHelp": "Choisis où le modèle s'applique et lequel utiliser. Agent : uniquement cet agent. Défaut du compte : utilisé par les agents sans modèle propre.",
+      "pickerTarget": "S'applique à",
+      "pickerDefault": "Défaut du compte (agents sans modèle propre)",
+      "pickerModel": "Modèle",
+      "pickerApply": "Appliquer",
+      "pickerSaving": "Enregistrement…",
+      "pickerSaved": "Enregistré.",
+      "pickerError": "Échec de l'enregistrement. Réessaie.",
+      "pickerLoadError": "Impossible de charger les agents ou les modèles.",
+      "pickerEmpty": "Aucun modèle configuré pour l'instant. Ajoute une clé ou un modèle local dans les Réglages.",
+      "pickerCurrent": "Actuel : {model}",
+      "pickerCurrentUnknown": "Actuel : Inconnu",
+      "pickerLocalHint": "Les fournisseurs locaux et personnalisés se règlent uniquement dans les Réglages.",
+      "pickerForbidden": "Tu n'as pas l'autorisation de modifier ceci.",
+      "pickerPlan": "Ton forfait ne le permet pas."
+    },
+    "companyStatus": {
+      "title": "État de l'entreprise",
+      "subtitle": "En une ligne : ce qui tourne, ce qui est bloqué, ce qui attend une approbation et ce que cela a coûté.",
+      "live": "{approvals} en attente d'approbation, {stuck} bloquée(s)",
+      "loading": "Chargement de l'état de l'entreprise…",
+      "errorTitle": "Impossible de charger l'entreprise",
+      "errorBody": "L'état de l'entreprise n'a pas pu être lu. Réessayez.",
+      "retry": "Réessayer",
+      "summaryLabel": "Résumé de l'entreprise",
+      "working": "En cours",
+      "stuck": "Bloquées",
+      "approvals": "En attente d'approbation",
+      "done": "Terminées",
+      "cost": "Coût",
+      "unknown": "Inconnu",
+      "atLeast": "au moins {count}",
+      "note": "Les chiffres viennent de la première page de chaque statut de votre liste de tâches (25 par statut) ; « au moins » signale qu'il y en a davantage. Le coût n'additionne que ces tâches.",
+      "costUnknownRuns": "{count} tâche(s) sans coût lisible, non incluses.",
+      "agents": "Agents",
+      "agentsEmpty": "Aucun agent dans cette entreprise pour l'instant.",
+      "role": "Rôle",
+      "linksTitle": "Liens",
+      "links": {
+        "jobs": {
+          "title": "Tâches",
+          "body": "Tout ce qui tourne, est bloqué ou terminé."
+        },
+        "approvals": {
+          "title": "Approbations",
+          "body": "Examinez ce qui vous attend."
+        },
+        "risks": {
+          "title": "Risques",
+          "body": "Arrêts de risque ouverts."
+        },
+        "integrations": {
+          "title": "Intégrations",
+          "body": "Outils connectés."
+        },
+        "classic": {
+          "title": "Page d'entreprise classique",
+          "body": "Tous les détails, le compositeur et les réglages."
+        }
+      }
+    },
+    "companySummary": {
+      "title": "En un coup d'œil",
+      "loading": "Chargement du résumé de l'entreprise…",
+      "error": "Impossible de charger le résumé de l'entreprise.",
+      "retry": "Réessayer",
+      "empty": "Aucun résumé pour cette entreprise.",
+      "unknown": "Inconnu",
+      "bucket": {
+        "working": "En cours",
+        "needs_approval": "En attente d'approbation",
+        "stuck": "Bloqué",
+        "done": "Terminé"
+      },
+      "pendingApprovals": "Approbations en attente",
+      "agents": "Agents",
+      "pipelines": "Pipelines",
+      "monthCost": "Coût ce mois-ci",
+      "budget": {
+        "title": "Budget mensuel",
+        "noneHint": "Aucun budget mensuel n'est défini pour cette entreprise.",
+        "spent": "Dépensé",
+        "limit": "Limite",
+        "remaining": "Restant",
+        "used": "{pct} % utilisé",
+        "state": {
+          "none": "Pas de budget",
+          "ok": "Dans les clous",
+          "warn": "Proche de la limite",
+          "over": "Budget dépassé"
+        }
+      }
+    },
+    "pilotEntry": {
+      "error": {
+        "auth": "Votre session a expiré. Veuillez vous reconnecter.",
+        "forbidden": "Vous n'avez pas l'autorisation d'exporter cette entreprise.",
+        "notFound": "Entreprise introuvable.",
+        "network": "Problème réseau. Vérifiez votre connexion et réessayez.",
+        "generic": "Impossible d'exporter le paquet pilote. Réessayez."
+      },
+      "title": "Paquet micro-application (pilote)",
+      "description": "Un paquet portable de la configuration de cette entreprise (agents, pipelines, libellés de connexions demandées) avec des données d'exemple.",
+      "syntheticOnly": "Les données d'exemple sont synthétiques.",
+      "export": "Exporter le paquet pilote",
+      "exporting": "Exportation…",
+      "exported": "Paquet pilote téléchargé.",
+      "previewTitle": "Aperçu du paquet",
+      "previewName": "Nom",
+      "previewAgents": "Agents",
+      "previewPipelines": "Pipelines",
+      "previewRecords": "Enregistrements",
+      "previewConnectors": "Connexions demandées",
+      "noConnectors": "Aucune",
+      "moreConnectors": "+{count} de plus",
+      "noData": "Pas encore de données. Exportez le paquet pour l'aperçu.",
+      "connectorsNote": "L'aperçu montre les connexions demandées par le paquet ; le détail des actions et des portées figure dans le fichier. L'autorisation d'envoi ou d'écriture est limitée par la portée du connecteur ; ce paquet ne l'impose pas."
+    },
+    "codeChange": {
+      "title": "Modification : {title}",
+      "titleGeneric": "Modification de code",
+      "loading": "Chargement de la modification de code…",
+      "error": "Impossible de charger la modification de code. Réessayez.",
+      "retry": "Réessayer",
+      "none": "Cette tâche n'a aucun enregistrement de modification de code.",
+      "filesTitle": "Fichiers ({count})",
+      "filesNone": "Aucun fichier listé",
+      "filesUnknown": "Fichiers : Inconnu",
+      "moreFiles": "{count, plural, one {+# fichier de plus} other {+# fichiers de plus}}",
+      "unknown": "Inconnu",
+      "totals": "Total : {added} {removed}",
+      "totalsAtLeast": "Au moins : {added} {removed}",
+      "partialNote": "Certains fichiers n'ont pas de nombre de lignes ou la liste est tronquée ; les totaux sont donc un minimum.",
+      "testsTitle": "Tests",
+      "testsPassed": "{count} réussis",
+      "testsFailed": "{count} échoués",
+      "testsSkipped": "{count} ignorés",
+      "testsPassedUnknown": "réussis : Inconnu",
+      "testsFailedUnknown": "échoués : Inconnu",
+      "testsSkippedUnknown": "ignorés : Inconnu",
+      "testsTotal": "{count} au total",
+      "testsVerified": "Vérifié",
+      "testsNotVerified": "Non vérifié",
+      "testsRuns": "{count, plural, one {# exécution de tests} other {# exécutions de tests}}",
+      "approvalLink": "Décider dans le centre d'approbation",
+      "srSummary": "{title}. Fichiers : {files}. Tests : {tests}.",
+      "stale": "Actualisation impossible ; dernières données connues affichées."
+    },
+    "agents": {
+      "title": "Agents",
+      "new": "Nouvel agent",
+      "company": "Espace de travail",
+      "noCompany": "Crée d'abord un espace de travail : les agents appartiennent à un espace.",
+      "companiesError": "Impossible de charger les espaces de travail.",
+      "retry": "Réessayer",
+      "composerTitle": "Nouvel agent",
+      "describe": "Quel type de collègue veux-tu ?",
+      "placeholder": "p. ex. Résumer les e-mails commerciaux chaque matin",
+      "tooShort": "Décris l'agent en au moins 10 caractères.",
+      "tooLong": "La description est trop longue (4000 caractères maximum).",
+      "draftButton": "Brouillon",
+      "drafting": "Préparation du brouillon…",
+      "draftNote": "Le brouillon n'enregistre rien. L'agent n'est créé que lorsque tu appuies sur Créer.",
+      "previewTitle": "Aperçu du brouillon",
+      "notSaved": "pas encore enregistré",
+      "name": "Nom",
+      "role": "Rôle",
+      "tools": "Outils",
+      "none": "aucun",
+      "dropped": "Outils retirés ({count}), indisponibles",
+      "systemPrompt": "Instructions (prompt système)",
+      "providerLine": "Brouillon de {provider} / {model}.",
+      "create": "Créer",
+      "creating": "Création…",
+      "discard": "Abandonner le brouillon",
+      "created": "a été créé.",
+      "maybeSaved": "Si la connexion a coupé, l'agent est peut-être déjà enregistré : vérifie la liste avant de réessayer.",
+      "listTitle": "Agents",
+      "listError": "Impossible de charger la liste des agents.",
+      "empty": "Aucun agent dans cet espace de travail pour l'instant.",
+      "status": "Statut",
+      "unknown": "Inconnu",
+      "labelSep": " : ",
+      "pairSep": "·",
+      "listSep": ", ",
+      "error": {
+        "session": "Ta connexion n'a pas pu être vérifiée. Reconnecte-toi.",
+        "payment": "Une limite de forfait ou de budget est atteinte (402). Vérifie les limites puis réessaie.",
+        "forbidden": "Tu n'as pas l'autorisation pour cela.",
+        "notFound": "Cet espace de travail est introuvable.",
+        "rateLimit": "Trop de requêtes (429). Patiente un instant puis réessaie.",
+        "timeout": "La requête a expiré.",
+        "network": "Le serveur est injoignable. Vérifie la connexion et réessaie.",
+        "noProvider": "Aucun fournisseur d'IA n'est configuré. Ajoutes-en un dans les Réglages puis réessaie.",
+        "badDraft": "Le brouillon a été refusé. Décris l'agent autrement et refais un brouillon.",
+        "badResponse": "La réponse du serveur n'a pas été comprise. Rien n'a été affiché comme enregistré.",
+        "generic": "Une erreur inattendue s'est produite. Réessaie."
+      },
+      "refreshList": "Actualiser la liste",
+      "loading": "Chargement…"
     }
   },
   "static": {

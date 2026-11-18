@@ -368,17 +368,35 @@ export async function claimHandoff(input: ClaimHandoffInput): Promise<HandoffLed
       ? { ...checkpointForClaim, claimBaseUrl: input.baseUrl }
       : undefined;
 
-  const claimed = await prisma.handoffLedger.update({
-    where: { id: ledger.id },
+  // Atomic OPEN → CLAIMED (02c-2): the `status: "OPEN"` guard in the WHERE makes
+  // exactly one of N concurrent claimers win; the rest see count 0 and get the
+  // same NOT_OPEN error a late claimer always got. `claimedAt` doubles as the
+  // claim's token (see reopenClaimedHandoff).
+  const claimedAt = new Date();
+  const claimedByActor = input.claimedBy ?? "system";
+  const won = await prisma.handoffLedger.updateMany({
+    where: { id: ledger.id, status: "OPEN" },
     data: {
       status: "CLAIMED",
       toProvider: input.provider,
       toModel: input.model,
-      claimedBy: input.claimedBy ?? "system",
-      claimedAt: new Date(),
+      claimedBy: claimedByActor,
+      claimedAt,
       ...(claimCheckpoint ? { checkpoint: claimCheckpoint as any } : {}),
     },
   });
+  if (won.count !== 1) {
+    throw new HandoffClaimError("NOT_OPEN", "Handoff was claimed by another request");
+  }
+  const claimed: HandoffLedger = {
+    ...ledger,
+    status: "CLAIMED",
+    toProvider: input.provider as HandoffLedger["toProvider"],
+    toModel: input.model,
+    claimedBy: claimedByActor,
+    claimedAt,
+    ...(claimCheckpoint ? { checkpoint: claimCheckpoint as HandoffLedger["checkpoint"] } : {}),
+  };
 
   try {
     await prisma.activityLog.create({
@@ -479,4 +497,21 @@ export async function cancelOpenHandoffForRun(
     );
   }
   return true;
+}
+
+/**
+ * Undo a claim whose run transition then lost (BRA-P0-02c-2): CLAIMED → OPEN and
+ * the claim fields cleared, so `/continue` can be retried. The claim is atomic
+ * (`claimHandoff`), so only the winning request ever calls this, and it passes
+ * its own `claimedAt` (the claim token returned by `claimHandoff`): a claim made
+ * by any other request has a different `claimedAt` and is never reopened. The
+ * `claimBaseUrl` annotation on the checkpoint stays (the next claim overwrites
+ * it). Returns whether a row was reopened.
+ */
+export async function reopenClaimedHandoff(handoffId: string, claimedAt: Date): Promise<boolean> {
+  const res = await prisma.handoffLedger.updateMany({
+    where: { id: handoffId, status: "CLAIMED", claimedAt },
+    data: { status: "OPEN", toProvider: null, toModel: null, claimedBy: null, claimedAt: null },
+  });
+  return res.count === 1;
 }

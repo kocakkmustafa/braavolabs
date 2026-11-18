@@ -16,7 +16,7 @@ rather than by version tag. PR numbers refer to `kocakkmustafa/braavolabs`.
   Approved versions are immutable and signed with the registry's ed25519 key;
   the revocation list is signed too. Reports, a serious report pulling a
   community skill from the catalog, publisher verify/suspend. Migration
-  `20261102000000_skill_registry` (additive). Needs `SKILL_REGISTRY_PRIVATE_KEY`
+  `20261118300000_skill_registry` (additive). Needs `SKILL_REGISTRY_PRIVATE_KEY`
   (`pnpm --filter @ai-company-os/api skill-registry:keygen`) before deploy.
 
 ## 2026-07-18

@@ -292,7 +292,7 @@ export default async function DocsArticlePage({
       </nav>
 
       {/* ── Layout: side nav + prose ── */}
-      <div className="max-w-[1100px] mx-auto px-6 md:px-8 pt-12 mb-24 grid grid-cols-1 md:grid-cols-[240px_1fr] gap-12">
+      <div id="main-content" tabIndex={-1} className="max-w-[1100px] mx-auto px-6 md:px-8 pt-12 mb-24 grid grid-cols-1 md:grid-cols-[240px_1fr] gap-12">
         {/* Side nav: all docs (desktop) */}
         <nav className="hidden md:block sticky top-[72px] self-start" aria-label={uiText("mcb951cf4a4d3")}>
           <p className="bv-micro mb-[14px]">{uiText("m0c14fdc4a1c6")}</p>

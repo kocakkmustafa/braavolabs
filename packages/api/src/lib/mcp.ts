@@ -21,12 +21,15 @@
 
 import { logger } from "./logger";
 import { AppError } from "../middleware/error";
-import { assertSafeExternalUrl, SsrfError } from "./ssrf";
+import { authHeaders, credentialSecrets, scrubSecrets } from "./mcp-auth";
+import { safeExternalFetch, SsrfError, SsrfResponseTooLargeError } from "./ssrf";
 
 export interface McpTool {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  /** Publisher-declared capability (BRA-P1-03d); never set by a live probe. */
+  capability?: string;
 }
 
 export interface McpInvokeResult {
@@ -50,74 +53,79 @@ interface JsonRpcResponse {
 
 const REQUEST_TIMEOUT_MS = 30_000;
 
-function authHeaders(method: string, creds: Record<string, string> | undefined): Record<string, string> {
-  if (!creds) return {};
-  switch (method) {
-    case "NONE":
-      return {};
-    case "API_KEY":
-      // Accept either standard header keys or a tenant-supplied
-      // override (header name is encoded into the connector's
-      // authSchema).
-      if (creds.headerName && creds.apiKey) return { [creds.headerName]: creds.apiKey };
-      if (creds.apiKey) return { Authorization: `Bearer ${creds.apiKey}` };
-      return {};
-    case "BASIC":
-      if (creds.username && creds.password) {
-        const token = Buffer.from(`${creds.username}:${creds.password}`).toString("base64");
-        return { Authorization: `Basic ${token}` };
-      }
-      return {};
-    case "OAUTH2":
-      // OAuth2 access tokens are short-lived; we expect the install
-      // flow to refresh them before storing. Long-term refresh is
-      // a follow-up — out of scope for the MVP marketplace.
-      if (creds.accessToken) return { Authorization: `Bearer ${creds.accessToken}` };
-      return {};
-    case "CUSTOM":
-      // Custom auth: caller pre-formats headers into `headers` JSON.
-      try {
-        return creds.headers ? (JSON.parse(creds.headers) as Record<string, string>) : {};
-      } catch {
-        return {};
-      }
-    default:
-      return {};
-  }
-}
-
 async function callMcp<T>(
   baseUrl: string,
   body: JsonRpcRequest,
   authMethod: string,
   creds: Record<string, string> | undefined,
 ): Promise<T> {
+  // SSRF: validate + pin the resolved address to the socket (no DNS-rebinding
+  // gap) and re-validate every redirect hop. The connector credentials must
+  // never follow a redirect to another origin or an internal address.
+  let res: Response;
+  const auth = authHeaders(authMethod, creds);
+  // A query string can carry a token too, so it also forces HTTPS.
+  let hasQuery = false;
   try {
-    await assertSafeExternalUrl(baseUrl);
+    hasQuery = new URL(baseUrl).search !== "";
+  } catch {
+    /* invalid URL is rejected by safeExternalFetch */
+  }
+  try {
+    res = await safeExternalFetch(baseUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...auth,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    }, {
+      // Credentials must never travel in cleartext: HTTPS is mandatory
+      // (initial URL and every redirect hop) whenever auth headers are sent.
+      requireHttps: Object.keys(auth).length > 0 || hasQuery,
+    });
   } catch (err) {
+    if (err instanceof SsrfResponseTooLargeError) {
+      throw new AppError(502, "MCP server response too large");
+    }
+    if (err instanceof SsrfError && /HTTPS is required/.test(err.message)) {
+      throw new AppError(
+        400,
+        "Connector URL rejected: HTTPS is required. Bağlayıcı URL'si HTTPS olmalı; HTTPS gerekli — bağlayıcı sahibi URL'yi https'e çevirmeli.",
+      );
+    }
     if (err instanceof SsrfError) {
       throw new AppError(400, `Connector URL rejected: ${err.message}`);
     }
     throw err;
   }
-  const res = await fetch(baseUrl, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Accept: "application/json",
-      ...authHeaders(authMethod, creds),
-    },
-    body: JSON.stringify(body),
-    signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-  });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    logger.warn({ status: res.status, body: text.slice(0, 300) }, "MCP HTTP error");
+    logger.warn(
+      { status: res.status, body: (scrubSecrets(text, credentialSecrets(authMethod, creds)) as string).slice(0, 300) },
+      "MCP HTTP error",
+    );
     throw new AppError(502, `MCP server returned ${res.status}`);
   }
-  const json = (await res.json()) as JsonRpcResponse;
-  if (json.error) {
-    throw new AppError(502, `MCP error ${json.error.code}: ${json.error.message}`);
+  let json: JsonRpcResponse;
+  try {
+    json = (await res.json()) as JsonRpcResponse;
+  } catch {
+    // Parser errors can quote upstream text; never forward them.
+    throw new AppError(502, "MCP yanıtı geçersiz JSON");
+  }
+  // A body of `null`, a scalar or an array is valid JSON but not a JSON-RPC response.
+  if (json === null || typeof json !== "object" || Array.isArray(json)) {
+    throw new AppError(502, "MCP yanıtı geçersiz");
+  }
+  if (json.error !== undefined && json.error !== null) {
+    if (typeof json.error !== "object" || Array.isArray(json.error)) {
+      throw new AppError(502, "MCP sunucusu hata döndürdü");
+    }
+    const msg = scrubSecrets(`MCP error ${json.error.code}: ${json.error.message}`, credentialSecrets(authMethod, creds));
+    throw new AppError(502, msg as string);
   }
   return json.result as T;
 }
@@ -137,7 +145,8 @@ export async function listTools(
     authMethod,
     creds,
   );
-  return Array.isArray(result?.tools) ? result.tools : [];
+  const tools = Array.isArray(result?.tools) ? result.tools : [];
+  return scrubSecrets(tools, credentialSecrets(authMethod, creds)) as McpTool[];
 }
 
 export async function callTool(

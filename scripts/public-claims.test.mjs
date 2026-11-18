@@ -439,7 +439,14 @@ test("next config delegates canonical routing to fail-closed middleware", () => 
   // next-start fallback handles relocated pnpm stores without weakening Host
   // validation or replacing the real built application with a mock server.
   // The fallback binds loopback only, like the standalone HOSTNAME below.
-  assert.match(playwright, /command: process\.env\.E2E_UI_STANDALONE\s*\? `node packages\/ui\/\.next\/standalone\/packages\/ui\/server\.js`\s*:\s*`pnpm --filter @ai-company-os\/ui exec next start --hostname 127\.0\.0\.1 --port \$\{UI_PORT\}`/);
+  // BRA-UX-04: UI sunucusu `uiServer(port, env)` fabrikasından gelir (aynı komut, port parametreli); varsayılan UI bayrak KAPALI,
+  // ikinci örnek (UI_LAB_PORT) aynı derlemeyi NEXT_PUBLIC_UX_LAB=1 ile sunar.
+  assert.match(playwright, /command: process\.env\.E2E_UI_STANDALONE\s*\? `node packages\/ui\/\.next\/standalone\/packages\/ui\/server\.js`\s*:\s*`pnpm --filter @ai-company-os\/ui exec next start --hostname 127\.0\.0\.1 --port \$\{port\}`/);
+  assert.match(playwright, /uiServer\(UI_PORT, \{\}\)/);
+  assert.match(playwright, /uiServer\(UI_LAB_PORT, \{ NEXT_PUBLIC_UX_LAB: "1", NEXT_PUBLIC_UX_INTENT: "1", NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1", NEXT_PUBLIC_UX_APPROVALS: "1", NEXT_PUBLIC_UX_MODELS: "1", NEXT_PUBLIC_UX_COMPANY: "1", NEXT_PUBLIC_UX_CODE: "1" \}\)/); // BRA-UX-05a: + Niyet Çubuğu; 05c: + İşler bayrağı; 05b: + iş sayfası bayrağı; 05i: + onay merkezi bayrağı; 05h: + modeller bayrağı; 05f: + şirket durumu bayrağı; 05e: + kod değişikliği kartı bayrağı
+  // BRA-UX-05e: İşler + iş sayfası AÇIK ama kod değişikliği kartı bayrağı KAPALI örnek (UI_WS_PORT): CODE bayrağı burada OLMAMALI.
+  assert.match(playwright, /uiServer\(UI_WS_PORT, \{ NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1" \}\)/);
+  assert.doesNotMatch(playwright.match(/uiServer\(UI_WS_PORT[^\n]*/)?.[0] ?? "", /NEXT_PUBLIC_UX_CODE/);
   const ci = read(".github/workflows/ci.yml");
   const e2e = ci.match(/^  e2e:\n([\s\S]*?)(?=^  [\w-]+:)/m)?.[1];
   assert.ok(e2e, "CI must have its real E2E job");
@@ -559,6 +566,7 @@ test("localized privacy and terms match platform data and billing truth", () => 
   // Apple 3.1.2: the App Store listing links these terms, so every locale
   // carries Apple's standard EULA clause (lawyer-approved A-18 wording).
   assert.match(englishTerms, /For the Braavolabs iOS app, Apple's standard Licensed Application End User License Agreement/);
+  // BRAND-01b-2: "YULA Lab" here is the legal operator name, intentionally not "Yula Lab".
   assert.match(englishTerms, /between you and YULA Lab, the operator of Braavolabs, only; Apple has no obligation for maintenance, support, warranty or claims/);
   assert.match(englishTerms, /Apple and its subsidiaries are third-party beneficiaries of these terms/);
   for (const file of readdirSync(join(ROOT, "packages/ui/messages")).filter((name) => name.endsWith(".json"))) {
@@ -573,6 +581,23 @@ test("localized privacy and terms match platform data and billing truth", () => 
   assert.match(englishFaq, /Manage Apple App Store or Google Play subscriptions in that store/);
   assert.match(englishFaq, /Content may be sent to AI providers you select or connect for requested workflows/);
   assert.match(englishFaq, /Provider handling follows the applicable provider terms and settings/);
+});
+
+test("BRAND-01b-2: legal operator name stays 'YULA Lab' (exempt from the 'Yula Lab' brand spelling)", () => {
+  // Founder 2026-11-15 ("Evet, aynı"): the legal/publisher name is a registered
+  // identity, not product copy. The Apple EULA operator clause, LICENSE and the
+  // operator record keep "YULA Lab"; changing any of them must fail this test.
+  const operator = read("packages/ui/lib/legal-operator.ts");
+  assert.match(operator, /legalName: "YULA Lab",/);
+  assert.match(operator, /controller: "YULA Lab — Mustafa Kaan Koçak",/);
+  assert.match(read("LICENSE"), /^Copyright \(c\) 2026 YULA Lab$/m);
+  for (const file of readdirSync(join(ROOT, "packages/ui/messages")).filter((name) => name.endsWith(".json"))) {
+    const terms = JSON.parse(read(`packages/ui/messages/${file}`)).static.legal.terms;
+    const clause = terms.sections.find(({ body }) => body.includes("https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"));
+    assert.ok(clause, `${file}: terms omit Apple's standard EULA`);
+    assert.ok(clause.body.includes("YULA Lab"), `${file}: EULA operator must stay "YULA Lab"`);
+    assert.ok(!clause.body.includes("Yula Lab"), `${file}: EULA operator must not use the brand spelling`);
+  }
 });
 
 test("GDPR transfer copy cannot name unevidenced processors or legal mechanisms", () => {
@@ -760,7 +785,7 @@ test("legal pages render the single published operator record", async () => {
 
 test("every product surface names the one shared support address", async () => {
   const { execFileSync } = await import("node:child_process");
-  // Founder rule (2026-10-24): all YULA Lab products share support@yulalab.com. The legal
+  // Founder rule (2026-10-24): all Yula Lab products share support@yulalab.com. The legal
   // request channels (kvkk@ / gdpr@ / privacy@braavolabs.com) are a separate decision.
   const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" }).split("\0")
     .filter((path) => path && !path.startsWith("scripts/public-claims.test.mjs") && existsSync(join(ROOT, path)));

@@ -270,6 +270,31 @@ describe("draft decisions respect company lifecycle", () => {
     expect(activityLogCreate).not.toHaveBeenCalled();
   });
 
+  it("SEC-BRA-01 stale-read 3x approve+send: pre-read is PENDING every time, only the claim CAS stops 2 and 3 = 1 email/quota/log", async () => {
+    draftFindUnique.mockResolvedValue(pendingDraft("ACTIVE")); // stale: PENDING on all 3 calls
+    let claimed = false;
+    draftUpdateMany.mockImplementation(async ({ where }: { where: any }) => {
+      if (where.status !== "PENDING" || claimed) return { count: 0 };
+      claimed = true;
+      return { count: 1 };
+    });
+    const results = [];
+    for (let i = 0; i < 3; i++) results.push(await invoke("post", { send: true }));
+    expect(results[0].error).toBeUndefined();
+    for (const r of results.slice(1)) {
+      expect(r.error).toMatchObject({ statusCode: 409, message: "Draft was already decided or the company is inactive." });
+    }
+    expect(draftUpdateMany).toHaveBeenCalledTimes(3);
+    for (const [arg] of draftUpdateMany.mock.calls) {
+      expect(arg.where).toMatchObject({ id: "draft-1", status: "PENDING", company: { tenantId: "tenant-1", status: "ACTIVE" } });
+      expect(arg.data).toEqual({ status: "APPROVED" });
+    }
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(tenantTxMock).toHaveBeenCalledTimes(1);
+    expect(draftUpdate).toHaveBeenCalledTimes(1);
+    expect(activityLogCreate).toHaveBeenCalledTimes(1);
+  });
+
   it("non-email send cannot claim PUBLISHED without an external delivery", async () => {
     draftFindUnique.mockResolvedValue({ ...pendingDraft("ACTIVE"), type: "SOCIAL_POST" });
     const { error } = await invoke("post", { send: true });
@@ -518,5 +543,135 @@ describe("B-06: contact email is disabled unless OUTBOUND_EMAIL_ENABLED=true", (
     expect(error).toBeUndefined();
     expect(sendEmail).toHaveBeenCalledOnce();
     expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ status: "PUBLISHED" }));
+  });
+});
+
+describe("BRA-P1-02-N1: draft approval binds to one send of the approved content", () => {
+  // Stateful fake of the draft row so the SECOND call sees what the first wrote
+  // (unlike the stale-read test above, which freezes findUnique at PENDING).
+  type Row = ReturnType<typeof pendingDraft> & { status: string };
+  let row: Row;
+  function useStatefulRow(initial: Partial<Row> = {}, tenantId = "tenant-1") {
+    row = { ...pendingDraft("ACTIVE", tenantId), ...initial } as Row;
+    draftFindUnique.mockImplementation(async () => ({ ...row }));
+    draftUpdateMany.mockImplementation(async ({ where, data }: { where: any; data: any }) => {
+      const contentOk = where.content === undefined
+        || JSON.stringify(where.content.equals) === JSON.stringify(row.content);
+      const ok = row.id === where.id
+        && (where.status === undefined || row.status === where.status)
+        && (where.updatedAt === undefined || +where.updatedAt === +row.updatedAt)
+        && contentOk
+        && (where.company === undefined || row.company.tenantId === where.company.tenantId);
+      if (ok) Object.assign(row, data);
+      return { count: ok ? 1 : 0 };
+    });
+    draftUpdate.mockImplementation(async ({ data }: { data: any }) => {
+      Object.assign(row, data);
+      return { ...row };
+    });
+  }
+
+  it("approved+sent draft: 3 sends with the same approval = exactly 1 sender call", async () => {
+    useStatefulRow();
+    const results = [];
+    for (let i = 0; i < 3; i++) results.push(await invoke("post", { send: true }));
+    expect(results[0].error).toBeUndefined();
+    expect(row.status).toBe("PUBLISHED");
+    for (const r of results.slice(1)) expect(r.error).toMatchObject({ statusCode: 400 });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(tenantTxMock).toHaveBeenCalledTimes(1);
+  });
+
+  it.each([
+    ["to", { to: "other@example.com" }],
+    ["subject", { subject: "Changed subject" }],
+    ["body", { body: "Changed body" }],
+  ])("editing %s after approval is refused and the old approval cannot send it", async (_f, patch) => {
+    useStatefulRow();
+    // approve only (no send) records the approval
+    expect((await invoke("post", { send: false })).error).toBeUndefined();
+    expect(row.status).toBe("APPROVED");
+    const before = JSON.stringify(row.content);
+
+    const edit = await invoke("patch", { content: { ...row.content, ...patch } });
+    expect(edit.error).toMatchObject({ statusCode: 409 });
+    expect(JSON.stringify(row.content)).toBe(before);
+
+    const send = await invoke("post", { send: true });
+    expect(send.error).toMatchObject({ statusCode: 400 });
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("content changed between read and claim (to/subject/body) never reaches the sender", async () => {
+    for (const patch of [{ to: "x@example.com" }, { subject: "S2" }, { body: "B2" }]) {
+      vi.clearAllMocks();
+      useStatefulRow();
+      contactFindFirst.mockImplementation(async () => {
+        row.content = { ...row.content, ...patch };
+        return { id: "contact-1" };
+      });
+      const { error } = await invoke("post", { send: true });
+      expect(error).toMatchObject({ statusCode: 409 });
+      expect(row.status).toBe("PENDING");
+      expect(sendEmail).not.toHaveBeenCalled();
+      expect(tenantTxMock).not.toHaveBeenCalled();
+    }
+  });
+
+  it("another tenant cannot send an ACTIVE draft: 404, no claim, no sender", async () => {
+    draftFindUnique.mockResolvedValue(pendingDraft("ACTIVE", "tenant-2"));
+    const { error } = await invoke("post", { send: true });
+    expect(error).toMatchObject({ statusCode: 404 });
+    expectNoDecisionSideEffects();
+  });
+
+  it("claim is tenant-scoped: a draft that flips tenant between read and claim is not sent", async () => {
+    useStatefulRow();
+    draftFindUnique.mockImplementation(async () => ({ ...row, company: { ...row.company, tenantId: "tenant-1" } }));
+    row.company = { ...row.company, tenantId: "tenant-2" };
+    const { error } = await invoke("post", { send: true });
+    expect(error).toMatchObject({ statusCode: 409 });
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it.each(["APPROVED", "REJECTED", "ARCHIVED", "PUBLISHED"])(
+    "%s (not PENDING) draft is never sent",
+    async (status) => {
+      useStatefulRow({ status });
+      for (const send of [true, false]) {
+        const { error } = await invoke("post", { send });
+        expect(error).toMatchObject({ statusCode: 400 });
+      }
+      expect(sendEmail).not.toHaveBeenCalled();
+      expect(tenantTxMock).not.toHaveBeenCalled();
+      expect(activityLogCreate).not.toHaveBeenCalled();
+    },
+  );
+
+  it("provider failure stays consumed (APPROVED): retry is refused, no double email", async () => {
+    useStatefulRow();
+    sendEmail.mockRejectedValueOnce(new Error("timeout after maybe-accepted"));
+    const first = await invoke("post", { send: true });
+    expect(first.error).toBeUndefined();
+    expect(row.status).toBe("APPROVED");
+    for (let i = 0; i < 2; i++) {
+      const retry = await invoke("post", { send: true });
+      expect(retry.error).toMatchObject({ statusCode: 400 });
+    }
+    expect(sendEmail).toHaveBeenCalledTimes(1);
+    expect(tenantTxMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("quota refusal is the only retryable path: back to PENDING, then exactly one send", async () => {
+    useStatefulRow();
+    tenantTxMock.mockResolvedValueOnce([]); // quota claim refused
+    const refused = await invoke("post", { send: true });
+    expect(refused.error).toBeDefined();
+    expect(row.status).toBe("PENDING");
+    expect(sendEmail).not.toHaveBeenCalled();
+    tenantTxMock.mockResolvedValue([{ value: 1 }]);
+    expect((await invoke("post", { send: true })).error).toBeUndefined();
+    expect((await invoke("post", { send: true })).error).toMatchObject({ statusCode: 400 });
+    expect(sendEmail).toHaveBeenCalledTimes(1);
   });
 });

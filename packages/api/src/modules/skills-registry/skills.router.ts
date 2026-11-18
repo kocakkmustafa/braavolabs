@@ -28,7 +28,7 @@ import { AppError } from "../../middleware/error";
 import { logger } from "../../lib/logger";
 import { BundleError, buildBundle, bundleBytes, bundleDigest, frontmatter, LIMITS, NAME_RE, readTarGz, SEMVER_RE, selectFiles, type FileInfo } from "./bundle";
 import { scanBundle, worst, type Finding } from "./scan";
-import { signCanonical } from "./signing";
+import { signCanonical, signingConfigured } from "./signing";
 
 export const skillsRegistryRouter = Router();
 
@@ -43,6 +43,11 @@ const trustOf = (p: { official: boolean; verified: boolean }): Trust => (p.offic
 /** The manifest the registry signs for an approved version. */
 export function manifestFor(v: { name: string; version: string; sha256: string; publisher: string; trust: Trust; approvedAt: string; files: FileInfo[] }) {
   return signCanonical({ name: v.name, version: v.version, sha256: v.sha256, publisher: v.publisher, trust: v.trust, approvedAt: v.approvedAt, files: v.files });
+}
+
+/** No key, no signature: approval and the revocation list refuse rather than emit anything unsigned. */
+function requireSigning(): void {
+  if (!signingConfigured()) throw new AppError(503, "skill registry signing is not configured");
 }
 
 function isAdminEmail(email: string | null | undefined): boolean {
@@ -103,6 +108,7 @@ skillsRegistryRouter.get("/", systemScope("route:skills-public"), async (req, re
 let revocationCache: { at: number; body: unknown } | null = null;
 skillsRegistryRouter.get("/revocations", systemScope("route:skills-public"), async (_req, res, next) => {
   try {
+    requireSigning();
     if (!revocationCache || Date.now() - revocationCache.at > 5 * 60_000) {
       const rows = await prisma.skillRevocation.findMany({ orderBy: { createdAt: "asc" }, take: 5000 });
       const entries = rows.map(r => ({ name: r.name, version: r.version, sha256: r.sha256, reason: r.reason, revokedAt: r.createdAt.toISOString() }));
@@ -192,7 +198,7 @@ authed.post("/publish", async (req, res, next) => {
     const level = worst(findings);
     const releasedBefore = await prisma.skillVersion.count({ where: { state: "APPROVED", package: { publisherId: publisher.id } } });
     const trusted = publisher.official || publisher.verified;
-    const state = level === "block" ? "REJECTED" : trusted && level === null && releasedBefore > 0 ? "APPROVED" : "NEEDS_REVIEW";
+    const state = level === "block" ? "REJECTED" : trusted && level === null && releasedBefore > 0 && signingConfigured() ? "APPROVED" : "NEEDS_REVIEW";
     const skillMd = bundle.files.find(f => f.path === "SKILL.md")!.content;
     const description = (frontmatter(skillMd).description ?? "").slice(0, 500);
     const approvedAt = new Date().toISOString();
@@ -256,6 +262,7 @@ async function versionFor(name: string, version: string) {
 authed.post("/:name/versions/:version/approve", async (req, res, next) => {
   try {
     await assertAdmin(req.auth!.userId);
+    requireSigning();
     const v = await versionFor(req.params.name, req.params.version);
     if (v.state !== "NEEDS_REVIEW") throw new AppError(409, `version is ${v.state}`);
     const publisher = v.package.publisher;

@@ -19,6 +19,8 @@ export function createCorsOptions(
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     // Cookie-mode requests retain the explicit CSRF custom-header preflight.
     allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+    // BRA-P0-04b: tarayıcı web istemcisi sayfalı /approvals yanıtının imlecini okuyabilsin.
+    exposedHeaders: ["X-Next-Cursor"],
     maxAge: 86400,
   };
 }

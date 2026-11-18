@@ -60,6 +60,7 @@ const SENSITIVE_KEY_NAMES = new Set([
   "serviceaccount",
   "serviceaccountjson",
   "googleplayserviceaccountjson",
+  "patches", // BRA-P2-02e worktree plan bodies (file contents)
 ]);
 
 const SENSITIVE_KEY_SUFFIXES = [

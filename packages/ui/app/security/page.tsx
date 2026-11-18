@@ -54,7 +54,7 @@ export default function SecurityPage() {
         </div>
       </nav>
 
-      <main className="max-w-[1040px] mx-auto px-6 py-20">
+      <main id="main-content" tabIndex={-1} className="max-w-[1040px] mx-auto px-6 py-20">
         <header className="max-w-[760px]">
           <p className="bv-pill bv-pill-cyan inline-flex mb-5">{uiText("m0b84272e0b38")}</p>
           <h1 className="font-headline font-bold uppercase text-[clamp(40px,7vw,74px)] leading-[0.95]">{uiText("m2708222253e6")}</h1>

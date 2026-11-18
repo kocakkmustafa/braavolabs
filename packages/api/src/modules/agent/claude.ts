@@ -3,11 +3,12 @@ import type { MessageParam } from "@anthropic-ai/sdk/resources/messages";
 import { env } from "../../config/env";
 import { logger } from "../../lib/logger";
 import { getTool, type ToolDefinition } from "./registry";
-import { executeTool, type ToolExecResult } from "./tool-executor";
+import { executeTool, guardUngovernedTenantScope, withActingTenant, type ToolExecResult } from "./tool-executor";
 import { runLocalAgentLoop } from "./claude-local";
 import { assertReasoningEffortSupported, UnsupportedReasoningEffortError, type ReasoningEffort } from "../../services/reasoning-effort";
 import {
   chatCompletion,
+  LOCAL_PROVIDERS,
   resolveModelForProvider,
   ToolsUnsupportedError,
   type AIClientConfig,
@@ -20,6 +21,7 @@ import {
 import {
   buildTenantProviderChain,
   classifyProviderError,
+  extractProviderErrorStatus,
   isFailoverEligible,
   isProviderTripped,
   ProviderExhaustedError,
@@ -32,6 +34,7 @@ import { priceForModel, FREE_PROVIDERS } from "../../lib/modelPricing";
 import { commitTrialRun, refundTrialReservation } from "../../services/trial-llm";
 import { prisma } from "../../lib/db";
 import { publishRunEvent } from "../../lib/runEvents";
+import { recordAssistantReply, type DrainedSteer } from "../run/chat-reply";
 import { buildContextSummary, NO_PRIOR_CONTEXT } from "../run/handoff-summary";
 
 /**
@@ -289,6 +292,9 @@ async function executeToolCalls(
   toolCalls: ChatToolCall[],
   govContext?: AgentGovContext,
   extraTools?: Map<string, ToolDefinition>,
+  // SEC-BRA-06c: ungoverned path only — the model may call ONLY the tools it
+  // was offered, and secondary *Id fields are validated against tenantId.
+  ungoverned?: { allowedNames: ReadonlySet<string>; tenantId?: string },
 ): Promise<AgentTurnResult["toolCalls"]> {
   return mapWithConcurrency(toolCalls, TOOL_PARALLELISM, async (call) => {
     const input = parseToolArgs(call.argumentsJson);
@@ -322,6 +328,16 @@ async function executeToolCalls(
     // completeness means an approval-required connector tool is blocked below
     // rather than silently missing.
     const start = Date.now();
+    if (ungoverned && !ungoverned.allowedNames.has(call.name)) {
+      return {
+        id: call.id,
+        name: call.name,
+        input,
+        output: null,
+        durationMs: Date.now() - start,
+        error: `Tool "${call.name}" is not in this agent's allowed tool list`,
+      };
+    }
     const registeredTool = extraTools?.get(call.name) ?? getTool(call.name);
 
     if (!registeredTool) {
@@ -352,20 +368,24 @@ async function executeToolCalls(
     // companyId field MUST run via a governed pipeline. Refusing here
     // means a future caller that omits govContext can never silently
     // escalate cross-tenant — they get an obvious error instead.
-    const inputObj = (input ?? {}) as Record<string, unknown>;
-    if ("companyId" in inputObj) {
+    const scopeError = await guardUngovernedTenantScope(registeredTool, input, call.name, ungoverned?.tenantId);
+    if (scopeError) {
       return {
         id: call.id,
         name: call.name,
         input,
         output: null,
         durationMs: Date.now() - start,
-        error: `Tool "${call.name}" requires a tenant-scoped pipeline run (companyId in input)`,
+        error: scopeError,
       };
     }
 
     try {
-      const output = await registeredTool.handler(input);
+      const output = await registeredTool.handler(
+        registeredTool.meta?.injectTenantId && ungoverned?.tenantId
+          ? withActingTenant(input, ungoverned.tenantId)
+          : input,
+      );
       return {
         id: call.id,
         name: call.name,
@@ -613,7 +633,7 @@ async function checkTurnBoundaryInterrupt(
  * canonical transcript. Publishes STEERING_APPLIED run events. No-op
  * (returns null) outside a governed run.
  */
-async function drainSteeringText(govContext?: AgentGovContext): Promise<string | null> {
+async function drainSteeringText(govContext?: AgentGovContext, drained?: DrainedSteer[]): Promise<string | null> {
   if (!govContext) return null;
   try {
     const pending = await prisma.steeringMessage.findMany({
@@ -625,6 +645,7 @@ async function drainSteeringText(govContext?: AgentGovContext): Promise<string |
       where: { id: { in: pending.map((m) => m.id) } },
       data: { consumedAt: new Date() },
     });
+    if (drained) for (const m of pending) drained.push({ kind: m.kind, content: m.content });
     const text = pending
       .map((m) =>
         m.kind === "INPUT"
@@ -758,6 +779,8 @@ export interface ProviderAgentLoopConfig {
   budgetUsd?: number;
   context?: MessageParam[];
   govContext?: AgentGovContext;
+  /** Acting tenant for ungoverned tool-id scoping (SEC-BRA-06c). */
+  tenantId?: string;
   /**
    * E3/T6 handoff resume (§2.5): the frozen canonical transcript the LEAVING
    * provider left off at (handoff_ledger.checkpoint.messages). When present the
@@ -846,6 +869,8 @@ export async function runProviderAgentLoop(
   // compatible with the resolved provider > tenant model > provider default.
   const model = resolveModelForProvider(aiConfig.provider, config.model, aiConfig.model);
   let callConfig: AIClientConfig = { ...aiConfig, model };
+  // SEC-BRA-04: chain began on a LOCAL provider (data must not leave).
+  const startedLocal = LOCAL_PROVIDERS.has(callConfig.provider);
   assertReasoningEffortSupported(callConfig, config.reasoningEffort);
   if (config.reasoningEffort !== undefined && failover) {
     throw new UnsupportedReasoningEffortError("Explicit reasoning effort requires an exact provider without failover");
@@ -864,6 +889,8 @@ export async function runProviderAgentLoop(
   const pendingLinks: ProviderChainLink[] = [...(failover?.chain ?? [])];
   let activeSource: ProviderChainSource | undefined = failover?.source;
   const cbTenant = failover?.tenantId ?? govContext?.tenantId;
+  // SEC-BRA-06c: acting tenant for ungoverned tool scoping (also on the aiConfigOverride path).
+  const toolTenant = cbTenant ?? config.tenantId;
   let effectiveMaxTurns = maxTurns;
 
   // D-005 (E5/T7): request-scoped connector tools. Their names are also
@@ -980,6 +1007,8 @@ export async function runProviderAgentLoop(
     await switchToNextProvider("circuit breaker open (3 failures / 5min)", 0);
   }
 
+  // BRA-UX-API-05b: chat steers consumed so far and not yet answered (carried across tool turns until the tool-free final turn).
+  const pendingReplySteers: DrainedSteer[] = [];
   for (let turn = 0; turn < effectiveMaxTurns; turn++) {
     // E3/T2 (§2.3a-2): turn-boundary interrupt check — same point as the
     // steering drain. PAUSED/CANCELLED run or an OPEN handoff ledger →
@@ -991,7 +1020,7 @@ export async function runProviderAgentLoop(
 
     // Mid-run steering (v2 moat) — now on EVERY provider path, not just
     // Anthropic (E2/T4 parity).
-    const steering = await drainSteeringText(govContext);
+    const steering = await drainSteeringText(govContext, pendingReplySteers);
     if (steering) injectSteering(messages, steering);
 
     /** One turn against the ACTIVE provider, with the ToolsUnsupported →
@@ -1054,6 +1083,29 @@ export async function runProviderAgentLoop(
         // status). isHandoffTriggerEligible() does that filtering downstream;
         // here we just record what the classifier saw. The message mirrors the
         // cause so every `.toThrow(/…/)` consumer reads exactly as before.
+        if (pendingLinks.length === 0 && startedLocal && LOCAL_PROVIDERS.has(callConfig.provider)) {
+          const status = extractProviderErrorStatus(err);
+          logger.warn(
+            {
+              tenantId: cbTenant,
+              provider: callConfig.provider,
+              cls,
+              status,
+              message: (err instanceof Error ? err.message : String(err)).slice(0, 200),
+            },
+            "Local provider failed (SEC-BRA-04) — no cloud failover",
+          );
+          // Plain Error (NOT ProviderExhaustedError): a local-started chain must
+          // never be handoff-eligible, or a cloud target could be offered.
+          if (cls === "TRANSIENT") {
+            throw new Error(
+              `Yerel sağlayıcı erişilemez (${callConfig.provider}). Sunucunun çalıştığını ve erişilebilir olduğunu kontrol edin; veriler bulut sağlayıcıya otomatik gönderilmez.`,
+            );
+          }
+          throw new Error(
+            `Yerel sağlayıcı hatası (${callConfig.provider}, ${cls}${status !== undefined ? `, durum ${status}` : ""}). Veriler bulut sağlayıcıya otomatik gönderilmez.`,
+          );
+        }
         if (pendingLinks.length === 0) {
           throw ProviderExhaustedError.wrap(cls, callConfig.provider, callConfig.model, err);
         }
@@ -1080,7 +1132,12 @@ export async function runProviderAgentLoop(
     if (toolsForbidden && requestedCalls.length > 0) {
       throw new Error("Tool calls are not allowed for this request");
     }
-    const toolCallResults = await executeToolCalls(requestedCalls, govContext, extraTools);
+    const toolCallResults = await executeToolCalls(
+      requestedCalls,
+      govContext,
+      extraTools,
+      { allowedNames: new Set(effectiveToolNames), tenantId: toolTenant },
+    );
 
     turns.push({
       content: result.content,
@@ -1091,6 +1148,22 @@ export async function runProviderAgentLoop(
       stopReason: toLegacyStopReason(result),
     });
     totalCost += costUsd;
+
+    // BRA-UX-API-05b: ONE ASSISTANT reply, only from the tool-free final turn's own text (no mid-run narration),
+    // bound to every steer accumulated so far. Tool turns / errors / PENDING_APPROVAL / over budget → no write
+    // (steers stay pending for a later tool-free turn). No new LLM call; failure is non-fatal.
+    if (
+      govContext && pendingReplySteers.length > 0 && requestedCalls.length === 0 && totalCost <= budgetUsd &&
+      !toolCallResults.some((tc) => tc.error)
+    ) {
+      try {
+        await recordAssistantReply(prisma, {
+          tenantId: govContext.tenantId, runId: govContext.runId, steers: pendingReplySteers.splice(0), content: result.content ?? "",
+        });
+      } catch (err) {
+        logger.warn({ runId: govContext.runId, err: (err as Error).message }, "assistant chat reply failed (non-fatal)");
+      }
+    }
 
     // Append the assistant turn + tool results to the canonical transcript —
     // exactly as in E2: ONLY when the loop continues (the live array is what
@@ -1240,6 +1313,7 @@ export async function runAgentLoop(config: {
       toolNames: config.toolNames,
       maxTurns: config.maxTurns,
       budgetUsd: config.budgetUsd,
+      tenantId: config.tenantId,
     });
   }
 

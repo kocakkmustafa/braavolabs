@@ -24,6 +24,7 @@
 import { prisma } from "../lib/db";
 import { currentPushDevices, withCurrentPushDelivery, type PushDevice } from "../lib/pushOwnership";
 import { logger } from "../lib/logger";
+import { deepLinkDataFor } from "../lib/notificationDeepLink";
 import { notificationText, type NotificationDescriptor } from "../lib/notificationCopy";
 
 const EXPO_ENDPOINT = "https://exp.host/--/api/v2/push/send";
@@ -153,13 +154,17 @@ export async function notifyUser(
 }
 
 async function dispatch(devices: NotificationDevice[], payload: NotifyPayload) {
+  // BRA-P1-08-N2: data is the versioned deep-link contract (only kind + ids,
+  // `v: 1` added; legacy field names kept for older mobile builds).
+  const { data: linkData, dropped } = deepLinkDataFor(payload.data);
+  if (dropped.length) logger.warn({ kind: payload.data.kind, dropped }, "Push deep-link fields dropped by contract");
   for (let i = 0; i < devices.length; i += MAX_BATCH) {
     await withCurrentPushDelivery(devices.slice(i, i + MAX_BATCH), async live => {
       const messages = live.map(d => ({
         to: d.pushToken, sound: "default" as const,
         title: payload.localized ? notificationText(d.locale, payload.localized.title, payload.localized.parameters) : payload.title,
         body: payload.localized?.body ? notificationText(d.locale, payload.localized.body, payload.localized.parameters) : payload.body,
-        data: payload.data, ...(payload.badge !== undefined ? { badge: payload.badge } : {}),
+        data: linkData, ...(payload.badge !== undefined ? { badge: payload.badge } : {}),
         priority: payload.data.kind === "approval" || payload.data.kind === "risk" ? "high" as const : "default" as const,
         channelId: payload.data.kind === "approval" ? "approvals" : payload.data.kind === "risk" ? "risks" : "default",
       }));

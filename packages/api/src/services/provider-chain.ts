@@ -297,6 +297,90 @@ function rowToLink(
   };
 }
 
+/** User-facing reason when a cloud provider is refused behind a local default. */
+export const LOCAL_DEFAULT_CLOUD_BLOCKED_MESSAGE =
+  "Yerel sağlayıcı varsayılanken bulut sağlayıcılar kullanılamaz";
+
+/**
+ * The tenant's default row — ONE definition shared by the failover chain and
+ * the candidate list (isDefault first, createdAt tiebreaker), so "is the
+ * default local?" can never differ between them (SEC-BRA-04c).
+ */
+function pickDefaultRow(rows: UserAIConfigRow[]): UserAIConfigRow | undefined {
+  return [...rows].sort((a, b) => {
+    if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
+    return a.createdAt.getTime() - b.createdAt.getTime();
+  })[0];
+}
+
+/**
+ * SEC-BRA-04 / 04c: a LOCAL default (Ollama / LM Studio / Custom) means the
+ * tenant's data must not leave their machine. When the default row is local,
+ * every cloud link is dropped (logger.warn) so failover, cascade, compare,
+ * handoff and takeover can never offer a cloud provider.
+ */
+function dropCloudBehindLocalDefault(
+  links: ProviderChainLink[],
+  defaultRow: UserAIConfigRow | undefined,
+  tenantId: string,
+): ProviderChainLink[] {
+  if (!defaultRow || !LOCAL_PROVIDERS.has(defaultRow.provider as AIProviderType)) return links;
+  const cloud = links.filter((l) => !LOCAL_PROVIDERS.has(l.provider));
+  if (cloud.length === 0) return links;
+  // debug, not warn: one request calls list + chain (+ blocked-check), and a
+  // privacy rule doing its job is not a warning-level event (SEC-BRA-04d).
+  logger.debug(
+    { tenantId, localProvider: defaultRow.provider, ignoredCloud: cloud.map((l) => l.provider) },
+    "Local provider is default — cloud links ignored (SEC-BRA-04)",
+  );
+  return links.filter((l) => LOCAL_PROVIDERS.has(l.provider));
+}
+
+/** True when `provider` is a cloud provider that the local-default rule hides
+ * from this tenant — lets callers return the privacy message instead of a
+ * misleading "not configured". Only true when the tenant actually HAS a keyed
+ * row for that provider; otherwise it is genuinely "not configured"
+ * (SEC-BRA-04d). */
+export async function isCloudBlockedByLocalDefault(
+  tenantId: string,
+  provider: string,
+): Promise<boolean> {
+  if (LOCAL_PROVIDERS.has(provider as AIProviderType)) return false;
+  const rows = (await prisma.userAIConfig.findMany({
+    where: { tenantId },
+  })) as unknown as UserAIConfigRow[];
+  const def = pickDefaultRow(rows);
+  if (!def || !LOCAL_PROVIDERS.has(def.provider as AIProviderType)) return false;
+  return rows.some((r) => r.provider === provider && !!r.encryptedApiKey);
+}
+
+/**
+ * Candidate order shared by listTenantProviderLinks and the settings picker
+ * endpoint: the chain head (pickDefaultRow) first, the rest default →
+ * fallbackOrder asc → createdAt. Head-first guarantees "first entry" ==
+ * "chain head" even with no / several isDefault rows (SEC-BRA-04d).
+ */
+export function orderRowsForCandidates<T extends UserAIConfigRow>(rows: T[]): T[] {
+  const head = pickDefaultRow(rows) as T | undefined;
+  const rest = rows
+    .filter((r) => r !== head)
+    .sort((a, b) => {
+      if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
+      const ao = a.fallbackOrder ?? Number.MAX_SAFE_INTEGER;
+      const bo = b.fallbackOrder ?? Number.MAX_SAFE_INTEGER;
+      if (ao !== bo) return ao - bo;
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+  return head ? [head, ...rest] : rest;
+}
+
+/** Row-level twin of dropCloudBehindLocalDefault (same default → same set). */
+export function dropCloudRowsBehindLocalDefault<T extends UserAIConfigRow>(rows: T[]): T[] {
+  const def = pickDefaultRow(rows);
+  if (!def || !LOCAL_PROVIDERS.has(def.provider as AIProviderType)) return rows;
+  return rows.filter((r) => LOCAL_PROVIDERS.has(r.provider as AIProviderType));
+}
+
 /**
  * Every usable BYOK link the tenant configured, in deterministic candidate
  * order: default row first, then fallbackOrder members (asc), then the
@@ -312,13 +396,7 @@ export async function listTenantProviderLinks(tenantId: string): Promise<Provide
     where: { tenantId },
   })) as unknown as UserAIConfigRow[];
 
-  const sorted = [...rows].sort((a, b) => {
-    if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
-    const ao = a.fallbackOrder ?? Number.MAX_SAFE_INTEGER;
-    const bo = b.fallbackOrder ?? Number.MAX_SAFE_INTEGER;
-    if (ao !== bo) return ao - bo;
-    return a.createdAt.getTime() - b.createdAt.getTime();
-  });
+  const sorted = orderRowsForCandidates(rows);
 
   const links: ProviderChainLink[] = [];
   sorted.forEach((row, i) => {
@@ -326,9 +404,10 @@ export async function listTenantProviderLinks(tenantId: string): Promise<Provide
     if (link) links.push(link);
   });
 
-  return env.OFFLINE_MODE === true
+  const visible = env.OFFLINE_MODE === true
     ? links.filter((l) => LOCAL_PROVIDERS.has(l.provider))
     : links;
+  return dropCloudBehindLocalDefault(visible, pickDefaultRow(rows), tenantId);
 }
 
 /**
@@ -349,11 +428,11 @@ export async function buildTenantProviderChain(tenantId: string): Promise<Provid
 
   // Default row: isDefault first, createdAt tiebreaker — identical
   // semantics to getTenantAIConfig so single-row tenants resolve the same.
+  const defaultRow = pickDefaultRow(rows);
   const sorted = [...rows].sort((a, b) => {
     if (a.isDefault !== b.isDefault) return a.isDefault ? -1 : 1;
     return a.createdAt.getTime() - b.createdAt.getTime();
   });
-  const defaultRow = sorted[0];
 
   const links: ProviderChainLink[] = [];
   if (defaultRow) {
@@ -374,9 +453,11 @@ export async function buildTenantProviderChain(tenantId: string): Promise<Provid
     if (link) links.push(link);
   }
 
-  const byokLinks = offline
+  let byokLinks = offline
     ? links.filter((l) => LOCAL_PROVIDERS.has(l.provider))
     : links;
+
+  byokLinks = dropCloudBehindLocalDefault(byokLinks, defaultRow, tenantId);
 
   // BR-P0-002-D: allowSystemFallback and system-held environment keys are
   // historical inputs only. Runtime resolution returns tenant-owned BYOK or

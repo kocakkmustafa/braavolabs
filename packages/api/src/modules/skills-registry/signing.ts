@@ -28,6 +28,11 @@ export function registryKey(env: NodeJS.ProcessEnv = process.env): KeyObject {
   return key;
 }
 
+/** True when a usable signing key is configured. Fail closed: callers must not sign, approve or publish a signed list without it. */
+export function signingConfigured(env: NodeJS.ProcessEnv = process.env): boolean {
+  try { registryKey(env); return true; } catch { return false; }
+}
+
 /** Base64 SPKI DER — the form the CLI embeds. */
 export const publicKeyB64 = (key: KeyObject) => createPublicKey(key).export({ type: "spki", format: "der" }).toString("base64");
 

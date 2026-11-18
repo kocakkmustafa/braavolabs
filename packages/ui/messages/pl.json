@@ -21,7 +21,9 @@
     "billing": "Rozliczenia",
     "settings": "Ustawienia",
     "newWorkspace": "Nowy obszar roboczy",
-    "quickStart": "Szybki start"
+    "quickStart": "Szybki start",
+    "inbox": "Skrzynka zadań",
+    "start": "Nowe zadanie"
   },
   "features": {
     "badge": "MOŻLIWOŚCI PLATFORMY",
@@ -85,7 +87,13 @@
         "message": "Szkic wiadomości",
         "content": "Wygenerowana treść"
       },
-      "artifactAiLabel": "Wygenerowane przez AI"
+      "artifactAiLabel": "Wygenerowane przez AI",
+      "loading": "Ładowanie zatwierdzeń…",
+      "loadErrorTitle": "Nie udało się wczytać zatwierdzeń",
+      "loadErrorBody": "Serwer nie odpowiedział poprawnie, więc mogą czekać zatwierdzenia. To nie jest pusta lista. Spróbuj ponownie.",
+      "refreshErrorTitle": "Nie udało się odświeżyć zatwierdzeń",
+      "refreshErrorBody": "Poniższa lista może być nieaktualna. Spróbuj ponownie.",
+      "retryLoad": "Spróbuj ponownie"
     },
     "companies": {
       "title": "Obszary robocze",
@@ -1067,7 +1075,8 @@
     },
     "breadcrumb": {
       "onboarding": "Konfiguracja początkowa",
-      "runs": "Wykonania"
+      "runs": "Wykonania",
+      "models": "Modele"
     },
     "cost": {
       "estimateLabel": "Szac. {low}–{high} za to wykonanie",
@@ -1206,6 +1215,619 @@
     },
     "register": {
       "freePlan": "Plan bezpłatny"
+    },
+    "inbox": {
+      "title": "Skrzynka zadań",
+      "subtitle": "Wszystkie zadania w jednym miejscu: w toku, czekające na Ciebie, zakończone i zablokowane.",
+      "tabsLabel": "Grupy zadań",
+      "bucket": {
+        "working": "W toku",
+        "needs_approval": "Wymaga zatwierdzenia",
+        "done": "Zakończone",
+        "stuck": "Zablokowane"
+      },
+      "loading": "Ładowanie…",
+      "emptyWorking": "Nic nie jest teraz w toku.",
+      "emptyNeedsApproval": "Żadne zadanie nie czeka na zatwierdzenie.",
+      "emptyDone": "Brak zakończonych zadań.",
+      "emptyStuck": "Nic nie jest zablokowane.",
+      "errorTitle": "Nie udało się wczytać zadań",
+      "errorBody": "Serwer odpowiedział niepoprawnie, więc ta lista może wcale nie być pusta. Spróbuj ponownie.",
+      "approvalsErrorTitle": "Nie udało się wczytać oczekujących zatwierdzeń",
+      "retryLoad": "Spróbuj ponownie",
+      "loadMore": "Wczytaj więcej",
+      "loadingMore": "Ładowanie…",
+      "loadMoreError": "Nie udało się wczytać więcej. Spróbuj ponownie.",
+      "approvalsTitle": "Oczekujące zatwierdzenia",
+      "jobsTitle": "Zadania",
+      "approvalsEmpty": "Brak oczekujących zatwierdzeń.",
+      "approve": "Zatwierdź",
+      "reject": "Odrzuć",
+      "deciding": "Wysyłanie…",
+      "amount": "Kwota: {value}",
+      "openRun": "Otwórz przebieg",
+      "approvalUntitled": "Prośba o zatwierdzenie",
+      "approvalFailed": "Decyzja nie została zapisana. Spróbuj ponownie.",
+      "approvalConflict": "To zatwierdzenie zostało już rozstrzygnięte lub zmienione. Odśwież listę.",
+      "jobUntitled": "Zadanie bez nazwy",
+      "cost": "Koszt {value}",
+      "updated": "Zaktualizowano {value}",
+      "action": {
+        "resume": "Wznów",
+        "pause": "Wstrzymaj",
+        "stop": "Zatrzymaj",
+        "retry": "Ponów",
+        "steer": "Pokieruj",
+        "receipt": "Potwierdzenie"
+      },
+      "steerLabel": "Wiadomość do agenta",
+      "steerPlaceholder": "Krótkie polecenie…",
+      "steerSend": "Wyślij",
+      "steerSent": "Wiadomość wysłana.",
+      "actionOk": "Akcja wysłana.",
+      "actionFailed": "Akcja nie powiodła się. Spróbuj ponownie.",
+      "actionForbidden": "Nie masz uprawnień do tej akcji.",
+      "conflict": {
+        "retry_disabled": "Ponawianie nie jest jeszcze włączone w tej przestrzeni roboczej.",
+        "run_still_running": "To zadanie nadal trwa. Najpierw je zatrzymaj, potem ponów.",
+        "already_retrying": "Ponowienie jest już w toku.",
+        "approval_pending": "Czeka zatwierdzenie. Najpierw je rozstrzygnij.",
+        "retry_budget_exhausted": "Limit lub budżet ponowień tego zadania został wyczerpany.",
+        "run_not_retryable": "Tego zadania nie można ponowić w obecnym stanie.",
+        "generic": "Stan zadania się zmienił lub czeka zatwierdzenie. Odśwież i spróbuj ponownie."
+      },
+      "receipt": {
+        "title": "Potwierdzenie",
+        "loading": "Wczytywanie potwierdzenia…",
+        "none": "Brak potwierdzenia. Powstaje po zakończeniu zadania.",
+        "error": "Nie udało się wczytać potwierdzenia.",
+        "verified": "ZWERYFIKOWANO",
+        "unverified": "NIEZWERYFIKOWANO",
+        "verifiedHint": "Wymagane rodzaje dowodów zostały zweryfikowane.",
+        "unverifiedHint": "Niepotwierdzone: brakuje dowodów lub są niepełne.",
+        "noStatus": "Brak statusu wyniku",
+        "outcome": "Wynik: {value}",
+        "noEvidence": "Brak załączonych dowodów.",
+        "passed": "zaliczono",
+        "failed": "niezaliczono",
+        "hide": "Ukryj potwierdzenie"
+      },
+      "state": {
+        "COMPLETED": "Ukończone",
+        "FAILED": "Nieudane",
+        "CANCELLED": "Anulowane"
+      },
+      "artifactLabel": "Treść do zatwierdzenia",
+      "expires": "Wygasa {value}",
+      "answerLabel": "Twoja odpowiedź dla agenta (wymagana)",
+      "claimFailed": "Twoje zatwierdzenie dla {run} zostało zapisane, ale zadania nie udało się wznowić i może pozostać nieudane. Sprawdź w Zablokowane i ponów.",
+      "dismiss": "Zamknij",
+      "approvalForbidden": "Nie masz uprawnień do rozstrzygania zatwierdzeń.",
+      "actionRejected": "Zadanie nie jest w stanie, który pozwala na tę akcję."
+    },
+    "jobs": {
+      "title": "Zadania",
+      "drawerLabel": "Zadanie: {title}",
+      "close": "Zamknij",
+      "viewLabel": "Widok zadania",
+      "tab": {
+        "summary": "Podsumowanie",
+        "output": "Wynik",
+        "kaput": "Pod maską"
+      },
+      "detail": {
+        "label": "Szczegóły",
+        "simple": "Prosto",
+        "full": "Pełne"
+      },
+      "state": {
+        "DRAFT": "szkic",
+        "PLANNED": "zaplanowane",
+        "READY": "gotowe",
+        "RUNNING": "w toku",
+        "NEEDS_APPROVAL": "czeka na zatwierdzenie",
+        "RESUMING": "wznawianie",
+        "PAUSED": "wstrzymane",
+        "FAILED": "nieudane",
+        "CANCELLED": "anulowane",
+        "COMPLETED": "zakończone",
+        "unknown": "nieznane"
+      },
+      "risk": {
+        "low": "niskie",
+        "medium": "średnie",
+        "high": "wysokie"
+      },
+      "riskLabel": "Ryzyko: {value}",
+      "verified": "✔ Zweryfikowano",
+      "unverified": "Niezweryfikowano",
+      "noVerification": "Brak informacji o weryfikacji",
+      "field": {
+        "status": "Stan",
+        "cost": "Koszt",
+        "company": "Firma"
+      },
+      "fullInfo": "ID: {id} · stan: {state} · zaktualizowano: {updated}",
+      "kaput": {
+        "loading": "Wczytywanie maski…",
+        "error": "Nie udało się odczytać maski.",
+        "summary": "Kroki ({steps}) · Wywołania narzędzi: {tools} · Koszt: {cost} · Przekazania: {handoffs}",
+        "noSteps": "To zadanie nie ma jeszcze zapisów kroków.",
+        "unknown": "brak danych",
+        "later": "Szczegóły routingu i uprawnień pojawią się w późniejszej wersji.",
+        "runErrorTitle": "To zadanie zatrzymało się z powodu błędu",
+        "runErrorPlain": "Możesz spróbować ponownie przyciskiem Ponów pod zadaniem.",
+        "budget": "Wykorzystany budżet: {cost} / {budget} ({percent})",
+        "agent": "Rola agenta",
+        "duration": "Czas trwania",
+        "stepCost": "Koszt",
+        "share": "{percent} całości",
+        "reasoning": "Uzasadnienie",
+        "tools": "Wywołania narzędzi",
+        "noTools": "Brak wywołań narzędzi",
+        "model": "Model",
+        "noModel": "Brak danych o modelu dla tego kroku",
+        "mode": "Tryb modelu",
+        "modes": {
+          "DIRECT": "Bezpośredni",
+          "CASCADE": "Kaskadowy (najpierw tani)",
+          "COMPARE": "Porównanie"
+        },
+        "tried": "Wypróbowane modele",
+        "tokens": "Tokeny",
+        "tokensValue": "{input} wej. / {output} wyj.",
+        "log": "Dziennik",
+        "noLog": "Brak danych dziennika dla tego kroku",
+        "activity": {
+          "title": "Aktywność zadania",
+          "actorSystem": "System",
+          "actorUser": "Członek zespołu",
+          "more": "Pokazano ostatnie {count} zdarzeń; są kolejne.",
+          "truncated": "Niektóre zdarzenia nie zostały wyświetlone."
+        },
+        "logEvent": {
+          "started": "Start: {time}",
+          "ended": "Koniec: {time}"
+        },
+        "dag": {
+          "title": "Zależności kroków",
+          "noData": "Brak danych o zależnościach dla tego zadania. Kroki są wypisane poniżej po kolei.",
+          "sourceOrder": "Wywnioskowano z kolejności kroków: kroki tego samego etapu działają równolegle; każdy etap czeka na poprzedni.",
+          "sourceApi": "Zależności zgłoszone dla każdego kroku.",
+          "inconsistent": "Dane o zależnościach są niespójne; pominięto niektóre powiązania.",
+          "truncated": "Pokazano pierwsze {shown} z {total} kroków.",
+          "summary": "{steps} kroków w {levels} etapach, zależności: {edges}",
+          "scroll": "Wykres zależności kroków, przewijany",
+          "listLabel": "Kroki wraz z zależnościami",
+          "dependsOn": "Zależy od kroku: {steps}",
+          "noDeps": "Brak zależności",
+          "changed": "Rekord pipeline'u został zaktualizowany po tym przebiegu; ponieważ nie można zweryfikować kolejności kroków, wykres zależności nie został narysowany.",
+          "unverified": "Na podstawie aktualnej definicji zadania (czas zmiany nieznany)."
+        },
+        "seconds": "{value} s",
+        "millis": "{value} ms",
+        "stepStatus": {
+          "completed": "Ukończono",
+          "running": "W toku",
+          "failed": "Nieudane",
+          "pending": "Oczekuje",
+          "skipped": "Pominięto",
+          "cancelled": "Anulowano",
+          "unknown": "Nieznany"
+        },
+        "errorLabel": "Błąd",
+        "overBudget": "Budżet przekroczony"
+      },
+      "stuckNote": "Niektóre zawieszone zadania nie są jeszcze widoczne, gdy śledzenie heartbeat jest wyłączone.",
+      "openJob": "Otwórz zadanie {title}",
+      "openFull": "Otwórz pełną stronę uruchomienia"
+    },
+    "workspace": {
+      "back": "Wróć do zadań",
+      "classic": "Klasyczny widok szczegółów",
+      "loading": "Wczytywanie zadania…",
+      "errorTitle": "Nie udało się otworzyć zadania",
+      "errorBody": "Sprawdź połączenie i spróbuj ponownie.",
+      "notFound": "Nie znaleziono tego zadania lub nie masz do niego dostępu.",
+      "label": "Przestrzeń robocza zadania: {title}"
+    },
+    "approvalCenter": {
+      "title": "Centrum zatwierdzeń i bezpieczeństwa",
+      "subtitle": "Zobacz dokładnie, co zrobi każde działanie, zanim zdecydujesz.",
+      "classic": "Klasyczny widok zatwierdzeń",
+      "count": "Oczekuje: {count}",
+      "live": "Oczekujące zatwierdzenia: {count}",
+      "approvedNotice": "Zatwierdzono.",
+      "rejectedNotice": "Odrzucono.",
+      "type": {
+        "SPEND": "Wydatek",
+        "INPUT": "Pytanie",
+        "HANDOFF": "Przekazanie",
+        "EXTERNAL_CONTROL": "Sterowanie zewnętrzne",
+        "other": "Zatwierdzenie"
+      },
+      "open": "Przejrzyj zatwierdzenie: {title}",
+      "sheetLabel": "Szczegóły zatwierdzenia: {title}",
+      "close": "Zamknij",
+      "field": {
+        "what": "Co zrobi",
+        "tool": "Narzędzie",
+        "permissions": "Zakres uprawnień",
+        "data": "Przesyłane dane",
+        "risk": "Ryzyko",
+        "amount": "Kwota",
+        "reversible": "Cofnięcie",
+        "draft": "Szkic",
+        "requested": "Zgłoszono"
+      },
+      "riskLevel": {
+        "low": "Niskie",
+        "medium": "Średnie",
+        "high": "Wysokie"
+      },
+      "reversibleYes": "Można odwrócić przeciwnym działaniem",
+      "reversibleNo": "Nie można cofnąć",
+      "unknown": "Brak informacji",
+      "danger": {
+        "tag": "Wymaga potwierdzenia",
+        "title": "To działanie wymaga drugiego kroku",
+        "body": "Wydaje pieniądze, jest wysokiego ryzyka lub nie można go cofnąć.",
+        "phraseLabel": "Wpisz „{phrase}”, aby włączyć Zatwierdź",
+        "phrase": "Zatwierdzam wysłanie",
+        "reasonLabel": "Powód (zapisany wraz z decyzją)"
+      },
+      "oneByOne": "Każde zatwierdzenie rozstrzyga się osobno.",
+      "alreadyDecided": "To zatwierdzenie zostało już rozstrzygnięte. Odświeżono listę.",
+      "forbidden": "Nie masz uprawnień do rozstrzygnięcia tego zatwierdzenia. Odświeżono listę."
+    },
+    "plan": {
+      "title": "Opisz zadanie",
+      "workspace": "Przestrzeń robocza",
+      "workspaceChoose": "Wybierz przestrzeń roboczą",
+      "messageLabel": "Co należy zrobić?",
+      "messagePlaceholder": "Np. przygotuj tygodniowy raport sprzedaży",
+      "suggest": "Zaproponuj plan",
+      "planning": "Przygotowywanie planu…",
+      "empty": "Ta wiadomość nie wygląda na zadanie; nie zaproponowano planu.",
+      "retry": "Spróbuj ponownie",
+      "steps": "Kroki",
+      "tools": "Narzędzia",
+      "risk": {
+        "label": "Ryzyko",
+        "low": "Niskie",
+        "medium": "Średnie",
+        "high": "Wysokie"
+      },
+      "cost": "Szacowany koszt (bez gwarancji)",
+      "costUnknown": "Cena tego modelu jest nieznana; brak przedziału kosztu",
+      "approvalStep": "wymaga zatwierdzenia",
+      "run": "Uruchom",
+      "cancel": "Anuluj",
+      "starting": "Uruchamianie…",
+      "approvalGate": "To zadanie wymaga zatwierdzenia; jest ono teraz wyłączone.",
+      "planChanged": "Plan się zmienił. Zaproponuj plan ponownie.",
+      "workspaceRequired": "Najpierw wybierz przestrzeń roboczą.",
+      "replan": "Suggest the plan again",
+      "noCompany": "Create a company first.",
+      "createCompany": "Create a company",
+      "keyConflict": "This request key was used for a different plan. Suggest the plan again.",
+      "companyInactive": "The company is paused or archived; new jobs cannot start.",
+      "noAgent": "This workspace has no agent to run the job.",
+      "validation": "The request could not be validated. Check the message and retry."
+    },
+    "intent": {
+      "title": "Start",
+      "label": "Co chcesz zrobić?",
+      "placeholder": "Opisz zadanie, zadaj pytanie lub poproś o agenta…",
+      "barLabel": "Pasek intencji",
+      "understood": "Zrozumiałem:",
+      "kind": {
+        "chat": "Czat",
+        "job": "Zadanie",
+        "agent": "Agent"
+      },
+      "submit": {
+        "chat": "Rozpocznij czat",
+        "job": "Zaplanuj",
+        "agent": "Poproś o agenta"
+      },
+      "lowConfidence": "Nie jestem pewien: traktuję to jako czat; wybierz „Zadanie”, aby zaplanować je jako zadanie.",
+      "previewNote": "„Zrozumiałem” to lokalna wskazówka; na etapie planu serwer decyduje sam.",
+      "chat": {
+        "unavailable": "Czat jeszcze nie jest dostępny: ta wersja tylko planuje zadania i tworzy agentów. Twoja wiadomość nie utworzyła wpisu zadania; nic nie wydano.",
+        "asJob": "Zaplanuj jako zadanie"
+      },
+      "plan": {
+        "tool": "narzędzie: {tool}",
+        "approvalStep": "wymaga zatwierdzenia, ryzyko {risk}",
+        "modelRow": "Wiersz modelu na krok: jeszcze niedostępny (czeka na API)."
+      },
+      "agent": {
+        "title": "Nowy agent",
+        "immediate": "Ten krok zapisuje agenta od razu: podgląd wersji roboczej przed utworzeniem nie jest jeszcze dostępny.",
+        "create": "Utwórz agenta teraz",
+        "working": "Tworzenie agenta…",
+        "role": "rola: {role}",
+        "toolsLabel": "Narzędzia",
+        "noTools": "brak",
+        "dropped": "Pominięte narzędzie ({count}): {tools} nie jest połączone; agent został utworzony bez niego.",
+        "saved": "Agent zapisany.",
+        "close": "Zamknij",
+        "tooShort": "Opis agenta musi mieć co najmniej 10 znaków: napisz nieco więcej o tym, co ma robić.",
+        "maybeSaved": "Jeśli połączenie zostało przerwane, agent mógł już zostać zapisany: sprawdź listę agentów przed ponowną próbą."
+      }
+    },
+    "models": {
+      "labelSep": ": ",
+      "pairSep": " · ",
+      "title": "Modele i połączenia",
+      "subtitle": "Jakich modeli używa Twoja firma, kto ma do nich dostęp i ile kosztują w tym miesiącu. Tylko do odczytu.",
+      "company": "Firma",
+      "live": "Liczba modeli na liście: {count}",
+      "errorTitle": "Nie udało się wczytać modeli",
+      "errorBody": "Nie udało się odczytać listy modeli. Spróbuj ponownie.",
+      "retry": "Spróbuj ponownie",
+      "noCompanyTitle": "Jeszcze nie ma firmy",
+      "noCompanyBody": "Utwórz firmę, aby zobaczyć tu jej modele.",
+      "loading": "Wczytywanie modeli…",
+      "autoLabel": "Automatyczny wybór modelu",
+      "autoOn": "Włączony",
+      "autoOff": "Wyłączony",
+      "unknown": "Nieznane",
+      "emptyTitle": "Brak używanych modeli",
+      "emptyBody": "Modele pojawią się tu, gdy agent tej firmy będzie jakiś miał.",
+      "provider": "Dostawca",
+      "access": "Dostęp",
+      "cost": "Koszt w tym miesiącu",
+      "runs": "Uruchomienia w tym miesiącu",
+      "runCount": "Uruchomienia w tym miesiącu: {count}",
+      "costNote": "Koszt jest przypisywany do bieżącego modelu każdego agenta, więc uruchomienia sprzed zmiany modelu liczą się do nowego. Miesiąc zaczyna się 1. o 00:00 UTC.",
+      "costSince": "Od {from}.",
+      "updatedAt": "Zaktualizowano: {time}.",
+      "linksTitle": "Zarządzaj",
+      "source": {
+        "label": "Źródło",
+        "byok": "Własny klucz API",
+        "local": "Model lokalny",
+        "platform": "Platforma",
+        "unknown": "Nieznane"
+      },
+      "badge": {
+        "byok": "BYOK",
+        "local": "LOKALNY"
+      },
+      "scope": {
+        "company": "ta firma",
+        "workspace": "ta przestrzeń robocza",
+        "agent": "jeden agent"
+      },
+      "mode": {
+        "read": "odczyt",
+        "read_write": "odczyt i zapis"
+      },
+      "links": {
+        "own": {
+          "title": "Własny klucz API",
+          "body": "Dodaj lub zmień klucze w Ustawienia → Dostawca AI."
+        },
+        "local": {
+          "title": "Model lokalny",
+          "body": "Połącz własny punkt końcowy w Ustawienia → Dostawca AI."
+        },
+        "compare": {
+          "title": "Porównaj modele",
+          "body": "Uruchom to samo zadanie na kilku modelach obok siebie."
+        },
+        "connections": {
+          "title": "Połączenia automatyzacji",
+          "body": "Uruchomienia n8n, Make i Zapier."
+        },
+        "integrations": {
+          "title": "Integracje",
+          "body": "Slack, GitHub i inne narzędzia."
+        }
+      },
+      "pickerTitle": "Zmień model",
+      "pickerHelp": "Wybierz, gdzie model obowiązuje i którego użyć. Agent: tylko ten agent. Domyślny dla konta: używają go agenci bez własnego modelu.",
+      "pickerTarget": "Dotyczy",
+      "pickerDefault": "Domyślny dla konta (agenci bez własnego modelu)",
+      "pickerModel": "Model",
+      "pickerApply": "Zastosuj",
+      "pickerSaving": "Zapisywanie…",
+      "pickerSaved": "Zapisano.",
+      "pickerError": "Nie udało się zapisać. Spróbuj ponownie.",
+      "pickerLoadError": "Nie udało się wczytać agentów ani modeli.",
+      "pickerEmpty": "Brak skonfigurowanych modeli. Dodaj klucz lub model lokalny w Ustawieniach.",
+      "pickerCurrent": "Obecny: {model}",
+      "pickerCurrentUnknown": "Obecny: Nieznany",
+      "pickerLocalHint": "Dostawców lokalnych i własnych ustawisz tylko w Ustawieniach.",
+      "pickerForbidden": "Nie masz uprawnień do tej zmiany.",
+      "pickerPlan": "Twój plan na to nie pozwala."
+    },
+    "companyStatus": {
+      "title": "Stan firmy",
+      "subtitle": "W jednym wierszu: co działa, co utknęło, co czeka na zatwierdzenie i ile kosztowało.",
+      "live": "Do zatwierdzenia: {approvals}, utknęło: {stuck}",
+      "loading": "Wczytywanie stanu firmy…",
+      "errorTitle": "Nie udało się wczytać firmy",
+      "errorBody": "Nie udało się odczytać stanu firmy. Spróbuj ponownie.",
+      "retry": "Spróbuj ponownie",
+      "summaryLabel": "Podsumowanie firmy",
+      "working": "W toku",
+      "stuck": "Utknęło",
+      "approvals": "Czeka na zatwierdzenie",
+      "done": "Zakończone",
+      "cost": "Koszt",
+      "unknown": "Nieznane",
+      "atLeast": "co najmniej {count}",
+      "note": "Liczby pochodzą z pierwszej strony każdego statusu na liście zadań (25 zadań na status); „co najmniej” oznacza, że jest ich więcej. Koszt sumuje tylko te zadania.",
+      "costUnknownRuns": "Zadania bez czytelnego kosztu ({count}) nie są wliczone.",
+      "agents": "Agenci",
+      "agentsEmpty": "W tej firmie nie ma jeszcze agentów.",
+      "role": "Rola",
+      "linksTitle": "Linki",
+      "links": {
+        "jobs": {
+          "title": "Zadania",
+          "body": "Wszystko, co trwa, utknęło lub się zakończyło."
+        },
+        "approvals": {
+          "title": "Zatwierdzenia",
+          "body": "Sprawdź, co na ciebie czeka."
+        },
+        "risks": {
+          "title": "Ryzyka",
+          "body": "Otwarte blokady ryzyka."
+        },
+        "integrations": {
+          "title": "Integracje",
+          "body": "Połączone narzędzia."
+        },
+        "classic": {
+          "title": "Klasyczna strona firmy",
+          "body": "Wszystkie szczegóły, kreator agentów i ustawienia."
+        }
+      }
+    },
+    "companySummary": {
+      "title": "Rzut oka",
+      "loading": "Wczytywanie podsumowania firmy…",
+      "error": "Nie udało się wczytać podsumowania firmy.",
+      "retry": "Spróbuj ponownie",
+      "empty": "Brak podsumowania dla tej firmy.",
+      "unknown": "Nieznane",
+      "bucket": {
+        "working": "W toku",
+        "needs_approval": "Czeka na zatwierdzenie",
+        "stuck": "Zablokowane",
+        "done": "Gotowe"
+      },
+      "pendingApprovals": "Oczekujące zatwierdzenia",
+      "agents": "Agenci",
+      "pipelines": "Pipeline'y",
+      "monthCost": "Koszt w tym miesiącu",
+      "budget": {
+        "title": "Budżet miesięczny",
+        "noneHint": "Dla tej firmy nie ustawiono budżetu miesięcznego.",
+        "spent": "Wydano",
+        "limit": "Limit",
+        "remaining": "Pozostało",
+        "used": "Wykorzystano {pct}%",
+        "state": {
+          "none": "Brak budżetu",
+          "ok": "W normie",
+          "warn": "Blisko limitu",
+          "over": "Budżet przekroczony"
+        }
+      }
+    },
+    "pilotEntry": {
+      "error": {
+        "auth": "Sesja wygasła. Zaloguj się ponownie.",
+        "forbidden": "Nie masz uprawnień do eksportu tej firmy.",
+        "notFound": "Nie znaleziono firmy.",
+        "network": "Problem z siecią. Sprawdź połączenie i spróbuj ponownie.",
+        "generic": "Nie udało się wyeksportować pakietu pilotażowego. Spróbuj ponownie."
+      },
+      "title": "Pakiet mikroaplikacji (pilotaż)",
+      "description": "Przenośny pakiet konfiguracji tej firmy (agenci, potoki, etykiety żądanych połączeń) wraz z danymi przykładowymi.",
+      "syntheticOnly": "Dane przykładowe są syntetyczne.",
+      "export": "Eksportuj pakiet pilotażowy",
+      "exporting": "Eksportowanie…",
+      "exported": "Pobrano pakiet pilotażowy.",
+      "previewTitle": "Podgląd pakietu",
+      "previewName": "Nazwa",
+      "previewAgents": "Agenci",
+      "previewPipelines": "Potoki",
+      "previewRecords": "Rekordy",
+      "previewConnectors": "Żądane połączenia",
+      "noConnectors": "Brak",
+      "moreConnectors": "+{count} więcej",
+      "noData": "Brak danych. Wyeksportuj pakiet, aby zobaczyć podgląd.",
+      "connectorsNote": "Podgląd pokazuje, jakich połączeń żąda pakiet; szczegóły działań i zakresów są w pliku. Uprawnienie do wysyłania lub zapisu jest ograniczone zakresem konektora; ten pakiet go nie wymusza."
+    },
+    "codeChange": {
+      "title": "Zmiana: {title}",
+      "titleGeneric": "Zmiana w kodzie",
+      "loading": "Wczytywanie zmiany w kodzie…",
+      "error": "Nie udało się wczytać zmiany w kodzie. Spróbuj ponownie.",
+      "retry": "Spróbuj ponownie",
+      "none": "To zadanie nie ma zapisu zmiany w kodzie.",
+      "filesTitle": "Pliki ({count})",
+      "filesNone": "Brak wymienionych plików",
+      "filesUnknown": "Pliki: Nieznane",
+      "moreFiles": "jeszcze plików: {count, number}",
+      "unknown": "Nieznane",
+      "totals": "Razem: {added} {removed}",
+      "totalsAtLeast": "Co najmniej: {added} {removed}",
+      "partialNote": "Niektóre pliki nie mają liczby wierszy lub lista jest skrócona, więc sumy to dolna granica.",
+      "testsTitle": "Testy",
+      "testsPassed": "zaliczone: {count}",
+      "testsFailed": "niezaliczone: {count}",
+      "testsSkipped": "pominięte: {count}",
+      "testsPassedUnknown": "zaliczone: Nieznane",
+      "testsFailedUnknown": "niezaliczone: Nieznane",
+      "testsSkippedUnknown": "pominięte: Nieznane",
+      "testsTotal": "łącznie: {count}",
+      "testsVerified": "Zweryfikowano",
+      "testsNotVerified": "Niezweryfikowano",
+      "testsRuns": "uruchomień testów: {count, number}",
+      "approvalLink": "Zdecyduj w centrum zatwierdzeń",
+      "srSummary": "{title}. Pliki: {files}. Testy: {tests}.",
+      "stale": "Nie udało się odświeżyć; wyświetlane są ostatnie znane dane."
+    },
+    "agents": {
+      "title": "Agenci",
+      "new": "Nowy agent",
+      "company": "Przestrzeń robocza",
+      "noCompany": "Najpierw utwórz przestrzeń roboczą: agenci należą do przestrzeni.",
+      "companiesError": "Nie udało się wczytać przestrzeni roboczych.",
+      "retry": "Spróbuj ponownie",
+      "composerTitle": "Nowy agent",
+      "describe": "Jakiego współpracownika chcesz?",
+      "placeholder": "np. Podsumowuj rano e-maile sprzedażowe",
+      "tooShort": "Opisz agenta w co najmniej 10 znakach.",
+      "tooLong": "Opis jest za długi (maksymalnie 4000 znaków).",
+      "draftButton": "Szkic",
+      "drafting": "Przygotowywanie szkicu…",
+      "draftNote": "Szkic niczego nie zapisuje. Agent powstaje dopiero po naciśnięciu Utwórz.",
+      "previewTitle": "Podgląd szkicu",
+      "notSaved": "jeszcze niezapisany",
+      "name": "Nazwa",
+      "role": "Rola",
+      "tools": "Narzędzia",
+      "none": "brak",
+      "dropped": "Usunięte narzędzia ({count}), niedostępne",
+      "systemPrompt": "Instrukcje (prompt systemowy)",
+      "providerLine": "Szkic przygotował {provider} / {model}.",
+      "create": "Utwórz",
+      "creating": "Tworzenie…",
+      "discard": "Odrzuć szkic",
+      "created": "został utworzony.",
+      "maybeSaved": "Jeśli połączenie zerwało się, agent mógł już zostać zapisany: sprawdź listę przed ponowną próbą.",
+      "listTitle": "Agenci",
+      "listError": "Nie udało się wczytać listy agentów.",
+      "empty": "W tej przestrzeni roboczej nie ma jeszcze agentów.",
+      "status": "Stan",
+      "unknown": "Nieznany",
+      "labelSep": ": ",
+      "pairSep": "·",
+      "listSep": ", ",
+      "error": {
+        "session": "Nie udało się zweryfikować logowania. Zaloguj się ponownie.",
+        "payment": "Osiągnięto limit planu lub budżetu (402). Sprawdź limity i spróbuj ponownie.",
+        "forbidden": "Brak uprawnień do tej czynności.",
+        "notFound": "Nie znaleziono przestrzeni roboczej.",
+        "rateLimit": "Zbyt wiele żądań (429). Poczekaj chwilę i spróbuj ponownie.",
+        "timeout": "Żądanie przekroczyło limit czasu.",
+        "network": "Nie można połączyć się z serwerem. Sprawdź połączenie i spróbuj ponownie.",
+        "noProvider": "Nie skonfigurowano dostawcy AI. Dodaj go w Ustawieniach i spróbuj ponownie.",
+        "badDraft": "Szkic nie został przyjęty. Opisz agenta inaczej i przygotuj nowy szkic.",
+        "badResponse": "Odpowiedź serwera jest niezrozumiała. Nic nie pokazano jako zapisane.",
+        "generic": "Wystąpił nieoczekiwany błąd. Spróbuj ponownie."
+      },
+      "refreshList": "Odśwież listę",
+      "loading": "Wczytywanie…"
     }
   },
   "static": {

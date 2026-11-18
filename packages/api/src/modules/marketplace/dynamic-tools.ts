@@ -25,10 +25,13 @@
 import { prisma } from "../../lib/db";
 import { decrypt } from "../../lib/encryption";
 import { callTool, type McpTool } from "../../lib/mcp";
+import { credentialSecrets, scrubSecrets } from "../../lib/mcp-auth";
 import type { ToolDefinition } from "../agent/registry";
 import { deriveConnectorToolMeta } from "./connector-tool-risk";
 import { AppError } from "../../middleware/error";
+import { checkConnectorCallAllowed, isToolInScope, pinAudienceIfUnset } from "./connector-lifecycle";
 import { logger } from "../../lib/logger";
+import { ensureFreshCredentials, OAuthRefreshError } from "./oauth-refresh";
 
 const TOOL_PREFIX = "mcp_";
 
@@ -59,6 +62,9 @@ export async function listConnectorToolsForTenant(tenantId: string): Promise<Too
   for (const install of installs) {
     const manifest = (install.cachedToolsManifest ?? []) as unknown as McpTool[];
     for (const tool of manifest) {
+      // SEC-BRA-03b: out-of-scope tools are never shown to the agent
+      // (execution is also refused by checkConnectorCallAllowed).
+      if (!isToolInScope(install.scopes, tool.name)) continue;
       // D-005 (E5/T4): DERIVE the risk meta from the remote tool's name +
       // description instead of the old blanket `low / no-approval`. A remote
       // delete/send/charge tool must NOT slip past the approval gate once it
@@ -70,11 +76,23 @@ export async function listConnectorToolsForTenant(tenantId: string): Promise<Too
           `[${install.connector.name}] ${tool.description ?? ""}`.trim().slice(0, 1000),
         inputSchema: tool.inputSchema ?? { type: "object", properties: {} },
         meta: deriveConnectorToolMeta(tool.name, tool.description, tool.inputSchema),
+        remote: { name: tool.name, description: tool.description, connectorSlug: install.connector.slug, connectorName: install.connector.name, declaredCapability: tool.capability },
         handler: async (args) => executeMcpTool(tenantId, install.connector.slug, tool.name, args),
       });
     }
   }
   return tools;
+}
+
+/** Never hand a raw Error (message/stack may embed a bearer token) to the logger. */
+function sanitizeErr(err: unknown, secrets: string[]): { message: string } {
+  const raw = scrubSecrets(err instanceof Error ? err.message : String(err), secrets) as string;
+  return {
+    message: raw
+      .replace(/(bearer\s+)[^\s"']+/gi, "$1[REDACTED]")
+      .replace(/\bsk-[A-Za-z0-9_-]+/g, "[REDACTED]")
+      .slice(0, 200),
+  };
 }
 
 export async function executeMcpTool(
@@ -90,6 +108,11 @@ export async function executeMcpTool(
   if (!install) {
     return { error: `Connector "${connectorSlug}" is not installed or is disabled for this tenant.` };
   }
+  // SEC-BRA-03: revoked / audience-mismatch / out-of-scope → refuse before
+  // any credential is decrypted or sent.
+  const denied = checkConnectorCallAllowed(install, remoteToolName);
+  if (denied) return { error: denied };
+  await pinAudienceIfUnset(install);
   // Spend cap check.
   if (install.spendCapUsd && Number(install.spendUsd) >= Number(install.spendCapUsd)) {
     return {
@@ -102,6 +125,16 @@ export async function executeMcpTool(
   } catch {
     return { error: "Failed to decrypt connector credentials" };
   }
+  // BRA-P1-02a: refresh an expired OAuth2 token first; on failure the call is
+  // refused and the stale token is never sent upstream.
+  try {
+    creds = await ensureFreshCredentials(tenantId, install, creds);
+  } catch (err) {
+    const msg = err instanceof OAuthRefreshError ? err.message : "OAuth token yenilenemedi";
+    logger.info({ slug: connectorSlug }, "Connector OAuth refresh failed");
+    return { error: msg };
+  }
+  const secrets = credentialSecrets(install.connector.authMethod, creds);
   try {
     const result = await callTool(
       install.connector.mcpServerUrl,
@@ -123,13 +156,14 @@ export async function executeMcpTool(
         data: { spendUsd: { increment: cost } },
       });
     }
-    return result;
+    return scrubSecrets(result, secrets) as typeof result;
   } catch (err) {
     if (err instanceof AppError) {
-      logger.info({ err: err.message, slug: connectorSlug }, "Connector tool failed");
-      return { error: err.message };
+      const safeMsg = scrubSecrets(err.message, secrets) as string;
+      logger.info({ err: safeMsg, slug: connectorSlug }, "Connector tool failed");
+      return { error: safeMsg };
     }
-    logger.error({ err, slug: connectorSlug }, "Connector tool crashed");
+    logger.error({ err: sanitizeErr(err, secrets), slug: connectorSlug }, "Connector tool crashed");
     return { error: "Connector invocation failed" };
   }
 }

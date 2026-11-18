@@ -1,12 +1,22 @@
 import type { Job } from "bullmq";
+import type { Prisma } from "@prisma/client";
 import * as cron from "node-cron";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
+import { redis } from "../../lib/redis";
 import { runWithoutTenant } from "../../lib/tenant-context";
 import { env } from "../../config/env";
 import { runQueue, scheduleQueue, createWorker } from "../../lib/queue";
 import { executeStep, checkGovernance, planResume, type StepDef, type StepExecutionResult } from "./executor";
 import { publishRunEvent } from "../../lib/runEvents";
+import { isJobStateDualWriteEnabled } from "../run/transition";
+import { writeLifecycle } from "../run/write-lifecycle";
+import { beatRun, forgetBeat } from "../run/heartbeat";
+import { isHierarchicalPipeline } from "../run/retry";
+import { recoverCrashedRun } from "../run/crash-recovery";
+import { PENDING_MAX_AGE_MS } from "../run/pending-sweeper";
+import { jobStaleAfterMs } from "../run/job-bucket-query";
+import { parseJobBudget } from "../run/job-budget";
 import { incrementMeter, checkQuota, claimQuota } from "../billing/metering";
 import {
   withSpan,
@@ -54,12 +64,18 @@ const MAX_STEPS_PER_RUN = 50;
  * 4. Handle approval gates for spend actions
  * 5. Update run status throughout
  */
+/** BRA-P0-04d: her çıkışta (pause/cancel/interrupt/crash dahil) kalp atışı throttle girdisini bırak. */
+async function processRunTracked(job: Job<RunJobData>): Promise<void> {
+  try {
+    await processRun(job);
+  } finally {
+    forgetBeat(job.data.runId);
+  }
+}
+
 async function processRun(job: Job<RunJobData>): Promise<void> {
   const { runId, tenantId: enqueuedTenantId } = job.data;
   const runStartTime = Date.now();
-
-  logger.info({ runId, jobId: job.id }, "Pipeline run started");
-  runCounter.add(1, { runId });
 
   // Load run with pipeline and company
   const run = await prisma.run.findUnique({
@@ -95,6 +111,22 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
     return;
   }
 
+  // BRA-P0-03e-b: second barrier against double execution. Only PENDING (fresh) and RUNNING
+  // (resume/approval/retry commit RUNNING BEFORE they enqueue; BullMQ redelivery) may execute.
+  // A terminal or paused run (COMPLETED/FAILED/CANCELLED/PAUSED/WAITING_APPROVAL) with a stray
+  // job must not be dragged back to RUNNING (flag off: `legacyUnchecked` would force it).
+  // NOT a mutual-exclusion lock: two jobs for the SAME PENDING run (or a duplicate for a RUNNING one,
+  // indistinguishable from a legit resume job) both pass. The primary guard against that is the
+  // sweeper's fixed jobId `run-<id>` (BullMQ dedupe) + live-job scan; a real lease would be needed.
+  if (run.status !== "PENDING" && run.status !== "RUNNING") {
+    logger.warn({ runId, status: run.status, jobId: job.id }, "Pipeline runner: run is not PENDING/RUNNING — refusing to execute");
+    return;
+  }
+
+  // Counted only for jobs that actually execute (a refused job is not a run).
+  logger.info({ runId, jobId: job.id }, "Pipeline run started");
+  runCounter.add(1, { runId });
+
   // NOTE: Run quota is now claimed atomically at the enqueue site (POST
   // /pipelines/:id/run, webhook trigger, scheduled cron) via claimQuota().
   // The runner used to check + increment here, but doing both at enqueue
@@ -102,11 +134,47 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
   // false-negative (the runner's read would see the already-incremented
   // value and fail the run). See ISS-010.
 
-  // Update status to RUNNING
-  await prisma.run.update({
-    where: { id: runId },
-    data: { status: "RUNNING", startedAt: new Date() },
-  });
+  // BRA-P0-02c-4 crash recovery (flag on only): BullMQ re-delivered this job
+  // (retry/stall) while the run is RUNNING/RESUMING → consume one retry or fail.
+  const redelivered =
+    (job.attemptsMade ?? 0) > 0 || (job.attemptsStarted ?? 1) > 1 || ((job as { stalledCounter?: number }).stalledCounter ?? 0) > 0;
+  if (redelivered) {
+    const parsedBudget = parseJobBudget((run as { jobBudget?: unknown }).jobBudget);
+    const maxRetries = !parsedBudget.ok ? 0 : (parsedBudget.budget?.maxRetries ?? Number.MAX_SAFE_INTEGER);
+    const rec = await recoverCrashedRun(prisma, runId, { tenantId, maxRetries });
+    if (rec.action === "lost") {
+      logger.warn({ runId }, "Crash recovery lost the race — exiting without side effects");
+      return;
+    }
+    if (rec.action === "failed") {
+      // This worker moved the run to FAILED: same bookkeeping as a normal failed finish (rule #9).
+      logger.warn({ runId, reason: "retries_exhausted" }, "Crash recovery: retries exhausted — run failed");
+      await prisma.activityLog.create({
+        data: {
+          tenantId,
+          actor: "system",
+          action: "run.failed",
+          resource: "run",
+          resourceId: runId,
+          details: { reason: "retries_exhausted", maxRetries },
+        },
+      });
+      await publishRunEvent(runId, { type: "RUN_FAILED", error: "Run crashed and the retry allowance is exhausted (retries_exhausted).", costUsd: Number(run.costUsd ?? 0) });
+      runFailedCounter.add(1, { runId });
+      return;
+    }
+    if (rec.action === "resumed") logger.info({ runId, retryCount: rec.retryCount }, "Crash recovery: resuming from persisted steps");
+  }
+
+  // Update status to RUNNING (RESUMING→RUNNING is advanced here too, ADR-0001 (e))
+  const startedAt = new Date();
+  if (!(await writeLifecycle(runId, tenantId, "RUNNING", { startedAt }))) return;
+  if (isJobStateDualWriteEnabled()) {
+    // Graph mode treats RUNNING→RUNNING as a noop (no write), but `timeoutMs`
+    // is a per-leg bound measured from started_at (ADR-0002): refresh it on
+    // every pickup exactly as the flag-off path does. Not a lifecycle column.
+    await prisma.run.updateMany({ where: { id: runId, status: "RUNNING" }, data: { startedAt } });
+  }
 
   await publishRunEvent(runId, {
     type: "RUN_STARTED",
@@ -131,7 +199,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
   // off to the hierarchical executor and bail out here. The
   // sequential path below is unchanged for SEQUENTIAL pipelines so
   // every existing customer keeps the exact same behaviour.
-  if (run.pipeline.pipelineType === "HIERARCHICAL") {
+  if (isHierarchicalPipeline(run.pipeline)) {
     const { processHierarchicalRun } = await import("./hierarchical-runner");
     await processHierarchicalRun({
       runId,
@@ -160,14 +228,14 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       { runId, stepCount: allSteps.length, max: MAX_STEPS_PER_RUN },
       "Run rejected — step count exceeds maximum",
     );
-    await prisma.run.update({
-      where: { id: runId },
-      data: {
-        status: "FAILED",
+    if (
+      !(await writeLifecycle(runId, tenantId, "FAILED", {
         error: `Pipeline has ${allSteps.length} steps; maximum is ${MAX_STEPS_PER_RUN}.`,
         completedAt: new Date(),
-      },
-    });
+      }))
+    ) {
+      return;
+    }
     await prisma.activityLog.create({
       data: {
         tenantId,
@@ -249,15 +317,15 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
         { runId, elapsedMs: elapsed, limitMs: MAX_RUN_DURATION_MS },
         "Run timed out — wall-clock limit exceeded",
       );
-      await prisma.run.update({
-        where: { id: runId },
-        data: {
-          status: "FAILED",
+      if (
+        !(await writeLifecycle(runId, tenantId, "FAILED", {
           error: `Run timed out after ${Math.round(elapsed / 1000)}s (limit: ${Math.round(MAX_RUN_DURATION_MS / 1000)}s).`,
           costUsd: totalCost,
           completedAt: new Date(),
-        },
-      });
+        }))
+      ) {
+        return;
+      }
       await prisma.activityLog.create({
         data: {
           tenantId,
@@ -297,15 +365,15 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       governanceStopCounter.add(1, { reason: governance.reason ?? "unknown" });
       logger.warn({ runId, reason: governance.reason }, "Governance stop triggered");
 
-      await prisma.run.update({
-        where: { id: runId },
-        data: {
-          status: "FAILED",
+      if (
+        !(await writeLifecycle(runId, tenantId, "FAILED", {
           error: governance.reason,
           costUsd: totalCost,
           completedAt: new Date(),
-        },
-      });
+        }))
+      ) {
+        return;
+      }
 
       await prisma.activityLog.create({
         data: {
@@ -321,6 +389,9 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       await publishRunEvent(runId, { type: "RUN_FAILED", error: governance.reason ?? "Governance stop", costUsd: totalCost });
       return;
     }
+
+    // BRA-P0-04d: adım grubu başı kalp atışı (bayrak kapalıysa no-op, 30 sn kısıtlı).
+    await beatRun(runId, tenantId);
 
     const isParallel = stepsAtOrder.length > 1;
 
@@ -410,6 +481,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       }
 
       await prisma.run.update({ where: { id: runId }, data: { costUsd: totalCost } });
+      await beatRun(runId, tenantId); // BRA-P0-04d: adım sonu
 
       // E3/T2 (§2.3a-2): exit exactly like the order-group boundary check —
       // WITHOUT the finalize block below, which would overwrite the paused
@@ -456,6 +528,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       totalCost += result.costUsd;
 
       await prisma.run.update({ where: { id: runId }, data: { costUsd: totalCost } });
+      await beatRun(runId, tenantId); // BRA-P0-04d: adım sonu
 
       // E3/T2 (§2.3a-2): turn-boundary interrupt — the step is back at
       // PENDING, the run stays PAUSED/CANCELLED. Exit like the order-group
@@ -518,10 +591,8 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
   }
 
   // Finalize run
-  await prisma.run.update({
-    where: { id: runId },
-    data: {
-      status: failed ? "FAILED" : "COMPLETED",
+  if (
+    !(await writeLifecycle(runId, tenantId, failed ? "FAILED" : "COMPLETED", {
       output: { lastStepOutput: previousOutput } as any,
       costUsd: totalCost,
       // Surface the first failed step's reasoning at run-level. Without this,
@@ -530,8 +601,11 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
       // stop messages tend to fit; full step output stays in run_steps.error.
       error: failed ? (failureReason ?? "Run failed for an unspecified reason.").slice(0, 500) : null,
       completedAt: new Date(),
-    },
-  });
+    }))
+  ) {
+    // Run was paused/cancelled/moved from outside: no completion side effects.
+    return;
+  }
 
   await prisma.activityLog.create({
     data: {
@@ -575,7 +649,7 @@ async function processRun(job: Job<RunJobData>): Promise<void> {
  * happens). Set removeOnFail.count high enough that operators have
  * something to inspect when investigating real failures.
  */
-export async function enqueueRun(runId: string): Promise<string> {
+export async function enqueueRun(runId: string, opts: { jobId?: string } = {}): Promise<string> {
   // Capture tenantId at enqueue time so the worker can assert it back
   // out of the job payload before doing any DB work — defence-in-depth
   // against a leaked Redis connection or a future code path that
@@ -594,6 +668,10 @@ export async function enqueueRun(runId: string): Promise<string> {
     "execute-run",
     { runId, tenantId },
     {
+      // BRA-P0-03e: yalnız PENDING süpürücüsü sabit jobId verir (aynı koşu için ikinci ekleme
+      // BullMQ'da mevcut işi döndürür, yinelenen iş yaratmaz). Diğer çağıranlar otomatik id
+      // kullanmaya devam eder: retry/onay sonrası yeniden kuyruğa alma engellenmesin.
+      ...(opts.jobId ? { jobId: opts.jobId } : {}),
       attempts: 2,
       backoff: { type: "exponential", delay: 30_000 },
       removeOnComplete: { count: 100 },
@@ -615,7 +693,7 @@ export async function enqueueRun(runId: string): Promise<string> {
  * (double-billing the tenant + duplicate side effects).
  */
 export function initPipelineRunner(): void {
-  createWorker<RunJobData>("pipeline-runs", processRun);
+  createWorker<RunJobData>("pipeline-runs", processRunTracked);
   logger.info("Pipeline runner worker initialized");
 }
 
@@ -694,6 +772,197 @@ export async function removeSchedule(pipelineId: string): Promise<void> {
   logger.info({ pipelineId, removed }, "Scheduled pipeline scheduler removed");
 }
 
+/** TTL for the per-slot tick dedup key: longer than a daily slot, not forever. */
+const TICK_SLOT_TTL_SECONDS = 25 * 60 * 60;
+
+/** Process-local counter of fail-closed skips caused by Redis dedup errors. */
+let tickDedupErrorCount = 0;
+export function getTickDedupErrorCount(): number {
+  return tickDedupErrorCount;
+}
+
+/**
+ * The planned fire time of a tick, in exact epoch ms (NO rounding: a
+ * sub-minute cron such as a 6-field node-cron pattern would otherwise collapse
+ * two real fires into one slot).
+ *
+ * BullMQ JobScheduler creates each tick job at the previous fire with
+ * `delay` = ms until the next planned fire, so `timestamp + delay` is stable
+ * across redeliveries of the same fire. Returns null when the job carries no
+ * timestamp; there is then no stable slot (a `Date.now()` fallback would make
+ * every delivery unique and dedup would silently do nothing).
+ */
+export function tickSlotMs(job: Job<ScheduledTickData>): number | null {
+  if (typeof job.timestamp !== "number") return null;
+  const delay = typeof job.opts?.delay === "number" ? job.opts.delay : 0;
+  return job.timestamp + delay;
+}
+
+/** Max wait for the dedup SET. lib/redis uses maxRetriesPerRequest:null + an
+ * offline queue, so with Redis down `set` never rejects; it just waits. */
+const TICK_DEDUP_TIMEOUT_MS = 3_000;
+
+/**
+ * Claim (pipelineId, slot) with Redis SET NX EX. true = we own the slot.
+ * FAIL-CLOSED: a Redis error or a timeout skips the tick (a double run spends
+ * money; a missed scheduled run is visible and recoverable by a manual run).
+ * Narrowest acceptable exception: no stable slot (slotMs null) -> warn and
+ * proceed WITHOUT dedup, since there is nothing to key on.
+ * At-most-once by design: if the process dies after the key is taken but
+ * before run.create, that slot is lost. No DEL on failure paths, because
+ * claimQuota has no rollback.
+ */
+type TickSlotClaim = "claimed" | "duplicate" | "unavailable";
+
+async function claimTickSlot(pipelineId: string, slotMs: number | null): Promise<TickSlotClaim> {
+  if (slotMs === null) {
+    logger.warn(
+      { pipelineId },
+      "Scheduled tick has no stable slot (job.timestamp missing) — running WITHOUT dedup",
+    );
+    return "claimed";
+  }
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const res = await Promise.race([
+      redis.set(`pipeline:tick:${pipelineId}:${slotMs}`, "1", "EX", TICK_SLOT_TTL_SECONDS, "NX"),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(
+          () => reject(new Error(`tick dedup SET timed out after ${TICK_DEDUP_TIMEOUT_MS}ms`)),
+          TICK_DEDUP_TIMEOUT_MS,
+        );
+      }),
+    ]);
+    return res === "OK" ? "claimed" : "duplicate";
+  } catch (err) {
+    tickDedupErrorCount += 1;
+    logger.warn(
+      { pipelineId, slotMs, err, tickDedupErrors: tickDedupErrorCount },
+      "Scheduled tick skipped — Redis dedup unavailable (fail-closed)",
+    );
+    return "unavailable";
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** Coarse skip-log dedup window: at most 1 row per (pipeline, reason) per hour. */
+const TICK_SKIP_LOG_TTL_SECONDS = 3600;
+
+/** Reasons a scheduled tick is deliberately skipped (activity_log details.reason). */
+export type TickSkipReason =
+  | "paused"
+  | "not_scheduled"
+  | "company_inactive"
+  | "duplicate_tick"
+  | "dedup_unavailable"
+  | "quota_exhausted"
+  | "waiting_approval"
+  | "overlap";
+
+/**
+ * Persist a deliberate tick skip to activity_log (rule #9). Best-effort: a log
+ * failure is swallowed (warn) and never changes the skip decision or throws
+ * into the scheduler. details carry ids/reason only — no prompt/content/secrets.
+ * Log dedup via Redis SET NX (key carries no tenant info): duplicate_tick ->
+ * one row per (pipelineId, slot); every other reason -> coarse key
+ * (pipelineId, reason) with a 1h TTL, so a persistent skip cause (paused
+ * company, exhausted quota) writes at most 1 row/hour/reason instead of one per
+ * tick. dedup_unavailable skips dedup (Redis is the thing that is down). A
+ * failing/slow dedup key fails OPEN for the log only (the row is written anyway).
+ */
+async function logTickSkip(
+  tenantId: string,
+  pipelineId: string,
+  reason: TickSkipReason,
+  extra: Record<string, unknown> = {},
+  dedupSlotMs: number | null = null,
+): Promise<void> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    let dedupKey: string | null = null;
+    let dedupTtl = TICK_SKIP_LOG_TTL_SECONDS;
+    if (reason === "duplicate_tick" && dedupSlotMs !== null) {
+      dedupKey = `pipeline:tick-skip:${pipelineId}:${dedupSlotMs}`;
+      dedupTtl = TICK_SLOT_TTL_SECONDS;
+    } else if (reason !== "dedup_unavailable" && reason !== "duplicate_tick") {
+      dedupKey = `pipeline:tick-skip:${pipelineId}:${reason}`;
+    }
+    if (dedupKey !== null) {
+      try {
+        const res = await Promise.race([
+          redis.set(dedupKey, "1", "EX", dedupTtl, "NX"),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error("tick-skip log dedup timed out")), TICK_DEDUP_TIMEOUT_MS);
+          }),
+        ]);
+        if (res !== "OK") return; // this skip is already logged (slot / hour window)
+      } catch (err) {
+        logger.warn({ pipelineId, err }, "Tick-skip log dedup unavailable — logging anyway");
+      }
+    }
+    await prisma.activityLog.create({
+      data: {
+        tenantId,
+        actor: "system",
+        action: "pipeline.schedule.skip",
+        resource: "pipeline",
+        resourceId: pipelineId,
+        details: { pipelineId, reason, ...extra },
+      },
+    });
+  } catch (err) {
+    logger.warn({ pipelineId, reason, err }, "Failed to write pipeline.schedule.skip activity log");
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/**
+ * BRA-P2-06 — freshness filter for the overlap guard's PENDING/RUNNING arm. A
+ * stuck run (dead worker, lost job) must not lock the pipeline forever, so only
+ * runs with recent liveness count. Thresholds are derived from the run module's
+ * own constants (no new magic numbers):
+ *  - PENDING: fresh while younger than PENDING_MAX_AGE_MS (the sweeper requeues
+ *    it, then fails it as pending_orphaned past that age).
+ *  - RUNNING, dual-write ON: heartbeatAt within jobStaleAfterMs() (the inbox
+ *    "stuck" threshold, so a long step/hierarchical run that keeps beating is
+ *    never stale); heartbeatAt NULL falls back to updatedAt within
+ *    PENDING_MAX_AGE_MS.
+ *  - RUNNING, dual-write OFF: no heartbeat is written and the column is not even
+ *    named (pre-migration schema safe) → updatedAt within PENDING_MAX_AGE_MS, the
+ *    same generous bound, so a normal long run is never mistaken for stale.
+ *  - Dual-write ON, PENDING arm: only state NULL or READY (a real run waiting to
+ *    start). DRAFT/PLANNED also map to legacy PENDING (job-state.ts TO_LEGACY) but
+ *    are not started by the sweeper/worker, so they must not block ticks.
+ *  - Known trade-off: with the flag ON a single step longer than jobStaleAfterMs()
+ *    stops heartbeating → the run turns stale and the guard lifts (same as the
+ *    inbox "stuck" definition).
+ */
+function liveRunFreshness(nowMs: number): Prisma.RunWhereInput {
+  const maxAgeCutoff = new Date(nowMs - PENDING_MAX_AGE_MS);
+  if (!isJobStateDualWriteEnabled()) {
+    return { status: { in: ["PENDING", "RUNNING"] }, updatedAt: { gte: maxAgeCutoff } };
+  }
+  const hbCutoff = new Date(nowMs - jobStaleAfterMs());
+  return {
+    OR: [
+      {
+        status: "PENDING",
+        OR: [{ state: null }, { state: "READY" }],
+        updatedAt: { gte: maxAgeCutoff },
+      },
+      {
+        status: "RUNNING",
+        OR: [
+          { heartbeatAt: { gte: hbCutoff } },
+          { heartbeatAt: null, updatedAt: { gte: maxAgeCutoff } },
+        ],
+      },
+    ],
+  };
+}
+
 /**
  * The tick body a scheduled JobScheduler enqueues on each fire. Exported so it
  * can be unit-tested directly (the old inline node-cron callback could not be).
@@ -729,6 +998,14 @@ export async function processScheduledTick(job: Job<ScheduledTickData>): Promise
     pipeline.trigger !== "SCHEDULED" ||
     !pipeline.schedule
   ) {
+    // A deleted pipeline has no tenant to scope a row to: logger only.
+    if (pipeline?.company?.tenantId) {
+      await logTickSkip(
+        pipeline.company.tenantId,
+        pipelineId,
+        pipeline.enabled ? "not_scheduled" : "paused",
+      );
+    }
     logger.info(
       {
         pipelineId,
@@ -744,10 +1021,81 @@ export async function processScheduledTick(job: Job<ScheduledTickData>): Promise
   // Re-check company status at fire time — a paused/archived workspace
   // shouldn't keep burning scheduled runs.
   if (!pipeline.company || pipeline.company.status !== "ACTIVE") {
+    if (pipeline.company?.tenantId) {
+      await logTickSkip(pipeline.company.tenantId, pipelineId, "company_inactive", {
+        companyStatus: pipeline.company.status,
+      });
+    }
     logger.info(
       { pipelineId, companyStatus: pipeline.company?.status ?? "missing" },
       "Scheduled run skipped — company not active",
     );
+    return;
+  }
+
+  // Idempotency (BRA-P1-04c): one run per (pipeline, planned slot). Taken
+  // before the quota claim so a duplicate tick never burns quota.
+  const slotMs = tickSlotMs(job);
+  const slotClaim = await claimTickSlot(pipelineId, slotMs);
+  if (slotClaim !== "claimed") {
+    logger.info(
+      { pipelineId, slotMs },
+      "Scheduled tick skipped — slot already claimed or dedup unavailable",
+    );
+    await logTickSkip(
+      pipeline.company.tenantId,
+      pipelineId,
+      slotClaim === "duplicate" ? "duplicate_tick" : "dedup_unavailable",
+      { slotMs },
+      // Redis is the thing that is down for "unavailable": no NX key to use.
+      slotClaim === "duplicate" ? slotMs : null,
+    );
+    return;
+  }
+
+  // BRA-P1-04-N2 / BRA-P2-06 overlap guard: the same pipeline already has a run
+  // parked in WAITING_APPROVAL (reason waiting_approval) or an unfinished
+  // PENDING/RUNNING run that is not stale (reason overlap) → do NOT open a second
+  // run and do NOT burn quota. Placed AFTER the slot claim and BEFORE the quota
+  // claim: the slot stays consumed (at-most-once per slot — a redelivered/
+  // duplicate tick can never start a late run once the run resolves) and a skipped
+  // tick costs no quota. Tenant-scoped; a query error propagates (tick never
+  // retried, no run is created = fail-closed).
+  // Two ordered queries so the reason is deterministic: WAITING_APPROVAL first
+  // (approval-parked run is the operator-actionable cause), then PENDING/RUNNING.
+  const waitingRun = await prisma.run.findFirst({
+    where: { pipelineId: pipeline.id, tenantId: pipeline.company.tenantId, status: "WAITING_APPROVAL" },
+    select: { id: true },
+  });
+  if (waitingRun) {
+    logger.info(
+      { pipelineId, waitingRunId: waitingRun.id, slotMs },
+      "Scheduled tick skipped — previous run is waiting for approval",
+    );
+    await logTickSkip(pipeline.company.tenantId, pipelineId, "waiting_approval", {
+      slotMs,
+      waitingRunId: waitingRun.id,
+    });
+    return;
+  }
+  const activeRun = await prisma.run.findFirst({
+    where: {
+      pipelineId: pipeline.id,
+      tenantId: pipeline.company.tenantId,
+      ...liveRunFreshness(Date.now()),
+    },
+    select: { id: true, status: true },
+  });
+  if (activeRun) {
+    logger.info(
+      { pipelineId, activeRunId: activeRun.id, status: activeRun.status, slotMs },
+      "Scheduled tick skipped — previous run still PENDING/RUNNING (overlap)",
+    );
+    await logTickSkip(pipeline.company.tenantId, pipelineId, "overlap", {
+      slotMs,
+      activeRunId: activeRun.id,
+      activeRunStatus: activeRun.status,
+    });
     return;
   }
 
@@ -760,6 +1108,7 @@ export async function processScheduledTick(job: Job<ScheduledTickData>): Promise
       { pipelineId, tenantId: pipeline.company.tenantId, value: claim.value, limit: claim.limit },
       "Scheduled run skipped — quota exhausted",
     );
+    await logTickSkip(pipeline.company.tenantId, pipelineId, "quota_exhausted", { slotMs });
     return;
   }
 
@@ -769,6 +1118,9 @@ export async function processScheduledTick(job: Job<ScheduledTickData>): Promise
       trigger: "scheduled",
       status: "PENDING",
       input: {},
+      // Owner from the already-loaded Pipeline → Company (no extra query).
+      tenantId: pipeline.company.tenantId,
+      workspaceId: pipeline.companyId,
     },
   });
   await enqueueRun(run.id);

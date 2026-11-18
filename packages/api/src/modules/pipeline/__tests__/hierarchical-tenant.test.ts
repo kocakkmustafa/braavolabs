@@ -18,11 +18,12 @@ vi.mock("../../../lib/logger", () => ({
 
 const prismaMock = vi.hoisted(() => ({
   agent: { findUnique: vi.fn() },
-  run: { update: vi.fn() },
-  runStep: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn() },
+  run: { update: vi.fn(), findUnique: vi.fn(), findFirst: vi.fn(), updateMany: vi.fn() },
+  runStep: { create: vi.fn(), update: vi.fn(), findFirst: vi.fn(), findMany: vi.fn() },
   activityLog: { create: vi.fn() },
 }));
 vi.mock("../../../lib/db", () => ({ prisma: prismaMock }));
+vi.mock("../../../services/push", () => ({ notifyTenantUsers: vi.fn().mockResolvedValue(undefined) }));
 
 vi.mock("../hierarchical", () => ({
   buildManagerContext: () => "team context",
@@ -62,7 +63,15 @@ beforeEach(() => {
     model: "claude-sonnet-4-20250514",
   });
   prismaMock.run.update.mockResolvedValue({});
+  prismaMock.run.findFirst.mockResolvedValue({ status: "RUNNING" });
+  prismaMock.run.updateMany.mockResolvedValue({ count: 1 });
+  // BRA-P0-08: delegate/finish read the run for the job-budget check; no budget = inert.
+  prismaMock.run.findUnique.mockResolvedValue({
+    id: "run-1", jobBudget: null, tenantId: null, workspaceId: null, retryCount: 0, startedAt: null, steps: [],
+    pipeline: { company: { id: "co-1", tenantId: "tenant-1" } },
+  });
   prismaMock.runStep.create.mockResolvedValue({});
+  prismaMock.runStep.findMany.mockResolvedValue([]);
   prismaMock.runStep.update.mockResolvedValue({});
   prismaMock.runStep.findFirst.mockResolvedValue({ id: "rs-worker" });
   prismaMock.activityLog.create.mockResolvedValue({});
@@ -106,9 +115,9 @@ describe("hierarchical runner — worker tenant propagation (D-011)", () => {
     expect(workerCall.model).toBe("llama-3.3-70b-versatile");
 
     // Run completes normally with the worker cost folded in
-    expect(prismaMock.run.update).toHaveBeenCalledWith(
+    expect(prismaMock.run.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: "run-1" },
+        where: expect.objectContaining({ id: "run-1" }),
         data: expect.objectContaining({ status: "COMPLETED" }),
       }),
     );

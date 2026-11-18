@@ -229,7 +229,7 @@ export default function AccountDeletionPage() {
       </header>
 
       {/* ── Article grid (TOC + prose) ── */}
-      <div className="max-w-[1040px] mx-auto px-6 md:px-8 mt-10 mb-24 grid grid-cols-1 md:grid-cols-[230px_1fr] gap-12">
+      <div id="main-content" tabIndex={-1} className="max-w-[1040px] mx-auto px-6 md:px-8 mt-10 mb-24 grid grid-cols-1 md:grid-cols-[230px_1fr] gap-12">
 
         {/* Sticky TOC (desktop) */}
         <nav className="hidden md:block sticky self-start" style={{ top: "var(--bv-legal-offset)" }} aria-label={legal("onThisPage")}>

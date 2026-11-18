@@ -28,11 +28,13 @@ const agentCreate = vi.hoisted(() => vi.fn());
 const pipelineCreate = vi.hoisted(() => vi.fn());
 const activityLogCreate = vi.hoisted(() => vi.fn());
 const txRun = vi.hoisted(() => vi.fn());
+const memberUpsert = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../lib/db", () => {
   const tx = {
     $queryRaw: (...a: unknown[]) => queryRaw(...a),
     entitlementEvent: { findMany: (...a: unknown[]) => entitlementFindMany(...a) },
+    companyMember: { upsert: (...a: unknown[]) => memberUpsert(...a) }, user: { findFirst: vi.fn().mockResolvedValue({ id: "u" }) },
     company: {
       findFirst: (...a: unknown[]) => companyFindFirst(...a),
       create: (...a: unknown[]) => companyCreate(...a),
@@ -265,6 +267,9 @@ describe("importer persist — steps + agents", () => {
     expect(companyCount).toHaveBeenCalledExactlyOnceWith({ where: { tenantId: "tenant-1" } });
     expect(entitlementFindMany.mock.invocationCallOrder[0]).toBeLessThan(companyCreate.mock.invocationCallOrder[0]);
     expect(pipelineCreate.mock.calls[0][0].data.companyId).toBe("bucket-1");
+    // BRA-P2-07: yeni bucket'ın oluşturanı (user-1) aynı tx'te OWNER olur
+    expect(memberUpsert).toHaveBeenCalledOnce();
+    expect(memberUpsert.mock.calls[0][0].create).toMatchObject({ tenantId: "tenant-1", userId: "user-1", role: "OWNER" });
   });
 
   it("reuses an existing bucket even when the tenant has no capacity for another company", async () => {
@@ -275,6 +280,7 @@ describe("importer persist — steps + agents", () => {
     expect(companyCreate).not.toHaveBeenCalled();
     expect(companyCount).not.toHaveBeenCalled();
     expect(entitlementFindMany).not.toHaveBeenCalled();
+    expect(memberUpsert).not.toHaveBeenCalled(); // mevcut bucket: sahiplik değişmez
     expect(pipelineCreate.mock.calls[0][0].data.companyId).toBe("co-1");
   });
 

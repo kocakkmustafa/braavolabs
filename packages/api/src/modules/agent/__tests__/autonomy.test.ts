@@ -86,3 +86,13 @@ describe("requiresApprovalForAutonomy — AUTONOMOUS", () => {
     expect(requiresApprovalForAutonomy(approvalNoFlag, "AUTONOMOUS")).toBe(true);
   });
 });
+
+describe("requiresApprovalForAutonomy — alwaysRequiresApproval (BRA-P1-03c)", () => {
+  const meta = { requiresApproval: false, riskLevel: "low" as const, moneyTouching: false, alwaysRequiresApproval: true };
+  it.each(["SUPERVISED", "BALANCED", "AUTONOMOUS"] as const)("gates %s even with a low-risk meta", (level) => {
+    expect(requiresApprovalForAutonomy(meta, level)).toBe(true);
+  });
+  it("without the flag an AUTONOMOUS low-risk tool is not gated", () => {
+    expect(requiresApprovalForAutonomy({ ...meta, alwaysRequiresApproval: false }, "AUTONOMOUS")).toBe(false);
+  });
+});

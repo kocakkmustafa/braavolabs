@@ -34,7 +34,7 @@
 
 import { logger } from "../lib/logger";
 import { runAgentLoop } from "../modules/agent/claude";
-import { listTenantProviderLinks } from "./provider-chain";
+import { listTenantProviderLinks, isCloudBlockedByLocalDefault, LOCAL_DEFAULT_CLOUD_BLOCKED_MESSAGE } from "./provider-chain";
 import type { AIProviderType } from "./ai-client";
 import { assertReasoningEffortSupported, type ReasoningEffort } from "./reasoning-effort";
 
@@ -326,7 +326,16 @@ export function resolveModelSelections(
 }
 
 export async function validateModelSelections(tenantId: string, selections: ModelSelection[], maxCandidates?: number) {
-  resolveModelSelections(await listTenantProviderLinks(tenantId), selections, maxCandidates);
+  try {
+    resolveModelSelections(await listTenantProviderLinks(tenantId), selections, maxCandidates);
+  } catch (err) {
+    for (const sel of Array.isArray(selections) ? selections : []) {
+      if (sel && typeof sel.provider === "string" && await isCloudBlockedByLocalDefault(tenantId, sel.provider)) {
+        throw new Error(LOCAL_DEFAULT_CLOUD_BLOCKED_MESSAGE);
+      }
+    }
+    throw err;
+  }
 }
 
 /**

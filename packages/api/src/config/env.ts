@@ -211,6 +211,12 @@ const envShape = z.object({
     (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
     z.string().trim().email().optional(),
   ),
+  // BRA-UX-API-03k: plan-wide agent quota. Default-off; plan numbers come from the founder (modules/company/agent-capacity.ts).
+  AGENT_QUOTA_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
+  // BRA-P1-03-N1: /tenant-repos allowlist routes. Default-off (404). Needs the v* migration first.
+  TENANT_REPOS_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
+  // BRA-P2-02e: POST /agents/:id/worktree/plan (dry-run preview, no persistence). Default-off: 404 while false.
+  WORKTREE_PLAN_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
   // Durable webhook admission/DLQ rollout switch. Default-off keeps the
   // migration and code deploy reversible until the operator explicitly
   // enables delivery-ledger processing after schema verification.
@@ -233,6 +239,8 @@ const envShape = z.object({
   OUTBOUND_EMAIL_ENABLED: z.string().optional(),
   OUTREACH_SEQUENCES_ENABLED: z.string().optional(),
   VOICE_AGENT_ENABLED: z.string().optional(),
+  // BRA-P1-03c: deploy / merge agent tools. OFF unless "true" (founder approval required).
+  DEPLOY_MERGE_TOOLS_ENABLED: z.string().optional(),
   // Vapi voice webhook HMAC secret — used to verify inbound Vapi callbacks.
   VAPI_WEBHOOK_SECRET: z.string().optional(),
   // ── Air-gap / offline mode ──

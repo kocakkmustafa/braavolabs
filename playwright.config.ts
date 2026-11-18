@@ -1,5 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
-import { API_PORT, UI_PORT, UI } from "./e2e/ports";
+import { API_PORT, UI_PORT, UI, UI_LAB_PORT, UI_WS_PORT, FAKE_LLM_PORT } from "./e2e/ports";
 
 /**
  * E2E configuration (BR-P0-005).
@@ -23,6 +23,47 @@ const SECRETS = {
   ENCRYPTION_KEY: "e2e-encryption-key-at-least-32-chars",
   NODE_ENV: "test",
 };
+
+/**
+ * UI web server factory. Production serves the UI through Next's `output: "standalone"` bundle
+ * (ENV/Dockerfile.ui). Locally we deliberately do NOT use it by default.
+ *
+ * On this workspace the standalone server is unusable: `.npmrc` relocates
+ * pnpm's virtual store outside iCloud (a required workaround — files
+ * under ~/Documents get evicted mid-build), and Next bakes the traced
+ * module paths into the bundle at build time. The result resolves
+ * node_modules to a .cache path that does not exist and dies with
+ * MODULE_NOT_FOUND before serving a byte. That is an artifact of this
+ * machine's setup, not of the application.
+ *
+ * `next start` warns that it "does not work with output: standalone" and
+ * then serves the real built app anyway. The application code under test
+ * is identical either way — only the server wrapper differs — so this is
+ * a faithful harness for journeys. Set E2E_UI_STANDALONE=1 to use the
+ * standalone entry instead (correct in CI, which has no relocated store).
+ */
+function uiServer(port: number, extraEnv: Record<string, string>) {
+  return {
+    command: process.env.E2E_UI_STANDALONE
+      ? `node packages/ui/.next/standalone/packages/ui/server.js`
+      : `pnpm --filter @ai-company-os/ui exec next start --hostname 127.0.0.1 --port ${port}`,
+    port,
+    reuseExistingServer: !process.env.CI,
+    timeout: 120_000,
+    env: {
+      ...process.env,
+      ...SECRETS,
+      // Exercise the explicit self-hosted boundary with a public operator
+      // hostname. Local/private hosts remain rejected by middleware, just as
+      // they are in production.
+      SELF_HOSTED_SURFACE_HOSTS: "operator.example",
+      NEXT_PUBLIC_API_URL: "https://api.operator.example/api/v1",
+      HOSTNAME: "127.0.0.1",
+      PORT: String(port),
+      ...extraEnv,
+    },
+  };
+}
 
 const chromeExecutable = process.env.PLAYWRIGHT_CHROME_EXECUTABLE_PATH;
 
@@ -72,42 +113,34 @@ export default defineConfig({
         ALLOWED_ORIGINS: UI,
         // Loopback only: the suite never needs the API on other interfaces.
         API_HOST: "127.0.0.1",
+        // BRA-P0-10: lets a CUSTOM provider reach the loopback fake LLM (SSRF guard allows loopback only
+        // here) and keeps cloud providers cut. Gate flags (OUTBOUND_*, OUTREACH_*, VOICE_*, DEPLOY_MERGE_*)
+        // are deliberately NOT set: they stay off, as in CI/compose.
+        OFFLINE_MODE: "true",
+        // BRA-P0-10b: no web-research search provider may be configured here, even if the developer's shell
+        // exports a key (process.env is spread above): research must never leave the machine in E2E.
+        TAVILY_API_KEY: "", SERPER_API_KEY: "", BRAVE_SEARCH_API_KEY: "",
       },
     },
+    // BRA-P0-10: deterministic fake OpenAI-compatible LLM (e2e/support/fake-llm.ts), loopback only.
     {
-      // Production serves the UI through Next's `output: "standalone"` bundle
-      // (ENV/Dockerfile.ui). We deliberately do NOT use it here.
-      //
-      // On this workspace the standalone server is unusable: `.npmrc` relocates
-      // pnpm's virtual store outside iCloud (a required workaround — files
-      // under ~/Documents get evicted mid-build), and Next bakes the traced
-      // module paths into the bundle at build time. The result resolves
-      // node_modules to a .cache path that does not exist and dies with
-      // MODULE_NOT_FOUND before serving a byte. That is an artifact of this
-      // machine's setup, not of the application.
-      //
-      // `next start` warns that it "does not work with output: standalone" and
-      // then serves the real built app anyway. The application code under test
-      // is identical either way — only the server wrapper differs — so this is
-      // a faithful harness for journeys. Set E2E_UI_STANDALONE=1 to use the
-      // standalone entry instead (correct in CI, which has no relocated store).
-      command: process.env.E2E_UI_STANDALONE
-        ? `node packages/ui/.next/standalone/packages/ui/server.js`
-        : `pnpm --filter @ai-company-os/ui exec next start --hostname 127.0.0.1 --port ${UI_PORT}`,
-      port: UI_PORT,
+      command: "node e2e/support/fake-llm.ts",
+      port: FAKE_LLM_PORT,
       reuseExistingServer: !process.env.CI,
-      timeout: 120_000,
-      env: {
-        ...process.env,
-        ...SECRETS,
-        // Exercise the explicit self-hosted boundary with a public operator
-        // hostname. Local/private hosts remain rejected by middleware, just as
-        // they are in production.
-        SELF_HOSTED_SURFACE_HOSTS: "operator.example",
-        NEXT_PUBLIC_API_URL: "https://api.operator.example/api/v1",
-        HOSTNAME: "127.0.0.1",
-        PORT: String(UI_PORT),
-      },
+      timeout: 30_000,
+      env: { ...process.env, E2E_FAKE_LLM_PORT: String(FAKE_LLM_PORT) },
     },
+    uiServer(UI_PORT, {}),
+    // BRA-UX-04: the SAME build served with the prototype flag ON (read at request time, not baked in), so one run proves
+    // both "flag off = no difference" (UI_PORT) and the prototype journeys (UI_LAB_PORT).
+    // BRA-UX-05a: aynı örnek `/start` Niyet Çubuğu bayrağı da AÇIK (istek anında okunur); UI_PORT'ta eski ekran birebir sunulur.
+    // BRA-UX-05c: aynı örnek `/inbox` İşler bayrağı da AÇIK; UI_PORT'ta eski gelen kutusu birebir sunulur.
+    // BRA-UX-05b: aynı örnek `/runs/[id]` birleşik çalışma alanı bayrağı da AÇIK; UI_PORT'ta eski ayrıntı sayfası birebir sunulur.
+    // BRA-UX-05i: aynı örnek `/approvals` onay merkezi bayrağı da AÇIK; UI_PORT'ta eski onay sayfası birebir sunulur.
+    // BRA-UX-05h: aynı örnek `/settings/models` bayrağı da AÇIK; UI_PORT'ta rota 404'tür (yeni rota, eski sayfa yok).
+    // BRA-UX-05f: aynı örnek `/companies/[id]/status` şirket durumu bayrağı da AÇIK; UI_PORT'ta rota 404'tür (yeni rota).
+    uiServer(UI_LAB_PORT, { NEXT_PUBLIC_UX_LAB: "1", NEXT_PUBLIC_UX_INTENT: "1", NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1", NEXT_PUBLIC_UX_APPROVALS: "1", NEXT_PUBLIC_UX_MODELS: "1", NEXT_PUBLIC_UX_COMPANY: "1", NEXT_PUBLIC_UX_CODE: "1" }),
+    // BRA-UX-05e: İşler + iş sayfası AÇIK ama kod değişikliği kartı bayrağı KAPALI örnek (kart yok, `/code-summary` isteği yok kanıtı).
+    uiServer(UI_WS_PORT, { NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1" }),
   ],
 });
