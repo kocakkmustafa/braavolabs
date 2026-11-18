@@ -112,8 +112,12 @@ export function frontmatter(md: string): Record<string, string> {
   if (!m) return {};
   const out: Record<string, string> = {};
   for (const line of m[1].split(/\r?\n/)) {
-    const kv = /^([A-Za-z][\w-]*):\s*(.*)$/.exec(line);
-    if (kv) out[kv[1]] = kv[2].replace(/^["']|["']$/g, "").trim();
+    // Linear scan: split at the first ':' (no backtracking regex over attacker-sized whitespace).
+    const at = line.indexOf(":");
+    if (at < 1) continue;
+    const key = line.slice(0, at);
+    if (!/^[A-Za-z][\w-]*$/.test(key)) continue;
+    out[key] = line.slice(at + 1).trim().replace(/^["']|["']$/g, "").trim();
   }
   return out;
 }

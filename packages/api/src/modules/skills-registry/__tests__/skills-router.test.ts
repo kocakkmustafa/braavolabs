@@ -7,6 +7,8 @@ import { generateKeyPairSync } from "node:crypto";
 import type { Router } from "express";
 
 vi.mock("../../../lib/logger", () => ({ logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
+const redisMock = vi.hoisted(() => ({ incr: vi.fn(), expire: vi.fn() }));
+vi.mock("../../../lib/redis", () => ({ redis: redisMock }));
 vi.mock("../../../middleware/auth", () => ({ authMiddleware: (_q: unknown, _s: unknown, next: () => void) => next() }));
 
 const db = vi.hoisted(() => {
@@ -20,7 +22,8 @@ vi.mock("../../../lib/db", () => ({
   },
 }));
 
-import { _resetRevocationCache, setSourceFetcher, skillsRegistryRouter } from "../skills.router";
+import { MAX_REVOCATIONS, _resetRevocationCache, publishLimiter, setSourceFetcher, skillsRegistryRouter } from "../skills.router";
+import { frontmatter } from "../bundle";
 import { verifyCanonical, publicKeyB64 } from "../signing";
 import { makeTarGz, SKILL_MD } from "./tar-fixture";
 
@@ -114,7 +117,7 @@ describe("moderation", () => {
     process.env.MARKETPLACE_ADMIN_EMAILS = "admin@yulalab.com";
     db.user.findUnique.mockResolvedValue({ email: "someone@x.com" });
     expect((await call("post", "/:name/versions/:version/approve", { params: { name: "weekly-report", version: "1.0.0" } })).err?.statusCode).toBe(403);
-    db.user.findUnique.mockResolvedValue({ email: "admin@yulalab.com" });
+    db.user.findUnique.mockResolvedValue({ email: "admin@yulalab.com", emailVerifiedAt: new Date() });
     db.skillVersion.findFirst.mockResolvedValue(pending);
     db.skillVersion.update.mockResolvedValue({}); db.skillPackage.update.mockResolvedValue({}); db.skillReport.updateMany.mockResolvedValue({});
     const { res } = await call("post", "/:name/versions/:version/approve", { params: { name: "weekly-report", version: "1.0.0" } });
@@ -125,7 +128,7 @@ describe("moderation", () => {
   });
 
   it("a revocation lands in the signed public list", async () => {
-    db.user.findUnique.mockResolvedValue({ email: "admin@yulalab.com" });
+    db.user.findUnique.mockResolvedValue({ email: "admin@yulalab.com", emailVerifiedAt: new Date() });
     db.skillVersion.findFirst.mockResolvedValue({ ...pending, state: "APPROVED" });
     db.skillVersion.update.mockResolvedValue({}); db.skillRevocation.create.mockResolvedValue({}); db.skillReport.updateMany.mockResolvedValue({});
     expect((await call("post", "/:name/versions/:version/revoke", { params: { name: "weekly-report", version: "1.0.0" }, body: { reason: "exfiltrates notes" } })).res.body).toEqual({ state: "REVOKED" });
@@ -143,6 +146,58 @@ describe("moderation", () => {
     db.skillVersion.update.mockResolvedValue({});
     const { res } = await call("post", "/:name/report", { params: { name: "weekly-report" }, body: { severity: "HIGH", reason: "asks to send keys" } });
     expect(res.body).toEqual({ id: "r1", pulled: true });
-    expect(db.skillVersion.update).toHaveBeenCalledWith({ where: { id: "ver1" }, data: { state: "NEEDS_REVIEW" } });
+    expect(db.skillVersion.update).toHaveBeenCalledWith({ where: { id: "ver1", state: "APPROVED" }, data: { state: "NEEDS_REVIEW" } });
+  });
+
+  it("an allow-listed address without a verified e-mail is refused (403), case-insensitively", async () => {
+    process.env.MARKETPLACE_ADMIN_EMAILS = " Admin@YulaLab.com ";
+    db.user.findUnique.mockResolvedValue({ email: "admin@yulalab.com", emailVerifiedAt: null });
+    expect((await call("post", "/:name/versions/:version/approve", { params: { name: "weekly-report", version: "1.0.0" } })).err?.statusCode).toBe(403);
+    db.user.findUnique.mockResolvedValue({ email: "ADMIN@yulalab.com", emailVerifiedAt: new Date() });
+    db.skillVersion.findFirst.mockResolvedValue(pending);
+    db.skillVersion.update.mockResolvedValue({}); db.skillPackage.update.mockResolvedValue({}); db.skillReport.updateMany.mockResolvedValue({});
+    expect((await call("post", "/:name/versions/:version/approve", { params: { name: "weekly-report", version: "1.0.0" } })).res.body).toEqual({ state: "APPROVED" });
+    process.env.MARKETPLACE_ADMIN_EMAILS = "admin@yulalab.com";
+  });
+
+  it("approving a version that changed state meanwhile is a 409 and the update is state-conditional", async () => {
+    db.user.findUnique.mockResolvedValue({ email: "admin@yulalab.com", emailVerifiedAt: new Date() });
+    db.skillVersion.findFirst.mockResolvedValue(pending);
+    db.skillVersion.update.mockRejectedValue({ code: "P2025" }); db.skillPackage.update.mockResolvedValue({}); db.skillReport.updateMany.mockResolvedValue({});
+    const { err } = await call("post", "/:name/versions/:version/approve", { params: { name: "weekly-report", version: "1.0.0" } });
+    expect(err?.statusCode).toBe(409);
+    expect(db.skillVersion.update.mock.calls[0][0].where).toEqual({ id: "ver1", state: "NEEDS_REVIEW" });
+  });
+
+  it("refuses to sign a truncated revocation list (503) and signs count and version otherwise", async () => {
+    db.skillRevocation.findMany.mockResolvedValue(Array.from({ length: MAX_REVOCATIONS + 1 }, (_, i) => ({ name: "n" + i, version: "1.0.0", sha256: "a".repeat(64), reason: "r", createdAt: new Date() })));
+    expect((await call("get", "/revocations", {})).err?.statusCode).toBe(503);
+    _resetRevocationCache();
+    db.skillRevocation.findMany.mockResolvedValue([]);
+    const { res } = await call("get", "/revocations", {});
+    expect(JSON.parse(res.body.signedList)).toMatchObject({ version: 1, count: 0, entries: [] });
+  });
+});
+
+describe("hardening", () => {
+  it("frontmatter parsing is linear on a pathological line", () => {
+    const md = "---\nk:" + " ".repeat(64_000) + "x \n---\nbody";
+    const t0 = performance.now();
+    expect(frontmatter(md)).toEqual({ k: "x" });
+    expect(frontmatter("---\nname: demo\ndescription: \"hi there\"\n---\n")).toEqual({ name: "demo", description: "hi there" });
+    expect(performance.now() - t0).toBeLessThan(200);
+  });
+
+  it("publish is rate limited per user, counting every attempt", async () => {
+    const route = (skillsRegistryRouter as any).stack.flatMap((l: any) => l.handle?.stack ?? []).find((l: any) => l.route?.path === "/publish" && l.route.methods.post);
+    expect(route.route.stack.length).toBe(2); // limiter + handler
+    expect(route.route.stack[0].handle).toBe(publishLimiter);
+    redisMock.incr.mockResolvedValue(31); redisMock.expire.mockResolvedValue(1);
+    const res: any = { setHeader() {}, status(c: number) { this.code = c; return this; }, json() { return this; } };
+    const next = vi.fn();
+    await publishLimiter({ auth: { tenantId: "t1", userId: "u1" } } as any, res, next);
+    expect(res.code).toBe(429);
+    expect(next).not.toHaveBeenCalled();
+    expect(redisMock.incr.mock.calls.at(-1)![0]).toBe("rl:skills:publish:u1");
   });
 });

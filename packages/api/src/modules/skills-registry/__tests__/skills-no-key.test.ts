@@ -72,7 +72,7 @@ describe("no signing key, no admin list", () => {
   });
 
   it("approve is 403 for everyone without an admin list, and 503 for an admin when the key is missing", async () => {
-    db.user.findUnique.mockResolvedValue({ email: "admin@yulalab.com" });
+    db.user.findUnique.mockResolvedValue({ email: "admin@yulalab.com", emailVerifiedAt: new Date() });
     expect((await call("post", "/:name/versions/:version/approve", { params: { name: "weekly-report", version: "1.0.0" } })).err?.statusCode).toBe(403);
     process.env.MARKETPLACE_ADMIN_EMAILS = "admin@yulalab.com";
     try {

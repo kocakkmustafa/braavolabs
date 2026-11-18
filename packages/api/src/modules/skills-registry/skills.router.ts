@@ -26,6 +26,7 @@ import { systemScope } from "../../middleware/system-scope";
 import { prisma } from "../../lib/db";
 import { AppError } from "../../middleware/error";
 import { logger } from "../../lib/logger";
+import { rateLimit } from "../../middleware/rateLimit";
 import { BundleError, buildBundle, bundleBytes, bundleDigest, frontmatter, LIMITS, NAME_RE, readTarGz, SEMVER_RE, selectFiles, type FileInfo } from "./bundle";
 import { scanBundle, worst, type Finding } from "./scan";
 import { signCanonical, signingConfigured } from "./signing";
@@ -34,6 +35,11 @@ export const skillsRegistryRouter = Router();
 
 const MAX_VERSIONS_PER_DAY = 20;
 const MAX_REPORTS_PER_DAY = 10;
+/** Signed revocation list ceiling. Past it the endpoint refuses (503) instead of silently dropping the newest revocations. */
+export const MAX_REVOCATIONS = 5000;
+/** Counts every publish attempt (including ones that later fail), per user: each attempt can cost a 5 MB download + gunzip. */
+export const publishLimiter = rateLimit({ windowMs: 3_600_000, maxRequests: 30, keyPrefix: "rl:skills:publish", identify: req => req.auth?.userId });
+const isStale = (err: unknown) => (err as { code?: string } | null)?.code === "P2025";
 const REPO_RE = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]{1,100}$/;
 const REF_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 
@@ -55,13 +61,17 @@ function isAdminEmail(email: string | null | undefined): boolean {
   return !!email && admins.includes(email.toLowerCase());
 }
 async function assertAdmin(userId: string): Promise<void> {
-  const me = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
-  if (!isAdminEmail(me?.email)) throw new AppError(403, "Skill moderation is restricted to platform admins");
+  const me = await prisma.user.findUnique({ where: { id: userId }, select: { email: true, emailVerifiedAt: true } });
+  // Password sign-up does not verify the address, so an allow-listed address alone is not proof of identity.
+  if (!me?.emailVerifiedAt || !isAdminEmail(me.email)) throw new AppError(403, "Skill moderation is restricted to platform admins");
 }
 async function audit(req: { auth?: { tenantId: string; userId: string } }, action: string, resourceId: string, details: Record<string, unknown>) {
   try {
     await prisma.activityLog.create({ data: { tenantId: req.auth!.tenantId, actor: req.auth!.userId, action, resource: "skill", resourceId, details: details as object } });
-  } catch (err) { logger.warn({ err }, "skill audit log failed"); }
+  } catch (err) {
+    // The action has already happened, so failing the request would misreport it; log at error level so the gap is alertable.
+    logger.error({ err, action, resourceId }, "skill audit log failed");
+  }
 }
 
 /** A GitHub tag's tarball, at most 5 MB, from the one host the registry reads. */
@@ -110,10 +120,14 @@ skillsRegistryRouter.get("/revocations", systemScope("route:skills-public"), asy
   try {
     requireSigning();
     if (!revocationCache || Date.now() - revocationCache.at > 5 * 60_000) {
-      const rows = await prisma.skillRevocation.findMany({ orderBy: { createdAt: "asc" }, take: 5000 });
+      const rows = await prisma.skillRevocation.findMany({ orderBy: { createdAt: "asc" }, take: MAX_REVOCATIONS + 1 });
+      if (rows.length > MAX_REVOCATIONS) {
+        logger.error({ limit: MAX_REVOCATIONS }, "skill revocation list exceeds the signed-list ceiling; refusing to sign a truncated list");
+        throw new AppError(503, "revocation list is temporarily unavailable");
+      }
       const entries = rows.map(r => ({ name: r.name, version: r.version, sha256: r.sha256, reason: r.reason, revokedAt: r.createdAt.toISOString() }));
       const issuedAt = new Date().toISOString();
-      const { text, signature } = signCanonical({ issuedAt, entries });
+      const { text, signature } = signCanonical({ version: 1, issuedAt, count: entries.length, entries });
       revocationCache = { at: Date.now(), body: { issuedAt, entries, signedList: text, signature } };
     }
     res.json(revocationCache.body);
@@ -142,6 +156,7 @@ skillsRegistryRouter.get("/:name/versions/:version", systemScope("route:skills-p
   try {
     const v = await prisma.skillVersion.findFirst({ where: { version: req.params.version, state: "APPROVED", package: { name: req.params.name } }, select: { id: true, packageId: true, bundle: true, sha256: true, signedManifest: true, signature: true } });
     if (!v || !v.signature) throw new AppError(404, "version not found or not approved");
+    // Known limit: unauthenticated GET, so the counter can be inflated; it only orders the catalog and is not a trust signal.
     await prisma.skillPackage.update({ where: { id: v.packageId }, data: { downloads: { increment: 1 } } }).catch(() => undefined);
     res.json({ name: req.params.name, version: req.params.version, sha256: v.sha256, bundle: v.bundle, signedManifest: v.signedManifest, signature: v.signature });
   } catch (err) { next(err); }
@@ -170,7 +185,7 @@ const publishSchema = z.object({
   path: z.string().max(200).regex(/^[A-Za-z0-9._/-]*$/).optional(),
 });
 
-authed.post("/publish", async (req, res, next) => {
+authed.post("/publish", publishLimiter, async (req, res, next) => {
   try {
     const body = publishSchema.parse(req.body);
     const publisher = await prisma.skillPublisher.findUnique({ where: { userId: req.auth!.userId } });
@@ -234,7 +249,8 @@ authed.post("/:name/report", async (req, res, next) => {
     // A serious report pulls a community skill from the catalog until a person looks at it.
     // Installed copies keep working: only a revocation disables them.
     const pulled = body.severity === "HIGH" && !v.package.publisher.verified && !v.package.publisher.official;
-    if (pulled) await prisma.skillVersion.update({ where: { id: v.id }, data: { state: "NEEDS_REVIEW" } });
+    // Conditional: a version revoked or re-reviewed meanwhile must not be flipped back to NEEDS_REVIEW.
+    if (pulled) await prisma.skillVersion.update({ where: { id: v.id, state: "APPROVED" }, data: { state: "NEEDS_REVIEW" } }).catch(err => { if (!isStale(err)) throw err; });
     await audit(req, "skill.report", v.id, { name: req.params.name, version: v.version, severity: body.severity, pulled });
     res.status(201).json({ id: report.id, pulled });
   } catch (err) { next(err); }
@@ -268,11 +284,11 @@ authed.post("/:name/versions/:version/approve", async (req, res, next) => {
     const publisher = v.package.publisher;
     const approvedAt = new Date().toISOString();
     const signed = manifestFor({ name: v.package.name, version: v.version, sha256: v.sha256, publisher: publisher.handle, trust: trustOf(publisher), approvedAt, files: v.files as unknown as FileInfo[] });
-    await prisma.$transaction([
-      prisma.skillVersion.update({ where: { id: v.id }, data: { state: "APPROVED", signedManifest: signed.text, signature: signed.signature, reviewedBy: req.auth!.userId, reviewedAt: new Date(approvedAt) } }),
+    try { await prisma.$transaction([
+      prisma.skillVersion.update({ where: { id: v.id, state: "NEEDS_REVIEW" }, data: { state: "APPROVED", signedManifest: signed.text, signature: signed.signature, reviewedBy: req.auth!.userId, reviewedAt: new Date(approvedAt) } }),
       prisma.skillPackage.update({ where: { id: v.packageId }, data: { trust: trustOf(publisher) } }),
       prisma.skillReport.updateMany({ where: { versionId: v.id, status: "OPEN" }, data: { status: "DISMISSED" } }),
-    ]);
+    ]); } catch (err) { if (isStale(err)) throw new AppError(409, "version changed state; reload and retry"); throw err; }
     await audit(req, "skill.approve", v.id, { name: v.package.name, version: v.version });
     res.json({ state: "APPROVED" });
   } catch (err) { next(err); }
@@ -297,11 +313,11 @@ authed.post("/:name/versions/:version/revoke", async (req, res, next) => {
     const { reason } = z.object({ reason: z.string().min(3).max(300) }).parse(req.body);
     const v = await versionFor(req.params.name, req.params.version);
     if (v.state === "REVOKED") throw new AppError(409, "already revoked");
-    await prisma.$transaction([
-      prisma.skillVersion.update({ where: { id: v.id }, data: { state: "REVOKED", reviewedBy: req.auth!.userId, reviewedAt: new Date() } }),
+    try { await prisma.$transaction([
+      prisma.skillVersion.update({ where: { id: v.id, state: { not: "REVOKED" } }, data: { state: "REVOKED", reviewedBy: req.auth!.userId, reviewedAt: new Date() } }),
       prisma.skillRevocation.create({ data: { name: v.package.name, version: v.version, sha256: v.sha256, reason } }),
       prisma.skillReport.updateMany({ where: { versionId: v.id, status: "OPEN" }, data: { status: "ACTIONED" } }),
-    ]);
+    ]); } catch (err) { if (isStale(err)) throw new AppError(409, "already revoked"); throw err; }
     _resetRevocationCache();
     await audit(req, "skill.revoke", v.id, { name: v.package.name, version: v.version, reason });
     res.json({ state: "REVOKED" });
