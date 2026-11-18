@@ -71,7 +71,8 @@ describe("index.ts mount order", () => {
     // silently stops seeing mounts, every assertion below would pass vacuously.
     // Update this number deliberately when a mount is genuinely added/removed.
     // 45 → 46: BRA-P1-05-N1 added `/bench/compare` (benchCompareRouter).
-    expect(mounts().length).toBe(46);
+    // 46 → 47: BRA-P1-03-N1 added `/tenant-repos` (tenantRepoRouter, behind TENANT_REPOS_ENABLED).
+    expect(mounts().length).toBe(47);
   });
 
   it("mounts /bench/compare before the public /bench router (BRA-P1-05-N1)", () => {
