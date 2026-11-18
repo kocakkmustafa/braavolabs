@@ -749,17 +749,6 @@ export const api = {
   missingIntegrations: (token: string, companyId: string) =>
     apiFetch<any>(`/integrations/${companyId}/missing`, { token }),
 
-  // Integration Catalog (120+ connectors)
-  integrationCatalog: (token: string, category?: string, search?: string) => {
-    const params = new URLSearchParams();
-    if (category) params.set("category", category);
-    if (search) params.set("search", search);
-    const qs = params.toString();
-    return apiFetch<any[]>(`/integrations/catalog${qs ? `?${qs}` : ""}`, { token });
-  },
-  integrationCatalogDetail: (token: string, id: string) =>
-    apiFetch<any>(`/integrations/catalog/${id}`, { token }),
-
   // A/B Testing
   listAbTests: (token: string, status?: string) =>
     apiFetch<any[]>(`/ab-tests${status ? `?status=${status}` : ""}`, { token }),

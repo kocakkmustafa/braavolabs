@@ -78,11 +78,11 @@ function settingsHarness() {
   const module = { exports: {} as any };
   const requireLocal = (name: string): any => {
     if (name === "react") return hooks;
-    if (name.endsWith("/localized-error") || name.endsWith("/i18n/locales")) {
-      const relative = name.endsWith("/localized-error") ? "lib/localized-error.ts" : "i18n/locales.ts";
+    if (name.endsWith("/localized-error") || name.endsWith("/i18n/locales") || name.endsWith("/settingsTab")) {
+      const relative = name.endsWith("/localized-error") ? "lib/localized-error.ts" : name.endsWith("/settingsTab") ? "lib/settingsTab.ts" : "i18n/locales.ts";
       const localModule = { exports: {} as any };
       const compiled = ts.transpileModule(readFileSync(resolve(process.cwd(), relative), "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } }).outputText;
-      runInNewContext("(function(require,module,exports){" + compiled + "\n})", { Intl, Date, Error })(requireLocal, localModule, localModule.exports);
+      runInNewContext("(function(require,module,exports){" + compiled + "\n})", { Intl, Date, Error, URLSearchParams })(requireLocal, localModule, localModule.exports);
       return localModule.exports;
     }
     if (name === "react/jsx-runtime") return { jsx: element, jsxs: element };
@@ -98,7 +98,7 @@ function settingsHarness() {
   };
   runInNewContext("(function(require,module,exports){" + code + "\n})", {
     console, AbortController, setTimeout, clearTimeout, fetch: rawFetch,
-    window: { location: { set href(value: string) { h.feedback.push(["href", value]); } } },
+    window: { location: { search: "", set href(value: string) { h.feedback.push(["href", value]); } } },
   })(requireLocal, module, module.exports);
   function renderComponent(component: any, id: string) {
     context = instances.get(id);
