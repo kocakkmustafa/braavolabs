@@ -5,7 +5,7 @@
  * maskelenir (`maskKaputText`), sonra kırpılır, düz metin olarak, `overflow-wrap:anywhere`. Sade: kompakt satırlar; Tam: adım kartları.
  */
 import { useId } from "react";
-import { buildKaputGraph, type Kaput, type KaputStep, type KaputToolCall } from "../../lib/ux-lab/facts";
+import { buildKaputGraph, type Kaput, type KaputStep, type KaputToolCall } from "../../lib/ux-kaput/facts";
 import { KaputDag } from "./KaputDag";
 import { clipText, safeText } from "../../lib/ux-kaput/mask";
 import { ACTIVITY_MAX_LINES, ACTIVITY_SUMMARY_MAX, type KaputActivity } from "../../lib/ux-kaput/activity";

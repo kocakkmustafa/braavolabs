@@ -6,7 +6,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it, expect, vi } from "vitest";
 import KaputPanel from "../../components/job/KaputPanel";
 import type { T } from "../../components/inbox/InboxParts";
-import { parseKaput, type Kaput } from "../ux-lab/facts";
+import { parseKaput, type Kaput } from "../ux-kaput/facts";
 import { ACTIVITY_MAX_LINES, parseActivity } from "./activity";
 
 const getRun = vi.hoisted(() => vi.fn());

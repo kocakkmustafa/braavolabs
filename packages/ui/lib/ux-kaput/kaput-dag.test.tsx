@@ -6,7 +6,7 @@ import { join } from "node:path";
 import KaputPanel from "../../components/job/KaputPanel";
 import { clipWide } from "../../components/job/KaputDag";
 import type { T } from "../../components/inbox/InboxParts";
-import { buildKaputGraph, parseKaput, GRAPH_MAX_NODES, type Kaput } from "../ux-lab/facts";
+import { buildKaputGraph, parseKaput, GRAPH_MAX_NODES, type Kaput } from "../ux-kaput/facts";
 
 const t: T = (key, v) => (v ? `${key}${JSON.stringify(v)}` : key);
 const render = (k: Kaput, locale = "en") => renderToStaticMarkup(<KaputPanel load={{ status: "ready", kaput: k }} full={false} t={t} locale={locale} onRetry={() => {}} />).replace(/&quot;/g, '"');

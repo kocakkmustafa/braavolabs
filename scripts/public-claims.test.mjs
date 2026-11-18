@@ -440,10 +440,10 @@ test("next config delegates canonical routing to fail-closed middleware", () => 
   // validation or replacing the real built application with a mock server.
   // The fallback binds loopback only, like the standalone HOSTNAME below.
   // BRA-UX-04: UI sunucusu `uiServer(port, env)` fabrikasından gelir (aynı komut, port parametreli); varsayılan UI bayrak KAPALI,
-  // ikinci örnek (UI_LAB_PORT) aynı derlemeyi NEXT_PUBLIC_UX_LAB=1 ile sunar.
+  // ikinci örnek (UI_LAB_PORT) aynı derlemeyi UX bayrakları AÇIK sunar.
   assert.match(playwright, /command: process\.env\.E2E_UI_STANDALONE\s*\? `node packages\/ui\/\.next\/standalone\/packages\/ui\/server\.js`\s*:\s*`pnpm --filter @ai-company-os\/ui exec next start --hostname 127\.0\.0\.1 --port \$\{port\}`/);
   assert.match(playwright, /uiServer\(UI_PORT, \{\}\)/);
-  assert.match(playwright, /uiServer\(UI_LAB_PORT, \{ NEXT_PUBLIC_UX_LAB: "1", NEXT_PUBLIC_UX_INTENT: "1", NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1", NEXT_PUBLIC_UX_APPROVALS: "1", NEXT_PUBLIC_UX_MODELS: "1", NEXT_PUBLIC_UX_COMPANY: "1", NEXT_PUBLIC_UX_CODE: "1" \}\)/); // BRA-UX-05a: + Niyet Çubuğu; 05c: + İşler bayrağı; 05b: + iş sayfası bayrağı; 05i: + onay merkezi bayrağı; 05h: + modeller bayrağı; 05f: + şirket durumu bayrağı; 05e: + kod değişikliği kartı bayrağı
+  assert.match(playwright, /uiServer\(UI_LAB_PORT, \{ NEXT_PUBLIC_UX_INTENT: "1", NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1", NEXT_PUBLIC_UX_APPROVALS: "1", NEXT_PUBLIC_UX_MODELS: "1", NEXT_PUBLIC_UX_COMPANY: "1", NEXT_PUBLIC_UX_CODE: "1" \}\)/); // BRA-UX-05a: + Niyet Çubuğu; 05c: + İşler bayrağı; 05b: + iş sayfası bayrağı; 05i: + onay merkezi bayrağı; 05h: + modeller bayrağı; 05f: + şirket durumu bayrağı; 05e: + kod değişikliği kartı bayrağı
   // BRA-UX-05e: İşler + iş sayfası AÇIK ama kod değişikliği kartı bayrağı KAPALI örnek (UI_WS_PORT): CODE bayrağı burada OLMAMALI.
   assert.match(playwright, /uiServer\(UI_WS_PORT, \{ NEXT_PUBLIC_UX_JOBS: "1", NEXT_PUBLIC_UX_WORKSPACE: "1" \}\)/);
   assert.doesNotMatch(playwright.match(/uiServer\(UI_WS_PORT[^\n]*/)?.[0] ?? "", /NEXT_PUBLIC_UX_CODE/);

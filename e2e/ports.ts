@@ -17,7 +17,7 @@ export const UI_WS_PORT = Number(process.env.E2E_UI_WS_PORT ?? 4313);
 export const API_ORIGIN = `http://127.0.0.1:${API_PORT}`;
 /** Public operator authority of the UI (browser resolves it to 127.0.0.1). */
 export const UI = `http://operator.example:${UI_PORT}`;
-/** Authority of the flag-ON UI instance (BRA-UX-04 prototype at /lab/ux). */
+/** Authority of the flag-ON UI instance (UX bayrakları AÇIK örnek). */
 export const UI_LAB = `http://operator.example:${UI_LAB_PORT}`;
 /** Authority of the İşler/iş sayfası-ON, code-change-OFF UI instance (BRA-UX-05e). */
 export const UI_WS = `http://operator.example:${UI_WS_PORT}`;

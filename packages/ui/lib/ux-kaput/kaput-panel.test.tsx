@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it, expect } from "vitest";
 import KaputPanel, { clip, statusKey, durationParts, RUN_ERROR_MAX, REASONING_MAX } from "../../components/job/KaputPanel";
 import type { T } from "../../components/inbox/InboxParts";
-import { parseKaput, type Kaput } from "../ux-lab/facts";
+import { parseKaput, type Kaput } from "../ux-kaput/facts";
 
 const t: T = (key, v) => (v ? `${key}${JSON.stringify(v)}` : key);
 const noop = () => {};
