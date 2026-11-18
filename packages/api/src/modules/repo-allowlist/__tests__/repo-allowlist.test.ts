@@ -6,13 +6,14 @@ import { ZodError } from "zod";
 
 const h = vi.hoisted(() => ({
   flag: false,
-  findMany: vi.fn(), findFirst: vi.fn(), count: vi.fn(), create: vi.fn(), deleteMany: vi.fn(), activity: vi.fn(),
+  findMany: vi.fn(), findFirst: vi.fn(), count: vi.fn(), create: vi.fn(), deleteMany: vi.fn(), activity: vi.fn(), lock: vi.fn(),
 }));
 vi.mock("../../../config/env", async (orig) => {
   const actual = await orig<{ env: Record<string, unknown> }>();
   return { ...actual, env: new Proxy(actual.env, { get: (t, k) => (k === "TENANT_REPOS_ENABLED" ? h.flag : (t as Record<string | symbol, unknown>)[k]) }) };
 });
 const tx = {
+  $queryRaw: h.lock,
   tenantRepository: { count: h.count, create: h.create, findFirst: h.findFirst, deleteMany: h.deleteMany },
   activityLog: { create: h.activity },
 };
@@ -55,7 +56,8 @@ const row = (over: Record<string, unknown> = {}) => ({ id: "r1", provider: "GITH
 
 beforeEach(() => {
   h.flag = true;
-  for (const f of [h.findMany, h.findFirst, h.count, h.create, h.deleteMany, h.activity]) f.mockReset();
+  for (const f of [h.findMany, h.findFirst, h.count, h.create, h.deleteMany, h.activity, h.lock]) f.mockReset();
+  h.lock.mockResolvedValue([{ id: "tenant-a" }]);
   h.count.mockResolvedValue(0);
   h.create.mockImplementation(async ({ data }: any) => row({ owner: data.owner, repo: data.repo, fullName: data.fullName }));
 });
@@ -127,10 +129,20 @@ describe("write (ADMIN, validated, audited)", () => {
     h.count.mockResolvedValue(MAX_REPOS_PER_TENANT);
     expect((await call("post", "/", { body: { owner: "a", repo: "c" } })).error).toMatchObject({ statusCode: 409, code: "REPO_ALLOWLIST_FULL" });
   });
+  it("add locks the tenant row BEFORE counting (cap cannot be overrun), and counts only that tenant", async () => {
+    await call("post", "/", { body: { owner: "a", repo: "b" }, tenantId: "tenant-a" });
+    expect(h.lock.mock.calls[0][0].join("?")).toMatch(/FOR UPDATE/);
+    expect(h.lock.mock.calls[0][1]).toBe("tenant-a");
+    expect(h.lock.mock.invocationCallOrder[0]).toBeLessThan(h.count.mock.invocationCallOrder[0]);
+    expect(h.count).toHaveBeenCalledWith({ where: { tenantId: "tenant-a" } });
+    h.lock.mockResolvedValue([]);
+    expect((await call("post", "/", { body: { owner: "a", repo: "c" } })).error).toMatchObject({ statusCode: 401 });
+  });
   it("delete is tenant scoped, audited, 204; missing/other-tenant -> 404", async () => {
     h.findFirst.mockResolvedValueOnce({ id: "r1", fullName: "acme/widget" });
     const ok = await call("delete", "/:id", { params: { id: "r1" }, tenantId: "tenant-a" });
     expect(ok.res.statusCode).toBe(204);
+    expect(h.findFirst).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "r1", tenantId: "tenant-a" } }));
     expect(h.deleteMany).toHaveBeenCalledWith({ where: { id: "r1", tenantId: "tenant-a" } });
     expect(h.activity).toHaveBeenCalledWith({ data: expect.objectContaining({ action: "repo.allowlist.remove", resourceId: "r1" }) });
     h.findFirst.mockResolvedValueOnce(null);
@@ -147,7 +159,7 @@ describe("input grammar", () => {
     for (const i of ["1", "123456789012345"]) expect(isValidInstallationId(i)).toBe(true);
     for (const i of ["", "0", "000", "1234567890123456", "1a", "-1", " 1"]) expect(isValidInstallationId(i), i).toBe(false);
     for (const b of ["main", "release/1.2", "feat/x_y-z"]) expect(isValidBranch(b), b).toBe(true);
-    for (const b of ["", "-rf", "a..b", "a//b", "a@{u}", "a/", "a.", "a.lock", "a b", "a~1", "a^"]) expect(isValidBranch(b), b).toBe(false);
+    for (const b of ["", "-rf", "a..b", "a//b", "a@{u}", "a/", "a.", "a.lock", "a.lock/b", "a/.b", ".hidden", "a b", "a~1", "a^"]) expect(isValidBranch(b), b).toBe(false);
     expect(repoFullName("Acme", "Widget")).toBe("acme/widget");
   });
 });

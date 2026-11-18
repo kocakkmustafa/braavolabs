@@ -19,6 +19,10 @@ import {
  * TENANT_REPOS_ENABLED (default off => 404). It only records which repositories a tenant lists; there is no GitHub
  * call, no token, no write access anywhere in this module. Listing is open to any tenant member, changing the list
  * needs `repo:manage` (ADMIN). The table ships with a migration that goes live only with a `v*` release.
+ *
+ * TRUST NOTE: a row is a tenant's INTENT, not proof of access. `installationId` is stored unverified, so one tenant
+ * could list another's repository name. The later GitHub App slice must, on EVERY use, check with GitHub that the
+ * installation really reaches that repository (and belongs to the tenant) instead of trusting this table.
  */
 export const tenantRepoRouter = Router();
 tenantRepoRouter.use(authMiddleware);
@@ -85,6 +89,9 @@ tenantRepoRouter.post("/", requirePermission("repo:manage"), async (req, res, ne
     let created;
     try {
       created = await tenantTx(async (tx) => {
+        // Same tenant-row lock as assertCompanyCapacity: serialises concurrent adds so the cap cannot be overrun.
+        const locked = await tx.$queryRaw<Array<{ id: string }>>`SELECT id FROM tenants WHERE id = ${tenantId} FOR UPDATE`;
+        if (locked.length !== 1) throw new AppError(401, "Tenant not found");
         const count = await tx.tenantRepository.count({ where: { tenantId } });
         if (count >= MAX_REPOS_PER_TENANT) throw new AppError(409, `Repository allowlist is full (${MAX_REPOS_PER_TENANT})`, undefined, "REPO_ALLOWLIST_FULL");
         const row = await tx.tenantRepository.create({

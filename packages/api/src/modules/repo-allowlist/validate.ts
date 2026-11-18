@@ -41,7 +41,8 @@ export function isValidBranch(v: unknown): v is string {
     !v.includes("@{") &&
     !v.endsWith("/") &&
     !v.endsWith(".") &&
-    !v.endsWith(".lock")
+    !/(^|\/)\./.test(v) && // no path component starting with a dot (git refuses it)
+    !/\.lock(\/|$)/.test(v) // no component ending in .lock
   );
 }
 
