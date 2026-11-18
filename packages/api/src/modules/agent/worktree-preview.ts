@@ -3,6 +3,7 @@
  * `packages/braavo-core/src/metadata-sync.ts` (BRA-P2-02d, ADR-0008). PURE: no I/O, no persistence, no clock
  * (callers pass `now`). The cloud never writes the plan anywhere (persistence is deferred, see ADR-0008).
  *
+ * (The REQUEST carries patch content and a work dir path; pino-http and Sentry scrub those keys. Only the RESPONSE is metadata-only.)
  * What leaves: bare file names (no directory), SHA-256 of the patch content computed here, timestamps, counts.
  * What never leaves: content, any path, the absolute work dir, the root, planner messages (they can echo input).
  *

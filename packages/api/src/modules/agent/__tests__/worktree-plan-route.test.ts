@@ -10,6 +10,7 @@ vi.mock("../../../config/env", async (orig) => {
 vi.mock("../../../lib/db", () => ({ prisma: { agent: { findUnique: h.findUnique } }, tenantTx: vi.fn() }));
 vi.mock("../../../lib/logger", () => ({ logger: { info: vi.fn(), error: vi.fn(), warn: vi.fn() } }));
 vi.mock("../../../middleware/auth", () => ({ authMiddleware: vi.fn() }));
+import { authMiddleware } from "../../../middleware/auth";
 import { agentVersionRouter } from "../version-router";
 import { SNAPSHOT_MAX_ENTRIES, buildWorktreePreview, isPreviewSafeName } from "../worktree-preview";
 import { planWorktree } from "../worktree-planner";
@@ -40,6 +41,12 @@ describe("flag and tenant scope", () => {
     const { error } = await invoke(ok([create("a.ts")]));
     expect(error).toMatchObject({ statusCode: 404 });
     expect(h.findUnique).not.toHaveBeenCalled();
+  });
+  it("the lookup really joins agent -> company -> tenantId, and authMiddleware is the router's first layer", async () => {
+    await invoke(ok([create("a.ts")]));
+    expect(h.findUnique).toHaveBeenCalledWith(expect.objectContaining({ where: { id: "agent-a" }, include: { company: { select: { tenantId: true } } } }));
+    const first = (agentVersionRouter as any).stack[0];
+    expect(first.handle).toBe(authMiddleware);
   });
   it("another tenant's agent and an unknown agent are both 404 (agent -> company -> tenantId)", async () => {
     expect((await invoke(ok([create("a.ts")]), { tenantId: "tenant-b" })).error).toMatchObject({ statusCode: 404 });
