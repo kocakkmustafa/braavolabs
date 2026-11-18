@@ -103,7 +103,12 @@ const PROVIDER_NAME = /^[\w.:/-]{1,64}$/;
 /** SANDBOX_ESCAPE metadata re-validation (target is already masked at write time). */
 const ESCAPE_KIND = /^[a-z]+\.[a-z_]+$/;
 const ESCAPE_REASON = /^[a-z0-9_-]{1,64}$/;
-const ESCAPE_TARGET = /^[\w@%+=:.,/*\[\]~-]{1,256}$/;
+// Same forbidden set as sandbox-escape.ts FORBIDDEN_CHARS (+ U+2028/2029 line separators): the write
+// side already rejects/masks secrets, so display only refuses control/bidi/invisible characters and
+// keeps ordinary filenames (spaces, Unicode) visible to the approver.
+// eslint-disable-next-line no-control-regex
+const ESCAPE_TARGET_FORBIDDEN = /[\u0000-\u001f\u007f-\u009f\u061c\u200b-\u200f\u2028\u2029\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/;
+const ESCAPE_TARGET = { test: (s: string) => s.length >= 1 && s.length <= 256 && !ESCAPE_TARGET_FORBIDDEN.test(s) };
 
 const NULL_DETAILS: ApprovalDetails = Object.freeze({
   risk: null,

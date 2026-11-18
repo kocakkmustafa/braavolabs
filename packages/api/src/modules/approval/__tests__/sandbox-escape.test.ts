@@ -344,6 +344,17 @@ describe("SANDBOX_ESCAPE in lists", () => {
     expect(d.dataTransfer).toBeNull();
     expect(d.dataTransferStructured).toBeUndefined();
   });
+  it("ordinary filenames (spaces, Unicode) stay visible; control/bidi chars still drop the target", () => {
+    for (const target of ["/data/my file.txt", "/veri/dosya şğü.txt", "/a/日本語.md"]) {
+      const m = buildSandboxEscapeMetadata({ ...REQ, target });
+      const d = deriveApprovalDetails("SANDBOX_ESCAPE", m);
+      expect(d.dataTransfer?.[0]).toContain(m.target);
+      expect(d.dataTransferStructured).toMatchObject({ kind: "sandbox_escape", target: m.target });
+    }
+    for (const bad of ["/a\u202eb", "/a\u200bb", "/a\u2028b", "/a\x07b"]) {
+      expect(deriveApprovalDetails("SANDBOX_ESCAPE", { kind: "fs.write", target: bad, reasonCode: "outside-workspace" }).dataTransfer).toBeNull();
+    }
+  });
   it("other types are unchanged (SPEND keeps its description, no additionalText)", async () => {
     approvalFindMany.mockResolvedValue([row({ type: "SPEND", description: "pay", metadata: {} })]);
     const { res } = await call(list, { query: {} });
