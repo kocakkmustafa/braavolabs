@@ -167,6 +167,10 @@ app.use(pinoHttp({
       "req.body.*.email",
       "req.body.*.name",
       "req.body.*.phone",
+      // BRA-P2-02e: worktree plan requests carry patch CONTENT and a work dir path (ADR-0008 "gozetim yok").
+      "req.body.patches",
+      "req.body.root",
+      "req.body.subPath",
       // Credentials JSON blobs from integration save / settings save.
       "req.body.credentials",
       "req.body.credentials.*",

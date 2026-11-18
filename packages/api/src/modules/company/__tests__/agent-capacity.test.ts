@@ -1,4 +1,6 @@
 /** BRA-UX-API-03k: plan-wide agent quota mechanism (flag default OFF, no invented numbers). */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Prisma } from "@prisma/client";
 
@@ -127,5 +129,29 @@ describe("precheckAgentCapacity (compose: refuse before spending LLM tokens)", (
     await expect(precheckAgentCapacity("tenant-1")).resolves.toBeUndefined(); // empty shipped table: unlimited
     expect(h.tenantTx).toHaveBeenCalledOnce();
     expect(query).toHaveBeenCalledOnce();
+  });
+});
+
+describe("router wiring guard (source level)", () => {
+  const src = readFileSync(join(__dirname, "../router.ts"), "utf8");
+  const handlerBody = (route: string) => {
+    const start = src.indexOf(`companyRouter.post("${route}"`);
+    expect(start, route).toBeGreaterThan(-1);
+    const next = src.indexOf("companyRouter.", start + 10);
+    return src.slice(start, next === -1 ? undefined : next);
+  };
+  it.each(["/:id/agents/compose", "/:id/agents/compose/draft"])("%s prechecks the quota BEFORE the LLM call", (route) => {
+    const body = handlerBody(route);
+    const pre = body.indexOf("precheckAgentCapacity(");
+    const llm = body.indexOf("runComposer(");
+    expect(pre, `${route} precheck`).toBeGreaterThan(-1);
+    expect(llm, `${route} runComposer`).toBeGreaterThan(-1);
+    expect(pre).toBeLessThan(llm);
+  });
+  it.each(["/:id/agents", "/:id/agents/compose/confirm"])("%s (and compose via persistComposedAgent) insert through createAgentGuarded", (route) => {
+    expect(handlerBody(route)).toMatch(/createAgentGuarded|persistComposedAgent/);
+  });
+  it("no raw prisma.agent.create is left in the company router", () => {
+    expect(src).not.toMatch(/prisma\.agent\.create\(/);
   });
 });
