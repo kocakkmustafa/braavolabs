@@ -95,6 +95,10 @@ function normalizeTarget(kind: string, raw: unknown): { canonical: string; displ
   }
   if (!raw.startsWith("/")) throw new SandboxEscapeRequestError("target must be an absolute path");
   const norm = posix.normalize(raw).replace(/(.)\/+$/, "$1");
+  // Validate the NORMALISED form too: normalisation can expose a trailing space the raw form hid (`/x /`).
+  if (ESCAPE_TARGET_FORBIDDEN.test(norm) || ESCAPE_TARGET_AMBIGUOUS_SPACE.test(norm)) {
+    throw new SandboxEscapeRequestError("invalid target");
+  }
   if (norm.length > MAX_TARGET_LENGTH) throw new SandboxEscapeRequestError("target too long");
   const display = norm
     .split("/")

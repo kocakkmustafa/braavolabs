@@ -359,7 +359,8 @@ describe("SANDBOX_ESCAPE in lists", () => {
       "/a" + c(0x206a) + "b", "/a" + c(0x2066) + "b", "/a" + c(0xfe0f) + "b", "/a" + c(0xe0041) + "b", "/a" + c(0x3164) + "b",
       "/a" + c(0x00a0) + "b", "/a" + c(0x3000) + "b", "/a" + c(0x2003) + "b",
       "/a" + c(0x2215) + "b", "/a" + c(0xff0f) + "b", "/a " + c(0x2192) + " /b",
-      "/a  b", "/a/b ", "/a/ b  c",
+      "/a  b", "/a/b ", "/a/ b  c", "/data/x /", "/a /b", "/a/b /",
+      "/a" + c(0x2800) + "b", "/a" + String.fromCharCode(0xd800) + "b", "/a/" + c(0x2024) + c(0x2024) + "/b", "/a" + c(0x2216) + "b", "/a" + c(0xff3c) + "b",
     ];
     for (const target of bad) expect(() => buildSandboxEscapeMetadata({ ...REQ, target })).toThrow();
   });
@@ -368,9 +369,19 @@ describe("SANDBOX_ESCAPE in lists", () => {
       const target = "/a" + String.fromCodePoint(cp) + "b";
       expect(deriveApprovalDetails("SANDBOX_ESCAPE", { kind: "fs.write", target, reasonCode: "outside-workspace" }).dataTransfer).toBeNull();
     }
-    for (const target of ["/a  b", "/a/b "]) {
+    for (const target of ["/a  b", "/a/b ", "/a /b", "/a" + String.fromCodePoint(0x2800) + "b"]) {
       expect(deriveApprovalDetails("SANDBOX_ESCAPE", { kind: "fs.write", target, reasonCode: "outside-workspace" }).dataTransfer).toBeNull();
     }
+  });
+  it("hand-written row with an over-long kind shows no action (kind <= 32)", () => {
+    const d = deriveApprovalDetails("SANDBOX_ESCAPE", { kind: "fs." + "w".repeat(40), target: "/a/b", reasonCode: "outside-workspace" });
+    expect(d.dataTransfer).toBeNull();
+    expect(d.permissions).toBeNull();
+  });
+  it("elision never splits an astral character", () => {
+    const target = "/" + Array.from({ length: 50 }, (_, i) => "d" + String(i).padStart(2, "0")).join("/") + "/" + String.fromCodePoint(0x1d4d0).repeat(20);
+    const line = deriveApprovalDetails("SANDBOX_ESCAPE", { kind: "fs.write", target, reasonCode: "outside-workspace" }).dataTransfer![0];
+    expect(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/.test(line)).toBe(false);
   });
   it("long target: middle is elided, kind, reason and the file name at the end stay visible; structured target is full", () => {
     const target = "/" + Array.from({ length: 55 }, (_, i) => "d" + String(i).padStart(2, "0")).join("/") + "/authorized_keys";
