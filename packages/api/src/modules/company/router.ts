@@ -780,6 +780,7 @@ companyRouter.post("/:id/agents/compose", agentComposeLimiter, async (req, res, 
     const company = await findOwnCompany(req, companyId);
 
     const { description } = agentComposeSchema.parse(req.body);
+    await precheckAgentCapacity(req.auth!.tenantId); // BRA-UX-API-03k: no LLM spend / trial usage for a tenant already at its agent limit
     const result = await runComposer(req.auth!.tenantId, description);
 
     const agent = await persistComposedAgent(req, company.id, result.agent, {
