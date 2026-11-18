@@ -649,7 +649,10 @@
       "requestBody": "Sagen Sie uns, welchen Dienst Sie verbinden möchten. Wir lesen jede Anfrage.",
       "requestCta": "Anfragen",
       "loading": "Integrationen werden geladen",
-      "connectedCountTemplate": "{count} verbunden"
+      "connectedCountTemplate": "{count} verbunden",
+      "statusExpired": "Erneute Autorisierung nötig",
+      "noCompany": "Legen Sie zuerst einen Arbeitsbereich an und verbinden Sie dann Dienste damit.",
+      "companiesLoadError": "Die Liste der Arbeitsbereiche konnte nicht geladen werden."
     },
     "billing": {
       "title": "Abrechnung & Nutzung",

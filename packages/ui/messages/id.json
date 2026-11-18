@@ -649,7 +649,10 @@
       "requestBody": "Beri tahu kami layanan yang ingin dihubungkan. Kami membaca setiap permintaan.",
       "requestCta": "Minta",
       "loading": "Memuat integrasi",
-      "connectedCountTemplate": "{count} terhubung"
+      "connectedCountTemplate": "{count} terhubung",
+      "statusExpired": "Perlu otorisasi ulang",
+      "noCompany": "Buat ruang kerja terlebih dahulu, lalu hubungkan layanan ke sana.",
+      "companiesLoadError": "Daftar ruang kerja tidak dapat dimuat."
     },
     "billing": {
       "title": "Penagihan dan penggunaan",

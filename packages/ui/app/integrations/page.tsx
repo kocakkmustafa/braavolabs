@@ -1,71 +1,54 @@
 "use client";
 import { useTranslations as useLegacyTranslations } from "next-intl";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useAuthGuard } from "../../lib/useAuthGuard";
 import { api } from "../../lib/api";
-import { buildCatalog, filterCatalog, countByState, type IntegrationRow, type ProviderInfo } from "../../lib/integrationsCatalog";
-import { ProviderCard, RequestCard, ErrorBox } from "../../components/integrations/CatalogParts";
-
-type Company = { id: string; name: string };
+import { countByState, type IntegrationRow } from "../../lib/integrationsCatalog";
+import { reducer, initialState, viewOf, entriesOf, type Company } from "../../lib/integrationsPage";
+import { CatalogBody } from "../../components/integrations/CatalogParts";
 
 export default function IntegrationsPage() {
   const uiText = useLegacyTranslations("uiCopy");
   const t = useTranslations();
   const { token, hydrated } = useAuthGuard();
   const [search, setSearch] = useState("");
-  const [providers, setProviders] = useState<ProviderInfo[] | null>(null);
-  const [providersFailed, setProvidersFailed] = useState(false);
-  const [companies, setCompanies] = useState<Company[] | null>(null);
-  const [companyId, setCompanyId] = useState("");
-  const [integrations, setIntegrations] = useState<IntegrationRow[] | null>(null);
-  const [statusFailed, setStatusFailed] = useState(false);
+  const [state, dispatch] = useReducer(reducer, initialState);
   const [reload, setReload] = useState(0);
-  const statusRequest = useRef(0);
 
-  // Providers (what can really be connected) + the workspace list.
   useEffect(() => {
     if (!hydrated || !token) return;
     let live = true;
-    setProvidersFailed(false);
+    dispatch({ type: "reload" });
     api.listProviders(token)
-      .then((v) => { if (live) setProviders(Array.isArray(v) ? v : []); })
-      .catch(() => { if (live) setProvidersFailed(true); });
+      .then((v) => { if (live) dispatch({ type: "providers", providers: Array.isArray(v) ? v : [] }); })
+      .catch(() => { if (live) dispatch({ type: "providersFailed" }); });
     api.listCompanies(token)
-      .then((c: Company[]) => {
-        if (!live) return;
-        const list = Array.isArray(c) ? c : [];
-        setCompanies(list);
-        setCompanyId((cur) => cur || list[0]?.id || "");
-      })
-      .catch(() => { if (live) setCompanies([]); });
+      .then((c: Company[]) => { if (live) dispatch({ type: "companies", companies: Array.isArray(c) ? c : [] }); })
+      .catch(() => { if (live) dispatch({ type: "companiesFailed" }); });
     return () => { live = false; };
   }, [hydrated, token, reload]);
 
-  // Connection state for the selected workspace. Failure -> "unknown", never a guess.
+  // Status call only with a company; the reducer drops answers for a company that is no longer selected.
+  const { companyId } = state;
   useEffect(() => {
-    if (!token || !companyId) { setIntegrations(null); setStatusFailed(false); return; }
-    const request = ++statusRequest.current;
-    setIntegrations(null);
-    setStatusFailed(false);
+    if (!token || !companyId) return;
     api.listIntegrations(token, companyId)
-      .then((rows: IntegrationRow[]) => { if (request === statusRequest.current) setIntegrations(Array.isArray(rows) ? rows : []); })
-      .catch(() => { if (request === statusRequest.current) setStatusFailed(true); });
+      .then((rows: IntegrationRow[]) => dispatch({ type: "status", companyId, rows: Array.isArray(rows) ? rows : [] }))
+      .catch(() => dispatch({ type: "statusFailed", companyId }));
   }, [token, companyId, reload]);
 
   const retry = useCallback(() => setReload((n) => n + 1), []);
-  const catalog = useMemo(() => buildCatalog(providers ?? [], integrations), [providers, integrations]);
-  const filtered = useMemo(() => filterCatalog(catalog, search), [catalog, search]);
-  const counts = useMemo(() => countByState(catalog), [catalog]);
+  const view = viewOf(state);
+  const entries = useMemo(() => entriesOf(state), [state]);
+  const connectedCount = useMemo(() => countByState(entries).connected, [entries]);
 
   if (!hydrated || !token) return (
     <div className="flex items-center justify-center min-h-screen bg-background">
       <div className="loading-dots"><span /><span /><span /></div>
     </div>
   );
-
-  const loading = providers === null && !providersFailed;
 
   return (
     <div className="bv-dash max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 animate-fade-in">
@@ -101,52 +84,23 @@ export default function IntegrationsPage() {
             style={{ minHeight: 44 }}
           />
         </div>
-        {companies && companies.length > 1 ? (
+        {state.companies && state.companies.length > 1 ? (
           <div className="flex items-center gap-2">
             <label htmlFor="integration-company" className="bv-caption">{t("app.integrations.companyLabel")}</label>
             <select
               id="integration-company"
-              value={companyId}
-              onChange={(e) => setCompanyId(e.target.value)}
+              value={state.companyId}
+              onChange={(e) => dispatch({ type: "selectCompany", companyId: e.target.value })}
               className="rounded-xl text-sm bg-surface-container-low text-on-surface px-3 focus-visible:ring-2 focus-visible:ring-primary/40"
               style={{ minHeight: 44 }}
             >
-              {companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+              {state.companies.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
         ) : null}
       </div>
 
-      {providersFailed ? <ErrorBox t={t} body={t("app.integrations.loadError")} onRetry={retry} /> : null}
-      {!providersFailed && statusFailed ? <div className="mb-4"><ErrorBox t={t} body={t("app.integrations.statusLoadError")} onRetry={retry} /></div> : null}
-
-      {loading ? (
-        <div className="flex items-center justify-center py-20" role="status" aria-live="polite">
-          <div className="loading-dots" aria-hidden="true"><span /><span /><span /></div>
-          <span className="sr-only">{t("app.integrations.loading")}</span>
-        </div>
-      ) : null}
-
-      {!loading && !providersFailed ? (
-        <>
-          <p className="bv-micro mb-4" aria-live="polite">
-            {t("app.integrations.resultCountTemplate", { count: filtered.length })}
-            {counts.connected > 0 ? ` · ${t("app.integrations.connectedCountTemplate", { count: counts.connected })}` : ""}
-          </p>
-
-          {filtered.length > 0 ? (
-            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-8">
-              {filtered.map((entry) => <ProviderCard key={entry.provider} entry={entry} t={t} />)}
-            </ul>
-          ) : (
-            <p className="bv-body text-on-surface-variant py-12 text-center">
-              {catalog.length === 0 ? t("app.integrations.emptyProviders") : t("app.integrations.noResults")}
-            </p>
-          )}
-
-          <RequestCard t={t} />
-        </>
-      ) : null}
+      <CatalogBody view={view} entries={entries} search={search} statusFailed={state.statusFailed} connectedCount={connectedCount} t={t} onRetry={retry} />
 
     </div>
   );

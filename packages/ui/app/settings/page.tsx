@@ -15,6 +15,7 @@ import { useTranslations } from "next-intl";
 import { api, apiFetch } from "../../lib/api";
 import { useAppStore, captureAuthSession, isAuthSessionCurrent } from "../../lib/store";
 import { useAuthGuard } from "../../lib/useAuthGuard";
+import { settingsTabFromSearch } from "../../lib/settingsTab";
 import { useToast } from "../../components/Toast";
 
 interface BillingUsage {
@@ -164,6 +165,7 @@ function SettingsContent() {
   }, []);
 
   const [active, setActive] = useState("profile");
+  useEffect(() => { if (typeof window === "undefined") return; const tab = settingsTabFromSearch(window.location.search, NAV_ITEMS.map((n) => n.id), ""); if (tab) setActive(tab); }, []);
   const [billingUsage, setBillingUsage] = useState<BillingUsage | null>(null);
   const [subscription, setSubscription] = useState<BillingSubscription | null>(null);
   const [upgradeLoading, setUpgradeLoading] = useState(false);

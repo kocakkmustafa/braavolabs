@@ -32,6 +32,8 @@ describe("integrations catalog data flow", () => {
     expect(c.find((e) => e.provider === "SLACK")!.docsUrl).toBe("https://api.slack.com");
     expect(connectionState("PENDING")).toBe("pending");
     expect(connectionState(undefined)).toBe("none");
+    expect(connectionState("SOMETHING_NEW")).toBe("none");
+    expect(connectionState("EXPIRED")).toBe("expired");
   });
   it("boş sağlayıcı listesi boş katalog; arama ve sayaç", () => {
     expect(buildCatalog([], [])).toEqual([]);

@@ -649,7 +649,10 @@
       "requestBody": "बताइए कौन सी सेवा जोड़नी है। हम हर अनुरोध पढ़ते हैं।",
       "requestCta": "अनुरोध करें",
       "loading": "इंटीग्रेशन लोड हो रहे हैं",
-      "connectedCountTemplate": "{count} जुड़े हैं"
+      "connectedCountTemplate": "{count} जुड़े हैं",
+      "statusExpired": "दोबारा अनुमति आवश्यक है",
+      "noCompany": "पहले एक वर्कस्पेस बनाएँ, फिर उससे सेवाएँ जोड़ें।",
+      "companiesLoadError": "वर्कस्पेस सूची लोड नहीं हो सकी।"
     },
     "billing": {
       "title": "बिलिंग और उपयोग",

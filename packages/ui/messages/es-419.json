@@ -649,7 +649,10 @@
       "requestBody": "Cuéntanos qué servicio quieres conectar. Leemos cada solicitud.",
       "requestCta": "Solicitar",
       "loading": "Cargando integraciones",
-      "connectedCountTemplate": "{count} conectadas"
+      "connectedCountTemplate": "{count} conectadas",
+      "statusExpired": "Se necesita volver a autorizar",
+      "noCompany": "Crea primero un espacio de trabajo y luego conecta servicios.",
+      "companiesLoadError": "No se pudo cargar la lista de espacios de trabajo."
     },
     "billing": {
       "title": "Facturación y Uso",

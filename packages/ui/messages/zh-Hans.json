@@ -649,7 +649,10 @@
       "requestBody": "告诉我们您想连接的服务。我们会阅读每一条请求。",
       "requestCta": "提交请求",
       "loading": "正在加载集成",
-      "connectedCountTemplate": "已连接 {count} 个"
+      "connectedCountTemplate": "已连接 {count} 个",
+      "statusExpired": "需要重新授权",
+      "noCompany": "请先创建工作区，再将服务连接到它。",
+      "companiesLoadError": "无法加载工作区列表。"
     },
     "billing": {
       "title": "账单与用量",

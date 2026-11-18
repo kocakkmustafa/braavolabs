@@ -649,7 +649,10 @@
       "requestBody": "أخبرنا بالخدمة التي تريد ربطها. نقرأ كل طلب.",
       "requestCta": "اطلب",
       "loading": "جارٍ تحميل التكاملات",
-      "connectedCountTemplate": "{count} متصل"
+      "connectedCountTemplate": "{count} متصل",
+      "statusExpired": "مطلوب إعادة التفويض",
+      "noCompany": "أنشئ مساحة عمل أولاً ثم اربط الخدمات بها.",
+      "companiesLoadError": "تعذر تحميل قائمة مساحات العمل."
     },
     "billing": {
       "title": "الفوترة والاستخدام",

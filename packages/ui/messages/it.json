@@ -649,7 +649,10 @@
       "requestBody": "Dicci quale servizio vuoi collegare. Leggiamo ogni richiesta.",
       "requestCta": "Richiedi",
       "loading": "Caricamento delle integrazioni",
-      "connectedCountTemplate": "{count} collegate"
+      "connectedCountTemplate": "{count} collegate",
+      "statusExpired": "Serve una nuova autorizzazione",
+      "noCompany": "Crea prima uno spazio di lavoro, poi collega i servizi.",
+      "companiesLoadError": "Impossibile caricare l'elenco degli spazi di lavoro."
     },
     "billing": {
       "title": "Fatturazione e utilizzo",

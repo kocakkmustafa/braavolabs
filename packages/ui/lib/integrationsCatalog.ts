@@ -16,7 +16,7 @@ export type IntegrationRow = {
   lastTestedAt?: string | null;
 };
 
-export type ConnectionState = "connected" | "pending" | "error" | "none" | "unknown";
+export type ConnectionState = "connected" | "pending" | "error" | "expired" | "none" | "unknown";
 
 export type CatalogEntry = {
   provider: string;
@@ -32,6 +32,7 @@ export function connectionState(status: string | undefined): ConnectionState {
   if (status === "ACTIVE") return "connected";
   if (status === "PENDING") return "pending";
   if (status === "ERROR") return "error";
+  if (status === "EXPIRED") return "expired";
   return "none";
 }
 
@@ -64,7 +65,7 @@ export function filterCatalog(entries: CatalogEntry[], search: string): CatalogE
 }
 
 export function countByState(entries: CatalogEntry[]): Record<ConnectionState, number> {
-  const out: Record<ConnectionState, number> = { connected: 0, pending: 0, error: 0, none: 0, unknown: 0 };
+  const out: Record<ConnectionState, number> = { connected: 0, pending: 0, error: 0, expired: 0, none: 0, unknown: 0 };
   for (const e of entries) out[e.state] += 1;
   return out;
 }

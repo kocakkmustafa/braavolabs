@@ -8,6 +8,7 @@ const STATE_KEY: Record<ConnectionState, string> = {
   connected: "statusConnected",
   pending: "statusPending",
   error: "statusError",
+  expired: "statusExpired",
   none: "statusNone",
   unknown: "statusUnknown",
 };
@@ -18,16 +19,22 @@ const STATE_CLASS: Record<ConnectionState, string> = {
   connected: "text-on-surface font-medium",
   pending: "text-on-surface-variant",
   error: "bv-pill bv-pill-red",
+  expired: "bv-pill bv-pill-amber",
   none: "text-on-surface-variant",
   unknown: "text-on-surface-variant",
 };
 
 export function StatusLabel({ state, t }: { state: ConnectionState; t: T }) {
-  return <span className={`text-xs flex-none ${STATE_CLASS[state]}`}>{t(`app.integrations.${STATE_KEY[state]}`)}</span>;
+  return (
+    <span className={`text-xs flex-none inline-flex items-center gap-1 ${STATE_CLASS[state]}`}>
+      {state === "expired" ? <span className="material-symbols-outlined" aria-hidden="true" style={{ fontSize: 14 }}>warning</span> : null}
+      {t(`app.integrations.${STATE_KEY[state]}`)}
+    </span>
+  );
 }
 
 export function ProviderCard({ entry, t }: { entry: CatalogEntry; t: T }) {
-  const action = entry.state === "connected" || entry.state === "pending" || entry.state === "error" ? "manage" : "connect";
+  const action = entry.state === "connected" || entry.state === "pending" || entry.state === "error" || entry.state === "expired" ? "manage" : "connect";
   return (
     <li className="rounded-xl bg-surface-container-low p-4 flex flex-col gap-2">
       <div className="flex items-start justify-between gap-2">
@@ -37,7 +44,7 @@ export function ProviderCard({ entry, t }: { entry: CatalogEntry; t: T }) {
       {entry.description ? <p className="bv-caption line-clamp-2">{entry.description}</p> : null}
       <div className="flex items-center gap-3 mt-auto pt-2">
         <Link
-          href="/settings"
+          href="/settings?tab=integrations"
           aria-label={`${t(`app.integrations.${action}`)}: ${entry.name}`}
           className="bv-btn bv-btn-ghost bv-btn-sm"
           style={{ minHeight: 44, textDecoration: "none" }}
@@ -83,5 +90,50 @@ export function ErrorBox({ t, body, onRetry }: { t: T; body: string; onRetry: ()
         {t("app.integrations.retry")}
       </button>
     </div>
+  );
+}
+
+import type { View } from "../../lib/integrationsPage";
+
+// Everything below the search row: one place that maps page state to markup.
+export function CatalogBody({ view, entries, search, statusFailed, connectedCount, t, onRetry }: {
+  view: View; entries: CatalogEntry[]; search: string; statusFailed: boolean; connectedCount: number; t: T; onRetry: () => void;
+}) {
+  if (view === "loading") {
+    return (
+      <div className="flex items-center justify-center py-20" role="status" aria-live="polite">
+        <div className="loading-dots" aria-hidden="true"><span /><span /><span /></div>
+        <span className="sr-only">{t("app.integrations.loading")}</span>
+      </div>
+    );
+  }
+  if (view === "providersError") return <ErrorBox t={t} body={t("app.integrations.loadError")} onRetry={onRetry} />;
+  if (view === "companiesError") return <ErrorBox t={t} body={t("app.integrations.companiesLoadError")} onRetry={onRetry} />;
+  const q = search.trim().toLowerCase();
+  const shown = q ? entries.filter((e) => e.name.toLowerCase().includes(q) || e.description.toLowerCase().includes(q)) : entries;
+  return (
+    <>
+      {statusFailed ? <div className="mb-4"><ErrorBox t={t} body={t("app.integrations.statusLoadError")} onRetry={onRetry} /></div> : null}
+      {view === "empty" ? (
+        <p className="bv-body text-on-surface-variant py-12 text-center">{t("app.integrations.emptyProviders")}</p>
+      ) : view === "noCompany" ? (
+        <p className="bv-body text-on-surface-variant py-12 text-center">{t("app.integrations.noCompany")}</p>
+      ) : (
+        <>
+          <p className="bv-micro mb-4" aria-live="polite">
+            {t("app.integrations.resultCountTemplate", { count: shown.length })}
+            {connectedCount > 0 ? ` · ${t("app.integrations.connectedCountTemplate", { count: connectedCount })}` : ""}
+          </p>
+          {shown.length > 0 ? (
+            <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 mb-8">
+              {shown.map((entry) => <ProviderCard key={entry.provider} entry={entry} t={t} />)}
+            </ul>
+          ) : (
+            <p className="bv-body text-on-surface-variant py-12 text-center">{t("app.integrations.noResults")}</p>
+          )}
+        </>
+      )}
+      <RequestCard t={t} />
+    </>
   );
 }

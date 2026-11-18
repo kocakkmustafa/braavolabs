@@ -649,7 +649,10 @@
       "requestBody": "Napisz, jaką usługę chcesz połączyć. Czytamy każde zgłoszenie.",
       "requestCta": "Zgłoś prośbę",
       "loading": "Wczytywanie integracji",
-      "connectedCountTemplate": "Połączono: {count}"
+      "connectedCountTemplate": "Połączono: {count}",
+      "statusExpired": "Wymagana ponowna autoryzacja",
+      "noCompany": "Najpierw utwórz przestrzeń roboczą, potem połącz z nią usługi.",
+      "companiesLoadError": "Nie udało się wczytać listy przestrzeni roboczych."
     },
     "billing": {
       "title": "Rozliczenia i użycie",

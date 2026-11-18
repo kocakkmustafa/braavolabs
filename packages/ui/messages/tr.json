@@ -649,7 +649,10 @@
       "requestBody": "Bağlamak istediğiniz hizmeti bize yazın. Her talebi okuyoruz.",
       "requestCta": "Talep et",
       "loading": "Entegrasyonlar yükleniyor",
-      "connectedCountTemplate": "{count} bağlı"
+      "connectedCountTemplate": "{count} bağlı",
+      "statusExpired": "Yeniden yetkilendirme gerekli",
+      "noCompany": "Önce bir çalışma alanı oluşturun, sonra hizmetleri ona bağlayın.",
+      "companiesLoadError": "Çalışma alanı listesi yüklenemedi."
     },
     "billing": {
       "title": "Faturalama ve Kullanım",

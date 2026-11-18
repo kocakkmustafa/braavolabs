@@ -649,7 +649,10 @@
       "requestBody": "接続したいサービスを教えてください。すべてのリクエストに目を通します。",
       "requestCta": "リクエスト",
       "loading": "連携を読み込み中",
-      "connectedCountTemplate": "{count}件接続済み"
+      "connectedCountTemplate": "{count}件接続済み",
+      "statusExpired": "再認可が必要です",
+      "noCompany": "先にワークスペースを作成し、そこにサービスを接続してください。",
+      "companiesLoadError": "ワークスペースの一覧を読み込めませんでした。"
     },
     "billing": {
       "title": "お支払いと使用量",

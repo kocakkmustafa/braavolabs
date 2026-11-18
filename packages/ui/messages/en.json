@@ -649,7 +649,10 @@
       "requestBody": "Tell us which service you want to connect. We read every request.",
       "requestCta": "Request one",
       "loading": "Loading integrations",
-      "connectedCountTemplate": "{count} connected"
+      "connectedCountTemplate": "{count} connected",
+      "statusExpired": "Re-authorization needed",
+      "noCompany": "Create a workspace first, then connect services to it.",
+      "companiesLoadError": "The workspace list could not be loaded."
     },
     "billing": {
       "title": "Billing & Usage",
