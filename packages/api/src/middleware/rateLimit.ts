@@ -56,7 +56,10 @@ export function rateLimit(options: RateLimitOptions) {
         keyPrefix === "rl:jobs:start" ||
         // BRA-UX-API-05: sohbet steer kuyruğuna yazar (ajan turuna girer = maliyet); Redis çökünce
         // sınırsız açılmasın. Yan etki: Redis kesintisinde sohbet POST'u 503 verir (GET etkilenmez).
-        keyPrefix === "rl:run:chat"
+        keyPrefix === "rl:run:chat" ||
+        // BRA-106: publish 5 MB indirme + gunzip yapar (CPU/bellek maliyeti); Redis çökünce
+        // sınırsız açılmasın. Yan etki: Redis kesintisinde publish 503 verir (okuma uçları etkilenmez).
+        keyPrefix === "rl:skills:publish"
       ) {
         res.status(503).json({ error: "Service temporarily unavailable" });
         return;

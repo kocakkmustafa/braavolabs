@@ -49,6 +49,7 @@ import { ssoConfigRouter, ssoAuthRouter } from "./modules/sso/sso.router";
 import { voiceRouter, voiceWebhookRouter } from "./modules/voice/voice.router";
 import { researchRouter } from "./modules/research/research.router";
 import { marketplaceRouter } from "./modules/marketplace/marketplace.router";
+import { skillsRegistryRouter } from "./modules/skills-registry/skills.router";
 import { templatesRouter } from "./modules/templates/templates.router";
 import { benchRouter } from "./modules/bench/bench.router";
 import { benchCompareRouter } from "./modules/bench/bench-compare.router";
@@ -295,6 +296,8 @@ api.use("/marketplace/templates", templatesRouter);
 api.use("/marketplace", marketplaceRouter);
 // BRA-P1-05-N1: ADMIN+ compare measurement (fake provider). BEFORE the public router.
 api.use("/bench/compare", benchCompareRouter);
+// Community skill registry: signed, reviewed SKILL.md packages and a revocation list.
+api.use("/skills", skillsRegistryRouter);
 // Public Braavolabs Bench leaderboard.
 api.use("/bench", benchRouter);
 // BRA-OPS-02: platform-admin-only, read-only server flag state.
