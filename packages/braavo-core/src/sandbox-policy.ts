@@ -74,7 +74,7 @@ const MAX_ALLOWLIST = 256;
 const CONTROL = new RegExp("[\\u0000-\\u001f\\u007f-\\u009f\\u2028\\u2029]");
 const INVISIBLE = /\p{Default_Ignorable_Code_Point}/u;
 const SLASH_LOOK = new RegExp("[\\u2044\\u2215\\u29f8\\u2571\\u1735]");
-const SYSTEM_PREFIXES = ["/etc", "/proc", "/sys", "/dev", "/root", "/boot", "/private/etc", "/var", "/usr", "/bin", "/sbin", "/lib", "/system", "/library"];
+const SYSTEM_PREFIXES = ["/etc", "/proc", "/sys", "/dev", "/root", "/boot", "/private/etc", "/private/var", "/var", "/usr", "/bin", "/sbin", "/lib", "/system", "/library"];
 const SENSITIVE_ROOTS = ["/etc", "/proc", "/sys", "/dev", "/root", "/boot", "/private/etc"];
 const FORBIDDEN_ROOTS = ["/", "/users", "/home", "/usr", "/var", "/tmp", "/etc", "/root"];
 
@@ -114,12 +114,18 @@ function readPolicy(policy: unknown): SafePolicy | null {
   if (segs.some((s) => s === "" || s === "." || s === ".." || s.length > MAX_NAME || confusable(s))) return null;
   const lowerRoot = root.toLowerCase();
   if (FORBIDDEN_ROOTS.includes(lowerRoot)) return null;
+  // System prefixes (/usr/**, /var/**, /lib/**, /Library/**, ...) and the home directory itself are not workspaces;
+  // a project below it (/Users/u/dev/proj, /srv/x, /opt/proj) is fine.
+  if (SYSTEM_PREFIXES.some((p) => lowerRoot === p || lowerRoot.startsWith(p + "/"))) return null;
+  if (segs.length === 2 && (segs[0].toLowerCase() === "users" || segs[0].toLowerCase() === "home")) return null;
   if (SENSITIVE_ROOTS.some((p) => lowerRoot === p || lowerRoot.startsWith(p + "/")) || segs.some((s) => canon(s) === ".ssh")) return null;
   if (typeof allowWrite !== "boolean" || shell !== false) return null;
   const list = rawList === undefined ? [] : rawList;
-  if (!Array.isArray(list) || list.length > MAX_ALLOWLIST) return null;
+  if (!Array.isArray(list)) return null;
+  const len = list.length; // read once (Proxy arrays)
+  if (len > MAX_ALLOWLIST) return null;
   const allowlist: Array<{ host: string; port: number }> = [];
-  for (let i = 0; i < list.length; i++) {
+  for (let i = 0; i < len; i++) {
     const e: unknown = list[i]; // holes in sparse arrays read as undefined -> invalid
     if (!isObj(e)) return null;
     const host = e.host;
@@ -177,15 +183,20 @@ function classifyOutside(segs: string[]): SandboxReason {
 function sensitiveInside(rel: string[], kind: FsKind): boolean {
   const c = rel.map(canon);
   const base = c.length > 0 ? c[c.length - 1] : "";
-  const gitAt = c.indexOf(".git");
+  // A "git component" is `.git` or any `*.git` segment (bare repositories keep config/hooks too: simple,
+  // over-cautious rule; a false positive only escalates to approval).
+  const hasGit = c.some((s) => s.endsWith(".git"));
+  const hasSeq = (a: string, b: string, d?: string): boolean =>
+    c.some((s, i) => s === a && c[i + 1] === b && (d === undefined || c[i + 2] === d));
   // Secrets: never read, never written without approval.
-  if (c.some((s) => s === ".ssh" || s === ".aws" || s === ".gnupg" || s === ".kube")) return true;
-  if (base === ".git-credentials" || base === ".netrc" || base === ".npmrc") return true;
-  if (base.startsWith("id_rsa") || base.startsWith("id_ed25519") || base.startsWith(".env")) return true;
-  if (gitAt >= 0 && c[gitAt + 1] === "config") return true;
+  if (c.some((s) => s === ".ssh" || s === ".aws" || s === ".gnupg" || s === ".kube" || s === ".azure")) return true;
+  if (base === ".git-credentials" || base === ".netrc" || base === ".npmrc" || base === ".pypirc") return true;
+  if (/^id_(rsa|ed25519|ecdsa|dsa)/.test(base) || base.startsWith(".env")) return true;
+  if (hasSeq(".docker", "config.json") || hasSeq(".config", "gh", "hosts.yml") || c.some((s, i) => s === ".config" && c[i + 1] === "gcloud")) return true;
+  if (hasGit && (base === "config" || base === "config.worktree")) return true; // any depth: modules/**, worktrees/**, nested
   if (kind === "fs.read") return false;
-  // Write/delete: any .git component, git/husky metadata files.
-  if (gitAt >= 0) return true;
+  // Write/delete: any git component, git/husky metadata files.
+  if (hasGit) return true;
   return base === ".gitmodules" || base === ".gitattributes" || c.includes(".husky");
 }
 

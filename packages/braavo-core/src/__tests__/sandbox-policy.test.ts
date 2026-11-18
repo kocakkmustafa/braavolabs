@@ -100,7 +100,7 @@ describe("symlink hints", () => {
     expect(write("/srv/work/innocent").decision).toBe("allow");
     expect(ev(base, { kind: "fs.write", path: "/srv/work/innocent", resolvedPath: "/srv/work/.git/hooks/post-merge" })).toMatchObject({ decision: "escape-approval-required", reason: "SENSITIVE_PATH" });
   });
-  it("symlink flagged without resolution is denied; malformed hints are denied", () => {
+  it("symlink flag without resolution still needs realpath; malformed hints are denied", () => {
     expect(read("/srv/work/link", { isSymlink: true })).toMatchObject({ decision: "allow", needsRealpath: true });
     expect(read("/srv/work/link", { realpathVerified: "yes" })).toEqual({ decision: "deny", reason: "REQUEST_INVALID" });
     expect(read("/srv/work/link", { resolvedPath: "rel/x" })).toEqual({ decision: "deny", reason: "RESOLVED_PATH_INVALID" });
@@ -208,10 +208,11 @@ describe("review fixes (git/secret protection, folding, root rules)", () => {
       expect(read(p)).toMatchObject(SENS);
     }
     expect(read("/srv/work/environment.ts").decision).toBe("allow");
-    expect(read("/srv/work/src/id_dsa_notes.txt").decision).toBe("allow");
+    expect(read("/srv/work/src/idea_notes.txt").decision).toBe("allow");
   });
   it("Unicode/FS folding: long s, trailing dot/space, case, Kelvin sign", () => {
-    expect(w("/srv/work/.git/hookſ")).toMatchObject(SENS);
+    expect(w("/srv/work/.ſsh/x")).toMatchObject(SENS); // long s folds to s, no .git involved
+    expect(read("/srv/work/.git/hookſ").decision).toBe("allow"); // plain read below .git stays allowed
     expect(read("/srv/work/.ſsh/x")).toMatchObject(SENS);
     expect(w("/srv/work/.git./x")).toMatchObject(SENS);
     expect(w("/srv/work/.GIT/x")).toMatchObject(SENS);
@@ -282,5 +283,55 @@ describe("review fixes (git/secret protection, folding, root rules)", () => {
     const pol = { get workspaceRoot(): string { pr++; return pr === 1 ? "/srv/work" : "/"; }, allowWrite: true, networkAllowlist: [], shell: false };
     expect(ev(pol, { kind: "fs.read", path: "/srv/work/a" }).decision).toBe("allow");
     expect(pr).toBe(1);
+  });
+});
+
+describe("round 2: roots, nested git config, more secrets, bare repos", () => {
+  const SENS = { decision: "escape-approval-required", reason: "SENSITIVE_PATH" };
+  const w = (path: string) => ev(base, { kind: "fs.write", path });
+  it("workspaceRoot: system prefixes and the home directory itself are invalid; project dirs stay valid", () => {
+    for (const r of ["/usr/local/x", "/lib/x", "/Library/x", "/System/x", "/bin/x", "/sbin/x", "/etc/x", "/var/lib/x", "/private/var/x", "/Users/u", "/home/u", "/root/x", "/var/www"]) {
+      expect(ev({ ...base, workspaceRoot: r }, { kind: "fs.read", path: r + "/a" })).toEqual({ decision: "deny", reason: "POLICY_INVALID" });
+    }
+    for (const r of ["/srv/x", "/opt/proj", "/Users/u/dev/proj", "/home/u/proj", "/tmp/ws", "/Users/u/Library"]) {
+      expect(ev({ ...base, workspaceRoot: r }, { kind: "fs.read", path: r + "/a" }).decision).toBe("allow");
+    }
+  });
+  it("config/config.worktree below any .git (any depth, nested, worktrees, modules) are escape on read", () => {
+    for (const p of ["/srv/work/.git/modules/m/config", "/srv/work/.git/worktrees/w/config.worktree", "/srv/work/a/.git/config", "/srv/work/.git/modules/m/modules/n/config", "/srv/work/.git/x/.git/config", "/srv/work/.GIT/config"]) {
+      expect(read(p)).toMatchObject(SENS);
+    }
+    expect(read("/srv/work/.git/modules/m/HEAD").decision).toBe("allow");
+    expect(read("/srv/work/config").decision).toBe("allow");
+  });
+  it("more secret files are escape on read and write", () => {
+    for (const p of ["/srv/work/id_ecdsa", "/srv/work/k/id_ecdsa.pub", "/srv/work/id_dsa", "/srv/work/.pypirc", "/srv/work/.docker/config.json", "/srv/work/x/.config/gh/hosts.yml",
+      "/srv/work/.config/gcloud/credentials.db", "/srv/work/.azure/accessTokens.json", "/srv/work/deep/er/.git-credentials"]) {
+      expect(read(p)).toMatchObject(SENS);
+      expect(w(p)).toMatchObject(SENS);
+    }
+    expect(read("/srv/work/.docker/other.json").decision).toBe("allow");
+    expect(read("/srv/work/.config/gh/other.yml").decision).toBe("allow");
+    expect(read("/srv/work/.config/prettier.json").decision).toBe("allow");
+  });
+  it("bare repositories (*.git) are treated like .git", () => {
+    expect(w("/srv/work/x.git/hooks/pre-receive")).toMatchObject(SENS);
+    expect(w("/srv/work/x.git/HEAD")).toMatchObject(SENS);
+    expect(read("/srv/work/x.git/config")).toMatchObject(SENS);
+    expect(read("/srv/work/x.git/HEAD").decision).toBe("allow");
+    expect(w("/srv/work/.gitignore").decision).toBe("allow");
+  });
+  it("Hangul fillers and other default-ignorables are denied", () => {
+    for (const p of ["/srv/work/aㅤb", "/srv/work/ᅟ", "/srv/work/aᅠ", "/srv/work/ﾠx", "/srv/work/.gitㅤ/config"]) {
+      expect(read(p)).toEqual({ decision: "deny", reason: "PATH_INVISIBLE" });
+    }
+  });
+  it("Proxy arrays: length is read once and hostile proxies deny", () => {
+    let lenReads = 0;
+    const arr = new Proxy([{ host: "a.com", port: 1 }], { get(t, k, r) { if (k === "length") lenReads++; return Reflect.get(t, k, r); } });
+    expect(ev(net(arr as never), { kind: "net.connect", host: "a.com", port: 1 }).decision).toBe("allow");
+    expect(lenReads).toBe(1);
+    const evil = new Proxy([], { get() { throw new Error("boom"); } });
+    expect(ev(net(evil as never), { kind: "net.connect", host: "a.com", port: 1 })).toEqual({ decision: "deny", reason: "INTERNAL_ERROR" });
   });
 });
