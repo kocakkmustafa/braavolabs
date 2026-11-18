@@ -1,0 +1,85 @@
+
+ RUN  v3.2.6 /Users/mustafakaankocak/Developer/YULAlab-AI/ventures/braavolabs/wt-BRA-P1-02a-2/packages/api
+
+ ✓ src/modules/marketplace/__tests__/manifest-signature.test.ts (13 tests) 141ms
+stdout | src/modules/marketplace/__tests__/connector-tool-risk.test.ts
+◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+◇ injected env (0) from ../../.env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+
+ ✓ src/modules/marketplace/__tests__/token-url-same-site.test.ts (18 tests) 62ms
+stdout | src/modules/marketplace/__tests__/connector-install-https.test.ts
+◇ injected env (0) from .env // tip: ◈ secrets for agents [www.dotenvx.com]
+◇ injected env (0) from ../../.env // tip: ⌘ suppress logs { quiet: true }
+
+stdout | src/modules/marketplace/__tests__/publish-validation.test.ts
+◇ injected env (0) from .env // tip: ⌘ multiple files { path: ['.env.local', '.env'] }
+◇ injected env (0) from ../../.env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+
+stdout | src/modules/marketplace/__tests__/connector-install-tokenurl.test.ts
+◇ injected env (0) from .env // tip: ⌘ suppress logs { quiet: true }
+◇ injected env (0) from ../../.env // tip: ⌘ enable debugging { debug: true }
+
+{"level":20,"time":1794776960670,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"generate_post","msg":"Tool registered"}
+{"level":20,"time":1794776960674,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"create_draft","msg":"Tool registered"}
+{"level":20,"time":1794776960675,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"schedule_content","msg":"Tool registered"}
+{"level":20,"time":1794776960675,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"analyze_trends","msg":"Tool registered"}
+{"level":20,"time":1794776960675,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"fetch_metrics","msg":"Tool registered"}
+{"level":20,"time":1794776960675,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"generate_report","msg":"Tool registered"}
+{"level":20,"time":1794776960675,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"compare_performance","msg":"Tool registered"}
+{"level":20,"time":1794776960675,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"store_memory","msg":"Tool registered"}
+{"level":20,"time":1794776960676,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"recall_memory","msg":"Tool registered"}
+{"level":20,"time":1794776960676,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"consolidate_memories","msg":"Tool registered"}
+{"level":20,"time":1794776960676,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"generate_brand_voice","msg":"Tool registered"}
+{"level":20,"time":1794776960676,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"generate_icp","msg":"Tool registered"}
+{"level":20,"time":1794776960676,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"generate_content_strategy","msg":"Tool registered"}
+{"level":20,"time":1794776960676,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"generate_outreach_pitch","msg":"Tool registered"}
+{"level":20,"time":1794776960677,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"crm_create_contact","msg":"Tool registered"}
+{"level":20,"time":1794776960677,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"crm_create_deal","msg":"Tool registered"}
+{"level":20,"time":1794776960677,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"crm_update_deal_stage","msg":"Tool registered"}
+{"level":20,"time":1794776960677,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"crm_search_contacts","msg":"Tool registered"}
+{"level":20,"time":1794776960677,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"crm_update_contact","msg":"Tool registered"}
+{"level":20,"time":1794776960677,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"social_create_post","msg":"Tool registered"}
+{"level":20,"time":1794776960677,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"social_get_analytics","msg":"Tool registered"}
+{"level":20,"time":1794776960677,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"content_generate","msg":"Tool registered"}
+{"level":20,"time":1794776960677,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"content_generate_image_prompt","msg":"Tool registered"}
+{"level":20,"time":1794776960678,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"proposal_generate","msg":"Tool registered"}
+{"level":20,"time":1794776960678,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"web_search","msg":"Tool registered"}
+{"level":20,"time":1794776960678,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"knowledge_base_search","msg":"Tool registered"}
+{"level":20,"time":1794776960678,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"email_send","msg":"Tool registered"}
+{"level":20,"time":1794776960678,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"email_send_sequence","msg":"Tool registered"}
+{"level":20,"time":1794776960678,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"ad_spend","msg":"Tool registered"}
+{"level":20,"time":1794776960678,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"generate_image","msg":"Tool registered"}
+{"level":20,"time":1794776960678,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"generate_video","msg":"Tool registered"}
+{"level":20,"time":1794776960678,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"text_to_speech","msg":"Tool registered"}
+{"level":20,"time":1794776960678,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"get_github_pr_status","msg":"Tool registered"}
+{"level":20,"time":1794776960678,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"get_github_branch_status","msg":"Tool registered"}
+{"level":20,"time":1794776960678,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"create_pull_request","msg":"Tool registered"}
+{"level":20,"time":1794776960678,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"make_outbound_call","msg":"Tool registered"}
+{"level":20,"time":1794776960678,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"web_research_deep","msg":"Tool registered"}
+{"level":20,"time":1794776960679,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"ask_user","msg":"Tool registered"}
+{"level":20,"time":1794776960679,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","tool":"external_control","msg":"Tool registered"}
+{"level":30,"time":1794776960679,"pid":35818,"hostname":"Mustafa-MacBook-Air.local","toolCount":39,"msg":"Tool registry initialized"}
+ ✓ src/modules/marketplace/__tests__/oauth-refresh.test.ts (27 tests) 216ms
+stdout | src/modules/marketplace/__tests__/moderation.test.ts
+◇ injected env (0) from .env // tip: ◈ encrypted .env [www.dotenvx.com]
+◇ injected env (0) from ../../.env // tip: ◈ encrypted .env [www.dotenvx.com]
+
+ ✓ src/modules/marketplace/__tests__/connector-tool-risk.test.ts (28 tests) 11ms
+ ✓ src/modules/marketplace/__tests__/moderation.test.ts (7 tests) 17ms
+ ✓ src/modules/marketplace/__tests__/connector-install-tokenurl.test.ts (1 test) 43ms
+ ✓ src/modules/marketplace/__tests__/connector-install-https.test.ts (3 tests) 49ms
+ ✓ src/modules/marketplace/__tests__/publish-validation.test.ts (16 tests) 81ms
+ ✓ src/modules/marketplace/__tests__/oauth-refresh-roundtrip.test.ts (1 test) 732ms
+   ✓ oauth refresh — real crypto > persists a decryptable credential under the connector AAD  728ms
+ ✓ src/modules/marketplace/__tests__/connector-lifecycle.test.ts (16 tests) 56ms
+ ✓ src/modules/marketplace/__tests__/dynamic-tools-audience.test.ts (5 tests) 14ms
+ ✓ src/modules/marketplace/__tests__/connector-revoke-upstream.test.ts (16 tests) 16ms
+ ✓ src/modules/marketplace/__tests__/connector-uninstall-upstream.test.ts (12 tests) 18ms
+ ✓ src/modules/marketplace/__tests__/scope-manifest-egress.test.ts (4 tests) 9ms
+ ✓ src/modules/marketplace/__tests__/dynamic-tools-capability.test.ts (1 test) 4ms
+
+ Test Files  15 passed (15)
+      Tests  168 passed (168)
+   Start at  00:09:19
+   Duration  2.69s (transform 1.40s, setup 0ms, collect 9.47s, tests 1.47s, environment 15ms, prepare 3.18s)
+
