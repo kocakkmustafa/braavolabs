@@ -14,6 +14,7 @@ import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } 
 import { toPublicCompany } from "../company/redact";
 import { APPROVAL_LIST_SELECT, projectApprovalRow } from "./list-select";
 import { withApprovalDetails } from "./details";
+import { sandboxEscapeDeniedMessage } from "./sandbox-escape";
 import {
   type ApprovalArtifact,
   extractArtifactFromInput,
@@ -306,6 +307,19 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
         // APPROVED: leave the run as-is; the post-tx claim block drives it.
       } else if (decision === "APPROVED") {
         ({ enqueue, from } = await driveApprovedRun(tx, approval.id, approval.runId, tenantId));
+      } else if (approval.type === "SANDBOX_ESCAPE") {
+        // BRA-P2-02c: a denied escape rejects the APPROVAL, not the run. The agent is told
+        // (SteeringMessage INPUT, same channel as ask_user answers / external-control
+        // results) and the run resumes without the escape; it is never cancelled/failed.
+        await tx.steeringMessage.create({
+          data: {
+            runId: approval.runId,
+            kind: "INPUT",
+            content: sandboxEscapeDeniedMessage(approval.metadata),
+            createdBy: req.auth!.userId,
+          },
+        });
+        ({ enqueue, from } = await driveApprovedRun(tx, approval.id, approval.runId, tenantId));
       } else {
         await cancelRunAfterReject(tx, approval.runId, tenantId);
       }
@@ -501,7 +515,7 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
     // current runner replays from step group 0; per-step idempotency keys
     // keep most external side effects safe. (REJECTED leaves the run as
     // CANCELLED — no enqueue needed.) HANDOFF handled its own enqueue above.
-    if (decision === "APPROVED" && result.enqueue) {
+    if ((decision === "APPROVED" || approval.type === "SANDBOX_ESCAPE") && result.enqueue) {
       try {
         await enqueueRun(approval.runId);
       } catch (err) {

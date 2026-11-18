@@ -1,4 +1,4 @@
-export type ApprovalType = "SPEND";
+export type ApprovalType = "SPEND" | "INPUT" | "EXTERNAL_CONTROL" | "HANDOFF" | "SANDBOX_ESCAPE";
 export type ApprovalStatus = "PENDING" | "APPROVED" | "REJECTED" | "EXPIRED";
 
 export interface CreateApprovalInput {
