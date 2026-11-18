@@ -19,8 +19,9 @@
  * CANCELLED run that manual handoff can never re-open.
  *
  * SANDBOX_ESCAPE exception (BRA-P2-02c, KARAR-A3): expiry = escape denied. The
- * approval is REJECTED but the run is NOT cancelled; the agent gets the same
- * "Sandbox escape denied" INPUT steering message as a human reject.
+ * approval is REJECTED but the run is NOT cancelled; it goes through the same
+ * `resumeAfterEscapeDenied` as a human reject (agent told once per approval; the
+ * run resumes only if truly WAITING_APPROVAL with no other open gate).
  *
  * Idempotent — re-running this cron twice in the same minute won't
  * double-cancel anything because each transition uses
@@ -31,7 +32,9 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { runWithoutTenant } from "../../lib/tenant-context";
 import { transitionRun } from "../run/transition";
-import { sandboxEscapeDeniedMessage } from "./sandbox-escape";
+import { resumeAfterEscapeDenied } from "./escape-denied";
+import { enqueueRun } from "../pipeline/runner";
+import { revertRunAfterEnqueueFailure } from "../run/resume";
 
 const EXPIRY_INTERVAL_MS = 60 * 60 * 1000; // run hourly
 const APPROVAL_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -102,18 +105,21 @@ async function runApprovalExpiryImpl(): Promise<void> {
     // the approval is already REJECTED — and reported in the activity row.
     let runCancelled = false;
     if (approval.type === "SANDBOX_ESCAPE") {
-      // KARAR-A3 (BRA-P2-02c): an expired escape request = escape denied. The run is
-      // NOT cancelled; the agent is told once (idempotent: same text already queued
-      // for this run is not queued again).
-      const content = sandboxEscapeDeniedMessage(approval.metadata);
-      const dup = await prisma.steeringMessage.findFirst({
-        where: { runId: approval.runId, kind: "INPUT", content },
-        select: { id: true },
-      });
-      if (!dup) {
-        await prisma.steeringMessage.create({
-          data: { runId: approval.runId, kind: "INPUT", content, createdBy: "system:expiry" },
-        });
+      // KARAR-A3 (BRA-P2-02c): an expired escape request = escape denied. The run is NOT
+      // cancelled; same logic as a human reject: tell the agent (once per approval) and
+      // resume ONLY a run that is really WAITING_APPROVAL with no other open gate.
+      try {
+        const r = await resumeAfterEscapeDenied(prisma, approval.id, approval.runId, tenantId, "system:expiry", approval.metadata);
+        if (r.enqueue) {
+          try {
+            await enqueueRun(approval.runId);
+          } catch (err) {
+            const reverted = await revertRunAfterEnqueueFailure(prisma, approval.runId, tenantId, r.from).catch(() => false);
+            logger.error({ approvalId: approval.id, runId: approval.runId, reverted, err: err instanceof Error ? err.message : String(err) }, "Approval expiry: re-enqueue after escape denial failed — run put back");
+          }
+        }
+      } catch (err) {
+        logger.warn({ approvalId: approval.id, runId: approval.runId, err: err instanceof Error ? err.message : String(err) }, "Approval expiry: escape-denied resume failed (approval already REJECTED)");
       }
     } else if (approval.type !== "HANDOFF") {
       const o = await transitionRun(prisma, approval.runId, "CANCELLED", {

@@ -17,7 +17,7 @@
  *                 other. The raw target itself is never stored.
  *   reasonCode    policy code (^[a-z0-9_-]{1,64}$, secret-shaped values rejected)
  * Raw commands and file content never enter. A target that is too long, holds
- * control/bidi/zero-width characters, or (net.*) carries userinfo / path-query
+ * control/bidi/zero-width characters, or (net.*) carries userinfo / path / query
  * / fragment / backslash is REJECTED, never repaired. The executor must call
  * `buildSandboxEscapeAction` with the raw request to get the same hash.
  *
@@ -81,7 +81,7 @@ function normalizeTarget(kind: string, raw: unknown): { canonical: string; displ
     } catch {
       throw new SandboxEscapeRequestError("invalid host:port");
     }
-    if (url.username || url.password || url.search || url.hash) throw new SandboxEscapeRequestError("invalid host:port");
+    if (url.username || url.password || url.search || url.hash || (url.pathname !== "/" && url.pathname !== "")) throw new SandboxEscapeRequestError("invalid host:port");
     // URL() drops default ports (https :443); require the port to be written out.
     const authority = raw.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").split("/")[0];
     const pm = /:(\d{1,5})$/.exec(authority);
@@ -150,11 +150,16 @@ export function computeSandboxEscapeHash(ctx: { tenantId: string; runId: string 
   return computeActionHash(buildSandboxEscapeAction(ctx, req).action);
 }
 
-/** Text sent to the agent when the escape is denied (no target/content echoed beyond kind). */
-export function sandboxEscapeDeniedMessage(metadata: unknown): string {
+/**
+ * Text sent to the agent when the escape is denied. Carries the approval id so
+ * de-duplication is per approval (an old consumed message for the same run+kind
+ * can never suppress a later request's message). No path/target/content echoed.
+ */
+export function sandboxEscapeDeniedMessage(metadata: unknown, approvalId: string): string {
   const kind =
     metadata && typeof metadata === "object" && !Array.isArray(metadata) && typeof (metadata as { kind?: unknown }).kind === "string" && KIND_RE.test((metadata as { kind: string }).kind)
       ? (metadata as { kind: string }).kind
       : "unknown";
-  return `Sandbox escape denied (${kind}). Continue without leaving the sandbox.`;
+  const id = /^[\w-]{1,64}$/.test(approvalId) ? approvalId : "unknown";
+  return `Sandbox escape denied (${kind}) [approval ${id}]. Continue without leaving the sandbox.`;
 }

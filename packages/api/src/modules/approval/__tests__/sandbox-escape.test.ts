@@ -33,7 +33,7 @@ vi.mock("../../../lib/db", () => {
       },
     },
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
-    steeringMessage: { create: (...a: unknown[]) => steeringCreate(...a) },
+    steeringMessage: { create: (...a: unknown[]) => steeringCreate(...a), findFirst: async () => null },
   };
   return {
     prisma: {
@@ -105,13 +105,12 @@ describe("SANDBOX_ESCAPE metadata", () => {
     expect(buildSandboxEscapeMetadata(REQ)).toEqual({ type: "SANDBOX_ESCAPE", kind: "fs.write", target: "/etc/hosts", targetDigest: createHash("sha256").update("/etc/hosts").digest("hex"), reasonCode: "outside-workspace" });
   });
   it("net target is host:port only (userinfo, path, query, scheme dropped)", () => {
-    const m = buildSandboxEscapeMetadata({ kind: "net.connect", target: "https://Example.COM:8443/a/b", reasonCode: "net-denied" });
+    const m = buildSandboxEscapeMetadata({ kind: "net.connect", target: "https://Example.COM:8443", reasonCode: "net-denied" });
     expect(m.target).toBe("example.com:8443");
-    expect(JSON.stringify(m)).not.toMatch(/a\/b/);
     expect(buildSandboxEscapeMetadata({ kind: "net.connect", target: "https://example.com:443", reasonCode: "r" }).target).toBe("example.com:443");
   });
   it.each([
-    "https://user:pw@example.com:8443", "example.com:80?x=1", "example.com:80#f", "example.com\\evil.com:80",
+    "https://user:pw@example.com:8443", "https://example.com:8443/a/b", "example.com:8443/x", "example.com:80?x=1", "example.com:80#f", "example.com\\evil.com:80",
     "example.com", "example.com:0", "example.com:70000", "a b.com:80", "example.com:80/\u202e", "x@example.com:80",
     "a".repeat(250) + ".com:80",
   ])("net target %j is rejected", (t) => {
@@ -257,7 +256,7 @@ describe("SANDBOX_ESCAPE decide", () => {
     expect(approvalUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "REJECTED" }) }));
     expect(statuses()).toEqual(["RUNNING"]);
     expect(runState.status).toBe("RUNNING");
-    expect(steeringCreate).toHaveBeenCalledWith({ data: expect.objectContaining({ runId: "run-1", kind: "INPUT", content: expect.stringContaining("Sandbox escape denied (fs.write)") }) });
+    expect(steeringCreate).toHaveBeenCalledWith({ data: expect.objectContaining({ runId: "run-1", kind: "INPUT", content: expect.stringContaining("Sandbox escape denied (fs.write) [approval ap-1]") }) });
     expect(steeringCreate.mock.calls[0][0].data.content).not.toContain("/etc/hosts");
     expect(enqueueRunMock).toHaveBeenCalledWith("run-1");
   });

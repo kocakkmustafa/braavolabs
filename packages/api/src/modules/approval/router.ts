@@ -14,7 +14,7 @@ import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } 
 import { toPublicCompany } from "../company/redact";
 import { APPROVAL_LIST_SELECT, projectApprovalRow, withEscapeDisplay } from "./list-select";
 import { withApprovalDetails } from "./details";
-import { sandboxEscapeDeniedMessage } from "./sandbox-escape";
+import { resumeAfterEscapeDenied } from "./escape-denied";
 import {
   type ApprovalArtifact,
   extractArtifactFromInput,
@@ -224,53 +224,6 @@ async function cancelRunAfterReject(tx: DecideTx, runId: string, tenantId: strin
   const o = await transitionRun(tx, runId, "CANCELLED", { tenantId, extra: { completedAt: new Date() }, legacyUnchecked: true });
   if (!o.ok && o.reason === "illegal_transition") return;
   assertTransitioned(o, { status: 409, message: "Run cannot be cancelled from its current state" });
-}
-
-/**
- * SANDBOX_ESCAPE reject → tell the agent, resume only a run that is truly
- * WAITING_APPROVAL (fresh in-tx read; the transition itself is pinned with
- * onlyIfStatus, so `legacyUnchecked` cannot revive a CANCELLED/COMPLETED/FAILED/
- * PAUSED run). The message is skipped for a finished run (nobody would read it).
- */
-async function resumeAfterEscapeDenied(
-  tx: DecideTx,
-  approvalId: string,
-  runId: string,
-  tenantId: string,
-  userId: string,
-  metadata: unknown,
-): Promise<{ enqueue: boolean; from: JobState }> {
-  const row = (await tx.run.findFirst({
-    where: { id: runId, pipeline: { company: { tenantId } } },
-    select: { status: true },
-  })) as { status: string } | null;
-  if (!row) throw new AppError(404, "Run not found");
-  if (row.status === "COMPLETED" || row.status === "FAILED" || row.status === "CANCELLED") {
-    return { enqueue: false, from: currentJobState(row.status as Parameters<typeof currentJobState>[0], null) };
-  }
-  await tx.steeringMessage.create({
-    data: { runId, kind: "INPUT", content: sandboxEscapeDeniedMessage(metadata), createdBy: userId },
-  });
-  if (row.status !== "WAITING_APPROVAL") {
-    return { enqueue: false, from: currentJobState(row.status as Parameters<typeof currentJobState>[0], null) };
-  }
-  if (typeof (tx as { $queryRaw?: unknown }).$queryRaw === "function") {
-    await tx.$queryRaw`SELECT id FROM runs WHERE id = ${runId} FOR UPDATE`;
-  }
-  const otherGate = await tx.approval.findFirst({
-    where: { runId, id: { not: approvalId }, status: "PENDING", type: { not: "HANDOFF" } },
-    select: { id: true },
-  });
-  if (otherGate) return { enqueue: false, from: "NEEDS_APPROVAL" };
-  const first = await transitionRun(tx, runId, "RESUMING", { tenantId, legacyUnchecked: true, onlyIfStatus: ["WAITING_APPROVAL"] });
-  if (!first.ok) {
-    if (first.reason === "not_found") throw new AppError(404, "Run not found");
-    return { enqueue: false, from: "NEEDS_APPROVAL" };
-  }
-  if (isJobStateDualWriteEnabled()) {
-    assertTransitioned(await transitionRun(tx, runId, "RUNNING", { tenantId }), { status: 409, message: "Run cannot be resumed from its current state" });
-  }
-  return { enqueue: true, from: first.from };
 }
 
 const decideSchema = z.object({
