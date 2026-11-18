@@ -30,8 +30,22 @@ export const METADATA_SYNC_MIN_VERSION = 1;
 
 export const MAX_FILE_NAME_LEN = 255;
 export const MAX_SNAPSHOT_ENTRIES = 200;
-/** Serialized size guard (UTF-16 units) applied before validation; a full 200-entry snapshot is ~80k. */
-export const MAX_MESSAGE_CHARS = 131_072;
+/** Serialized size guard in UTF-8 BYTES (the wire size), applied before validation; a full 200-entry CJK snapshot is ~160k. */
+export const MAX_MESSAGE_BYTES = 262_144;
+/** UTF-8 byte length of a JS string without Node/DOM globals (lone surrogates count as the 3-byte U+FFFD). */
+export function utf8ByteLength(text: string): number {
+  let n = 0;
+  for (let i = 0; i < text.length; i++) {
+    const c = text.charCodeAt(i);
+    if (c < 0x80) n += 1;
+    else if (c < 0x800) n += 2;
+    else if (c >= 0xd800 && c <= 0xdbff && i + 1 < text.length && text.charCodeAt(i + 1) >= 0xdc00 && text.charCodeAt(i + 1) <= 0xdfff) {
+      n += 4;
+      i++;
+    } else n += 3;
+  }
+  return n;
+}
 const MAX_SCAN_DEPTH = 6;
 const MAX_SCAN_KEYS = 2_000;
 
@@ -197,7 +211,7 @@ export function parseMetadataSyncMessage(raw: unknown, opts: ParseOptions = {}):
       if (typeof encoded !== "string") return reject("INVALID_ENVELOPE");
       text = encoded;
     }
-    if (text.length > MAX_MESSAGE_CHARS) return reject("TOO_LARGE");
+    if (utf8ByteLength(text) > MAX_MESSAGE_BYTES) return reject("TOO_LARGE");
     const data: unknown = JSON.parse(text);
     if (data === null || typeof data !== "object" || Array.isArray(data)) return reject("INVALID_ENVELOPE");
 

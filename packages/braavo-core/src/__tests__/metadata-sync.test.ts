@@ -3,13 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   ALLOWED_KEYS,
   MAX_FILE_NAME_LEN,
-  MAX_MESSAGE_CHARS,
+  MAX_MESSAGE_BYTES,
   MAX_SNAPSHOT_ENTRIES,
   METADATA_SYNC_MIN_VERSION,
   METADATA_SYNC_PROTOCOL,
   METADATA_SYNC_VERSION,
   buildMetadataSyncMessage,
   isSafeFileName,
+  utf8ByteLength,
   parseMetadataSyncMessage as parse,
 } from "../metadata-sync";
 import { metadataSync } from "../index";
@@ -202,7 +203,7 @@ describe("never throws, bounded", () => {
     }
   });
   it("oversize message is refused before parsing; deep nesting is refused", () => {
-    expect(parse("x".repeat(MAX_MESSAGE_CHARS + 1))).toEqual({ ok: false, reason: "TOO_LARGE" });
+    expect(parse("x".repeat(MAX_MESSAGE_BYTES + 1))).toEqual({ ok: false, reason: "TOO_LARGE" });
     let deep: Record<string, unknown> = { v: 1 };
     for (let i = 0; i < 40; i++) deep = { w: deep };
     expect(parse(fileMeta({ extra: deep })).ok).toBe(false);
@@ -210,10 +211,26 @@ describe("never throws, bounded", () => {
   it("a full-size valid snapshot is accepted (the size guard does not clip legitimate traffic)", () => {
     const entries = Array.from({ length: MAX_SNAPSHOT_ENTRIES }, (_, i) => ({ fileName: (String(i).padStart(3, "0") + "-" + "seg-".repeat(70)).slice(0, MAX_FILE_NAME_LEN - 3) + ".md", contentHash: H, modifiedAt: T }));
     expect(parse(snapshot({ entries })).ok).toBe(true);
-    expect(JSON.stringify(snapshot({ entries })).length).toBeLessThan(MAX_MESSAGE_CHARS);
+    expect(JSON.stringify(snapshot({ entries })).length).toBeLessThan(MAX_MESSAGE_BYTES);
+  });
+  it("the bound is in UTF-8 bytes: a Unicode-heavy message is measured by wire size, not by code units", () => {
+    const cjk = String.fromCodePoint(0x6587);
+    const entries = Array.from({ length: MAX_SNAPSHOT_ENTRIES }, (_, i) => ({ fileName: cjk.repeat(100) + String(i) + ".ts", contentHash: H, modifiedAt: T }));
+    const full = JSON.stringify(snapshot({ entries }));
+    expect(full.length).toBeLessThan(60_000);
+    expect(utf8ByteLength(full)).toBeGreaterThan(80_000);
+    expect(parse(full).ok).toBe(true); // ~89k bytes, under the 256 KiB bound
+    const big = cjk.repeat(90_000); // 90k code units, 270k bytes
+    expect(big.length).toBeLessThan(MAX_MESSAGE_BYTES);
+    expect(parse(fileMeta({ extra: big }))).toEqual({ ok: false, reason: "TOO_LARGE" });
+  });
+  it("utf8ByteLength matches Buffer.byteLength (ASCII, 2/3/4-byte, pairs)", () => {
+    for (const t of ["", "abc", "\u00e9\u00fc", String.fromCodePoint(0x6587), String.fromCodePoint(0x1d4d0) + "x", "a" + String.fromCodePoint(0x1f600) + "b"]) {
+      expect(utf8ByteLength(t)).toBe(Buffer.byteLength(t, "utf8"));
+    }
   });
   it("object input is size-checked too, and ALLOWED_KEYS is exactly the schema keys", () => {
-    expect(parse(fileMeta({ extra: "x".repeat(MAX_MESSAGE_CHARS) }))).toEqual({ ok: false, reason: "TOO_LARGE" });
+    expect(parse(fileMeta({ extra: "x".repeat(MAX_MESSAGE_BYTES) }))).toEqual({ ok: false, reason: "TOO_LARGE" });
     expect([...ALLOWED_KEYS].sort()).toEqual(["capturedAt", "change", "contentHash", "entries", "fileName", "modifiedAt", "protocol", "sentAt", "type", "version", "worktreeId"]);
   });
   it("__proto__ as an own key does not pollute and is refused", () => {
