@@ -19,6 +19,7 @@ import { updateAgentWithHistory } from "./agent-update";
 import { composeAgent } from "../agent/composer";
 import { sanitizeComposedDraft } from "../agent/compose-draft";
 import { assertCompanyCapacity } from "./company-capacity";
+import { createAgentGuarded, precheckAgentCapacity } from "./agent-capacity";
 import { seedCreatorAsOwner } from "./owner-seed";
 import { companyMembersRouter } from "./members";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
@@ -631,7 +632,7 @@ companyRouter.post("/:id/agents", async (req, res, next) => {
     if (!company) throw new AppError(404, "Company not found");
 
     const data = agentCreateSchema.parse(req.body);
-    const agent = await prisma.agent.create({
+    const agent = await createAgentGuarded(req.auth!.tenantId, (db) => db.agent.create({
       data: {
         companyId: company.id,
         name: data.name,
@@ -640,7 +641,7 @@ companyRouter.post("/:id/agents", async (req, res, next) => {
         tools: (data.tools ?? []) as any,
         ...agentModeFields(data),
       },
-    });
+    }));
 
     await prisma.activityLog.create({
       data: {
@@ -698,7 +699,7 @@ async function persistComposedAgent(
   composed: { name: string; role: string; systemPrompt: string; tools: string[] },
   details: Record<string, unknown>,
 ) {
-  const agent = await prisma.agent.create({
+  const agent = await createAgentGuarded(req.auth!.tenantId, (db) => db.agent.create({
     data: {
       companyId,
       name: composed.name,
@@ -706,7 +707,7 @@ async function persistComposedAgent(
       systemPrompt: composed.systemPrompt,
       tools: composed.tools as any,
     },
-  });
+  }));
   await prisma.activityLog.create({
     data: {
       tenantId: req.auth!.tenantId,
@@ -738,6 +739,7 @@ companyRouter.post("/:id/agents/compose/draft", agentComposeLimiter, async (req,
     const companyId = req.params.id as string;
     await findOwnCompany(req, companyId);
     const { description } = agentComposeSchema.parse(req.body);
+    await precheckAgentCapacity(req.auth!.tenantId); // BRA-UX-API-03k: no LLM spend for a tenant already at its agent limit
     const result = await runComposer(req.auth!.tenantId, description);
     res.json({
       draft: result.agent,
@@ -756,7 +758,7 @@ companyRouter.post("/:id/agents/compose/draft", agentComposeLimiter, async (req,
 // aynı kayıt yolu kullanılır.
 const agentComposeConfirmSchema = z.object({ draft: z.unknown() });
 
-// NOT: ajan SAYISI kapasitesi yok (eski compose'ta da yoktu); karar BRA-UX-API-03 sonrası kurucuda.
+// Ajan kotası: BRA-UX-API-03k, AGENT_QUOTA_ENABLED bayrağı arkasında (varsayılan KAPALI; sayılar kurucudan, agent-capacity.ts).
 companyRouter.post("/:id/agents/compose/confirm", agentComposeConfirmLimiter, async (req, res, next) => {
   try {
     const companyId = req.params.id as string;
