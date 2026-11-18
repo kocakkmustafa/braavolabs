@@ -71,6 +71,10 @@ export const PRIVILEGED_ACTIONS = {
   // same-tenant MEMBER must never be able to decide one. Role provisioning is
   // a separate product gate; weakening this boundary is not a safe fallback.
   "approval:decide": "ADMIN",
+
+  // BRA-P1-03-N1: the tenant repository allowlist decides which repositories a later read-only integration may
+  // touch. Listing stays open to members; changing it is an admin act.
+  "repo:manage": "ADMIN",
 } as const satisfies Record<string, AppRole>;
 
 export type PrivilegedAction = keyof typeof PRIVILEGED_ACTIONS;
