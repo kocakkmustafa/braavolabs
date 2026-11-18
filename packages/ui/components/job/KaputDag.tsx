@@ -3,7 +3,7 @@
  * Veri `buildKaputGraph` (saf) çıktısıdır; kaynak yoksa "veri yok" + sıralı liste (kenar uydurulmaz).
  * Erişilebilirlik: SVG `role="img"` + özet etiketi; asıl okunur yol, bağımlılıkları yazan sıralı liste. Durum rengi + glif + metin.
  */
-import { GRAPH_MAX_NODES, type KaputGraph, type KaputStep } from "../../lib/ux-lab/facts";
+import { GRAPH_MAX_NODES, type KaputGraph, type KaputStep } from "../../lib/ux-kaput/facts";
 import { useId } from "react";
 import { maskKaputText, safeText } from "../../lib/ux-kaput/mask";
 import type { T } from "../inbox/InboxParts";

@@ -5,7 +5,7 @@
  * Güven düşükse varsayılan SOHBET; iş planına yalnız yüksek güven ya da kullanıcı "İş"i seçerse gidilir.
  */
 import { useRef, useState, type KeyboardEvent } from "react";
-import { INTENT_KINDS, classifyIntent, effectiveIntent, flowForIntent, type IntentKind } from "../../lib/ux-lab/intent";
+import { INTENT_KINDS, classifyIntent, effectiveIntent, flowForIntent, type IntentKind } from "../../lib/ux-intent/intent";
 import type { T } from "../plan/PlanParts";
 import { btn, btnPrimary, glass, muted } from "./styles";
 

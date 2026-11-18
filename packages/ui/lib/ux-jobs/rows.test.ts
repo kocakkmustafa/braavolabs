@@ -17,7 +17,7 @@ describe("bayrak NEXT_PUBLIC_UX_JOBS", () => {
     expect(uxJobsEnabled({})).toBe(false);
   });
   it("diğer bayraklar İşler'i açmaz", () => {
-    expect(uxJobsEnabled({ NEXT_PUBLIC_UX_LAB: "1", NEXT_PUBLIC_UX_INTENT: "1" })).toBe(false);
+    expect(uxJobsEnabled({ NEXT_PUBLIC_UX_COMPANY: "1", NEXT_PUBLIC_UX_INTENT: "1" })).toBe(false);
   });
 });
 

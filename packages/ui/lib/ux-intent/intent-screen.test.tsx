@@ -31,7 +31,7 @@ describe("bayrak (BRA-UX-05a)", () => {
     for (const v of ["1", "true", "TRUE", " 1 "]) expect(uxIntentEnabled({ NEXT_PUBLIC_UX_INTENT: v })).toBe(true);
   });
   it("UX-04 prototip bayrağı bunu açmaz (ayrı bayrak)", () => {
-    expect(uxIntentEnabled({ NEXT_PUBLIC_UX_LAB: "1" })).toBe(false);
+    expect(uxIntentEnabled({ NEXT_PUBLIC_UX_COMPANY: "1" })).toBe(false);
   });
   it("/start: bayrak kapalıyken ESKİ bileşen, açıkken yenisi", () => {
     const prev = process.env[UX_INTENT_ENV];
