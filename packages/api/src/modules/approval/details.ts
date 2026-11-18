@@ -100,6 +100,11 @@ const TOOL_NAME = /^[A-Za-z][\w.:-]{0,63}$/;
 /** Sağlayıcı/model adı biçimi (gpt-4o, claude-3.5, vendor/model). */
 const PROVIDER_NAME = /^[\w.:/-]{1,64}$/;
 
+/** SANDBOX_ESCAPE metadata re-validation (target is already masked at write time). */
+const ESCAPE_KIND = /^[a-z]+\.[a-z_]+$/;
+const ESCAPE_REASON = /^[a-z0-9_-]{1,64}$/;
+const ESCAPE_TARGET = /^[\w@%+=:.,/*\[\]~-]{1,256}$/;
+
 const NULL_DETAILS: ApprovalDetails = Object.freeze({
   risk: null,
   permissions: null,
@@ -217,6 +222,22 @@ export function deriveApprovalDetails(type: unknown, metadata: unknown): Approva
                 ...(target ? { targetId: target } : {}),
               },
             }
+          : {}),
+      };
+    }
+    if (type === "SANDBOX_ESCAPE") {
+      // BRA-P2-02c: the displayed action comes from metadata only (kind + masked target + code),
+      // re-validated here; the agent-written `description` is never the source.
+      const escapeKind = typeof m.kind === "string" && ESCAPE_KIND.test(m.kind) ? m.kind : null;
+      const target = typeof m.target === "string" && ESCAPE_TARGET.test(m.target) ? m.target : null;
+      const reasonCode = typeof m.reasonCode === "string" && ESCAPE_REASON.test(m.reasonCode) ? m.reasonCode : null;
+      return {
+        risk: null,
+        permissions: list([escapeKind]),
+        dataTransfer: escapeKind && target && reasonCode ? list([clamp(`${escapeKind} → ${target} (${reasonCode})`)]) : null,
+        reversible: null,
+        ...(escapeKind && target && reasonCode
+          ? { dataTransferStructured: { kind: "sandbox_escape" as const, escapeKind, target, reasonCode } }
           : {}),
       };
     }

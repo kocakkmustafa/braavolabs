@@ -6,29 +6,41 @@
  * This module only builds the approval's metadata and its exact-action
  * binding (ADR-0002). It is NOT wired to the policy or to any executor.
  *
- * Metadata is a closed shape: { kind, target, reasonCode }.
- *   kind        `fs.write` / `net.connect` / … (^[a-z]+\.[a-z_]+$, ≤ 32)
- *   target      net.*  → `host:port` (lower-cased; userinfo/path/query dropped)
- *               other  → normalised absolute POSIX path (≤ MAX_TARGET_LENGTH;
- *                        longer is REJECTED, never truncated — a truncated
- *                        target would hash differently from the real action)
- *   reasonCode  policy code (^[a-z0-9_-]{1,64}$)
- * Raw commands, file content and secrets never enter: secret-looking path
- * segments are masked to `***` BEFORE hashing, so the executor must hash the
- * same sanitised form (call `buildSandboxEscapeAction` with the raw request).
+ * Metadata is a closed shape: { type, kind, target, targetDigest, reasonCode }.
+ *   kind          `fs.write` / `net.connect` / … (^[a-z]+\.[a-z_]+$, ≤ 32)
+ *   target        DISPLAY ONLY. net.* → `host:port`; other → normalised absolute
+ *                 POSIX path with secret-looking segments masked to `***`.
+ *   targetDigest  sha256 hex of the FULL canonical (unmasked) target. The
+ *                 exact-action hash is computed over THIS, never over the masked
+ *                 `target`: `/data/secret-A/f` and `/data/secret-B/f` share a
+ *                 mask but not a digest, so one grant can never authorise the
+ *                 other. The raw target itself is never stored.
+ *   reasonCode    policy code (^[a-z0-9_-]{1,64}$, secret-shaped values rejected)
+ * Raw commands and file content never enter. A target that is too long, holds
+ * control/bidi/zero-width characters, or (net.*) carries userinfo / path-query
+ * / fragment / backslash is REJECTED, never repaired. The executor must call
+ * `buildSandboxEscapeAction` with the raw request to get the same hash.
+ *
+ * Known limit: targetDigest of a LOW-ENTROPY secret path segment can be
+ * brute-forced offline by someone who can read the approval row (tenant members
+ * who can list approvals). Acceptable here; use a keyed digest if rows ever
+ * leave the tenant boundary.
  */
+import { createHash } from "node:crypto";
 import { posix } from "node:path";
 import { computeActionHash, type ExactAction } from "./exact-action";
 import { leaksSecret } from "./details";
 
 export const MAX_TARGET_LENGTH = 256;
+export const MAX_NET_TARGET_LENGTH = 255;
 export const SANDBOX_ESCAPE_TYPE = "SANDBOX_ESCAPE" as const;
 
 const KIND_RE = /^[a-z]+\.[a-z_]+$/;
 const REASON_RE = /^[a-z0-9_-]{1,64}$/;
 const HOST_RE = /^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$|^\[[0-9a-f:]{2,45}\]$/;
+// C0, DEL, C1, bidi controls/isolates, ALM, zero-width, BOM, word joiner & invisible operators.
 // eslint-disable-next-line no-control-regex
-const CONTROL_RE = /[\u0000-\u001f\u007f]/;
+const FORBIDDEN_CHARS = /[\u0000-\u001f\u007f-\u009f\u061c\u200b-\u200f\u202a-\u202e\u2060-\u2064\u2066-\u2069\ufeff]/;
 const SECRET_SEGMENT = /token|secret|passw|credential|api[-_]?key|private[-_]?key|bearer|\.pem$|\.key$|^id_(rsa|ed25519|ecdsa)/i;
 
 export interface SandboxEscapeRequest {
@@ -40,6 +52,8 @@ export interface SandboxEscapeRequest {
 export interface SandboxEscapeMetadata extends SandboxEscapeRequest {
   /** Marker the approval list / decide handler can key on. */
   type: typeof SANDBOX_ESCAPE_TYPE;
+  /** sha256 hex of the full canonical (unmasked) target — what the exact-action hash binds to. */
+  targetDigest: string;
 }
 
 export class SandboxEscapeRequestError extends Error {}
@@ -48,28 +62,45 @@ function maskSegment(seg: string): string {
   return SECRET_SEGMENT.test(seg) || leaksSecret(seg) ? "***" : seg;
 }
 
-function normalizeTarget(kind: string, raw: string): string {
-  if (typeof raw !== "string" || raw.length === 0 || CONTROL_RE.test(raw)) {
+function sha256Hex(s: string): string {
+  return createHash("sha256").update(s, "utf8").digest("hex");
+}
+
+/** Canonical full target (unmasked) + display form. */
+function normalizeTarget(kind: string, raw: unknown): { canonical: string; display: string } {
+  if (typeof raw !== "string" || raw.length === 0 || FORBIDDEN_CHARS.test(raw)) {
     throw new SandboxEscapeRequestError("invalid target");
   }
   if (kind.startsWith("net.")) {
-    const m = /^(?:[a-z][a-z0-9+.-]*:\/\/)?(?:[^@/]*@)?([^/?#:]+|\[[^\]]+\])(?::(\d{1,5}))?(?:[/?#].*)?$/i.exec(raw.trim());
-    const host = m?.[1]?.toLowerCase();
-    const port = m?.[2] ? Number(m[2]) : null;
-    if (!host || !HOST_RE.test(host) || port === null || port < 1 || port > 65535) {
+    if (raw.length > MAX_NET_TARGET_LENGTH) throw new SandboxEscapeRequestError("target too long");
+    if (/[?#\\@\s]/.test(raw)) throw new SandboxEscapeRequestError("invalid host:port");
+    const hasScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw);
+    let url: URL;
+    try {
+      url = new URL(hasScheme ? raw : `x://${raw}`);
+    } catch {
       throw new SandboxEscapeRequestError("invalid host:port");
     }
-    if (leaksSecret(host)) throw new SandboxEscapeRequestError("invalid host:port");
-    return `${host}:${port}`;
+    if (url.username || url.password || url.search || url.hash) throw new SandboxEscapeRequestError("invalid host:port");
+    // URL() drops default ports (https :443); require the port to be written out.
+    const authority = raw.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").split("/")[0];
+    const pm = /:(\d{1,5})$/.exec(authority);
+    const port = pm ? Number(pm[1]) : NaN;
+    const host = url.hostname.toLowerCase();
+    if (!(port >= 1 && port <= 65535) || !HOST_RE.test(host) || leaksSecret(host)) {
+      throw new SandboxEscapeRequestError("invalid host:port");
+    }
+    const hp = `${host}:${port}`;
+    return { canonical: hp, display: hp };
   }
   if (!raw.startsWith("/")) throw new SandboxEscapeRequestError("target must be an absolute path");
   const norm = posix.normalize(raw).replace(/(.)\/+$/, "$1");
   if (norm.length > MAX_TARGET_LENGTH) throw new SandboxEscapeRequestError("target too long");
-  const masked = norm
+  const display = norm
     .split("/")
     .map((s) => (s ? maskSegment(s) : s))
     .join("/");
-  return masked;
+  return { canonical: norm, display };
 }
 
 /** Closed-shape, sanitised metadata. Throws SandboxEscapeRequestError on any bad field (fail-closed). */
@@ -77,13 +108,20 @@ export function buildSandboxEscapeMetadata(req: SandboxEscapeRequest): SandboxEs
   if (typeof req.kind !== "string" || req.kind.length > 32 || !KIND_RE.test(req.kind)) {
     throw new SandboxEscapeRequestError("invalid kind");
   }
-  if (typeof req.reasonCode !== "string" || !REASON_RE.test(req.reasonCode)) {
+  if (
+    typeof req.reasonCode !== "string" ||
+    !REASON_RE.test(req.reasonCode) ||
+    SECRET_SEGMENT.test(req.reasonCode) ||
+    leaksSecret(req.reasonCode)
+  ) {
     throw new SandboxEscapeRequestError("invalid reasonCode");
   }
+  const t = normalizeTarget(req.kind, req.target);
   return {
     type: SANDBOX_ESCAPE_TYPE,
     kind: req.kind,
-    target: normalizeTarget(req.kind, req.target),
+    target: t.display,
+    targetDigest: sha256Hex(t.canonical),
     reasonCode: req.reasonCode,
   };
 }
@@ -101,7 +139,8 @@ export function buildSandboxEscapeAction(
       runId: ctx.runId,
       type: SANDBOX_ESCAPE_TYPE,
       toolName: metadata.kind,
-      input: { kind: metadata.kind, target: metadata.target, reasonCode: metadata.reasonCode },
+      // targetDigest (full target), NOT the masked display target.
+      input: { kind: metadata.kind, targetDigest: metadata.targetDigest, reasonCode: metadata.reasonCode },
       amountUsd: null,
     },
   };

@@ -27,7 +27,9 @@ export type ApprovalDataTransfer =
   /** `input_fields`: SPEND araç kapısının girdi alanı adları; INPUT (ask_user) onay tipiyle ilgisi YOK. */
   | { kind: "input_fields"; tool: string; fields: string[] }
   | { kind: "external_control"; action?: string; connectionId: string; targetId?: string }
-  | { kind: "handoff"; provider: string; model?: string };
+  | { kind: "handoff"; provider: string; model?: string }
+  /** SANDBOX_ESCAPE: metadata-derived (kind + masked target + policy code); never the free-text description. */
+  | { kind: "sandbox_escape"; escapeKind: string; target: string; reasonCode: string };
 
 export interface ApprovalDetails {
   risk: ApprovalRisk | null;

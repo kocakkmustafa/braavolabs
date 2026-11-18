@@ -12,7 +12,7 @@ import { reopenClaimedHandoff } from "../run/handoff.service";
 import { z } from "zod";
 import { afterCursorWhere, decodeCursor, encodeCursor, LIST_ORDER, parseLimit } from "../run/list-cursor";
 import { toPublicCompany } from "../company/redact";
-import { APPROVAL_LIST_SELECT, projectApprovalRow } from "./list-select";
+import { APPROVAL_LIST_SELECT, projectApprovalRow, withEscapeDisplay } from "./list-select";
 import { withApprovalDetails } from "./details";
 import { sandboxEscapeDeniedMessage } from "./sandbox-escape";
 import {
@@ -121,7 +121,7 @@ approvalRouter.get("/", async (req, res, next) => {
       },
     }));
     // artifact ham metadata'dan çıkarılır, sonra metadata yalnız toolName'e indirilir (BRA-P0-04h).
-    const withArtifacts = (await attachArtifacts(safe)).map(withApprovalDetails).map(projectApprovalRow);
+    const withArtifacts = (await attachArtifacts(safe)).map(withApprovalDetails).map(withEscapeDisplay).map(projectApprovalRow);
 
     if (groupBy === "run") {
       const groups = new Map<string, { runId: string; runTitle: string | null; approvals: unknown[] }>();
@@ -226,6 +226,53 @@ async function cancelRunAfterReject(tx: DecideTx, runId: string, tenantId: strin
   assertTransitioned(o, { status: 409, message: "Run cannot be cancelled from its current state" });
 }
 
+/**
+ * SANDBOX_ESCAPE reject → tell the agent, resume only a run that is truly
+ * WAITING_APPROVAL (fresh in-tx read; the transition itself is pinned with
+ * onlyIfStatus, so `legacyUnchecked` cannot revive a CANCELLED/COMPLETED/FAILED/
+ * PAUSED run). The message is skipped for a finished run (nobody would read it).
+ */
+async function resumeAfterEscapeDenied(
+  tx: DecideTx,
+  approvalId: string,
+  runId: string,
+  tenantId: string,
+  userId: string,
+  metadata: unknown,
+): Promise<{ enqueue: boolean; from: JobState }> {
+  const row = (await tx.run.findFirst({
+    where: { id: runId, pipeline: { company: { tenantId } } },
+    select: { status: true },
+  })) as { status: string } | null;
+  if (!row) throw new AppError(404, "Run not found");
+  if (row.status === "COMPLETED" || row.status === "FAILED" || row.status === "CANCELLED") {
+    return { enqueue: false, from: currentJobState(row.status as Parameters<typeof currentJobState>[0], null) };
+  }
+  await tx.steeringMessage.create({
+    data: { runId, kind: "INPUT", content: sandboxEscapeDeniedMessage(metadata), createdBy: userId },
+  });
+  if (row.status !== "WAITING_APPROVAL") {
+    return { enqueue: false, from: currentJobState(row.status as Parameters<typeof currentJobState>[0], null) };
+  }
+  if (typeof (tx as { $queryRaw?: unknown }).$queryRaw === "function") {
+    await tx.$queryRaw`SELECT id FROM runs WHERE id = ${runId} FOR UPDATE`;
+  }
+  const otherGate = await tx.approval.findFirst({
+    where: { runId, id: { not: approvalId }, status: "PENDING", type: { not: "HANDOFF" } },
+    select: { id: true },
+  });
+  if (otherGate) return { enqueue: false, from: "NEEDS_APPROVAL" };
+  const first = await transitionRun(tx, runId, "RESUMING", { tenantId, legacyUnchecked: true, onlyIfStatus: ["WAITING_APPROVAL"] });
+  if (!first.ok) {
+    if (first.reason === "not_found") throw new AppError(404, "Run not found");
+    return { enqueue: false, from: "NEEDS_APPROVAL" };
+  }
+  if (isJobStateDualWriteEnabled()) {
+    assertTransitioned(await transitionRun(tx, runId, "RUNNING", { tenantId }), { status: 409, message: "Run cannot be resumed from its current state" });
+  }
+  return { enqueue: true, from: first.from };
+}
+
 const decideSchema = z.object({
   decision: z.enum(["APPROVED", "REJECTED"]),
   // CLI/operator rationale is audit-only. Keep it separate from an INPUT
@@ -308,18 +355,11 @@ approvalRouter.post("/:id/decide", requirePermission("approval:decide"), async (
       } else if (decision === "APPROVED") {
         ({ enqueue, from } = await driveApprovedRun(tx, approval.id, approval.runId, tenantId));
       } else if (approval.type === "SANDBOX_ESCAPE") {
-        // BRA-P2-02c: a denied escape rejects the APPROVAL, not the run. The agent is told
-        // (SteeringMessage INPUT, same channel as ask_user answers / external-control
-        // results) and the run resumes without the escape; it is never cancelled/failed.
-        await tx.steeringMessage.create({
-          data: {
-            runId: approval.runId,
-            kind: "INPUT",
-            content: sandboxEscapeDeniedMessage(approval.metadata),
-            createdBy: req.auth!.userId,
-          },
-        });
-        ({ enqueue, from } = await driveApprovedRun(tx, approval.id, approval.runId, tenantId));
+        // BRA-P2-02c: a denied escape rejects the APPROVAL, not the run (never
+        // cancelled/failed). The agent is told via SteeringMessage(INPUT); the run is
+        // resumed ONLY if it is really WAITING_APPROVAL and no other gate is pending —
+        // a terminal or paused run is never moved (both JOB_STATE_DUAL_WRITE modes).
+        ({ enqueue, from } = await resumeAfterEscapeDenied(tx, approval.id, approval.runId, tenantId, req.auth!.userId, approval.metadata));
       } else {
         await cancelRunAfterReject(tx, approval.runId, tenantId);
       }

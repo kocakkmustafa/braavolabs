@@ -18,6 +18,10 @@
  * generic "run → CANCELLED" branch would otherwise strand the ledger on a
  * CANCELLED run that manual handoff can never re-open.
  *
+ * SANDBOX_ESCAPE exception (BRA-P2-02c, KARAR-A3): expiry = escape denied. The
+ * approval is REJECTED but the run is NOT cancelled; the agent gets the same
+ * "Sandbox escape denied" INPUT steering message as a human reject.
+ *
  * Idempotent — re-running this cron twice in the same minute won't
  * double-cancel anything because each transition uses
  * `updateMany({ where: { status: PENDING } })`.
@@ -27,6 +31,7 @@ import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { runWithoutTenant } from "../../lib/tenant-context";
 import { transitionRun } from "../run/transition";
+import { sandboxEscapeDeniedMessage } from "./sandbox-escape";
 
 const EXPIRY_INTERVAL_MS = 60 * 60 * 1000; // run hourly
 const APPROVAL_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -55,6 +60,7 @@ async function runApprovalExpiryImpl(): Promise<void> {
       id: true,
       runId: true,
       type: true,
+      metadata: true,
       run: {
         select: {
           pipeline: { select: { company: { select: { tenantId: true } } } },
@@ -95,7 +101,21 @@ async function runApprovalExpiryImpl(): Promise<void> {
     // finished run (illegal edge, dual write on) or a lost race is left as is —
     // the approval is already REJECTED — and reported in the activity row.
     let runCancelled = false;
-    if (approval.type !== "HANDOFF") {
+    if (approval.type === "SANDBOX_ESCAPE") {
+      // KARAR-A3 (BRA-P2-02c): an expired escape request = escape denied. The run is
+      // NOT cancelled; the agent is told once (idempotent: same text already queued
+      // for this run is not queued again).
+      const content = sandboxEscapeDeniedMessage(approval.metadata);
+      const dup = await prisma.steeringMessage.findFirst({
+        where: { runId: approval.runId, kind: "INPUT", content },
+        select: { id: true },
+      });
+      if (!dup) {
+        await prisma.steeringMessage.create({
+          data: { runId: approval.runId, kind: "INPUT", content, createdBy: "system:expiry" },
+        });
+      }
+    } else if (approval.type !== "HANDOFF") {
       const o = await transitionRun(prisma, approval.runId, "CANCELLED", {
         tenantId,
         extra: { completedAt: new Date() },
