@@ -61,7 +61,7 @@ import {
   SandboxEscapeRequestError,
   MAX_TARGET_LENGTH,
 } from "../sandbox-escape";
-import { deriveApprovalDetails } from "../details";
+import { deriveApprovalDetails, MAX_DETAIL_STRING } from "../details";
 
 function getHandler(router: Router, method: string, path: string) {
   const layer = (router as any).stack.find((l: any) => l.route && l.route.path === path && l.route.methods[method]);
@@ -344,16 +344,44 @@ describe("SANDBOX_ESCAPE in lists", () => {
     expect(d.dataTransfer).toBeNull();
     expect(d.dataTransferStructured).toBeUndefined();
   });
-  it("ordinary filenames (spaces, Unicode) stay visible; control/bidi chars still drop the target", () => {
-    for (const target of ["/data/my file.txt", "/veri/dosya şğü.txt", "/a/日本語.md"]) {
+  it("ordinary filenames (single spaces, Unicode, parentheses) stay visible in display and structured field", () => {
+    for (const target of ["/data/my file.txt", "/veri/dosya \u015f\u011f\u00fc.txt", "/a/\u65e5\u672c\u8a9e.md", "/a/file (1).txt"]) {
       const m = buildSandboxEscapeMetadata({ ...REQ, target });
       const d = deriveApprovalDetails("SANDBOX_ESCAPE", m);
-      expect(d.dataTransfer?.[0]).toContain(m.target);
+      expect(d.dataTransfer?.[0]).toBe(`fs.write \u2192 ${m.target} (outside-workspace)`);
       expect(d.dataTransferStructured).toMatchObject({ kind: "sandbox_escape", target: m.target });
     }
-    for (const bad of ["/a\u202eb", "/a\u200bb", "/a\u2028b", "/a\x07b"]) {
-      expect(deriveApprovalDetails("SANDBOX_ESCAPE", { kind: "fs.write", target: bad, reasonCode: "outside-workspace" }).dataTransfer).toBeNull();
+  });
+  it("write side refuses look-alike / invisible / ambiguous targets (fail-closed)", () => {
+    const c = (n: number) => String.fromCodePoint(n);
+    const bad = [
+      "/a" + c(0x202e) + "b", "/a" + c(0x200b) + "b", "/a" + c(0x2028) + "b", "/a" + c(7) + "b", "/a" + c(0x00ad) + "b",
+      "/a" + c(0x206a) + "b", "/a" + c(0x2066) + "b", "/a" + c(0xfe0f) + "b", "/a" + c(0xe0041) + "b", "/a" + c(0x3164) + "b",
+      "/a" + c(0x00a0) + "b", "/a" + c(0x3000) + "b", "/a" + c(0x2003) + "b",
+      "/a" + c(0x2215) + "b", "/a" + c(0xff0f) + "b", "/a " + c(0x2192) + " /b",
+      "/a  b", "/a/b ", "/a/ b  c",
+    ];
+    for (const target of bad) expect(() => buildSandboxEscapeMetadata({ ...REQ, target })).toThrow();
+  });
+  it("display re-validation drops the same characters if a row bypassed the writer", () => {
+    for (const cp of [0x202e, 0x200b, 0x2028, 0x00ad, 0x206a, 0x00a0, 0x2192, 0xff0f]) {
+      const target = "/a" + String.fromCodePoint(cp) + "b";
+      expect(deriveApprovalDetails("SANDBOX_ESCAPE", { kind: "fs.write", target, reasonCode: "outside-workspace" }).dataTransfer).toBeNull();
     }
+    for (const target of ["/a  b", "/a/b "]) {
+      expect(deriveApprovalDetails("SANDBOX_ESCAPE", { kind: "fs.write", target, reasonCode: "outside-workspace" }).dataTransfer).toBeNull();
+    }
+  });
+  it("long target: middle is elided, kind, reason and the file name at the end stay visible; structured target is full", () => {
+    const target = "/" + Array.from({ length: 55 }, (_, i) => "d" + String(i).padStart(2, "0")).join("/") + "/authorized_keys";
+    const m = buildSandboxEscapeMetadata({ ...REQ, target });
+    const d = deriveApprovalDetails("SANDBOX_ESCAPE", m);
+    const line = d.dataTransfer![0];
+    expect(line.length).toBeLessThanOrEqual(MAX_DETAIL_STRING);
+    expect(line.startsWith("fs.write \u2192 /")).toBe(true);
+    expect(line.endsWith("authorized_keys (outside-workspace)")).toBe(true);
+    expect(line).toContain("\u2026");
+    expect(d.dataTransferStructured).toMatchObject({ target: m.target });
   });
   it("other types are unchanged (SPEND keeps its description, no additionalText)", async () => {
     approvalFindMany.mockResolvedValue([row({ type: "SPEND", description: "pay", metadata: {} })]);

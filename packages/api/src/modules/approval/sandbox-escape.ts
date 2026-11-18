@@ -29,7 +29,7 @@
 import { createHash } from "node:crypto";
 import { posix } from "node:path";
 import { computeActionHash, type ExactAction } from "./exact-action";
-import { leaksSecret } from "./details";
+import { leaksSecret, ESCAPE_TARGET_FORBIDDEN, ESCAPE_TARGET_AMBIGUOUS_SPACE } from "./details";
 
 export const MAX_TARGET_LENGTH = 256;
 export const MAX_NET_TARGET_LENGTH = 255;
@@ -68,7 +68,7 @@ function sha256Hex(s: string): string {
 
 /** Canonical full target (unmasked) + display form. */
 function normalizeTarget(kind: string, raw: unknown): { canonical: string; display: string } {
-  if (typeof raw !== "string" || raw.length === 0 || FORBIDDEN_CHARS.test(raw)) {
+  if (typeof raw !== "string" || raw.length === 0 || FORBIDDEN_CHARS.test(raw) || ESCAPE_TARGET_FORBIDDEN.test(raw) || ESCAPE_TARGET_AMBIGUOUS_SPACE.test(raw)) {
     throw new SandboxEscapeRequestError("invalid target");
   }
   if (kind.startsWith("net.")) {
