@@ -211,14 +211,16 @@ const envShape = z.object({
     (v) => (typeof v === "string" && v.trim() === "" ? undefined : v),
     z.string().trim().email().optional(),
   ),
+  // BRA-UX-API-03k: plan-wide agent quota. Default-off; plan numbers come from the founder (modules/company/agent-capacity.ts).
+  AGENT_QUOTA_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
+  // BRA-P1-03-N1: /tenant-repos allowlist routes. Default-off (404). Needs the v* migration first.
+  TENANT_REPOS_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
   // Durable webhook admission/DLQ rollout switch. Default-off keeps the
   // migration and code deploy reversible until the operator explicitly
   // enables delivery-ledger processing after schema verification.
   // Default-off: enable only after the additive lineage migration and client
   // regeneration have been independently verified. Disable for rollback;
   // persisted evidence is retained and the old conservative fence returns.
-  // BRA-P1-03-N1: /tenant-repos allowlist routes. Default-off (404). Needs the v* migration first.
-  TENANT_REPOS_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
   GOOGLE_PURCHASE_LINEAGE_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
   IAP_DELIVERY_RELIABILITY_ENABLED: z.string().optional().default("false").transform((v) => v === "true"),
   // A permanently failing provider lookup or persistence target must not
