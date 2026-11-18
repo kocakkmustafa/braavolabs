@@ -10,6 +10,12 @@
  * route, flag, daemon or UI. Kept OUT of `relay-protocol.ts` on purpose: that file is a byte-identical copy of
  * the API's relay protocol (guarded by parity.test.ts), so a new family lives in its own module.
  *
+ * RESIDUAL CHANNELS (cannot be closed by a contract; bounded, and the receiver must treat them as untrusted
+ * labels, never as instructions): `fileName` (<=255 chars, up to 200 per snapshot), `worktreeId` (<=64 chars) and
+ * `contentHash` (256 bits; a hash of a small low-entropy file can be dictionary-guessed). Timestamps are pinned to
+ * the exact `Date#toISOString` shape so they carry no free digits. Forward ONLY the validated `message`, never the
+ * raw text (JSON duplicate keys: the last one wins here, another parser may pick the first).
+ *
  * Version policy: `version` is an integer. Anything below `METADATA_SYNC_MIN_VERSION` is rejected as too old,
  * anything above `METADATA_SYNC_VERSION` is rejected as unsupported (an unknown newer shape may carry fields
  * this reader cannot judge), unknown `type` is rejected. Errors never echo input values.
@@ -24,8 +30,8 @@ export const METADATA_SYNC_MIN_VERSION = 1;
 
 export const MAX_FILE_NAME_LEN = 255;
 export const MAX_SNAPSHOT_ENTRIES = 200;
-/** Serialized size guard applied before any other work (a metadata message is tiny). */
-export const MAX_MESSAGE_BYTES = 65_536;
+/** Serialized size guard (UTF-16 units) applied before validation; a full 200-entry snapshot is ~80k. */
+export const MAX_MESSAGE_CHARS = 131_072;
 const MAX_SCAN_DEPTH = 6;
 const MAX_SCAN_KEYS = 2_000;
 
@@ -38,9 +44,12 @@ export const FILE_CHANGES = ["created", "modified", "deleted"] as const;
 const SHA256_HEX = /^[0-9a-f]{64}$/;
 const STRUCTURED_ID = /^[A-Za-z0-9_-]{1,64}$/;
 /** Control, format/invisible/bidi, separators: a name must look like what it is. */
-const NAME_FORBIDDEN_CHARS = /[\p{Cc}\p{Cf}\p{Co}\p{Default_Ignorable_Code_Point}\p{Zl}\p{Zp}]/u;
-/** Provider-key prefix, bearer token, PEM block, or one long opaque run: secret-shaped, never a file name. */
-const SECRET_SHAPED = /sk-[A-Za-z0-9_-]{10,}|Bearer\s|-----BEGIN|[A-Za-z0-9+/_-]{40,}/i;
+const NAME_FORBIDDEN_CHARS = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Default_Ignorable_Code_Point}\p{Zl}\p{Zp}]/u;
+/**
+ * Provider-key prefix (at a word start, so `task-management.md` is fine), bearer token, PEM block, or one long
+ * separator-free run (hex/base64): secret-shaped, never a file name. Hyphenated slugs of any length are allowed.
+ */
+const SECRET_SHAPED = /(?<![A-Za-z0-9])sk-[A-Za-z0-9_-]{10,}|Bearer\s|-----BEGIN|[A-Za-z0-9+/=]{40,}/i;
 
 /** Bare file name: no directory part, no dot-segments, no secret shape, no invisible characters. */
 export function isSafeFileName(v: unknown): v is string {
@@ -60,16 +69,17 @@ export function isSafeFileName(v: unknown): v is string {
 
 const fileName = z.string().refine(isSafeFileName, { message: "invalid file name" });
 const contentHash = z.string().regex(SHA256_HEX);
-const timestamp = z.iso.datetime();
+/** Exactly `YYYY-MM-DDTHH:mm:ss.sssZ` (what `Date#toISOString` returns): no free-length fraction. */
+const timestamp = z.iso.datetime({ precision: 3 });
 const worktreeId = z.string().regex(STRUCTURED_ID);
 
 const envelope = {
   protocol: z.literal(METADATA_SYNC_PROTOCOL),
-  version: z.number().int(),
+  version: z.number().int().min(METADATA_SYNC_MIN_VERSION).max(METADATA_SYNC_VERSION),
   sentAt: timestamp,
 };
 
-export const FileMetaSchema = z
+const FileMetaSchema = z
   .strictObject({
     ...envelope,
     type: z.literal("file-meta"),
@@ -81,24 +91,26 @@ export const FileMetaSchema = z
   })
   .refine((m) => (m.change === "deleted") === (m.contentHash === null), { message: "contentHash/change mismatch" });
 
-export const WorktreeSnapshotSchema = z.strictObject({
+const SnapshotEntrySchema = z.strictObject({ fileName, contentHash, modifiedAt: timestamp });
+
+const WorktreeSnapshotSchema = z.strictObject({
   ...envelope,
   type: z.literal("worktree-snapshot"),
   worktreeId,
   capturedAt: timestamp,
-  entries: z.array(z.strictObject({ fileName, contentHash, modifiedAt: timestamp })).max(MAX_SNAPSHOT_ENTRIES),
+  entries: z.array(SnapshotEntrySchema).max(MAX_SNAPSHOT_ENTRIES),
 });
 
-export const MetadataSyncMessageSchema = z.discriminatedUnion("type", [FileMetaSchema, WorktreeSnapshotSchema]);
+const MetadataSyncMessageSchema = z.discriminatedUnion("type", [FileMetaSchema, WorktreeSnapshotSchema]);
 export type FileMetaMessage = z.infer<typeof FileMetaSchema>;
 export type WorktreeSnapshotMessage = z.infer<typeof WorktreeSnapshotSchema>;
 export type MetadataSyncMessage = z.infer<typeof MetadataSyncMessageSchema>;
 
-/** Every key a valid message (or nested entry) may carry. Anything else is a leak by construction. */
+/** Every key a valid message (or nested entry) may carry, derived from the schemas (single source of truth). */
 export const ALLOWED_KEYS: ReadonlySet<string> = new Set([
-  "protocol", "version", "sentAt", "type",
-  "fileName", "change", "contentHash", "modifiedAt",
-  "worktreeId", "capturedAt", "entries",
+  ...Object.keys(FileMetaSchema.shape),
+  ...Object.keys(WorktreeSnapshotSchema.shape),
+  ...Object.keys(SnapshotEntrySchema.shape),
 ]);
 
 // ---- content-carrying field names (refused by name, before schema parsing) -------------------------------
@@ -152,7 +164,8 @@ export type MetadataSyncRejection =
   | "VERSION_TOO_OLD"
   | "VERSION_UNSUPPORTED"
   | "UNKNOWN_TYPE"
-  | "INVALID_PAYLOAD";
+  | "INVALID_PAYLOAD"
+  | "INVALID_OPTIONS";
 
 export type MetadataSyncResult =
   | { ok: true; message: MetadataSyncMessage }
@@ -169,10 +182,13 @@ const reject = (reason: MetadataSyncRejection, detail?: string): MetadataSyncRes
 /**
  * Validate one inbound (or about-to-be-sent) message. Accepts a JSON string or an already-decoded value.
  * The value is first normalised through JSON (one read of every getter, no prototypes, cycles refused), then
- * checked in this order: size, forbidden field names, protocol, version, type, strict payload schema.
+ * checked in this order: option sanity, size, forbidden field names, protocol, version, type, strict payload schema.
  */
 export function parseMetadataSyncMessage(raw: unknown, opts: ParseOptions = {}): MetadataSyncResult {
   try {
+    if (opts.minVersion !== undefined && !(Number.isSafeInteger(opts.minVersion) && opts.minVersion >= 0)) {
+      return reject("INVALID_OPTIONS"); // a malformed floor must never silently disable the version check
+    }
     let text: string;
     if (typeof raw === "string") {
       text = raw;
@@ -181,7 +197,7 @@ export function parseMetadataSyncMessage(raw: unknown, opts: ParseOptions = {}):
       if (typeof encoded !== "string") return reject("INVALID_ENVELOPE");
       text = encoded;
     }
-    if (text.length > MAX_MESSAGE_BYTES) return reject("TOO_LARGE");
+    if (text.length > MAX_MESSAGE_CHARS) return reject("TOO_LARGE");
     const data: unknown = JSON.parse(text);
     if (data === null || typeof data !== "object" || Array.isArray(data)) return reject("INVALID_ENVELOPE");
 
