@@ -10,6 +10,9 @@ import { getEffectivePlan } from "../billing/entitlement-ledger.service";
  *
  * The numbers are the founder's (karar 17, "plan başına ajan kotası sayıları"); NONE is invented here. A plan
  * with no entry has no agent cap, so turning the flag on before the founder fills this table changes nothing.
+ * SCOPE: the three single-agent endpoints of the ticket (`POST /:id/agents`, `agents/compose`, `agents/compose/confirm`).
+ * Batch / new-company creators (builder, templates, starter clone, onboarding, automation-importer) insert several
+ * agents under the tenant lock they already hold and need a `count + N` rule: separate follow-up ticket, NOT covered here.
  * Keys are the EFFECTIVE plan name `getEffectivePlan` returns (it normalises legacy names: PRO -> TEAM, CREATOR ->
  * INDIVIDUAL). Add `PLAN: n` entries (n >= 0) only on the founder's word. Companies keep their own `maxAgentsPerCompany`
  * rules elsewhere; this is the total across the tenant's companies.
@@ -38,6 +41,7 @@ export async function assertAgentCapacity(
   const plan = await getEffectivePlan(tenantId, tenants[0].plan, { client: tx });
   const limit = quota[plan];
   if (limit === undefined) return; // no founder number for this plan: unlimited
+  if (!Number.isSafeInteger(limit) || limit < 0) throw new Error(`invalid agent quota for plan ${plan}`); // misconfiguration must not read as unlimited or as -1
   const count = await tx.agent.count({ where: { company: { tenantId } } });
   if (count >= limit) {
     throw new AppError(
@@ -63,4 +67,14 @@ export async function createAgentGuarded<T>(tenantId: string, create: (db: Agent
     await assertAgentCapacity(tx, tenantId);
     return create(tx);
   });
+}
+
+/**
+ * Cheap pre-check for endpoints that spend money BEFORE the insert (compose calls an LLM first): a tenant already at
+ * its limit is refused before any token is spent. Flag OFF: does nothing. The authoritative check still runs inside
+ * `createAgentGuarded` (a concurrent create may win the last slot between the two).
+ */
+export async function precheckAgentCapacity(tenantId: string): Promise<void> {
+  if (!env.AGENT_QUOTA_ENABLED) return;
+  await tenantTx((tx) => assertAgentCapacity(tx, tenantId));
 }

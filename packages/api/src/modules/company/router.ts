@@ -19,7 +19,7 @@ import { updateAgentWithHistory } from "./agent-update";
 import { composeAgent } from "../agent/composer";
 import { sanitizeComposedDraft } from "../agent/compose-draft";
 import { assertCompanyCapacity } from "./company-capacity";
-import { createAgentGuarded } from "./agent-capacity";
+import { createAgentGuarded, precheckAgentCapacity } from "./agent-capacity";
 import { seedCreatorAsOwner } from "./owner-seed";
 import { companyMembersRouter } from "./members";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
@@ -739,6 +739,7 @@ companyRouter.post("/:id/agents/compose/draft", agentComposeLimiter, async (req,
     const companyId = req.params.id as string;
     await findOwnCompany(req, companyId);
     const { description } = agentComposeSchema.parse(req.body);
+    await precheckAgentCapacity(req.auth!.tenantId); // BRA-UX-API-03k: no LLM spend for a tenant already at its agent limit
     const result = await runComposer(req.auth!.tenantId, description);
     res.json({
       draft: result.agent,

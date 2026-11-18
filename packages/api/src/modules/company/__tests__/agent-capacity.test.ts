@@ -10,7 +10,7 @@ const h = vi.hoisted(() => ({
 vi.mock("../../../config/env", () => ({ env: h.env }));
 vi.mock("../../../lib/db", () => ({ prisma: { agent: { create: h.prismaCreate } }, tenantTx: h.tenantTx }));
 vi.mock("../../../lib/logger", () => ({ logger: { warn: vi.fn(), info: vi.fn() } }));
-import { AGENT_LIMIT_CODE, AGENT_QUOTA_BY_PLAN, assertAgentCapacity, createAgentGuarded } from "../agent-capacity";
+import { AGENT_LIMIT_CODE, AGENT_QUOTA_BY_PLAN, assertAgentCapacity, createAgentGuarded, precheckAgentCapacity } from "../agent-capacity";
 
 function transaction(plan: string | null, count: number) {
   const query = vi.fn().mockResolvedValue(plan === null ? [] : [{ plan }]);
@@ -105,5 +105,27 @@ describe("createAgentGuarded", () => {
     const create = vi.fn();
     await expect(createAgentGuarded("ghost", create)).rejects.toMatchObject({ statusCode: 401 });
     expect(create).not.toHaveBeenCalled();
+  });
+});
+
+describe("misconfigured numbers fail closed", () => {
+  it.each([-1, 1.5, Number.NaN, Infinity])("quota %s throws instead of reading as unlimited", async (bad) => {
+    const { tx } = transaction("INDIVIDUAL", 0);
+    await expect(assertAgentCapacity(tx, "tenant-1", { INDIVIDUAL: bad })).rejects.toThrow(/invalid agent quota/);
+  });
+});
+
+describe("precheckAgentCapacity (compose: refuse before spending LLM tokens)", () => {
+  it("flag OFF: no transaction at all", async () => {
+    await expect(precheckAgentCapacity("tenant-1")).resolves.toBeUndefined();
+    expect(h.tenantTx).not.toHaveBeenCalled();
+  });
+  it("flag ON: runs the capacity check in a tenantTx", async () => {
+    h.env.AGENT_QUOTA_ENABLED = true;
+    const { tx, query } = transaction("INDIVIDUAL", 3);
+    h.tenantTx.mockImplementation(async (fn: (t: Prisma.TransactionClient) => Promise<unknown>) => fn(tx));
+    await expect(precheckAgentCapacity("tenant-1")).resolves.toBeUndefined(); // empty shipped table: unlimited
+    expect(h.tenantTx).toHaveBeenCalledOnce();
+    expect(query).toHaveBeenCalledOnce();
   });
 });
