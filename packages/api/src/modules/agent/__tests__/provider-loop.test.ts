@@ -52,7 +52,7 @@ vi.mock("../../../lib/db", () => ({
     },
     tenant: { findUnique: (...a: unknown[]) => tenantFindUnique(...a) },
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
-    benchSuite: {findUnique: benchSuiteFindUnique}, benchRun: {create: benchRunCreate},
+    benchSuite: {findUnique: benchSuiteFindUnique}, benchRun: {create: benchRunCreate, findFirst: vi.fn().mockResolvedValue(null)},
   },
 }));
 

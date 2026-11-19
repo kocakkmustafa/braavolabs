@@ -147,7 +147,9 @@ async function recordNonCompletedRun(
   try {
     const suite = await prisma.benchSuite.findUnique({ where: { slug: opts.suiteSlug } });
     if (!suite) return;
-    try {
+    // A FAILED run that spent money keeps its row (spend trail); only
+    // costless outcomes are deduplicated.
+    if (costUsd <= 0) try {
       const dup = await prisma.benchRun.findFirst({
         where: {
           suiteId: suite.id,
