@@ -22,6 +22,7 @@ const h = vi.hoisted(() => ({
 
 function match(row: Row, where: Row): boolean {
   return Object.entries(where).every(([k, v]) => {
+    if (k === "run") return true; // tenant-scope relation filter (defense in depth) — fixture is single-tenant
     if (v && typeof v === "object" && "lt" in (v as Row)) return row[k] < (v as Row).lt;
     return row[k] === v;
   });

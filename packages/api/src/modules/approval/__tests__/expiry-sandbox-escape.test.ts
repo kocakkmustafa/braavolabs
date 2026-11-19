@@ -85,6 +85,14 @@ beforeEach(() => {
 });
 
 describe("expiry cron — SANDBOX_ESCAPE", () => {
+  it("revert after a failed re-enqueue runs under the approval's tenant", async () => {
+    approvalFindMany.mockResolvedValue([stale("SANDBOX_ESCAPE")]);
+    enqueueRunMock.mockRejectedValue(new Error("queue down"));
+    await runApprovalExpiry();
+    // claim, resume, revert, log
+    expect(txTenants).toEqual(["tenant-1", "tenant-1", "tenant-1", "tenant-1"]);
+  });
+
   it("BRA-ADAY-7: claim, escape-resume and log all run under the approval's tenant", async () => {
     approvalFindMany.mockResolvedValue([stale("SANDBOX_ESCAPE")]);
     await runApprovalExpiry();
