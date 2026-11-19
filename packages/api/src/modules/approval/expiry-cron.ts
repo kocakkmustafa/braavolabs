@@ -28,9 +28,10 @@
  * `updateMany({ where: { status: PENDING } })`.
  */
 
-import { prisma } from "../../lib/db";
+import type { Prisma } from "@prisma/client";
+import { prisma, tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
-import { runWithoutTenant } from "../../lib/tenant-context";
+import { runWithTenant, runWithoutTenant } from "../../lib/tenant-context";
 import { transitionRun } from "../run/transition";
 import { resumeAfterEscapeDenied } from "./escape-denied";
 import { enqueueRun } from "../pipeline/runner";
@@ -80,80 +81,119 @@ async function runApprovalExpiryImpl(): Promise<void> {
   let rejected = 0;
   for (const approval of stale) {
     const tenantId = approval.run.pipeline.company.tenantId;
-
-    // Atomic state transition — only the row that's still PENDING wins.
-    // If a human admin decided in the last few seconds, we lose this
-    // race cleanly and skip the run.update.
-    const claim = await prisma.approval.updateMany({
-      where: { id: approval.id, status: "PENDING" },
-      data: {
-        status: "REJECTED",
-        decidedBy: "system:expiry",
-        decidedAt: new Date(),
-      },
-    });
-
-    if (claim.count !== 1) {
-      continue;
+    // BRA-ADAY-7: the sweep above is system-scoped (it spans tenants), but every
+    // per-approval write is tenant-scoped work — run it under the approval's own
+    // tenant so each unit is RLS-bound and multi-statement units are atomic
+    // (tenantTx), instead of autocommit statements with no tenant binding.
+    try {
+      const done = await runWithTenant(tenantId, () => expireOne(approval, tenantId));
+      if (done) rejected += 1;
+    } catch (err) {
+      // One approval failing must not kill the tick or the summary log.
+      logger.error({ approvalId: approval.id, runId: approval.runId, err: err instanceof Error ? err.message : String(err) }, "Approval expiry: expiring approval failed");
     }
-
-    // HANDOFF exception (B6.1): the approval is REJECTED but the run is LEFT
-    // ALONE (stays FAILED) and the ledger is LEFT OPEN — the operator can still
-    // claim the handoff from web/CLI. Only NON-handoff approvals cancel the run.
-    // BRA-P0-02c-3: the cancel goes through transitionRun (CAS on status). A
-    // finished run (illegal edge, dual write on) or a lost race is left as is —
-    // the approval is already REJECTED — and reported in the activity row.
-    let runCancelled = false;
-    if (approval.type === "SANDBOX_ESCAPE") {
-      // KARAR-A3 (BRA-P2-02c): an expired escape request = escape denied. The run is NOT
-      // cancelled; same logic as a human reject: tell the agent (once per approval) and
-      // resume ONLY a run that is really WAITING_APPROVAL with no other open gate.
-      try {
-        const r = await resumeAfterEscapeDenied(prisma, approval.id, approval.runId, tenantId, "system:expiry", approval.metadata);
-        if (r.enqueue) {
-          try {
-            await enqueueRun(approval.runId);
-          } catch (err) {
-            const reverted = await revertRunAfterEnqueueFailure(prisma, approval.runId, tenantId, r.from).catch(() => false);
-            logger.error({ approvalId: approval.id, runId: approval.runId, reverted, err: err instanceof Error ? err.message : String(err) }, "Approval expiry: re-enqueue after escape denial failed — run put back");
-          }
-        }
-      } catch (err) {
-        logger.warn({ approvalId: approval.id, runId: approval.runId, err: err instanceof Error ? err.message : String(err) }, "Approval expiry: escape-denied resume failed (approval already REJECTED)");
-      }
-    } else if (approval.type !== "HANDOFF") {
-      const o = await transitionRun(prisma, approval.runId, "CANCELLED", {
-        tenantId,
-        extra: { completedAt: new Date() },
-        legacyUnchecked: true,
-      });
-      runCancelled = o.ok;
-      if (!o.ok) {
-        logger.warn({ approvalId: approval.id, runId: approval.runId, reason: o.reason }, "Approval expiry: run not cancelled");
-      }
-    }
-
-    await prisma.activityLog.create({
-      data: {
-        tenantId,
-        actor: "system",
-        action: "approval.expired",
-        resource: "approval",
-        resourceId: approval.id,
-        details: {
-          runId: approval.runId,
-          ttlHours: 24,
-          type: approval.type,
-          // Make the "run untouched, ledger stays OPEN" decision auditable.
-          runCancelled,
-        },
-      },
-    });
-
-    rejected += 1;
   }
 
   logger.info({ scanned: stale.length, rejected }, "Approval expiry cron tick");
+}
+
+type StaleApproval = {
+  id: string;
+  runId: string;
+  type: string;
+  metadata: unknown;
+};
+
+function logExpired(tx: Prisma.TransactionClient, approval: StaleApproval, tenantId: string, runCancelled: boolean) {
+  return tx.activityLog.create({
+    data: {
+      tenantId,
+      actor: "system",
+      action: "approval.expired",
+      resource: "approval",
+      resourceId: approval.id,
+      details: {
+        runId: approval.runId,
+        ttlHours: 24,
+        type: approval.type,
+        // Make the "run untouched, ledger stays OPEN" decision auditable.
+        runCancelled,
+      },
+    },
+  });
+}
+
+/** Expire one approval under its tenant's context. Returns whether this tick won the claim. */
+async function expireOne(approval: StaleApproval, tenantId: string): Promise<boolean> {
+  const claimOnce = (tx: Prisma.TransactionClient) =>
+    // Atomic state transition — only the row that's still PENDING wins.
+    // If a human admin decided in the last few seconds, we lose this
+    // race cleanly and skip the run.update. The tenant filter is defense in depth.
+    tx.approval.updateMany({
+      where: { id: approval.id, status: "PENDING", run: { pipeline: { company: { tenantId } } } },
+      data: { status: "REJECTED", decidedBy: "system:expiry", decidedAt: new Date() },
+    });
+
+  if (approval.type !== "SANDBOX_ESCAPE") {
+    // Cancel path (and HANDOFF): claim + run cancel + activity log in ONE tenantTx, so a
+    // failure after the claim rolls the claim back instead of stranding the run in
+    // WAITING_APPROVAL with a REJECTED approval.
+    return tenantTx(async (tx) => {
+      const claim = await claimOnce(tx);
+      if (claim.count !== 1) return false;
+      let runCancelled = false;
+      // HANDOFF exception (B6.1): approval REJECTED, run LEFT ALONE, ledger stays OPEN.
+      // BRA-P0-02c-3: the cancel goes through transitionRun (CAS on status); a finished run
+      // or lost race is left as is and reported in the activity row.
+      if (approval.type !== "HANDOFF") {
+        const o = await transitionRun(tx, approval.runId, "CANCELLED", {
+          tenantId,
+          extra: { completedAt: new Date() },
+          legacyUnchecked: true,
+        });
+        runCancelled = o.ok;
+        if (!o.ok) {
+          logger.warn({ approvalId: approval.id, runId: approval.runId, reason: o.reason }, "Approval expiry: run not cancelled");
+        }
+      }
+      await logExpired(tx, approval, tenantId, runCancelled);
+      return true;
+    });
+  }
+
+  const claim = await tenantTx((tx) => claimOnce(tx));
+  if (claim.count !== 1) {
+    return false;
+  }
+
+  if (approval.type === "SANDBOX_ESCAPE") {
+    // KARAR-A3 (BRA-P2-02c): an expired escape request = escape denied. The run is NOT
+    // cancelled; same logic as a human reject: tell the agent (once per approval) and
+    // resume ONLY a run that is really WAITING_APPROVAL with no other open gate.
+    try {
+      // One tenantTx: the FOR UPDATE inside resumeAfterEscapeDenied now holds its lock
+      // for the whole unit (autocommit used to release it immediately).
+      const r = await tenantTx((tx) =>
+        resumeAfterEscapeDenied(tx, approval.id, approval.runId, tenantId, "system:expiry", approval.metadata),
+      );
+      if (r.enqueue) {
+        try {
+          await enqueueRun(approval.runId);
+        } catch (err) {
+          const reverted = await tenantTx((tx) =>
+            revertRunAfterEnqueueFailure(tx, approval.runId, tenantId, r.from),
+          ).catch(() => false);
+          logger.error({ approvalId: approval.id, runId: approval.runId, reverted, err: err instanceof Error ? err.message : String(err) }, "Approval expiry: re-enqueue after escape denial failed — run put back");
+        }
+      }
+    } catch (err) {
+      logger.warn({ approvalId: approval.id, runId: approval.runId, err: err instanceof Error ? err.message : String(err) }, "Approval expiry: escape-denied resume failed (approval already REJECTED)");
+    }
+  }
+
+  await tenantTx((tx) => logExpired(tx, approval, tenantId, false));
+
+  return true;
 }
 
 let expiryTimer: NodeJS.Timeout | null = null;
