@@ -15,7 +15,7 @@ machine-bound encrypted bundles for offline / air-gapped use.
 - **Monorepo**: pnpm workspaces + Turbo
 - **API**: Node.js + TypeScript + Express + Prisma 5
 - **UI**: Next.js 15 (App Router) + Tailwind CSS + Material Symbols
-- **DB**: Postgres 16 + pgvector (HNSW)
+- **DB**: Postgres 16 + pgvector (HNSW). The HNSW index `memory_embeddings_embedding_hnsw_idx` exists only in migration `20260423_pgvector_hnsw_index`, not in `schema.prisma` (Prisma cannot model it), so `prisma migrate diff` always proposes `DROP INDEX` for it: delete that line from any generated migration. (That migration's header claiming "no drift" is stale; do not edit it, the checksum is applied.)
 - **Cache / queue**: Redis 7 + BullMQ
 - **LLM**: 14-provider BYOK router (Anthropic, OpenAI, Google,
   Mistral, Groq, OpenRouter, DeepSeek, Kimi, Qwen, Cerebras, Zhipu GLM,
