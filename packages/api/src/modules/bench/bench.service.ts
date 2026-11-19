@@ -125,9 +125,17 @@ export function resolveBenchProviderConfig(
   return { provider, model, apiKey: apiKey ?? "", ...(baseUrl ? { baseUrl } : {}) };
 }
 
+/** BRA-ADAY-3: an identical non-completed outcome (same suite, provider,
+ * model, status, errorCode) inside this window is audited once — a cron or
+ * worker retrying a keyless / failing combination must not append a row per
+ * tick. Uses the existing (provider, model, ranAt) index; no migration. */
+export const BENCH_NONCOMPLETED_DEDUP_WINDOW_MS = 60 * 60 * 1000;
+
 /** Best-effort audit row for a SKIPPED/FAILED combination. Never throws and
  * never stores the raw error — only a constant code. No row when the suite
- * itself is unknown (nothing to attach it to). */
+ * itself is unknown (nothing to attach it to). Repeats of the same outcome
+ * within BENCH_NONCOMPLETED_DEDUP_WINDOW_MS are not re-persisted (the
+ * dedup lookup fails open: a lookup error still writes the row). */
 async function recordNonCompletedRun(
   opts: RunBenchOptions,
   model: string,
@@ -139,6 +147,28 @@ async function recordNonCompletedRun(
   try {
     const suite = await prisma.benchSuite.findUnique({ where: { slug: opts.suiteSlug } });
     if (!suite) return;
+    try {
+      const dup = await prisma.benchRun.findFirst({
+        where: {
+          suiteId: suite.id,
+          provider: opts.provider,
+          model,
+          status,
+          errorCode,
+          ranAt: { gte: new Date(Date.now() - BENCH_NONCOMPLETED_DEDUP_WINDOW_MS) },
+        },
+        select: { id: true },
+      });
+      if (dup) {
+        logger.debug(
+          { provider: opts.provider, model, suite: opts.suiteSlug, status, errorCode },
+          "Bench non-completed run deduplicated (same outcome within window)",
+        );
+        return;
+      }
+    } catch {
+      /* fail open: dedup is an optimisation, never a reason to lose the audit row */
+    }
     await prisma.benchRun.create({
       data: {
         suiteId: suite.id,

@@ -31,13 +31,17 @@ vi.mock("../../../lib/logger", () => ({
 
 const benchSuiteFindUnique = vi.hoisted(() => vi.fn());
 const benchRunCreate = vi.hoisted(() => vi.fn());
+const benchRunFindFirst = vi.hoisted(() => vi.fn());
 vi.mock("../../../lib/db", () => ({
   prisma: {
     benchSuite: {
       findUnique: (...a: unknown[]) => benchSuiteFindUnique(...a),
       upsert: vi.fn(),
     },
-    benchRun: { create: (...a: unknown[]) => benchRunCreate(...a) },
+    benchRun: {
+      create: (...a: unknown[]) => benchRunCreate(...a),
+      findFirst: (...a: unknown[]) => benchRunFindFirst(...a),
+    },
   },
 }));
 
@@ -46,7 +50,7 @@ vi.mock("../../agent/claude", () => ({
   runAgentLoop: (...a: unknown[]) => runAgentLoopMock(...a),
 }));
 
-import { runBenchSuite, resolveBenchProviderConfig } from "../bench.service";
+import { runBenchSuite, resolveBenchProviderConfig, BENCH_NONCOMPLETED_DEDUP_WINDOW_MS } from "../bench.service";
 
 // Env hygiene: every BENCH_* var this file touches is snapshotted and restored.
 const TOUCHED_ENV = [
@@ -94,6 +98,7 @@ beforeEach(() => {
   envMock.GROQ_API_KEY = undefined;
   benchSuiteFindUnique.mockResolvedValue(SUITE);
   benchRunCreate.mockResolvedValue({ id: "run-1" });
+  benchRunFindFirst.mockResolvedValue(null);
   // Default: candidate answer, then judge verdict — alternating per task.
   runAgentLoopMock.mockImplementation(async (cfg: { aiConfigOverride?: { provider: string } }) =>
     cfg.aiConfigOverride?.provider === "ANTHROPIC"
@@ -319,5 +324,43 @@ describe("runBenchSuite — FAILED audit row", () => {
       runBenchSuite({ suiteSlug: "nope", provider: "GROQ", model: "m" }),
     ).rejects.toThrow("not found");
     expect(benchRunCreate).not.toHaveBeenCalled();
+  });
+});
+
+// ── BRA-ADAY-3: repeated identical non-completed outcome is audited once ──
+
+describe("runBenchSuite — non-completed dedup", () => {
+  it("does not write a second SKIPPED row when the same outcome exists within the window", async () => {
+    benchRunFindFirst.mockResolvedValue({ id: "existing" });
+    const result = await runBenchSuite({ suiteSlug: "agent-reasoning", provider: "GROQ", model: "m" });
+    expect(result).toMatchObject({ skipped: true });
+    expect(benchRunFindFirst).toHaveBeenCalledExactlyOnceWith({
+      where: expect.objectContaining({
+        suiteId: "suite-1", provider: "GROQ", model: "m", status: "SKIPPED",
+        errorCode: "NO_CANDIDATE_KEY", ranAt: { gte: expect.any(Date) },
+      }),
+      select: { id: true },
+    });
+    expect(benchRunCreate).not.toHaveBeenCalled();
+  });
+
+  it("does not write a second FAILED row but still rethrows the original error", async () => {
+    process.env.BENCH_GROQ_KEY = "gsk-bench";
+    runAgentLoopMock.mockRejectedValue(new Error("boom"));
+    benchRunFindFirst.mockResolvedValue({ id: "existing" });
+    await expect(
+      runBenchSuite({ suiteSlug: "agent-reasoning", provider: "GROQ", model: "m" }),
+    ).rejects.toThrow("boom");
+    expect(benchRunCreate).not.toHaveBeenCalled();
+  });
+
+  it("window is one hour", () => {
+    expect(BENCH_NONCOMPLETED_DEDUP_WINDOW_MS).toBe(3_600_000);
+  });
+
+  it("fails open: a dedup lookup error still writes the row", async () => {
+    benchRunFindFirst.mockRejectedValue(new Error("db down"));
+    await runBenchSuite({ suiteSlug: "agent-reasoning", provider: "GROQ", model: "m" });
+    expect(benchRunCreate).toHaveBeenCalledTimes(1);
   });
 });
