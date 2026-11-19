@@ -11,13 +11,14 @@ vi.mock("../../../lib/logger", () => ({
   logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+const txTenants = vi.hoisted(() => [] as Array<string | undefined>);
 const approvalFindMany = vi.hoisted(() => vi.fn());
 const approvalUpdateMany = vi.hoisted(() => vi.fn());
 const runUpdate = vi.hoisted(() => vi.fn());
 const activityLogCreate = vi.hoisted(() => vi.fn());
 
-vi.mock("../../../lib/db", () => ({
-  prisma: {
+vi.mock("../../../lib/db", () => {
+  const prisma = {
     approval: {
       findMany: (...a: unknown[]) => approvalFindMany(...a),
       updateMany: (...a: unknown[]) => approvalUpdateMany(...a),
@@ -28,8 +29,17 @@ vi.mock("../../../lib/db", () => ({
       updateMany: async (a: { where: { id: string }; data: unknown }) => { runUpdate({ where: { id: a.where.id }, data: a.data }); return { count: 1 }; },
     },
     activityLog: { create: (...a: unknown[]) => activityLogCreate(...a) },
-  },
-}));
+  };
+  return {
+    prisma,
+    // Mirrors the real tenantTx contract the cron relies on: a tenant context must be bound.
+    tenantTx: async (fn: (tx: typeof prisma) => unknown) => {
+      const { currentTenantId } = await import("../../../lib/tenant-context");
+      txTenants.push(currentTenantId());
+      return fn(prisma);
+    },
+  };
+});
 
 import { runApprovalExpiry } from "../expiry-cron";
 
@@ -44,6 +54,7 @@ function staleApproval(id: string, type: string) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  txTenants.length = 0;
   approvalUpdateMany.mockResolvedValue({ count: 1 }); // wins the race
   runUpdate.mockResolvedValue({});
   activityLogCreate.mockResolvedValue({});
@@ -65,6 +76,18 @@ describe("expiry cron — HANDOFF branch (B6.1)", () => {
       type: "HANDOFF",
       runCancelled: false,
     });
+  });
+
+  it("BRA-ADAY-7: every per-approval write runs under that approval's tenant (claim, cancel, log)", async () => {
+    approvalFindMany.mockResolvedValue([
+      { ...staleApproval("a5", "SPEND"), run: { pipeline: { company: { tenantId: "tenant-A" } } } },
+      { ...staleApproval("a6", "HANDOFF"), run: { pipeline: { company: { tenantId: "tenant-B" } } } },
+    ]);
+
+    await runApprovalExpiry();
+
+    // tenant-A: claim + cancel + log = 3 units; tenant-B (handoff): claim + log = 2. Never unbound.
+    expect(txTenants).toEqual(["tenant-A", "tenant-A", "tenant-A", "tenant-B", "tenant-B"]);
   });
 
   it("a stale SPEND approval STILL cancels its run (generic branch unchanged)", async () => {

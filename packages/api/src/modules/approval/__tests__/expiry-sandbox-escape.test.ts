@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../../../lib/logger", () => ({ logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 
+const txTenants = vi.hoisted(() => [] as Array<string | undefined>);
 const approvalFindMany = vi.hoisted(() => vi.fn());
 const approvalUpdateMany = vi.hoisted(() => vi.fn());
 const runWrites = vi.hoisted(() => vi.fn());
@@ -21,8 +22,8 @@ const st = vi.hoisted(() => ({
   steering: [] as Array<{ content: string; consumedAt: Date | null }>,
 }));
 
-vi.mock("../../../lib/db", () => ({
-  prisma: {
+vi.mock("../../../lib/db", () => {
+  const prisma = {
     approval: {
       findMany: (...a: unknown[]) => approvalFindMany(...a),
       updateMany: (...a: unknown[]) => approvalUpdateMany(...a),
@@ -48,8 +49,17 @@ vi.mock("../../../lib/db", () => ({
         return {};
       },
     },
-  },
-}));
+  };
+  return {
+    prisma,
+    // Mirrors the real tenantTx contract the cron relies on: a tenant context must be bound.
+    tenantTx: async (fn: (tx: typeof prisma) => unknown) => {
+      const { currentTenantId } = await import("../../../lib/tenant-context");
+      txTenants.push(currentTenantId());
+      return fn(prisma);
+    },
+  };
+});
 vi.mock("../../pipeline/runner", () => ({ enqueueRun: (...a: unknown[]) => enqueueRunMock(...a) }));
 
 import { runApprovalExpiry } from "../expiry-cron";
@@ -64,6 +74,7 @@ const statuses = () => runWrites.mock.calls.map((c) => c[0].status);
 
 beforeEach(() => {
   vi.clearAllMocks();
+  txTenants.length = 0;
   st.runStatus = "WAITING_APPROVAL";
   st.otherGate = false;
   st.steering = [];
@@ -74,6 +85,12 @@ beforeEach(() => {
 });
 
 describe("expiry cron — SANDBOX_ESCAPE", () => {
+  it("BRA-ADAY-7: claim, escape-resume and log all run under the approval's tenant", async () => {
+    approvalFindMany.mockResolvedValue([stale("SANDBOX_ESCAPE")]);
+    await runApprovalExpiry();
+    expect(txTenants).toEqual(["tenant-1", "tenant-1", "tenant-1"]);
+  });
+
   it("REJECTS, tells the agent, resumes WAITING_APPROVAL → RUNNING and enqueues; never CANCELLED", async () => {
     approvalFindMany.mockResolvedValue([stale("SANDBOX_ESCAPE")]);
     await runApprovalExpiry();

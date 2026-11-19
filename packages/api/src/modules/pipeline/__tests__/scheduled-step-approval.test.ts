@@ -27,8 +27,8 @@ function match(row: Row, where: Row): boolean {
   });
 }
 
-vi.mock("../../../lib/db", () => ({
-  prisma: {
+vi.mock("../../../lib/db", () => {
+  const prisma = {
     run: {
       findUnique: async ({ where }: any) => {
         const r = h.runs[where.id];
@@ -62,8 +62,9 @@ vi.mock("../../../lib/db", () => ({
       create: async ({ data }: any) => { const r = { id: `ap-${++h.seq}`, consumedAt: null, decidedAt: null, createdAt: new Date(), ...data }; h.approvals.push(r); return r; },
       deleteMany: async ({ where }: any) => { const n = h.approvals.length; h.approvals = h.approvals.filter((r) => !match(r, where)); return { count: n - h.approvals.length }; },
     },
-  },
-}));
+  };
+  return { prisma, tenantTx: async (fn: (tx: typeof prisma) => unknown) => fn(prisma) };
+});
 vi.mock("../../../lib/logger", () => ({ logger: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
 vi.mock("../../../lib/runEvents", () => ({ publishRunEvent: vi.fn() }));
 vi.mock("../../agent/claude", () => ({
@@ -84,7 +85,7 @@ vi.mock("../../run/transition", () => ({
     return { ok: true };
   },
 }));
-vi.mock("../../../lib/tenant-context", () => ({ runWithoutTenant: (_n: string, fn: () => unknown) => fn() }));
+vi.mock("../../../lib/tenant-context", () => ({ runWithoutTenant: (_n: string, fn: () => unknown) => fn(), runWithTenant: (_t: string, fn: () => unknown) => fn() }));
 vi.mock("../../../lib/telemetry", () => ({
   withSpan: async (_n: string, fn: any) => fn({ end: vi.fn(), setAttribute: vi.fn() }),
   toolCallCounter: { add: vi.fn() },
