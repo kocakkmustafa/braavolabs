@@ -192,6 +192,31 @@ describe("BRA-ADAY-9 batch rule: count + N", async () => {
     expect(query).not.toHaveBeenCalled();
   });
 
+  it("adding 0: early return, no lock and no count", async () => {
+    const { tx, query, agentCount } = transaction("INDIVIDUAL", 99);
+    await expect(assertAgentCapacity(tx, "t", { INDIVIDUAL: 1 }, 0)).resolves.toBeUndefined();
+    expect(query).not.toHaveBeenCalled();
+    expect(agentCount).not.toHaveBeenCalled();
+  });
+
+  it("flag ON + injected table: assertAgentBatchCapacity passes flag and table through and throws 402", async () => {
+    h.env.AGENT_QUOTA_ENABLED = true;
+    AGENT_QUOTA_BY_PLAN.INDIVIDUAL = 5;
+    try {
+      const over = transaction("INDIVIDUAL", 4);
+      await expect(assertAgentBatchCapacity(over.tx, "t", 2)).rejects.toMatchObject({
+        statusCode: 402,
+        code: AGENT_LIMIT_CODE,
+        details: { plan: "INDIVIDUAL", limit: 5, current: 4, adding: 2 },
+      });
+      const fits = transaction("INDIVIDUAL", 3);
+      await expect(assertAgentBatchCapacity(fits.tx, "t", 2)).resolves.toBeUndefined();
+      expect(fits.agentCount).toHaveBeenCalledOnce();
+    } finally {
+      delete AGENT_QUOTA_BY_PLAN.INDIVIDUAL;
+    }
+  });
+
   it("flag ON with the shipped empty table: allowed, nothing counted", async () => {
     h.env.AGENT_QUOTA_ENABLED = true;
     const { tx, agentCount } = transaction("INDIVIDUAL", 99);

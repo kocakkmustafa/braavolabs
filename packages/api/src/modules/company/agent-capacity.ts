@@ -34,6 +34,7 @@ export async function assertAgentCapacity(
   adding = 1,
 ): Promise<void> {
   if (!Number.isSafeInteger(adding) || adding < 0) throw new Error(`invalid agent count to add: ${adding}`);
+  if (adding === 0) return; // nothing to add: no lock, no count
   const tenants = await tx.$queryRaw<Array<{ plan: string }>>`
     SELECT plan FROM tenants WHERE id = ${tenantId} FOR UPDATE
   `;
