@@ -22,6 +22,7 @@ import {
 import { classifyProviderError } from "../../services/provider-chain";
 import { isKnownProvider } from "../settings/provider-models";
 import { assertCompanyCapacity } from "../company/company-capacity";
+import { assertAgentBatchCapacity } from "../company/agent-capacity";
 import { seedCreatorAsOwner } from "../company/owner-seed";
 
 export const onboardingRouter = Router();
@@ -95,6 +96,7 @@ onboardingRouter.post("/hero-company", async (req, res, next) => {
 
     const { company, contentAgent, analyticsAgent, pipeline } = await tenantTx(async (tx) => {
       await assertCompanyCapacity(tx, tenantId);
+      await assertAgentBatchCapacity(tx, tenantId, 2); // content + analytics agent below
       const company = await tx.company.create({
         data: {
           tenantId,
