@@ -400,7 +400,7 @@ Yeni bileşenler: `IntentBar`, `PlanCard`, `JobDrawer`, `ApprovalSheet`, `Densit
 
 ## 12. Geçiş planı
 
-1. **UX-04 prototip:** ayrı rota `/lab/ux` (bayrak: `NEXT_PUBLIC_UX_LAB`, varsayılan KAPALI), bugünkü ekranlara dokunmaz; 8 yolculuk gerçek API'yle (veri yoksa "henüz yok").
+1. **UX-04 prototip:** ayrı rota `/lab/ux` (bayrak: `NEXT_PUBLIC_UX_LAB`; BRA-KOD-02'de prototip ve bayrak kaldırıldı, Kaput/niyet mantığı `lib/ux-kaput`, `lib/ux-intent` altında yaşar), bugünkü ekranlara dokunmaz; 8 yolculuk gerçek API'yle (veri yoksa "henüz yok").
 2. **UX-05a–05j alt biletleri (taslak):**
 
 | Bilet | İçerik | Bağımlılık |

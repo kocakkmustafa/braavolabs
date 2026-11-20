@@ -13,7 +13,6 @@ const nonNeg = (v: unknown): number | null => {
   const n = toNumber(v);
   return n !== null && n >= 0 ? n : null;
 };
-const joined =(list: string[] | null | undefined): string | null => (list && list.length > 0 ? list.join(", ") : null);
 
 export interface KaputToolCall { id: string; toolName: string; status: string; durationMs: number | null; error: string | null }
 /** BRA-P1-01-N1 — adımı fiilen sunan model (`output.provider|model`) ve kip (`modelMode`, `modeDetail`). Alan yoksa null (uydurulmaz). */
