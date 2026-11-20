@@ -1989,3 +1989,137 @@ for (const [name, mutate] of [
   assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
   assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
 }));
+
+// v0.2.3 ten-migration package (live v0.2.1 ca36025 -> candidate 92473e8). Only
+// these exact ten files, against the pinned live release and the exact 65-file tree.
+const V023_CANDIDATE = "92473e8e7769292f57846ed5df62a90ed945cf1f";
+const V023_CANDIDATE_MIGRATIONS = 65;
+const V023_PREVIOUS = "ca360258931bec08da72c6f5beab39a2f1f57678";
+const V023_DIRS = [
+  "20261114000000_connector_scope_audience", "20261116000000_model_modes",
+  "20261116100000_bench_run_status", "20261116200000_company_members",
+  "20261116300000_run_owner_delivery", "20261116400000_company_owner_backfill",
+  "20261117100000_job_chat_messages", "20261118100000_sandbox_escape_approval",
+  "20261118200000_tenant_repositories", "20261118300000_skill_registry",
+];
+const V023_PATHS = V023_DIRS.map((dir) => `packages/db/prisma/migrations/${dir}/migration.sql`);
+function sealV023Delta(input, { previous = V023_PREVIOUS, candidate = RELEASE, api = API, ui = UI } = {}) {
+  writeFileSync(join(input, "migration-delta.meta"), [
+    `previousRelease=${previous}`, `candidateRelease=${candidate}`, `api=${api}`, `ui=${ui}`,
+    `discoverySha256=${sha256File(join(input, "migration-delta.name-status"))}`,
+    `deltaSha256=${sha256File(join(input, "migration-delta.sha256"))}`, "",
+  ].join("\n"));
+}
+function writeV023Delta(input, paths = V023_PATHS) {
+  writeFileSync(join(input, "migration-delta.name-status"), paths.map((path) => `A\t${path}\n`).join(""));
+  writeFileSync(join(input, "migration-delta.sha256"), paths.map((path) => `${sha256File(join(input, path))}  ${path}\n`).join(""));
+  sealV023Delta(input);
+}
+function buildV023Input(h) {
+  const input = join(h.root, "v023-input");
+  useReviewedMigrationSnapshot(h, V023_CANDIDATE, V023_CANDIDATE_MIGRATIONS);
+  mkdirSync(join(input, "packages/db/prisma"), { recursive: true });
+  cpSync(join(h.sourceRoot, "packages/db/prisma/migrations"),
+    join(input, "packages/db/prisma/migrations"), { recursive: true });
+  delete h.sourceRoot;
+  writeV023Delta(input);
+  return input;
+}
+function runV023Guard(h, input, { remote = false, previous = V023_PREVIOUS, ...overrides } = {}) {
+  const source = readFileSync(SCRIPT, "utf8");
+  const entrypoint = source.lastIndexOf('\nif test "${1:-}" = --remote;');
+  assert.ok(entrypoint > 0, "isolate definitions without invoking a deployment entrypoint");
+  const context = remote ? {
+    delta_previous_release: previous, release_commit: RELEASE, api_ref: API, ui_ref: UI,
+  } : { PREVIOUS_RELEASE_COMMIT: previous };
+  const result = spawnSync("bash", ["-c", `${source.slice(0, entrypoint)}\n` +
+    'migration_is_eligible "$V023_INPUT" "$V023_INPUT/migration-delta.sha256"'], {
+    cwd: ROOT, encoding: "utf8", timeout: 10_000,
+    env: remoteEnvironment(h, { ...context, V023_INPUT: input, RELEASE_COMMIT: RELEASE, API_IMAGE_REF: API, UI_IMAGE_REF: UI, ...overrides }),
+  });
+  assertNoExternalNetwork(h);
+  return result;
+}
+
+test("v0.2.3 SQL files are the reviewed bytes the deploy script pins", () => {
+  const script = readFileSync(SCRIPT, "utf8");
+  for (const path of V023_PATHS) {
+    assert.ok(script.includes(`'${sha256File(join(ROOT, path))}'`), path);
+    assert.ok(script.includes(`'${path}'`), path);
+  }
+  assert.ok(script.includes(`'${V023_PREVIOUS}'`));
+});
+for (const remote of [false, true]) {
+  test(`v0.2.3 exact reviewed package passes ${remote ? "remote" : "local"} admission`, () =>
+    withHarness((h) => {
+      const result = runV023Guard(h, buildV023Input(h), { remote });
+      assert.equal(result.status, 0, result.stderr);
+    }));
+}
+test("v0.2.3 rejects a different live release", () => withHarness((h) => {
+  const input = buildV023Input(h);
+  const other = "9".repeat(40);
+  sealV023Delta(input, { previous: other });
+  assert.equal(runV023Guard(h, input, { previous: other }).status, 1);
+  assert.equal(runV023Guard(h, input, { previous: other, remote: true }).status, 1);
+}));
+test("v0.2.3 rejects a malformed previous release", () => withHarness((h) => {
+  const input = buildV023Input(h);
+  sealV023Delta(input, { previous: "xyz" });
+  assert.equal(runV023Guard(h, input, { previous: "xyz" }).status, 1);
+}));
+for (const [name, mutate] of [
+  ["candidate tuple mismatch", (input) => sealV023Delta(input, { candidate: "2".repeat(40) })],
+  ["api digest mismatch", (input) => sealV023Delta(input, { api: UI })],
+  ["ui digest mismatch", (input) => sealV023Delta(input, { ui: API })],
+  ["single appended byte in a reviewed SQL", (input) => writeFileSync(join(input, V023_PATHS[4]),
+    readFileSync(join(input, V023_PATHS[4]), "utf8") + "\n")],
+  ["single appended byte in the connector SQL", (input) => writeFileSync(join(input, V023_PATHS[0]),
+    readFileSync(join(input, V023_PATHS[0]), "utf8") + "\n")],
+  ["resealed replacement SQL", (input) => {
+    writeFileSync(join(input, V023_PATHS[5]), "DELETE FROM company_members;\n");
+    writeV023Delta(input);
+  }],
+  ["additional unmanifested SQL", (input) => {
+    mkdirSync(join(input, "packages/db/prisma/migrations/20991231000000_extra"));
+    writeFileSync(join(input, "packages/db/prisma/migrations/20991231000000_extra/migration.sql"),
+      "ALTER TABLE tenants ADD COLUMN extra TEXT;\n");
+  }],
+  ["additional manifested SQL", (input) => {
+    const extra = "packages/db/prisma/migrations/20991231000000_extra/migration.sql";
+    mkdirSync(dirname(join(input, extra)));
+    writeFileSync(join(input, extra), "ALTER TABLE tenants ADD COLUMN extra TEXT;\n");
+    writeV023Delta(input, [...V023_PATHS, extra]);
+  }],
+  ["missing file in the delta (nine of ten)", (input) => writeV023Delta(input, V023_PATHS.slice(0, 9))],
+  ["missing file in the delta (without connector)", (input) => writeV023Delta(input, V023_PATHS.slice(1))],
+  ["missing reviewed SQL on disk", (input) => rmSync(join(input, V023_PATHS[7]))],
+  ["swapped manifest order", (input) => {
+    const [a, b, ...rest] = V023_PATHS; writeV023Delta(input, [b, a, ...rest]);
+  }],
+  ["swapped discovery order", (input) => {
+    const [a, b, ...rest] = V023_PATHS;
+    writeFileSync(join(input, "migration-delta.name-status"), [b, a, ...rest].map((p) => `A\t${p}\n`).join(""));
+    sealV023Delta(input);
+  }],
+  ["modified discovery status", (input) => {
+    writeFileSync(join(input, "migration-delta.name-status"), V023_PATHS.map((p) => `M\t${p}\n`).join(""));
+    sealV023Delta(input);
+  }],
+  ["mixed with job-ux reviewed pair", (input) => writeV023Delta(input, [...JOBUX_PATHS, ...V023_PATHS])],
+  ["mixed with F02 reviewed package", (input) => writeV023Delta(input, [...F02_PATHS, ...V023_PATHS])],
+  ["historical SQL drift", (input) => writeFileSync(join(input, REVIEWED_ENUM_MIGRATION),
+    readFileSync(join(input, REVIEWED_ENUM_MIGRATION), "utf8") + "\n")],
+  ["SQL symlink", (input) => {
+    rmSync(join(input, V023_PATHS[3])); symlinkSync(join(ROOT, V023_PATHS[3]), join(input, V023_PATHS[3]));
+  }],
+  ["stale metadata seal", (input) => {
+    const file = join(input, "migration-delta.meta"); writeFileSync(file, readFileSync(file, "utf8").replace("deltaSha256=", "deltaSha256=0"));
+  }],
+]) test(`v0.2.3 denies ${name} without generic policy fallback`, () => withHarness((h) => {
+  const input = buildV023Input(h); mutate(input);
+  const result = runV023Guard(h, input);
+  assert.equal(result.status, 1, result.stderr);
+  assert.equal(readFileSync(join(h.state, "migrate-count"), "utf8"), "0");
+  assert.equal(readFileSync(join(h.state, "cutover-count"), "utf8"), "0");
+}));
