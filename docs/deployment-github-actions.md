@@ -165,8 +165,10 @@ After the second CI gate and production authorization:
    any of the nine non-connector paths appearing in a delta routes only here.
    Operational cautions from the review: `run_owner_delivery` builds a plain
    index under an `ACCESS EXCLUSIVE` lock on `runs` (measure row count, low-traffic
-   window), `company_owner_backfill` is the only data write, and the `ApprovalType`
-   enum value is irreversible. Take a verified backup first. Any change needs a new review.
+   window), `company_owner_backfill` is the only data write (a tenant without an
+   OWNER/ADMIN leaves its company ownerless), and the `ApprovalType` enum value is
+   irreversible. Take a verified backup first. Founder approval, in his own words
+   (2026-11-20, vault decision note): "10 geçiş onay, v0.2.3". Any change needs a new review.
 3. The script recreates API/UI from the digest override without rebuilding on
    the host, ensures the backup service is running, and verifies health and
    running-image identity.
