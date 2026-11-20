@@ -4,7 +4,7 @@ Kaynak: `04-design.md` §5.1–5.2, §11–12 ve `DECISIONS.md` ADR-0004. Protot
 Kapsam: `/start` ekranında bayrak arkasında Niyet Çubuğu + plan kartı + ajan isteği. **Yeni API ucu, migration, sözleşme değişikliği yok.**
 
 ## Açma / kapama
-- Bayrak: `NEXT_PUBLIC_UX_INTENT=1|true`, varsayılan **KAPALI**; UX-04 prototip bayrağından (`NEXT_PUBLIC_UX_LAB`) bağımsızdır.
+- Bayrak: `NEXT_PUBLIC_UX_INTENT=1|true`, varsayılan **KAPALI**; eski UX-04 prototip bayrağı (`NEXT_PUBLIC_UX_LAB`) BRA-KOD-02'de kaldırıldı; bu bayrak ondan bağımsızdı.
 - Sunucuda **istek anında** okunur (`lib/ux-intent/flag.ts`; `app/start/page.tsx` `force-dynamic`). Derleme anında gömülmez: aynı derleme iki kipte sunulabilir. Geri alma = bayrağı kapat.
 - Kapalıyken `/start` **eski ekrandır** (`components/start/StartLegacy.tsx` = önceki `app/start/page.tsx`; içerik değişmedi, yalnız yer/ad).
 - Eşitlik kanıtı: `e2e/golden/start-legacy.json`, UX-05a öncesi derlemeden (main `04d9dc0`) alınmış normalize `<main>` HTML'idir (boşta + plan kartı); `e2e/ux-intent.spec.ts` kapalı sunucuyu bununla birebir karşılaştırır. Altını yenilemek (`UX_INTENT_UPDATE_GOLDEN=1`) yalnız eski ekranı bilerek değiştiren bilet işidir.

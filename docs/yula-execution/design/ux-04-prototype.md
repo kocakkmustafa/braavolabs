@@ -1,5 +1,7 @@
 # BRA-UX-04 — etkileşimli prototip (`/lab/ux`)
 
+> **Durum (BRA-KOD-02): prototip KALDIRILDI.** `/lab/ux` rotası, `NEXT_PUBLIC_UX_LAB` bayrağı, `components/ux-lab/*` ve `e2e/ux-lab.spec.ts` silindi. Canlı yolların kullandığı mantık `lib/ux-kaput/facts.ts` ve `lib/ux-intent/intent.ts`'e taşındı. Aşağıdaki metin tarihsel tasarım kaydıdır; açma/kapama ve çalıştırma komutları artık geçerli değildir.
+
 Kaynak: `04-design.md` §5, §12.1, §13 (T1–T10) ve `DECISIONS.md` ADR-0004 (İşler omurga + Niyet Çubuğu + kip morfu).
 Kapsam: ayrı rota arkasında prototip; **mevcut ekranlara, API sözleşmelerine, migration'a dokunmaz**. Yeni API ucu yok.
 
