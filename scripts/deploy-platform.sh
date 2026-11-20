@@ -53,6 +53,36 @@ readonly REVIEWED_JOBUX_MIGRATION_TREE_SHA256='7120cc9cf47909a344e945592f5bf4618
 readonly REVIEWED_CONNECTOR_PATH='packages/db/prisma/migrations/20261114000000_connector_scope_audience/migration.sql'
 readonly REVIEWED_CONNECTOR_SHA256='4297ebc1909c051217b90f62ebe501be57aae253115638fc47c79ea1c76215f4'
 readonly REVIEWED_CONNECTOR_MIGRATION_TREE_SHA256='b875ef099ceb6b2eb2e5c1b247b6a9ca044a21614c723161f4efb5b3a6b877e7'
+# v0.2.3 package: the ten migrations between the live v0.2.1 (ca36025) and the
+# candidate (92473e8): connector scope + model modes + bench status + company
+# members/owner backfill + run owner/delivery + job chat + sandbox-escape
+# approval + tenant repositories + skill registry. Additive except the data
+# backfill and the irreversible ApprovalType enum value; founder-approved
+# 2026-11-20 (review: MIGRATION-INCELEME 2026-11-18). Admitted only as exactly
+# these ten files (A, path-sorted, pinned sha256) against the pinned live release
+# and the exact reviewed 65-file candidate migration tree. Any change needs a new review.
+readonly REVIEWED_V023_PREVIOUS_RELEASE='ca360258931bec08da72c6f5beab39a2f1f57678'
+readonly REVIEWED_V023_CONNECTOR_PATH='packages/db/prisma/migrations/20261114000000_connector_scope_audience/migration.sql'
+readonly REVIEWED_V023_CONNECTOR_SHA256='4297ebc1909c051217b90f62ebe501be57aae253115638fc47c79ea1c76215f4'
+readonly REVIEWED_V023_MODEL_MODES_PATH='packages/db/prisma/migrations/20261116000000_model_modes/migration.sql'
+readonly REVIEWED_V023_MODEL_MODES_SHA256='ba53e0c09511e7fc4566c0442e34d90d49d1ea615ce29c3ba038a248fcb0d839'
+readonly REVIEWED_V023_BENCH_STATUS_PATH='packages/db/prisma/migrations/20261116100000_bench_run_status/migration.sql'
+readonly REVIEWED_V023_BENCH_STATUS_SHA256='c01f54613985db4ca84218ab5db00a14bae3cb73e93f157f05bee24ac61899a7'
+readonly REVIEWED_V023_COMPANY_MEMBERS_PATH='packages/db/prisma/migrations/20261116200000_company_members/migration.sql'
+readonly REVIEWED_V023_COMPANY_MEMBERS_SHA256='0fe9f81de76a8b5ece0e419ae86624f7425ea1bec88a243ba32bd6b8e41d8451'
+readonly REVIEWED_V023_RUN_OWNER_PATH='packages/db/prisma/migrations/20261116300000_run_owner_delivery/migration.sql'
+readonly REVIEWED_V023_RUN_OWNER_SHA256='402c3837f4ed3d6bd7b55acec3770ce59e50c75bb3ab9244cdee7bf5a3aaa5a4'
+readonly REVIEWED_V023_OWNER_BACKFILL_PATH='packages/db/prisma/migrations/20261116400000_company_owner_backfill/migration.sql'
+readonly REVIEWED_V023_OWNER_BACKFILL_SHA256='63c757d2d14bb50983677ffb101eda5e24142c11ad49b74a73cac637b748d6db'
+readonly REVIEWED_V023_JOB_CHAT_PATH='packages/db/prisma/migrations/20261117100000_job_chat_messages/migration.sql'
+readonly REVIEWED_V023_JOB_CHAT_SHA256='224cf0fad75a28b9e98973ec2e511aea221f25eaefb5285955f4ea23f711990d'
+readonly REVIEWED_V023_SANDBOX_ESCAPE_PATH='packages/db/prisma/migrations/20261118100000_sandbox_escape_approval/migration.sql'
+readonly REVIEWED_V023_SANDBOX_ESCAPE_SHA256='562c582718115f37fc74ee4d1582b8c5d492287f4238df0cd723ff4b56650554'
+readonly REVIEWED_V023_TENANT_REPOS_PATH='packages/db/prisma/migrations/20261118200000_tenant_repositories/migration.sql'
+readonly REVIEWED_V023_TENANT_REPOS_SHA256='4145fa65e39c02954a9e88d463cbfa8e35a3311c1751ac76440806cc563afd12'
+readonly REVIEWED_V023_SKILL_REGISTRY_PATH='packages/db/prisma/migrations/20261118300000_skill_registry/migration.sql'
+readonly REVIEWED_V023_SKILL_REGISTRY_SHA256='f7d435c27d89a1bd41da8b889ca2305e58a01fb1ca8c15bf0ff06cab67f94cf2'
+readonly REVIEWED_V023_MIGRATION_TREE_SHA256='a5f250afa342bf153deeaf965010a8d410b52ee6910a631d7d7ba3a591dadf21'
 
 die() { local code="$1"; shift; printf 'deploy-platform: %s\n' "$*" >&2; exit "$code"; }
 require_value() { test -n "${!1:-}" || die "$EXIT_INPUT" "missing required input: $1"; }
@@ -494,6 +524,72 @@ reviewed_connector_delta() {
   test "$tree_hash" = "$REVIEWED_CONNECTOR_MIGRATION_TREE_SHA256"
 }
 
+reviewed_v023_delta() {
+  local staged="$1" delta_manifest="$2" path tree_hash expected_manifest expected_discovery
+  local discovery="$staged/migration-delta.name-status" meta="$staged/migration-delta.meta"
+  local reviewed_previous="${delta_previous_release:-${PREVIOUS_RELEASE_COMMIT:-}}"
+  local reviewed_candidate="${release_commit:-${RELEASE_COMMIT:-}}"
+  local reviewed_api="${api_ref:-${API_IMAGE_REF:-}}" reviewed_ui="${ui_ref:-${UI_IMAGE_REF:-}}"
+  local -a v023_paths=(
+    "$REVIEWED_V023_CONNECTOR_PATH"
+    "$REVIEWED_V023_MODEL_MODES_PATH"
+    "$REVIEWED_V023_BENCH_STATUS_PATH"
+    "$REVIEWED_V023_COMPANY_MEMBERS_PATH"
+    "$REVIEWED_V023_RUN_OWNER_PATH"
+    "$REVIEWED_V023_OWNER_BACKFILL_PATH"
+    "$REVIEWED_V023_JOB_CHAT_PATH"
+    "$REVIEWED_V023_SANDBOX_ESCAPE_PATH"
+    "$REVIEWED_V023_TENANT_REPOS_PATH"
+    "$REVIEWED_V023_SKILL_REGISTRY_PATH"
+  )
+  local -a v023_hashes=(
+    "$REVIEWED_V023_CONNECTOR_SHA256"
+    "$REVIEWED_V023_MODEL_MODES_SHA256"
+    "$REVIEWED_V023_BENCH_STATUS_SHA256"
+    "$REVIEWED_V023_COMPANY_MEMBERS_SHA256"
+    "$REVIEWED_V023_RUN_OWNER_SHA256"
+    "$REVIEWED_V023_OWNER_BACKFILL_SHA256"
+    "$REVIEWED_V023_JOB_CHAT_SHA256"
+    "$REVIEWED_V023_SANDBOX_ESCAPE_SHA256"
+    "$REVIEWED_V023_TENANT_REPOS_SHA256"
+    "$REVIEWED_V023_SKILL_REGISTRY_SHA256"
+  )
+  local index
+  test "$reviewed_previous" = "$REVIEWED_V023_PREVIOUS_RELEASE" || return 1
+  [[ "$reviewed_candidate" =~ ^[0-9a-f]{40}$ ]] || return 1
+  [[ "$reviewed_api" =~ ^ghcr[.]io/kocakkmustafa/braavolabs/api@sha256:[0-9a-f]{64}$ ]] || return 1
+  [[ "$reviewed_ui" =~ ^ghcr[.]io/kocakkmustafa/braavolabs/ui@sha256:[0-9a-f]{64}$ ]] || return 1
+  for path in "$delta_manifest" "$discovery" "$meta"; do
+    test -f "$path" && test ! -L "$path" || return 1
+  done
+  for path in "${v023_paths[@]}"; do
+    test -f "$staged/$path" && test ! -L "$staged/$path" || return 1
+  done
+  for path in packages packages/db packages/db/prisma packages/db/prisma/migrations; do
+    test -d "$staged/$path" && test ! -L "$staged/$path" || return 1
+  done
+  test -z "$(find "$staged/packages/db/prisma/migrations" -type l -print -quit)" || return 1
+  # Exactly the ten reviewed files, as Adds, in path-sorted order, byte for byte.
+  expected_manifest=""; expected_discovery=""
+  for index in "${!v023_paths[@]}"; do
+    expected_manifest+="${v023_hashes[$index]}  ${v023_paths[$index]}"$'\n'
+    expected_discovery+="A"$'\t'"${v023_paths[$index]}"$'\n'
+  done
+  cmp -s "$delta_manifest" <(printf '%s' "$expected_manifest") || return 1
+  cmp -s "$discovery" <(printf '%s' "$expected_discovery") || return 1
+  for index in "${!v023_paths[@]}"; do
+    test "$(sha256sum "$staged/${v023_paths[$index]}" | awk '{print $1}')" = "${v023_hashes[$index]}" || return 1
+  done
+  cmp -s "$meta" <(printf 'previousRelease=%s\ncandidateRelease=%s\napi=%s\nui=%s\ndiscoverySha256=%s\ndeltaSha256=%s\n' \
+    "$reviewed_previous" "$reviewed_candidate" "$reviewed_api" "$reviewed_ui" \
+    "$(sha256sum "$discovery" | awk '{print $1}')" \
+    "$(sha256sum "$delta_manifest" | awk '{print $1}')") || return 1
+  tree_hash="$(cd "$staged" &&
+    find packages/db/prisma/migrations -type f -name migration.sql -print0 |
+      LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | awk '{print $1}')" || return 1
+  test "$tree_hash" = "$REVIEWED_V023_MIGRATION_TREE_SHA256"
+}
+
 delta_discovery_matches_manifest() {
   local discovery="$1" manifest="$2" discovered manifested status
   discovered="$(mktemp)"; manifested="$(mktemp)"
@@ -518,6 +614,21 @@ migration_is_eligible() {
   test -f "$delta_manifest" || return 1
   if reviewed_subscription_plan_bundle "$staged" "$delta_manifest"; then
     return 0
+  fi
+  # The v0.2.3 ten-file package is admitted only as exactly itself; if any of its
+  # nine non-connector paths shows up, nothing else (reviewed or generic) may apply.
+  if grep -Fq -e "$REVIEWED_V023_MODEL_MODES_PATH" -e "$REVIEWED_V023_BENCH_STATUS_PATH" \
+       -e "$REVIEWED_V023_COMPANY_MEMBERS_PATH" -e "$REVIEWED_V023_RUN_OWNER_PATH" \
+       -e "$REVIEWED_V023_OWNER_BACKFILL_PATH" -e "$REVIEWED_V023_JOB_CHAT_PATH" \
+       -e "$REVIEWED_V023_SANDBOX_ESCAPE_PATH" -e "$REVIEWED_V023_TENANT_REPOS_PATH" \
+       -e "$REVIEWED_V023_SKILL_REGISTRY_PATH" "$delta_manifest" ||
+     grep -Fq -e "$REVIEWED_V023_MODEL_MODES_PATH" -e "$REVIEWED_V023_BENCH_STATUS_PATH" \
+       -e "$REVIEWED_V023_COMPANY_MEMBERS_PATH" -e "$REVIEWED_V023_RUN_OWNER_PATH" \
+       -e "$REVIEWED_V023_OWNER_BACKFILL_PATH" -e "$REVIEWED_V023_JOB_CHAT_PATH" \
+       -e "$REVIEWED_V023_SANDBOX_ESCAPE_PATH" -e "$REVIEWED_V023_TENANT_REPOS_PATH" \
+       -e "$REVIEWED_V023_SKILL_REGISTRY_PATH" "$staged/migration-delta.name-status"; then
+    reviewed_v023_delta "$staged" "$delta_manifest"
+    return "$?"
   fi
   # The connector scope/audience migration is admitted only as exactly itself; if
   # its path shows up, nothing else (reviewed or generic) may apply.

@@ -153,6 +153,22 @@ After the second CI gate and production authorization:
    `ADD COLUMN` (a `TEXT[]` defaulting to empty, two nullable). No `DROP`,
    `ALTER ... TYPE`, `DELETE` or `TRUNCATE`. Rollback is the previous image
    digest; the DB migration is not rolled back. Any change needs a new review.
+   **Reviewed package: v0.2.3 ten migrations (founder-approved 2026-11-20).**
+   The ten migrations between live v0.2.1 (`ca360258931bec08da72c6f5beab39a2f1f57678`)
+   and candidate `92473e8` (connector scope, model modes, bench run status,
+   company members, run owner/delivery, company owner backfill, job chat,
+   sandbox-escape approval, tenant repositories, skill registry) are admitted
+   only as exactly those ten files (`A`, path-sorted, per-file pinned sha256),
+   with the previous release pinned to `ca36025`, the metadata seal matching the
+   candidate/API/UI tuple, no symlinks, and the candidate's whole `migration.sql`
+   tree hashing to the pinned value (65 files). The generic rule is not loosened;
+   any of the nine non-connector paths appearing in a delta routes only here.
+   Operational cautions from the review: `run_owner_delivery` builds a plain
+   index under an `ACCESS EXCLUSIVE` lock on `runs` (measure row count, low-traffic
+   window), `company_owner_backfill` is the only data write (a tenant without an
+   OWNER/ADMIN leaves its company ownerless), and the `ApprovalType` enum value is
+   irreversible. Take a verified backup first. Founder approval, in his own words
+   (2026-11-20, vault decision note): "10 geçiş onay, v0.2.3". Any change needs a new review.
 3. The script recreates API/UI from the digest override without rebuilding on
    the host, ensures the backup service is running, and verifies health and
    running-image identity.
