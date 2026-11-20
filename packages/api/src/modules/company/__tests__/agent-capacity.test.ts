@@ -155,3 +155,90 @@ describe("router wiring guard (source level)", () => {
     expect(src).not.toMatch(/prisma\.agent\.create\(/);
   });
 });
+
+describe("BRA-ADAY-9 batch rule: count + N", async () => {
+  const { assertAgentBatchCapacity } = await import("../agent-capacity");
+  const quota = { INDIVIDUAL: 5 };
+
+  it.each([
+    [0, 5, 0],
+    [1, 4, 0],
+    [1, 5, 402],
+    [2, 3, 0],
+    [3, 3, 402],
+    [0, 0, 0],
+  ])("count %i + adding %i -> %i (limit 5)", async (count, adding, expected) => {
+    const { tx } = transaction("INDIVIDUAL", count);
+    const run = assertAgentCapacity(tx, "t", quota, adding);
+    if (expected) await expect(run).rejects.toMatchObject({ statusCode: 402, code: AGENT_LIMIT_CODE });
+    else await expect(run).resolves.toBeUndefined();
+  });
+
+  it("a batch is refused whole and reports how many were being added", async () => {
+    const { tx } = transaction("INDIVIDUAL", 4);
+    await expect(assertAgentCapacity(tx, "t", quota, 3)).rejects.toMatchObject({
+      details: { plan: "INDIVIDUAL", limit: 5, current: 4, adding: 3 },
+    });
+  });
+
+  it.each([-1, 1.5, Number.NaN])("invalid adding %s throws", async (bad) => {
+    const { tx } = transaction("INDIVIDUAL", 0);
+    await expect(assertAgentCapacity(tx, "t", quota, bad)).rejects.toThrow(/invalid agent count/);
+  });
+
+  it("flag OFF: assertAgentBatchCapacity does no query at all", async () => {
+    const { tx, query } = transaction("INDIVIDUAL", 99);
+    await expect(assertAgentBatchCapacity(tx, "t", 10)).resolves.toBeUndefined();
+    expect(query).not.toHaveBeenCalled();
+  });
+
+  it("adding 0: early return, no lock and no count", async () => {
+    const { tx, query, agentCount } = transaction("INDIVIDUAL", 99);
+    await expect(assertAgentCapacity(tx, "t", { INDIVIDUAL: 1 }, 0)).resolves.toBeUndefined();
+    expect(query).not.toHaveBeenCalled();
+    expect(agentCount).not.toHaveBeenCalled();
+  });
+
+  it("flag ON + injected table: assertAgentBatchCapacity passes flag and table through and throws 402", async () => {
+    h.env.AGENT_QUOTA_ENABLED = true;
+    AGENT_QUOTA_BY_PLAN.INDIVIDUAL = 5;
+    try {
+      const over = transaction("INDIVIDUAL", 4);
+      await expect(assertAgentBatchCapacity(over.tx, "t", 2)).rejects.toMatchObject({
+        statusCode: 402,
+        code: AGENT_LIMIT_CODE,
+        details: { plan: "INDIVIDUAL", limit: 5, current: 4, adding: 2 },
+      });
+      const fits = transaction("INDIVIDUAL", 3);
+      await expect(assertAgentBatchCapacity(fits.tx, "t", 2)).resolves.toBeUndefined();
+      expect(fits.agentCount).toHaveBeenCalledOnce();
+    } finally {
+      delete AGENT_QUOTA_BY_PLAN.INDIVIDUAL;
+    }
+  });
+
+  it("flag ON with the shipped empty table: allowed, nothing counted", async () => {
+    h.env.AGENT_QUOTA_ENABLED = true;
+    const { tx, agentCount } = transaction("INDIVIDUAL", 99);
+    await expect(assertAgentBatchCapacity(tx, "t", 10)).resolves.toBeUndefined();
+    expect(agentCount).not.toHaveBeenCalled();
+  });
+});
+
+describe("BRA-ADAY-9 wiring guard (source level)", () => {
+  const files = [
+    "../../starter/starter.router.ts",
+    "../../templates/templates.service.ts",
+    "../../onboarding/router.ts",
+    "../builder.ts",
+    "../../automation-importer/router.ts",
+  ];
+  it.each(files)("%s checks batch capacity BEFORE its first agent insert", (f) => {
+    const src = readFileSync(join(__dirname, f), "utf8");
+    const check = src.indexOf("assertAgentBatchCapacity(tx");
+    const insert = src.indexOf("tx.agent.create(");
+    expect(check, `${f} check`).toBeGreaterThan(-1);
+    expect(insert, `${f} insert`).toBeGreaterThan(-1);
+    expect(check).toBeLessThan(insert);
+  });
+});

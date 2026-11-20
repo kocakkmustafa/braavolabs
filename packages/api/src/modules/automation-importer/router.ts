@@ -32,6 +32,7 @@ import type { ConvertedPipeline } from "./adapters/types";
 import { deriveAgentsFromSteps } from "./agent-synthesis";
 import { maskSecrets } from "./mask-secrets";
 import { assertCompanyCapacity } from "../company/company-capacity";
+import { assertAgentBatchCapacity } from "../company/agent-capacity";
 import { seedCreatorAsOwner } from "../company/owner-seed";
 
 export const automationImporterRouter = Router();
@@ -167,6 +168,7 @@ automationImporterRouter.post("/", async (req, res, next) => {
       for (const spec of agentSpecs) {
         const existing = await tx.agent.findFirst({ where: { companyId, role: spec.role } });
         if (!existing) {
+          await assertAgentBatchCapacity(tx, tenantId, 1); // live count: earlier inserts in this loop are included
           await tx.agent.create({
             data: {
               companyId,

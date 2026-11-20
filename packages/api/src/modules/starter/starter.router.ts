@@ -22,6 +22,7 @@ import { AppError } from "../../middleware/error";
 import { tenantTx } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { assertCompanyCapacity } from "../company/company-capacity";
+import { assertAgentBatchCapacity } from "../company/agent-capacity";
 import { seedCreatorAsOwner } from "../company/owner-seed";
 import {
   STARTER_TEMPLATES,
@@ -116,6 +117,7 @@ starterRouter.post("/:id/clone", authMiddleware, async (req, res, next) => {
     // selection safe when two clone requests arrive together.
     const result = await tenantTx(async (tx) => {
       await assertCompanyCapacity(tx, tenantId);
+      await assertAgentBatchCapacity(tx, tenantId, template.agents.length);
       let slug = "";
       let attempt = 0;
       while (attempt < 10) {

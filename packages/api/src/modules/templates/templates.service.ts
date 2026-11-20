@@ -25,6 +25,7 @@
 import crypto from "node:crypto";
 import { prisma, tenantTx } from "../../lib/db";
 import { assertCompanyCapacity } from "../company/company-capacity";
+import { assertAgentBatchCapacity } from "../company/agent-capacity";
 import { seedCreatorAsOwner } from "../company/owner-seed";
 import { z } from "zod";
 import { AppError } from "../../middleware/error";
@@ -177,6 +178,7 @@ export async function materialiseTemplate(
   // tenant with orphan agents or pipelines.
   const result = await tenantTx(async (tx) => {
     await assertCompanyCapacity(tx, tenantId);
+    await assertAgentBatchCapacity(tx, tenantId, snapshot.agents.length);
     const company = await tx.company.create({
       data: {
         tenantId,

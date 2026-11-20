@@ -7,6 +7,7 @@ import { AppError } from "../../middleware/error";
 import { slugify } from "@ai-company-os/core";
 import { PRIMITIVES, PLAN_LIMITS } from "@ai-company-os/core";
 import { assertCompanyCapacity } from "./company-capacity";
+import { assertAgentBatchCapacity } from "./agent-capacity";
 import { seedCreatorAsOwner } from "./owner-seed";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { chatCompletion, type ChatMessage } from "../../services/ai-client";
@@ -459,6 +460,7 @@ export async function confirmBuild(sessionId: string, tenantId: string, userId?:
 
   const company = await tenantTx(async (tx) => {
     await assertCompanyCapacity(tx, session.tenantId);
+    await assertAgentBatchCapacity(tx, session.tenantId, spec.agents.length);
     const created = await tx.company.create({
       data: {
         tenantId: session.tenantId,

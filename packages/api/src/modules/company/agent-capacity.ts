@@ -10,9 +10,8 @@ import { getEffectivePlan } from "../billing/entitlement-ledger.service";
  *
  * The numbers are the founder's (karar 17, "plan başına ajan kotası sayıları"); NONE is invented here. A plan
  * with no entry has no agent cap, so turning the flag on before the founder fills this table changes nothing.
- * SCOPE: the three single-agent endpoints of the ticket (`POST /:id/agents`, `agents/compose`, `agents/compose/confirm`).
- * Batch / new-company creators (builder, templates, starter clone, onboarding, automation-importer) insert several
- * agents under the tenant lock they already hold and need a `count + N` rule: separate follow-up ticket, NOT covered here.
+ * SCOPE: the three single-agent endpoints (`POST /:id/agents`, `agents/compose`, `agents/compose/confirm`) via
+ * `createAgentGuarded`, and (BRA-ADAY-9) the batch / new-company creators via `assertAgentBatchCapacity` (`count + N`).
  * Keys are the EFFECTIVE plan name `getEffectivePlan` returns (it normalises legacy names: PRO -> TEAM, CREATOR ->
  * INDIVIDUAL). Add `PLAN: n` entries (n >= 0) only on the founder's word. Companies keep their own `maxAgentsPerCompany`
  * rules elsewhere; this is the total across the tenant's companies.
@@ -32,7 +31,10 @@ export async function assertAgentCapacity(
   tx: Prisma.TransactionClient,
   tenantId: string,
   quota: Partial<Record<string, number>> = AGENT_QUOTA_BY_PLAN,
+  adding = 1,
 ): Promise<void> {
+  if (!Number.isSafeInteger(adding) || adding < 0) throw new Error(`invalid agent count to add: ${adding}`);
+  if (adding === 0) return; // nothing to add: no lock, no count
   const tenants = await tx.$queryRaw<Array<{ plan: string }>>`
     SELECT plan FROM tenants WHERE id = ${tenantId} FOR UPDATE
   `;
@@ -43,14 +45,25 @@ export async function assertAgentCapacity(
   if (limit === undefined) return; // no founder number for this plan: unlimited
   if (!Number.isSafeInteger(limit) || limit < 0) throw new Error(`invalid agent quota for plan ${plan}`); // misconfiguration must not read as unlimited or as -1
   const count = await tx.agent.count({ where: { company: { tenantId } } });
-  if (count >= limit) {
+  if (adding > 0 && count + adding > limit) {
     throw new AppError(
       402,
       `Agent limit reached for ${plan} plan (${limit}). Upgrade to add more.`,
-      { plan, limit, current: count },
+      { plan, limit, current: count, ...(adding > 1 ? { adding } : {}) },
       AGENT_LIMIT_CODE,
     );
   }
+}
+
+/**
+ * BRA-ADAY-9: batch / new-company creators (builder, templates, starter clone, onboarding, automation-importer).
+ * Call inside the tenantTx that already ran `assertCompanyCapacity`, BEFORE inserting `adding` agents: the whole
+ * batch is refused (402, tx rolls back, no half-built company) if tenant count + adding would exceed the plan quota.
+ * Flag OFF: does nothing (no query, no lock), byte-for-byte the previous behaviour.
+ */
+export async function assertAgentBatchCapacity(tx: Prisma.TransactionClient, tenantId: string, adding: number): Promise<void> {
+  if (!env.AGENT_QUOTA_ENABLED) return;
+  await assertAgentCapacity(tx, tenantId, AGENT_QUOTA_BY_PLAN, adding);
 }
 
 /** Delegate surface a creator may use: the transaction client's `agent` (the plain client is cast to it below). */
