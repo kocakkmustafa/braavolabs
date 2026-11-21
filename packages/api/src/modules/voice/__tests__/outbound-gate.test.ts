@@ -99,7 +99,12 @@ beforeEach(() => {
   vi.stubEnv("VOICE_AGENT_ENABLED", "false");
 });
 
-afterEach(() => { vi.unstubAllEnvs(); });
+afterEach(() => { vi.unstubAllEnvs(); vi.useRealTimers(); });
+
+function configureLegal(window = "00:00-24:00") {
+  vi.stubEnv("VOICE_AI_DISCLOSURE_TEXT", "This is an automated AI assistant calling.");
+  vi.stubEnv("VOICE_CALL_WINDOW", window);
+}
 
 describe("voice API — B-06 gate", () => {
   it.each([undefined, "false", "1"])("VOICE_AGENT_ENABLED=%s refuses agent creation with 422", async (value) => {
@@ -146,9 +151,60 @@ describe("voice API — B-06 gate", () => {
     expect(created.res.status).toHaveBeenCalledWith(201);
     expect(voiceAgentCreate).toHaveBeenCalledOnce();
 
+    configureLegal();
     const dialed = await invoke("post", "/agents/:id/dial", dialBody, { id: "va-1" });
     expect(dialed.error).toBeUndefined();
     expect(providerPlaceCall).toHaveBeenCalledOnce();
     expect(dialed.json).toHaveBeenCalledWith({ callId: "call-1", providerCallId: "prov-1", status: "ringing" });
+  });
+});
+
+describe("voice outbound — legal guards (flag \"true\")", () => {
+  const call = () => placeOutboundCall({
+    voiceAgentId: "va-1", tenantId: "tenant-1", calleeNumber: "+14155550101", prompt: "Confirm the appointment.",
+  });
+  beforeEach(() => { vi.stubEnv("VOICE_AGENT_ENABLED", "true"); });
+
+  it.each([["VOICE_AI_DISCLOSURE_TEXT"], ["VOICE_CALL_WINDOW"]])(
+    "%s missing: LEGAL_CONFIG_MISSING before any lookup, provider call or write",
+    async (name) => {
+      configureLegal();
+      vi.stubEnv(name, "");
+      await expect(call()).rejects.toMatchObject({ statusCode: 422, code: "LEGAL_CONFIG_MISSING" });
+      expectNoDialSideEffects();
+    },
+  );
+
+  it("an invalid window value is treated as missing", async () => {
+    configureLegal("20:00-09:00");
+    await expect(call()).rejects.toMatchObject({ code: "LEGAL_CONFIG_MISSING" });
+    expectNoDialSideEffects();
+  });
+
+  it("outside the calling window: refused, no provider call", async () => {
+    configureLegal("09:00-20:00");
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-21T22:00:00Z"));
+    await expect(call()).rejects.toMatchObject({ statusCode: 422, code: "OUTSIDE_CALL_WINDOW" });
+    expectNoDialSideEffects();
+  });
+
+  it("inside the window: dials and passes the disclosure to the provider adapter", async () => {
+    configureLegal("09:00-20:00");
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-11-21T12:00:00Z"));
+    await expect(call()).resolves.toMatchObject({ callId: "call-1", status: "ringing" });
+    expect(providerPlaceCall).toHaveBeenCalledWith(expect.objectContaining({
+      calleeNumber: "+14155550101",
+      prompt: "Confirm the appointment.",
+      disclosure: "This is an automated AI assistant calling.",
+    }));
+  });
+
+  it("flag off still wins over everything (unchanged gate, even with legal config set)", async () => {
+    vi.stubEnv("VOICE_AGENT_ENABLED", "false");
+    configureLegal();
+    await expect(call()).rejects.toMatchObject({ code: "VOICE_AGENT_DISABLED" });
+    expectNoDialSideEffects();
   });
 });
