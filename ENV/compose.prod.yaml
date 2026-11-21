@@ -174,6 +174,11 @@ services:
       # readback are accepted; the host .env can then enable it explicitly.
       IAP_DELIVERY_RELIABILITY_ENABLED: ${IAP_DELIVERY_RELIABILITY_ENABLED:-false}
       IAP_DELIVERY_MAX_ATTEMPTS: ${IAP_DELIVERY_MAX_ATTEMPTS:-5}
+      # Google purchase lineage evidence (linkedPurchaseToken ownership and
+      # stale checks). Stays off until migration 20261003000000_google_verified_lineage
+      # is applied to the production database and the Google readback is
+      # accepted; the host .env can then enable it explicitly.
+      GOOGLE_PURCHASE_LINEAGE_ENABLED: ${GOOGLE_PURCHASE_LINEAGE_ENABLED:-false}
       REVENUECAT_WEBHOOK_SECRET: ${REVENUECAT_WEBHOOK_SECRET:-}
       # Email
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
