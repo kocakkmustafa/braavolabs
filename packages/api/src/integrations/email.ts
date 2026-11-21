@@ -4,7 +4,13 @@
 
 import { logger } from "../lib/logger";
 import { env } from "../config/env";
-import { isOutboundFeatureEnabled } from "../lib/outbound-gates";
+import {
+  getOutboundLegalConfig,
+  isOutboundFeatureEnabled,
+  legalConfigMissingError,
+  missingEmailLegalConfig,
+} from "../lib/outbound-gates";
+import { buildUnsubscribeUrl } from "../lib/unsubscribe-token";
 
 // Warn-once latch for the dev/no-key no-op path, so local logs aren't
 // spammed on every send attempt.
@@ -18,6 +24,30 @@ interface SendEmailParams {
   replyTo?: string;
   /** Transactional account messages keep token-bearing links untracked. */
   tracking?: boolean;
+  /**
+   * Set ONLY by contact-outreach callers (draft send, sequence runner). Adds
+   * List-Unsubscribe / List-Unsubscribe-Post headers and refuses the send with
+   * LEGAL_CONFIG_MISSING while the legal config is incomplete. Account emails
+   * never set it; their payload and headers are unchanged.
+   */
+  outbound?: { tenantId: string };
+}
+
+/** RFC 8058 one-click headers for an outbound message, or a fail-closed refusal. */
+function outboundHeaders(tenantId: string, to: string): Record<string, string> {
+  const missing = missingEmailLegalConfig(getOutboundLegalConfig());
+  const url = missing.length === 0 ? buildUnsubscribeUrl(tenantId, to) : null;
+  if (missing.length > 0 || !url) {
+    logger.warn(
+      { missing: url ? missing : [...missing, "https API_PUBLIC_URL"] },
+      "Outbound email refused — legal config incomplete (LEGAL_CONFIG_MISSING)",
+    );
+    throw legalConfigMissingError();
+  }
+  return {
+    "List-Unsubscribe": `<${url}>`,
+    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+  };
 }
 
 /**
@@ -27,6 +57,8 @@ interface SendEmailParams {
 export async function sendEmail(params: SendEmailParams): Promise<{ messageId: string }> {
   const apiKey = process.env.SENDGRID_API_KEY;
   const fromEmail = params.from ?? process.env.SENDGRID_FROM_EMAIL ?? "noreply@braavolabs.com";
+  // Fail closed before anything else (also in dev/no-key mode).
+  const extraHeaders = params.outbound ? outboundHeaders(params.outbound.tenantId, params.to) : undefined;
 
   if (!apiKey) {
     // In production a missing key must surface as a FAILURE, not a fake
@@ -70,6 +102,7 @@ export async function sendEmail(params: SendEmailParams): Promise<{ messageId: s
       ],
       from: { email: fromEmail },
       reply_to: params.replyTo ? { email: params.replyTo } : undefined,
+      headers: extraHeaders,
       content: [
         {
           type: "text/html",

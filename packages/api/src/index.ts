@@ -33,6 +33,7 @@ import { draftRouter } from "./modules/draft/router";
 import { dashboardRouter } from "./modules/dashboard/router";
 import { crmRouter } from "./modules/crm/router";
 import { outreachRouter } from "./modules/outreach/router";
+import { unsubscribeRouter } from "./modules/outreach/unsubscribe.router";
 import { webhookRouter, webhookTemplateRouter } from "./modules/webhook/router";
 import { billingRouter, stripeWebhookRouter } from "./modules/billing/router";
 import { iapRouter } from "./modules/billing/iap/router";
@@ -274,6 +275,9 @@ app.get("/health", healthHandler);
 const api = express.Router();
 // /api/v1/health alias (same handler as /health) for external probes.
 api.get("/health", healthHandler);
+// Public one-click unsubscribe (signed token, no auth). Own prefix, mounted
+// before any general router.
+api.use("/public/unsubscribe", unsubscribeRouter);
 // SSO auth flow shares the same /auth/* prefix so the redirect-based
 // sign-in surfaces (Google / GitHub / SSO) live in one mental model. Mounted
 // BEFORE /auth per the mount-order rule above.

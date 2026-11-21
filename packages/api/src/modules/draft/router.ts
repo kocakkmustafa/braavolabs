@@ -7,6 +7,8 @@ import { z } from "zod";
 import { notifyTenantUsers } from "../../services/push";
 import { getEffectivePlan } from "../billing/entitlement-ledger.service";
 import { assertOutboundFeatureEnabled } from "../../lib/outbound-gates";
+import { isEmailSuppressed } from "../../lib/email-suppression";
+import { appendLegalFooter } from "../../lib/outbound-footer";
 
 export const draftRouter = Router();
 draftRouter.use(authMiddleware);
@@ -109,6 +111,10 @@ async function isRecipientAllowed(tenantId: string, to: string): Promise<boolean
     select: { id: true },
   });
   if (unsubscribed) return false;
+
+  // Suppression list (unsubscribe link, bounce, complaint, manual): blocks the
+  // address for the whole tenant regardless of any CRM row.
+  if (await isEmailSuppressed(tenantId, normalized)) return false;
 
   return true;
 }
@@ -261,6 +267,9 @@ draftRouter.post("/:id/approve", async (req, res, next) => {
       throw new AppError(422, "Publishing non-email drafts is unavailable until delivery is configured.");
     }
 
+    // Body with the legal footer (opt-out link + sender address). Built before the
+    // claim: missing legal config answers 422 LEGAL_CONFIG_MISSING with no state change.
+    let outboundBody = "";
     // Reject invalid recipients before taking the one-time decision claim.
     const content = send && draft.content && typeof draft.content === "object" && !Array.isArray(draft.content)
       ? draft.content as { to?: unknown; subject?: unknown; body?: unknown }
@@ -279,6 +288,7 @@ draftRouter.post("/:id/approve", async (req, res, next) => {
           "Recipient is not in your CRM, or has unsubscribed. Add them as a contact first.",
         );
       }
+      outboundBody = appendLegalFooter(content.body, req.auth!.tenantId, content.to);
     }
 
     // Only one approver can move this draft out of PENDING. The recipient and
@@ -325,7 +335,8 @@ draftRouter.post("/:id/approve", async (req, res, next) => {
         const receipt = await sendEmail({
           to: content.to as string,
           subject: content.subject as string,
-          body: content.body as string,
+          body: outboundBody,
+          outbound: { tenantId: req.auth!.tenantId },
         });
         // The adapter deliberately returns dev_* for its offline/no-key
         // logging path. That is not external delivery and cannot be PUBLISHED.

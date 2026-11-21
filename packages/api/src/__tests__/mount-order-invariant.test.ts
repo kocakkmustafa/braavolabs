@@ -73,7 +73,8 @@ describe("index.ts mount order", () => {
     // 45 → 46: BRA-P1-05-N1 added `/bench/compare` (benchCompareRouter).
     // 46 → 47: BRA-P1-03-N1 added `/tenant-repos` (tenantRepoRouter, behind TENANT_REPOS_ENABLED).
     // 47 → 48: community skill registry added `/skills` (skillsRegistryRouter).
-    expect(mounts().length).toBe(48);
+    // 48 → 49: outbound legal guards added `/public/unsubscribe` (unsubscribeRouter, signed token, no auth).
+    expect(mounts().length).toBe(49);
   });
 
   it("mounts /bench/compare before the public /bench router (BRA-P1-05-N1)", () => {

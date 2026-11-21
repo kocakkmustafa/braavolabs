@@ -18,6 +18,8 @@ const activityLogCreate = vi.hoisted(() => vi.fn());
 const activityLogCount = vi.hoisted(() => vi.fn());
 const sendEmail = vi.hoisted(() => vi.fn());
 const queueAdd = vi.hoisted(() => vi.fn());
+const suppressionFindFirst = vi.hoisted(() => vi.fn());
+const enrollmentUpdateMany = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../lib/db", () => ({
   prisma: {
@@ -32,6 +34,11 @@ vi.mock("../../../lib/db", () => ({
       create: (...a: unknown[]) => enrollmentCreate(...a),
       findUnique: (...a: unknown[]) => enrollmentFindUnique(...a),
       update: (...a: unknown[]) => enrollmentUpdate(...a),
+      updateMany: (...a: unknown[]) => enrollmentUpdateMany(...a),
+    },
+    emailSuppression: {
+      findFirst: (...a: unknown[]) => suppressionFindFirst(...a),
+      upsert: vi.fn(),
     },
     activityLog: {
       create: (...a: unknown[]) => activityLogCreate(...a),
@@ -45,7 +52,13 @@ vi.mock("../../../middleware/auth", () => ({
 vi.mock("../../../lib/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
-vi.mock("../../../config/env", () => ({ env: { REDIS_URL: "redis://127.0.0.1:1" } }));
+vi.mock("../../../config/env", () => ({
+  env: {
+    REDIS_URL: "redis://127.0.0.1:1",
+    JWT_SECRET: "test-jwt-secret-at-least-32-characters-long-xx",
+    API_PUBLIC_URL: "https://api.example.test",
+  },
+}));
 vi.mock("../../../integrations/email", () => ({ sendEmail: (...a: unknown[]) => sendEmail(...a) }));
 vi.mock("bullmq", () => ({
   Queue: class { add = (...a: unknown[]) => queueAdd(...a); },
@@ -110,6 +123,8 @@ beforeEach(() => {
   sendEmail.mockResolvedValue({ messageId: "sg-1" });
   vi.stubEnv("OUTREACH_SEQUENCES_ENABLED", "false");
   vi.stubEnv("OUTBOUND_EMAIL_ENABLED", "false");
+  suppressionFindFirst.mockResolvedValue(null);
+  enrollmentUpdateMany.mockResolvedValue({ count: 0 });
 });
 
 afterEach(() => { vi.unstubAllEnvs(); });
@@ -172,15 +187,113 @@ describe("outreach worker — B-06 gate", () => {
     expect(queueAdd).not.toHaveBeenCalled();
   });
 
-  it("restores the previous step processing when both flags are \"true\"", async () => {
+  function enableAll(withLegal = true) {
     vi.stubEnv("OUTREACH_SEQUENCES_ENABLED", "true");
     vi.stubEnv("OUTBOUND_EMAIL_ENABLED", "true");
+    if (withLegal) {
+      vi.stubEnv("OUTBOUND_LEGAL_SENDER_ADDRESS", "Test Street 1, Test City");
+      vi.stubEnv("OUTBOUND_LEGAL_UNSUBSCRIBE_TEXT", "Opt out here: {url}");
+    }
+  }
+
+  it("restores the previous step processing when both flags and the legal config are set", async () => {
+    enableAll();
     await processSequenceStep(job);
     expect(sendEmail).toHaveBeenCalledWith(expect.objectContaining({
       to: "lead@example.test",
       subject: "Hello",
-      body: "Hi Lead",
+      body: expect.stringMatching(/^Hi Lead<hr>/),
+      outbound: { tenantId: "tenant-1" },
     }));
     expect(enrollmentUpdate).toHaveBeenCalledWith({ where: { id: "enr-1" }, data: { currentStep: 1 } });
+  });
+
+  it("appends the opt-out link and the sender address from config", async () => {
+    enableAll();
+    await processSequenceStep(job);
+    const { body } = sendEmail.mock.calls[0][0] as { body: string };
+    expect(body).toContain('Opt out here: <a href="https://api.example.test/api/v1/public/unsubscribe?token=');
+    expect(body).toContain("Test Street 1, Test City");
+  });
+
+  it.each([["OUTBOUND_LEGAL_SENDER_ADDRESS"], ["OUTBOUND_LEGAL_UNSUBSCRIBE_TEXT"]])(
+    "flags true but %s missing: LEGAL_CONFIG_MISSING, nothing sent or advanced",
+    async (name) => {
+      enableAll();
+      vi.stubEnv(name, "");
+      await processSequenceStep(job);
+      expect(sendEmail).not.toHaveBeenCalled();
+      expect(enrollmentUpdate).not.toHaveBeenCalled();
+      expect(queueAdd).not.toHaveBeenCalled();
+    },
+  );
+
+  it("an unsubscribe text without the {url} placeholder counts as missing", async () => {
+    enableAll();
+    vi.stubEnv("OUTBOUND_LEGAL_UNSUBSCRIBE_TEXT", "Reply STOP");
+    await processSequenceStep(job);
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it("a suppressed recipient is never mailed: enrollment UNSUBSCRIBED + activity logged", async () => {
+    enableAll();
+    suppressionFindFirst.mockResolvedValue({ id: "sup-1" });
+    await processSequenceStep(job);
+    expect(suppressionFindFirst).toHaveBeenCalledWith({
+      where: { tenantId: "tenant-1", email: "lead@example.test" },
+      select: { id: true },
+    });
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(enrollmentUpdate).toHaveBeenCalledWith({
+      where: { id: "enr-1" },
+      data: { status: "UNSUBSCRIBED", unsubscribedAt: expect.any(Date) },
+    });
+    expect(activityLogCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ tenantId: "tenant-1", action: "outreach.suppressed_skip" }),
+    });
+  });
+
+  it("spam guard in the runner: 3 unanswered sends stop the sequence (same result as before)", async () => {
+    enableAll();
+    activityLogCount.mockResolvedValueOnce(3).mockResolvedValueOnce(0);
+    await processSequenceStep(job);
+    expect(sendEmail).not.toHaveBeenCalled();
+    expect(enrollmentUpdate).toHaveBeenCalledWith({ where: { id: "enr-1" }, data: { status: "COMPLETED" } });
+    expect(activityLogCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({ action: "outreach.spam_stop", tenantId: "tenant-1" }),
+    });
+  });
+
+  it("spam guard in the runner: replies offset sends (4 sent - 2 replies = 2 unanswered: still sends)", async () => {
+    enableAll();
+    activityLogCount.mockResolvedValueOnce(4).mockResolvedValueOnce(2);
+    await processSequenceStep(job);
+    expect(sendEmail).toHaveBeenCalledOnce();
+  });
+});
+
+describe("enroll endpoint: spam guard uses the shared threshold", () => {
+  beforeEach(() => { vi.stubEnv("OUTREACH_SEQUENCES_ENABLED", "true"); });
+
+  it("2 active unanswered enrollments: allowed", async () => {
+    enrollmentCount.mockResolvedValue(2);
+    const { error, res } = await invoke("/sequences/:id/enroll", { contactId: "contact-1" }, { id: "seq-1" });
+    expect(error).toBeUndefined();
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
+  it("3 active unanswered enrollments: 429, scoped to the tenant", async () => {
+    enrollmentCount.mockResolvedValue(3);
+    const { error } = await invoke("/sequences/:id/enroll", { contactId: "contact-1" }, { id: "seq-1" });
+    expect(error).toMatchObject({ statusCode: 429 });
+    expect(enrollmentCount).toHaveBeenCalledWith({
+      where: {
+        contactId: "contact-1",
+        status: "ACTIVE",
+        repliedAt: null,
+        sequence: { company: { tenantId: "tenant-1" } },
+      },
+    });
+    expect(enrollmentCreate).not.toHaveBeenCalled();
   });
 });

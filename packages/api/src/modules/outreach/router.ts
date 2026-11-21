@@ -5,6 +5,7 @@ import { AppError } from "../../middleware/error";
 import { z } from "zod";
 import { logger } from "../../lib/logger";
 import { assertOutboundFeatureEnabled } from "../../lib/outbound-gates";
+import { countActiveUnansweredEnrollments, isSpamLimitReached } from "../../lib/spam-guard";
 
 export const outreachRouter = Router();
 outreachRouter.use(authMiddleware);
@@ -111,16 +112,9 @@ outreachRouter.post("/sequences/:id/enroll", async (req, res, next) => {
     // if (contact.companyId !== sequence.companyId) ...
 
     // Spam protection: check unanswered outreach count (scoped to current tenant)
-    const existingEnrollments = await prisma.outreachEnrollment.count({
-      where: {
-        contactId,
-        status: "ACTIVE",
-        repliedAt: null,
-        sequence: { company: { tenantId: req.auth!.tenantId } },
-      },
-    });
+    const existingEnrollments = await countActiveUnansweredEnrollments(req.auth!.tenantId, contactId);
 
-    if (existingEnrollments >= 3) {
+    if (isSpamLimitReached(existingEnrollments)) {
       throw new AppError(
         429,
         "Spam protection: contact has 3+ unanswered active sequences. Wait for a reply or remove existing enrollments.",

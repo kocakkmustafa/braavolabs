@@ -12,6 +12,7 @@ datasource db {
 model Tenant {
   jobMessages          JobMessage[]
   tenantRepositories   TenantRepository[]
+  emailSuppressions    EmailSuppression[]
   id                   String   @id @default(cuid())
   name                 String
   slug                 String   @unique
@@ -2394,4 +2395,23 @@ model TenantRepository {
   @@unique([tenantId, provider, fullName])
   @@index([tenantId])
   @@map("tenant_repositories")
+}
+
+/// Outbound-email suppression list (legal: opt-out must be honoured). One row per
+/// (tenant, address); `email` is stored normalised (trim + lowercase).
+/// `reason` is a plain string, not a Prisma enum: the deploy gate's generic rule
+/// admits no CREATE TYPE, so the value set (UNSUBSCRIBE | BOUNCE | COMPLAINT | MANUAL)
+/// lives in the SQL CHECK and in lib/email-suppression.ts.
+model EmailSuppression {
+  id        String   @id @default(cuid())
+  tenantId  String   @map("tenant_id")
+  email     String
+  reason    String   @default("UNSUBSCRIBE")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@map("email_suppressions")
 }
