@@ -282,6 +282,33 @@ describe("enroll endpoint: spam guard uses the shared threshold", () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
+  it("a suppressed contact is not enrolled: 409 RECIPIENT_SUPPRESSED + activity_log", async () => {
+    contactFindFirst.mockResolvedValue({ id: "contact-1", companyId: "company-1", email: "Lead@Example.test" });
+    suppressionFindFirst.mockResolvedValue({ id: "sup-1" });
+    const { error } = await invoke("/sequences/:id/enroll", { contactId: "contact-1" }, { id: "seq-1" });
+    expect(error).toMatchObject({ statusCode: 409, code: "RECIPIENT_SUPPRESSED" });
+    expect(suppressionFindFirst).toHaveBeenCalledWith({
+      where: { tenantId: "tenant-1", email: "lead@example.test" },
+      select: { id: true },
+    });
+    expect(enrollmentCreate).not.toHaveBeenCalled();
+    expect(activityLogCreate).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        tenantId: "tenant-1",
+        action: "outreach.enroll_blocked_suppressed",
+        resourceId: "contact-1",
+      }),
+    });
+  });
+
+  it("a contact that is not suppressed still enrols", async () => {
+    contactFindFirst.mockResolvedValue({ id: "contact-1", companyId: "company-1", email: "ok@example.test" });
+    suppressionFindFirst.mockResolvedValue(null);
+    const { error, res } = await invoke("/sequences/:id/enroll", { contactId: "contact-1" }, { id: "seq-1" });
+    expect(error).toBeUndefined();
+    expect(res.status).toHaveBeenCalledWith(201);
+  });
+
   it("3 active unanswered enrollments: 429, scoped to the tenant", async () => {
     enrollmentCount.mockResolvedValue(3);
     const { error } = await invoke("/sequences/:id/enroll", { contactId: "contact-1" }, { id: "seq-1" });

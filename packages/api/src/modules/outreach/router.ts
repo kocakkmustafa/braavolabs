@@ -5,6 +5,7 @@ import { AppError } from "../../middleware/error";
 import { z } from "zod";
 import { logger } from "../../lib/logger";
 import { assertOutboundFeatureEnabled } from "../../lib/outbound-gates";
+import { isEmailSuppressed } from "../../lib/email-suppression";
 import { countActiveUnansweredEnrollments, isSpamLimitReached } from "../../lib/spam-guard";
 
 export const outreachRouter = Router();
@@ -101,10 +102,25 @@ outreachRouter.post("/sequences/:id/enroll", async (req, res, next) => {
         id: contactId,
         company: { tenantId: req.auth!.tenantId },
       },
-      select: { id: true, companyId: true },
+      select: { id: true, companyId: true, email: true },
     });
     if (!contact) {
       throw new AppError(404, "Contact not found");
+    }
+
+    // Suppression list (unsubscribe, bounce, complaint, manual): never enrol.
+    if (contact.email && (await isEmailSuppressed(req.auth!.tenantId, contact.email))) {
+      await prisma.activityLog.create({
+        data: {
+          tenantId: req.auth!.tenantId,
+          actor: req.auth!.userId,
+          action: "outreach.enroll_blocked_suppressed",
+          resource: "contact",
+          resourceId: contact.id,
+          details: { sequenceId: sequence.id },
+        },
+      });
+      throw new AppError(409, "Contact is on the suppression list and cannot be enrolled.", undefined, "RECIPIENT_SUPPRESSED");
     }
     // Optional further hardening: require the contact and sequence share
     // the same company (not just the same tenant). For now we accept

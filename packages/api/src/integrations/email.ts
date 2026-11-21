@@ -11,6 +11,7 @@ import {
   missingEmailLegalConfig,
 } from "../lib/outbound-gates";
 import { buildUnsubscribeUrl } from "../lib/unsubscribe-token";
+import { appendLegalFooter } from "../lib/outbound-footer";
 
 // Warn-once latch for the dev/no-key no-op path, so local logs aren't
 // spammed on every send attempt.
@@ -133,7 +134,7 @@ export async function sendEmail(params: SendEmailParams): Promise<{ messageId: s
  * OUTBOUND_EMAIL_ENABLED is not "true" nothing is sent.
  */
 export async function sendBatchEmails(
-  emails: SendEmailParams[],
+  emails: Array<SendEmailParams & { outbound?: { tenantId: string } }>,
   dailyLimit = 50,
 ): Promise<{ sent: number; skipped: number }> {
   if (!isOutboundFeatureEnabled("email")) {
@@ -141,16 +142,33 @@ export async function sendBatchEmails(
     return { sent: 0, skipped: emails.length };
   }
 
+  // Fail closed: bulk contact mail needs the legal config, and every message must
+  // carry `outbound` (tenant) so it gets the opt-out headers. A message without
+  // it is skipped, never sent bare.
+  const missing = missingEmailLegalConfig(getOutboundLegalConfig());
+  if (missing.length > 0) {
+    logger.warn({ count: emails.length, missing }, "Batch email skipped — legal config incomplete (LEGAL_CONFIG_MISSING)");
+    return { sent: 0, skipped: emails.length };
+  }
+
   let sent = 0;
   let skipped = 0;
 
   for (const email of emails) {
+    if (!email.outbound) {
+      logger.warn({ to: email.to }, "Batch email skipped — message has no outbound tenant marker");
+      skipped++;
+      continue;
+    }
     if (sent >= dailyLimit) {
       skipped++;
       continue;
     }
     try {
-      await sendEmail(email);
+      await sendEmail({
+        ...email,
+        body: appendLegalFooter(email.body, email.outbound.tenantId, email.to),
+      });
       sent++;
     } catch (err) {
       logger.error({ to: email.to, error: (err as Error).message }, "Failed to send email");

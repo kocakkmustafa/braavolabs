@@ -1,6 +1,11 @@
 /**
  * Public one-click unsubscribe: POST|GET /api/v1/public/unsubscribe?token=...
  *
+ * GET changes NOTHING (mail scanners and link prefetchers GET links): it returns
+ * a static confirmation page whose form POSTs back. Only POST changes state; the
+ * RFC 8058 one-click POST carries the token in the query string, the page's form
+ * in a hidden body field; both are accepted. An invalid token is 404 on both.
+ *
  * No auth: the signed, expiring token (lib/unsubscribe-token.ts) is the
  * credential (no tenant context: systemScope, every query carries the token's
  * tenantId explicitly). A valid token writes the suppression row, marks the address's
@@ -8,7 +13,7 @@
  * flat 404 (no oracle on why). Every query carries the token's tenantId.
  * Stays available whatever the outbound flags say (an opt-out is never gated).
  */
-import { Router } from "express";
+import express, { Router } from "express";
 import { prisma } from "../../lib/db";
 import { logger } from "../../lib/logger";
 import { rateLimit } from "../../middleware/rateLimit";
@@ -26,9 +31,45 @@ const unsubscribeLimit = rateLimit({
   keyPrefix: "rl:public:unsubscribe",
 });
 
+function escapeHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+/** Neutral, self-contained page: independent of the configured unsubscribe text. */
+function confirmPage(token: string): string {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8">` +
+    `<meta name="viewport" content="width=device-width,initial-scale=1">` +
+    `<meta name="robots" content="noindex"><title>Confirm unsubscribe</title></head>` +
+    `<body><h1>Confirm unsubscribe</h1>` +
+    `<p>Press the button to stop receiving these emails.</p>` +
+    `<form method="post" action="/api/v1/public/unsubscribe">` +
+    `<input type="hidden" name="token" value="${escapeHtml(token)}">` +
+    `<button type="submit">Confirm unsubscribe</button></form></body></html>`;
+}
+
+async function showConfirmation(req: any, res: any, next: (error?: unknown) => void) {
+  try {
+    const token = req.query?.token;
+    if (!verifyUnsubscribeToken(token)) {
+      res.status(404).json({ error: "Not found" });
+      return;
+    }
+    res.setHeader?.("Cache-Control", "no-store");
+    res.status(200).type("html").send(confirmPage(token as string));
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function handle(req: any, res: any, next: (error?: unknown) => void) {
   try {
-    const verified = verifyUnsubscribeToken(req.query?.token);
+    const bodyToken = typeof req.body?.token === "string" ? req.body.token : undefined;
+    const verified = verifyUnsubscribeToken(req.query?.token ?? bodyToken);
     if (!verified) {
       res.status(404).json({ error: "Not found" });
       return;
@@ -71,5 +112,11 @@ async function handle(req: any, res: any, next: (error?: unknown) => void) {
   }
 }
 
-unsubscribeRouter.get("/", systemScope("route:public-unsubscribe"), unsubscribeLimit, handle);
-unsubscribeRouter.post("/", systemScope("route:public-unsubscribe"), unsubscribeLimit, handle);
+unsubscribeRouter.get("/", systemScope("route:public-unsubscribe"), unsubscribeLimit, showConfirmation);
+unsubscribeRouter.post(
+  "/",
+  systemScope("route:public-unsubscribe"),
+  unsubscribeLimit,
+  express.urlencoded({ extended: false, limit: "4kb" }),
+  handle,
+);

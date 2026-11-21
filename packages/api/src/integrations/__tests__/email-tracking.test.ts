@@ -1,7 +1,14 @@
 import { afterEach, expect, it, vi } from "vitest";
 
 vi.mock("../../lib/logger", () => ({ logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
-vi.mock("../../config/env", () => ({ env: { NODE_ENV: "production", OFFLINE_MODE: false } }));
+vi.mock("../../config/env", () => ({
+  env: {
+    NODE_ENV: "production",
+    OFFLINE_MODE: false,
+    JWT_SECRET: "test-jwt-secret-at-least-32-characters-long-xx",
+    API_PUBLIC_URL: "https://api.example.test",
+  },
+}));
 
 import { sendBatchEmails, sendEmail } from "../email";
 import { sendPasswordResetEmail, sendVerifyEmail } from "../email-templates";
@@ -41,13 +48,43 @@ it("B-06: batch contact email sends nothing unless OUTBOUND_EMAIL_ENABLED=true",
   vi.stubEnv("SENDGRID_API_KEY", "synthetic-sendgrid-key");
   const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
   vi.stubGlobal("fetch", fetch);
-  const batch = [{ to: "a@example.test", subject: "S", body: "B" }, { to: "b@example.test", subject: "S", body: "B" }];
+  const outbound = { tenantId: "tenant-1" };
+  const batch = [
+    { to: "a@example.test", subject: "S", body: "B", outbound },
+    { to: "b@example.test", subject: "S", body: "B", outbound },
+  ];
 
   vi.stubEnv("OUTBOUND_EMAIL_ENABLED", "false");
   expect(await sendBatchEmails(batch)).toEqual({ sent: 0, skipped: 2 });
   expect(fetch).not.toHaveBeenCalled();
 
   vi.stubEnv("OUTBOUND_EMAIL_ENABLED", "true");
+  vi.stubEnv("OUTBOUND_LEGAL_SENDER_ADDRESS", "Test Street 1, Test City");
+  vi.stubEnv("OUTBOUND_LEGAL_UNSUBSCRIBE_TEXT", "Opt out: {url}");
   expect(await sendBatchEmails(batch)).toEqual({ sent: 2, skipped: 0 });
   expect(fetch).toHaveBeenCalledTimes(2);
+  const payload = JSON.parse(fetch.mock.calls[0][1].body);
+  expect(payload.headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+  expect(payload.content[0].value).toContain("Test Street 1, Test City");
+});
+
+it("batch contact email fails closed: flag on but legal config missing sends nothing", async () => {
+  vi.stubEnv("SENDGRID_API_KEY", "synthetic-sendgrid-key");
+  vi.stubEnv("OUTBOUND_EMAIL_ENABLED", "true");
+  const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
+  vi.stubGlobal("fetch", fetch);
+  const batch = [{ to: "a@example.test", subject: "S", body: "B", outbound: { tenantId: "tenant-1" } }];
+  expect(await sendBatchEmails(batch)).toEqual({ sent: 0, skipped: 1 });
+  expect(fetch).not.toHaveBeenCalled();
+});
+
+it("batch contact email skips a message without the outbound marker even with full config", async () => {
+  vi.stubEnv("SENDGRID_API_KEY", "synthetic-sendgrid-key");
+  vi.stubEnv("OUTBOUND_EMAIL_ENABLED", "true");
+  vi.stubEnv("OUTBOUND_LEGAL_SENDER_ADDRESS", "Test Street 1, Test City");
+  vi.stubEnv("OUTBOUND_LEGAL_UNSUBSCRIBE_TEXT", "Opt out: {url}");
+  const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 202 }));
+  vi.stubGlobal("fetch", fetch);
+  expect(await sendBatchEmails([{ to: "a@example.test", subject: "S", body: "B" }])).toEqual({ sent: 0, skipped: 1 });
+  expect(fetch).not.toHaveBeenCalled();
 });
