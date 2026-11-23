@@ -4,8 +4,17 @@ import LegalOperator from "../../../components/LegalOperator";
 import { useTranslations } from "next-intl";
 import { useState, useEffect, useRef } from "react";
 
+const TR_ASCII: Record<string, string> = { "ı": "i", "ğ": "g", "ü": "u", "ş": "s", "ö": "o", "ç": "c" };
+
 function slugify(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  return s
+    .replace(/İ/g, "i")
+    .toLowerCase()
+    .replace(/[ığüşöç]/g, (c) => TR_ASCII[c] ?? c)
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-|-$)/g, "");
 }
 
 export default function PrivacyIntegrationsPage() {
