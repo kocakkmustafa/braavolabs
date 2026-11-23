@@ -33,6 +33,7 @@ const PUBLIC_EXACT_PATHS = new Set([
   "/gdpr",
   "/kvkk",
   "/privacy",
+  "/privacy/integrations",
   "/terms",
   "/legal/account-deletion",
 ]);

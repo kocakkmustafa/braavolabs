@@ -28,6 +28,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     // would index as a redirect chain. Add back if a public risk-status
     // page ships separately.
     { path: "/privacy", changeFrequency: "yearly", priority: 0.3 },
+    { path: "/privacy/integrations", changeFrequency: "yearly", priority: 0.3 },
     { path: "/terms", changeFrequency: "yearly", priority: 0.3 },
     { path: "/cookies", changeFrequency: "yearly", priority: 0.3 },
     { path: "/kvkk", changeFrequency: "yearly", priority: 0.3 },
