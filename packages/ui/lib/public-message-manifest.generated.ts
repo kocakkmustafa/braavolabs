@@ -423,6 +423,24 @@ export const PUBLIC_MESSAGE_MANIFEST: Record<string, { uiCopy: readonly string[]
       "runtime"
     ]
   },
+  "/privacy/integrations": {
+    "uiCopy": [
+      "m28a812f120c3",
+      "m71c9ffc415a0",
+      "m76d027d04e32",
+      "m795836a1d4b2",
+      "mc3fca6aef955",
+      "mccfb38fd1109",
+      "me06887989706",
+      "meda5eea8ae48"
+    ],
+    "surface": [
+      "surface.error"
+    ],
+    "runtime": [
+      "runtime"
+    ]
+  },
   "/terms": {
     "uiCopy": [
       "m1a9415bc8fe7",

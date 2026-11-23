@@ -1992,6 +1992,60 @@
             "body": "Çerezlerle ilgili sorular için: privacy@braavolabs.com."
           }
         ]
+      },
+      "integrations": {
+        "title": "Gizlilik: Entegrasyonlar, Tanıtım E-postası ve Aramalar",
+        "date": "23 Kasım 2026",
+        "sections": [
+          {
+            "title": "Kapsam",
+            "body": "Bu sayfa Braavolabs Gizlilik Politikası'nı (/privacy) tamamlar; web uygulaması dışında, yani Chrome eklentisi, GitHub Uygulaması, Slack Uygulaması ve komut satırı (CLI) araçları üzerinden Braavolabs'ı kullandığınızda ve bir çalışma alanı giden e-posta (tanıtım/outreach) ile yapay zekâ ile sesli arama özelliklerini kullandığında kişisel verilerin nasıl işlendiğini açıklar. Braavolabs, Yula Lab'ın bir ürünüdür. Bu sayfa ile ana Gizlilik Politikası örtüştüğünde, bu entegrasyonlar için buradaki daha özel ifade geçerlidir. Bu entegrasyonların bir kısmı aşamalı olarak yayımlanabilir; her bölüm, o entegrasyonu kullanmanız hâlinde verilerin nasıl ele alındığını anlatır."
+          },
+          {
+            "title": "Chrome eklentisi",
+            "body": "Braavolabs Chrome eklentisi tarayıcınızı Braavolabs hesabınıza bağlar. Çalışabilmesi için şunları işleyebilir: hesabınızı tanımlayan bir kimlik doğrulama belirteci ile, talep ettiğiniz bir işlem için Braavolabs'a göndermeyi seçtiğiniz sayfa adresi, seçili metin veya sayfa içeriği. Bu veriyi yalnızca talebinizi yerine getirmek ve sonucu size göstermek için işleriz. Eklenti, sayfaları arka planda okumak veya gezinme geçmişinizi toplamak için tasarlanmamıştır. Bu veriyi satmayız. Gönderdiğiniz içerik, Gizlilik Politikası'nda anlatılan diğer çalışma alanı içeriği gibi, sizin seçtiğiniz ya da bizim adımıza kullanılan yapay zekâ sağlayıcısı dâhil aynı biçimde ele alınır. Eklentiyi dilediğiniz an kaldırabilirsiniz; bu, yeni veri gönderilmesini durdurur ve çalışma alanınızda zaten saklanan verilerin silinmesini bizden isteyebilirsiniz."
+          },
+          {
+            "title": "GitHub Uygulaması",
+            "body": "Braavolabs GitHub Uygulaması'nı bir hesaba veya organizasyona kurarsanız GitHub, Braavolabs'a verdiğiniz depolara ve onayladığınız izinlere erişim sağlar. Başlattığınız bir görev için bir ajanın veya pipeline'ın ihtiyaç duyduğu depo üst verisini (adlar, dallar, issue'lar, pull request'ler, commit bilgisi) ve depo içeriğini işleyebiliriz. Bu veriyi yalnızca istediğiniz görevi yapmak için, örneğin kodu okumak veya pull request açmak için kullanırız. Erişim verdiğiniz içerik, görev için kullanılan yapay zekâ sağlayıcısına iletilebilir. Erişimi GitHub üzerinden yönetirsiniz: GitHub ayarlarınızdan verilen depoları değiştirebilir veya Uygulama'yı kaldırabilirsiniz; bu, erişimimizi sona erdirir. GitHub veriyi kendi koşullarına göre işler."
+          },
+          {
+            "title": "Slack Uygulaması",
+            "body": "Braavolabs Slack Uygulaması'nı bir Slack çalışma alanına eklerseniz Slack, Braavolabs'a sizin veya çalışma alanı yöneticisinin onayladığı kanallara ve izinlere erişim sağlar. İstediğiniz işlemleri yapmak ve sonuçları geri göndermek için, Uygulama'ya gönderdiğiniz veya Uygulama'nın okuyacak şekilde yapılandırıldığı mesajları, komutları ve dosyaları, Slack çalışma alanı, kanal ve kullanıcı tanımlayıcılarıyla birlikte işleyebiliriz. Slack içeriğini istenen özelliği sunmak dışında hiçbir amaçla kullanmayız. İçerik, görev için kullanılan yapay zekâ sağlayıcısına iletilebilir. Slack çalışma alanı yöneticisi Uygulama'yı dilediği an kaldırabilir; bu, erişimimizi sona erdirir. Slack veriyi kendi koşullarına göre işler."
+          },
+          {
+            "title": "CLI ve tetikleyiciler",
+            "body": "Braavolabs CLI ve masaüstü araçları, sağladığınız kimlik bilgileriyle hesabınıza bağlanır. Uzaktan oturum özelliğini kullandığınızda, yerel oturumunuz ile telefonunuz veya tarayıcınız arasındaki olaylar ve komutlar Braavolabs sunucularından geçer ve en çok bir saat süreyle geçici bir yeniden oynatma tamponunda tutulur. Komutlar kendi bilgisayarınızda çalışır; siz ya da çalıştırdığınız bir ajan bir isteğin parçası olarak göndermedikçe bilgisayarınızdaki dosyaların içeriği yüklenmez. Harici bir olaydan (örneğin GitHub veya Slack'ten gelen bir webhook) bir çalıştırma başlatan tetikleyiciler, harici hizmetin gönderdiği olay verisini işler. Masaüstü uygulamasında doğrudan modda kendi yapay zekâ sağlayıcı anahtarınızı kullanırsanız anahtarınız sistem anahtar zincirinizde kalır ve istekler bilgisayarınızdan doğrudan o sağlayıcıya gider."
+          },
+          {
+            "title": "Giden e-posta ve abonelikten çıkma",
+            "body": "Bir çalışma alanı, kişilere e-posta göndermek için (örneğin tanıtım dizileri) Braavolabs'ı kullanabilir. Kimin iletişime geçileceğine e-postayı gönderen çalışma alanı karar verir; Braavolabs e-postayı o çalışma alanı adına gönderir. Bunun için alıcının e-posta adresini ve adını, ileti içeriğini ve durumunu, gönderim, yanıt ve abonelikten çıkma kayıtlarını işleriz. Her e-posta bir abonelikten çıkma bağlantısı ve göndericinin posta adresini içerir; ayrıca tek tıkla çıkış için standart List-Unsubscribe başlıklarını taşır. Bağlantıyı kullanırsanız bir onay sayfası sizden onay ister, ardından adresiniz o çalışma alanı için bir bastırma listesine eklenir ve etkin dizileriniz durdurulur. Abonelikten çıkma, geri dönen e-posta, şikâyet veya elle giriş nedeniyle bastırma listesinde bulunan bir adrese o çalışma alanı bir daha e-posta göndermez. Çıkış tercihiniz saygı görmeye devam etsin diye bastırma kayıtlarını saklarız. Ayrıca aynı adrese yanıtsız üç e-postadan sonra diziyi durdururuz. Abonelikten çıkma bağlantıları yaklaşık 400 gün sonra geçerliliğini yitirir. Başka bir yolla çıkmak veya hakkınızda ne tuttuğumuzu sormak için yula@yulalab.com adresine yazın."
+          },
+          {
+            "title": "Yapay zekâ ile sesli arama",
+            "body": "Bir çalışma alanı, bir telefon ve ses sağlayıcısı üzerinden yapay zekâ ses ajanıyla giden aramalar yapmak için Braavolabs'ı kullanabilir. Her aramanın başında ses ajanı kendini bir yapay zekâ olarak tanıtır. Aramalar yalnızca operatörün belirlediği izinli arama saatleri içinde yapılır. Bir arama için ilgili telefon numaralarını, arama zamanını, süresini, durumunu ve maliyetini; sağlayıcı sunuyorsa bir döküm (transkript) ve kayıt bağlantısını işleriz. Aranmak istemiyorsanız arayana söyleyin veya yula@yulalab.com adresine yazın; talebi ilgili çalışma alanına iletir ve numaranızın hariç tutulması için çalışırız. Braavolabs henüz telefon numaraları için merkezi bir aranmama listesi tutmamaktadır. Ses ve telefon sağlayıcıları arama verisini kendi koşullarına göre işler."
+          },
+          {
+            "title": "Hizmet sağlayıcılar ve aktarımlar",
+            "body": "Özelliğe bağlı olarak e-posta gönderim sağlayıcısı (SendGrid), ses ve telefon sağlayıcıları, yapay zekâ sağlayıcıları ile bağladığınız platformlar (Google Chrome ve Chrome Web Mağazası, GitHub, Slack) gibi hizmet sağlayıcılar kullanabiliriz. Bu sağlayıcılar veriyi Türkiye ve Avrupa Ekonomik Alanı dışı dâhil ülkeniz dışında işleyebilir. Hukukun gerektirdiği hâllerde aktarımlar, standart sözleşme hükümleri veya KVKK'nın açık rıza mekanizması gibi hukukun öngördüğü güvencelere dayanır. Kişisel verileri satmayız."
+          },
+          {
+            "title": "Saklama",
+            "body": "Her kayıt için sabit bir saklama süresi yayımlamıyoruz. Çalışma alanı içeriği, arama kayıtları ve outreach kayıtları, çalışma alanı tarafından silinene veya Gizlilik Politikası'nda anlatıldığı gibi hesap ya da çalışma alanı silinene kadar çalışma alanında kalır. Bastırma listesi kayıtları, abonelikten çıkma tercihlerine uymak için saklanır. Uzaktan oturum yeniden oynatma tamponu veriyi en çok bir saat tutar. GitHub, Slack, Google veya diğer platformlarda tutulan veri, onların politikalarına göre saklanır."
+          },
+          {
+            "title": "Haklarınız (KVKK ve GDPR)",
+            "body": "6698 sayılı Kişisel Verilerin Korunması Kanunu (KVKK) ve AB GDPR kapsamında; verinizin işlenip işlenmediğini öğrenme, erişim isteme, düzeltme veya silme talep etme, işlemeye itiraz etme ve hukukun öngördüğü yerde veri taşınabilirliği isteme haklarına sahipsiniz. İşleme rızanıza dayanıyorsa rızanızı dilediğiniz an geri çekebilirsiniz. Ayrıca bir denetim makamına, yani Türkiye'de Kişisel Verileri Koruma Kurumu'na veya bulunduğunuz AB ülkesindeki makama şikâyette bulunabilirsiniz. Bir Braavolabs çalışma alanının gönderdiği e-posta veya aramanın alıcısıysanız, kişi verisi bakımından genellikle veri sorumlusu o çalışma alanıdır; biz yardımcı oluruz ve gerektiğinde talebiniz doğrultusunda işlem yaparız. 30 gün içinde yanıt vermeyi hedefleriz."
+          },
+          {
+            "title": "Değişiklikler",
+            "body": "Entegrasyonlar değiştikçe bu sayfayı güncelleyebiliriz. Üstteki tarih son güncellemeyi gösterir. Önemli değişiklikleri Gizlilik Politikası'nda anlatılan yolla duyururuz."
+          },
+          {
+            "title": "İletişim",
+            "body": "Bu sayfayla ilgili soru veya talepleriniz için yula@yulalab.com adresine yazın. İşletici ve veri sorumlusu bilgisi Gizlilik Politikası'nda yer alır."
+          }
+        ]
       }
     },
     "about": {

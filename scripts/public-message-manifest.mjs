@@ -45,6 +45,7 @@ export const PUBLIC_ROUTE_PAGES = {
   "/gdpr": "app/gdpr/page.tsx",
   "/kvkk": "app/kvkk/page.tsx",
   "/privacy": "app/privacy/page.tsx",
+  "/privacy/integrations": "app/privacy/integrations/page.tsx",
   "/terms": "app/terms/page.tsx",
   "/legal/account-deletion": "app/legal/account-deletion/page.tsx",
 };

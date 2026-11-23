@@ -1992,6 +1992,60 @@
             "body": "¿Preguntas sobre cookies? Escríbenos a privacy@braavolabs.com."
           }
         ]
+      },
+      "integrations": {
+        "title": "Privacy: Integrations, Outreach and Calls",
+        "date": "23 November 2026",
+        "sections": [
+          {
+            "title": "Scope",
+            "body": "This page supplements the Braavolabs Privacy Policy (/privacy) and explains how personal data is handled when you use Braavolabs outside the web app: through the Chrome extension, the GitHub App, the Slack App and the command-line (CLI) tooling, and when a workspace uses the outbound email (outreach) and AI voice call features. Braavolabs is a product of Yula Lab. Where this page and the main Privacy Policy overlap, the more specific statement here applies to these integrations. Some of these integrations may be released in stages; a section describes how we handle data if you use that integration."
+          },
+          {
+            "title": "Chrome extension",
+            "body": "The Braavolabs Chrome extension connects your browser to your Braavolabs account. To work, it may process the following: an authentication token that identifies your account, and the page address, selected text or page content that you choose to send to Braavolabs for an action you request. We process this data only to carry out that request and show you the result. The extension is not intended to read pages in the background or collect your browsing history. We do not sell this data. The content you send is handled like other workspace content described in the Privacy Policy, including any AI provider you have chosen or that we use on our behalf. You can remove the extension at any time; this stops new data from being sent, and you can ask us to delete data already stored in your workspace."
+          },
+          {
+            "title": "GitHub App",
+            "body": "If you install the Braavolabs GitHub App on an account or organization, GitHub gives Braavolabs access to the repositories you grant and the permissions you approve. We may process repository metadata (names, branches, issues, pull requests, commit information) and repository content that an agent or pipeline needs for a task you start. We use this data only to perform the task you request, such as reading code or opening a pull request. Content you grant access to may be passed to the AI provider used for that task. You control access through GitHub: you can change the granted repositories or uninstall the App in your GitHub settings, which ends our access. GitHub processes data under its own terms."
+          },
+          {
+            "title": "Slack App",
+            "body": "If you add the Braavolabs Slack App to a Slack workspace, Slack gives Braavolabs access to the channels and permissions that you or your workspace administrator approve. We may process messages, commands and files that you send to the App or that the App is configured to read, together with Slack workspace, channel and user identifiers, to carry out the actions you request and to post results back. We do not use Slack content for anything other than providing the requested feature. Content may be passed to the AI provider used for the task. A Slack workspace administrator can remove the App at any time, which ends our access. Slack processes data under its own terms."
+          },
+          {
+            "title": "CLI and triggers",
+            "body": "The Braavolabs CLI and desktop tooling connect to your account with credentials you provide. When you use the remote session feature, events and commands between your local session and your phone or browser pass through Braavolabs servers and are held in a temporary replay buffer for up to one hour. Commands run on your own computer; the content of the files on it is not uploaded unless you or an agent you run sends it as part of a request. Triggers that start a run from an external event (for example a webhook from GitHub or Slack) process the event data that the external service sends. If you use your own AI provider key in direct mode in the desktop app, your key stays in your system keychain and requests go from your computer to that provider."
+          },
+          {
+            "title": "Outbound email and opting out",
+            "body": "A workspace may use Braavolabs to send email to contacts, for example outreach sequences. The workspace that sends the email decides who is contacted; Braavolabs sends it on that workspace's behalf. For this we process the recipient's email address and name, the message content and status, and records of sends, replies and opt-outs. Every such email includes an unsubscribe link and the sender's postal address. It also carries standard List-Unsubscribe headers for one-click unsubscribe. If you use the link, a confirmation page asks you to confirm, and then your address is added to a suppression list for that workspace and your active sequences are stopped. An address on the suppression list, whether from an unsubscribe, a bounce, a complaint or a manual entry, is not emailed again by that workspace. We keep suppression entries so that your opt-out continues to be honoured. We also stop a sequence after three emails to the same address without a reply. Unsubscribe links expire after about 400 days. To opt out in another way, or to ask what we hold about you, write to yula@yulalab.com."
+          },
+          {
+            "title": "AI voice calls",
+            "body": "A workspace may use Braavolabs to place outbound calls with an AI voice agent through a telephony and voice provider. At the start of every call, the voice agent identifies itself as an AI. Calls are placed only within an allowed calling window set by the operator. For a call we process the phone numbers involved, the call time, duration, status and cost, and, where the provider supplies them, a transcript and a recording link. If you do not want to receive calls, tell the caller or write to yula@yulalab.com; we will pass the request to the workspace concerned and work to have your number excluded. Braavolabs does not yet keep a central do-not-call list for phone numbers. The voice and telephony providers process call data under their own terms."
+          },
+          {
+            "title": "Service providers and transfers",
+            "body": "Depending on the feature, we may use service providers such as an email delivery provider (SendGrid), voice and telephony providers, AI providers, and the platforms you connect (Google Chrome and the Chrome Web Store, GitHub, Slack). These providers may process data outside your country, including outside Türkiye and the European Economic Area. Where the law requires it, transfers rely on the safeguards it provides, such as standard contractual clauses or the explicit consent mechanism of KVKK. We do not sell personal data."
+          },
+          {
+            "title": "Retention",
+            "body": "We do not publish a fixed retention period for every record. Workspace content, call records and outreach records stay in the workspace until they are deleted by the workspace or when the account or workspace is deleted, as the Privacy Policy describes. Suppression-list entries are kept to honour opt-outs. The remote-session replay buffer holds data for up to one hour. Data held by GitHub, Slack, Google or other platforms is kept under their policies."
+          },
+          {
+            "title": "Your rights (KVKK and GDPR)",
+            "body": "Under the Turkish Personal Data Protection Law (KVKK, Law No. 6698) and the EU GDPR, you may ask whether your data is processed, request access to it, ask for correction or deletion, object to processing, and ask for data portability where the law provides it. If processing is based on your consent, you may withdraw it at any time. You may also lodge a complaint with a supervisory authority: the Personal Data Protection Authority (KVKK Kurumu) in Türkiye or your local EU authority. If you are the recipient of an email or call sent by a Braavolabs workspace, that workspace is typically the controller for the contact data; we assist and, where required, act on your request. We aim to respond within 30 days."
+          },
+          {
+            "title": "Changes",
+            "body": "We may update this page as the integrations change. The date at the top shows the latest update. We will give notice of significant changes in the way described in the Privacy Policy."
+          },
+          {
+            "title": "Contact",
+            "body": "For questions or requests about this page, write to yula@yulalab.com. The Privacy Policy lists the operator and data controller."
+          }
+        ]
       }
     },
     "about": {
