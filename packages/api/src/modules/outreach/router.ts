@@ -5,6 +5,8 @@ import { AppError } from "../../middleware/error";
 import { z } from "zod";
 import { logger } from "../../lib/logger";
 import { assertOutboundFeatureEnabled } from "../../lib/outbound-gates";
+import { isEmailSuppressed } from "../../lib/email-suppression";
+import { countActiveUnansweredEnrollments, isSpamLimitReached } from "../../lib/spam-guard";
 
 export const outreachRouter = Router();
 outreachRouter.use(authMiddleware);
@@ -100,10 +102,25 @@ outreachRouter.post("/sequences/:id/enroll", async (req, res, next) => {
         id: contactId,
         company: { tenantId: req.auth!.tenantId },
       },
-      select: { id: true, companyId: true },
+      select: { id: true, companyId: true, email: true },
     });
     if (!contact) {
       throw new AppError(404, "Contact not found");
+    }
+
+    // Suppression list (unsubscribe, bounce, complaint, manual): never enrol.
+    if (contact.email && (await isEmailSuppressed(req.auth!.tenantId, contact.email))) {
+      await prisma.activityLog.create({
+        data: {
+          tenantId: req.auth!.tenantId,
+          actor: req.auth!.userId,
+          action: "outreach.enroll_blocked_suppressed",
+          resource: "contact",
+          resourceId: contact.id,
+          details: { sequenceId: sequence.id },
+        },
+      });
+      throw new AppError(409, "Contact is on the suppression list and cannot be enrolled.", undefined, "RECIPIENT_SUPPRESSED");
     }
     // Optional further hardening: require the contact and sequence share
     // the same company (not just the same tenant). For now we accept
@@ -111,16 +128,9 @@ outreachRouter.post("/sequences/:id/enroll", async (req, res, next) => {
     // if (contact.companyId !== sequence.companyId) ...
 
     // Spam protection: check unanswered outreach count (scoped to current tenant)
-    const existingEnrollments = await prisma.outreachEnrollment.count({
-      where: {
-        contactId,
-        status: "ACTIVE",
-        repliedAt: null,
-        sequence: { company: { tenantId: req.auth!.tenantId } },
-      },
-    });
+    const existingEnrollments = await countActiveUnansweredEnrollments(req.auth!.tenantId, contactId);
 
-    if (existingEnrollments >= 3) {
+    if (isSpamLimitReached(existingEnrollments)) {
       throw new AppError(
         429,
         "Spam protection: contact has 3+ unanswered active sequences. Wait for a reply or remove existing enrollments.",

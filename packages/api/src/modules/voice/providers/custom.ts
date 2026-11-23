@@ -63,7 +63,10 @@ export const customAdapter: VoiceProviderAdapter = {
       body: JSON.stringify({
         from: input.voiceAgent.phoneNumber,
         to: input.calleeNumber,
-        prompt: input.prompt,
+        // The endpoint must open the call with `disclosure`; it is also forced
+        // into the prompt so an endpoint that only reads `prompt` still speaks it.
+        disclosure: input.disclosure,
+        prompt: `Begin the call by saying exactly: "${input.disclosure}"\n\n${input.prompt}`,
       }),
     });
     if (!res.ok) {

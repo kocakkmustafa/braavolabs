@@ -1,7 +1,5 @@
 export * from "./hubspot/client";
 export * from "./stripe/billing";
-export * from "./email/sender";
-export * from "./email/mailchimp";
 export * from "./social/tiktok";
 export * from "./social/linkedin";
 export * from "./social/twitter";

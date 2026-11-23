@@ -72,6 +72,124 @@ export function assertOutboundFeatureEnabled(feature: OutboundFeature): void {
   if (!isOutboundFeatureEnabled(feature)) throw outboundFeatureDisabledError(feature);
 }
 
+// ─── Legal configuration (fail-closed) ───────────────────────────────────────
+//
+// The flags above only say "may this feature run". Turning one on is not
+// enough: contact email needs a sender postal address and an opt-out text,
+// the voice agent needs an AI-disclosure text and a calling window. The legal
+// wording and values are approved by the founder and are NEVER hard-coded;
+// they come from env. While a required value is missing (null) the send / the
+// call is refused with LEGAL_CONFIG_MISSING, even when the flag is "true".
+// Read at call time, like the gates.
+
+export const LEGAL_CONFIG_MISSING_CODE = "LEGAL_CONFIG_MISSING";
+
+export interface CallWindow {
+  /** Minutes after midnight in `timeZone`, inclusive. */
+  startMinutes: number;
+  /** Minutes after midnight in `timeZone`, exclusive. */
+  endMinutes: number;
+  /** IANA zone; "UTC" when the value names none. */
+  timeZone: string;
+  raw: string;
+}
+
+export interface OutboundLegalConfig {
+  /** Physical sender address block appended to outbound email. */
+  senderAddress: string | null;
+  /** Opt-out text; contains the `{url}` placeholder (invalid without it → null). */
+  unsubscribeText: string | null;
+  /** AI-disclosure text spoken first on an outbound call. */
+  voiceDisclosure: string | null;
+  /** Allowed calling window, e.g. "09:00-20:00" or "09:00-20:00 Europe/Istanbul". */
+  voiceCallWindow: CallWindow | null;
+}
+
+/** Longest disclosure we accept; the Vapi first message is capped at 500 chars. */
+export const MAX_VOICE_DISCLOSURE_CHARS = 300;
+
+function nonEmpty(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+/**
+ * `HH:MM-HH:MM` optionally followed by an IANA zone. There is no per-contact
+ * or per-campaign time-zone field (and no tenant time zone) in the schema, so
+ * a value without a zone is evaluated in UTC; the operator picks the zone in
+ * the value itself. start must be before end (no overnight windows): anything
+ * unparsable is null, i.e. fail-closed.
+ */
+export function parseCallWindow(raw: string | null): CallWindow | null {
+  if (!raw) return null;
+  const match = /^(\d{2}):(\d{2})\s*-\s*(\d{2}):(\d{2})(?:\s+([A-Za-z_]+(?:\/[A-Za-z0-9_+-]+)*))?$/.exec(raw);
+  if (!match) return null;
+  const [h1, m1, h2, m2] = match.slice(1, 5).map(Number) as [number, number, number, number];
+  if (h1 > 23 || h2 > 24 || m1 > 59 || m2 > 59 || (h2 === 24 && m2 !== 0)) return null;
+  const startMinutes = h1 * 60 + m1;
+  const endMinutes = h2 * 60 + m2;
+  if (startMinutes >= endMinutes) return null;
+  const timeZone = match[5] ?? "UTC";
+  try {
+    new Intl.DateTimeFormat("en-GB", { timeZone });
+  } catch {
+    return null;
+  }
+  return { startMinutes, endMinutes, timeZone, raw };
+}
+
+export function getOutboundLegalConfig(): OutboundLegalConfig {
+  const unsubscribeText = nonEmpty(process.env.OUTBOUND_LEGAL_UNSUBSCRIBE_TEXT);
+  const voiceDisclosure = nonEmpty(process.env.VOICE_AI_DISCLOSURE_TEXT);
+  return {
+    senderAddress: nonEmpty(process.env.OUTBOUND_LEGAL_SENDER_ADDRESS),
+    unsubscribeText: unsubscribeText && unsubscribeText.includes("{url}") ? unsubscribeText : null,
+    voiceDisclosure:
+      voiceDisclosure && voiceDisclosure.length <= MAX_VOICE_DISCLOSURE_CHARS ? voiceDisclosure : null,
+    voiceCallWindow: parseCallWindow(nonEmpty(process.env.VOICE_CALL_WINDOW)),
+  };
+}
+
+/** Env names still missing (or invalid) for outbound contact email. */
+export function missingEmailLegalConfig(config = getOutboundLegalConfig()): string[] {
+  const missing: string[] = [];
+  if (!config.senderAddress) missing.push("OUTBOUND_LEGAL_SENDER_ADDRESS");
+  if (!config.unsubscribeText) missing.push("OUTBOUND_LEGAL_UNSUBSCRIBE_TEXT");
+  return missing;
+}
+
+/** Env names still missing (or invalid) for outbound voice calls. */
+export function missingVoiceLegalConfig(config = getOutboundLegalConfig()): string[] {
+  const missing: string[] = [];
+  if (!config.voiceDisclosure) missing.push("VOICE_AI_DISCLOSURE_TEXT");
+  if (!config.voiceCallWindow) missing.push("VOICE_CALL_WINDOW");
+  return missing;
+}
+
+/** The 422 an outbound send / call returns while legal config is incomplete. */
+export function legalConfigMissingError(): AppError {
+  return new AppError(
+    422,
+    "Outbound contact is unavailable until the legal configuration is complete.",
+    undefined,
+    LEGAL_CONFIG_MISSING_CODE,
+  );
+}
+
+/** Is `now` inside the window, in the window's own time zone? */
+export function isWithinCallWindow(window: CallWindow, now: Date = new Date()): boolean {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: window.timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const hour = Number(parts.find((p) => p.type === "hour")?.value);
+  const minute = Number(parts.find((p) => p.type === "minute")?.value);
+  const minutes = hour * 60 + minute;
+  return minutes >= window.startMinutes && minutes < window.endMinutes;
+}
+
 /**
  * Agent tools that reach contacts through a gated feature. The executor
  * refuses them before any approval row is created, so a disabled feature

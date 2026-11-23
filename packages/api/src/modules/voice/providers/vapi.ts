@@ -81,7 +81,9 @@ export const vapiAdapter: VoiceProviderAdapter = {
         customer: { number: input.calleeNumber },
         assistant: { assistantId },
         assistantOverrides: {
-          firstMessage: input.prompt.slice(0, 500),
+          // Disclosure first and never truncated (<=300 chars by config); the
+          // rest of the 500-char first-message budget goes to the prompt.
+          firstMessage: `${input.disclosure} ${input.prompt.slice(0, Math.max(0, 499 - input.disclosure.length))}`.trim(),
           variableValues: { task: input.prompt },
         },
       }),

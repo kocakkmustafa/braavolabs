@@ -12,7 +12,14 @@ import { logger } from "../../lib/logger";
 import { runWithoutTenant } from "../../lib/tenant-context";
 import { env } from "../../config/env";
 import { sendEmail } from "../../integrations/email";
-import { isOutboundFeatureEnabled } from "../../lib/outbound-gates";
+import {
+  getOutboundLegalConfig,
+  isOutboundFeatureEnabled,
+  missingEmailLegalConfig,
+} from "../../lib/outbound-gates";
+import { appendLegalFooter } from "../../lib/outbound-footer";
+import { isEmailSuppressed } from "../../lib/email-suppression";
+import { countUnansweredSends, isSpamLimitReached } from "../../lib/spam-guard";
 
 const QUEUE_NAME = "outreach-sequence";
 
@@ -63,6 +70,18 @@ export async function processSequenceStep(job: Job<SequenceJobData>): Promise<vo
     return;
   }
 
+  // Flags on is not enough: without the founder-approved sender address and
+  // opt-out text nothing may go out (LEGAL_CONFIG_MISSING). Logged, never silent;
+  // like the flag gate the job is consumed without touching the enrollment.
+  const missingLegal = missingEmailLegalConfig(getOutboundLegalConfig());
+  if (missingLegal.length > 0) {
+    logger.warn(
+      { enrollmentId, missing: missingLegal, code: "LEGAL_CONFIG_MISSING" },
+      "Outreach step skipped — legal config incomplete",
+    );
+    return;
+  }
+
   const enrollment = await prisma.outreachEnrollment.findUnique({
     where: { id: enrollmentId },
     include: {
@@ -103,25 +122,29 @@ export async function processSequenceStep(job: Job<SequenceJobData>): Promise<vo
   const contact = enrollment.contact;
   const company = enrollment.sequence.company;
 
+  // --- Suppression list: an opted-out / bounced / complained address is never mailed ---
+  if (contact.email && (await isEmailSuppressed(company.tenantId, contact.email))) {
+    logger.warn({ enrollmentId }, "Recipient is on the suppression list — stopping sequence");
+    await prisma.outreachEnrollment.update({
+      where: { id: enrollmentId },
+      data: { status: "UNSUBSCRIBED", unsubscribedAt: new Date() },
+    });
+    await prisma.activityLog.create({
+      data: {
+        tenantId: company.tenantId,
+        actor: "system",
+        action: "outreach.suppressed_skip",
+        resource: "enrollment",
+        resourceId: enrollmentId,
+        details: { contactEmail: contact.email },
+      },
+    });
+    return;
+  }
+
   // --- Spam check: max 3 unanswered sends to same email ---
   if (contact.email) {
-    const unansweredCount = await prisma.activityLog.count({
-      where: {
-        tenantId: company.tenantId,
-        action: "outreach.email_sent",
-        details: { path: ["recipientEmail"], equals: contact.email },
-      },
-    });
-    // Check if there's been a reply
-    const replyCount = await prisma.activityLog.count({
-      where: {
-        tenantId: company.tenantId,
-        action: "outreach.reply_received",
-        details: { path: ["contactEmail"], equals: contact.email },
-      },
-    });
-
-    if (unansweredCount - replyCount >= 3) {
+    if (isSpamLimitReached(await countUnansweredSends(company.tenantId, contact.email))) {
       logger.warn({ enrollmentId, email: contact.email }, "Spam protection: 3+ unanswered emails — stopping sequence");
       await prisma.outreachEnrollment.update({
         where: { id: enrollmentId },
@@ -147,10 +170,16 @@ export async function processSequenceStep(job: Job<SequenceJobData>): Promise<vo
       await sendEmail({
         to: contact.email,
         subject: step.subject ?? `Message from ${company.name}`,
-        body: interpolateTemplate(step.body, {
-          contactName: contact.name ?? "",
-          companyName: company.name,
-        }),
+        // Opt-out link + sender address from the founder-approved config.
+        body: appendLegalFooter(
+          interpolateTemplate(step.body, {
+            contactName: contact.name ?? "",
+            companyName: company.name,
+          }),
+          company.tenantId,
+          contact.email,
+        ),
+        outbound: { tenantId: company.tenantId },
       });
     }
     // LinkedIn/X DM would be draft-based in V1

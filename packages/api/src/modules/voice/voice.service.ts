@@ -20,7 +20,13 @@ import { prisma } from "../../lib/db";
 import { redis } from "../../lib/redis";
 import { AppError } from "../../middleware/error";
 import { logger } from "../../lib/logger";
-import { assertOutboundFeatureEnabled } from "../../lib/outbound-gates";
+import {
+  assertOutboundFeatureEnabled,
+  getOutboundLegalConfig,
+  isWithinCallWindow,
+  legalConfigMissingError,
+  missingVoiceLegalConfig,
+} from "../../lib/outbound-gates";
 
 export interface OutboundCallRequest {
   voiceAgentId: string;
@@ -75,6 +81,28 @@ export async function placeOutboundCall(req: OutboundCallRequest): Promise<Outbo
   // B-06: every outbound dial (REST and the make_outbound_call tool) stops here
   // while the voice agent is disabled — before quota, provider or DB writes.
   assertOutboundFeatureEnabled("voice");
+  // Flag on is not enough: the AI-disclosure text and the calling window are
+  // founder-approved config. Missing => refuse (LEGAL_CONFIG_MISSING), before
+  // quota, provider or DB writes.
+  const legal = getOutboundLegalConfig();
+  const missingLegal = missingVoiceLegalConfig(legal);
+  if (missingLegal.length > 0 || !legal.voiceDisclosure || !legal.voiceCallWindow) {
+    logger.warn({ missing: missingLegal }, "Outbound call refused — legal config incomplete (LEGAL_CONFIG_MISSING)");
+    throw legalConfigMissingError();
+  }
+  // Calling hours. The window is evaluated in the zone named in VOICE_CALL_WINDOW
+  // (UTC when none): the schema has no per-contact, per-campaign or tenant time zone.
+  if (!isWithinCallWindow(legal.voiceCallWindow)) {
+    throw new AppError(
+      422,
+      "Outbound calls are outside the permitted calling window.",
+      undefined,
+      "OUTSIDE_CALL_WINDOW",
+    );
+  }
+  // DNC for phone numbers: NOT enforced here. The email suppression list does not
+  // cover phone numbers and no PhoneSuppression model exists; whether to add one
+  // (and its source of truth) is a founder decision. See the delivery report.
   if (!E164_RE.test(req.calleeNumber)) {
     throw new AppError(400, "calleeNumber must be in E.164 format (e.g. +14155550101)");
   }
@@ -96,6 +124,7 @@ export async function placeOutboundCall(req: OutboundCallRequest): Promise<Outbo
     voiceAgent: agent,
     calleeNumber: req.calleeNumber,
     prompt: req.prompt,
+    disclosure: legal.voiceDisclosure,
   });
 
   const call = await prisma.voiceCall.create({
@@ -187,6 +216,8 @@ export interface VoiceProviderAdapter {
     voiceAgent: { id: string; voiceConfig: unknown; phoneNumber: string | null };
     calleeNumber: string;
     prompt: string;
+    /** AI-disclosure text; MUST be the first thing the callee hears. */
+    disclosure: string;
   }): Promise<{ providerCallId: string }>;
   // Verify the webhook signature for inbound provider callbacks.
   // Each provider has its own signing scheme; the adapter returns

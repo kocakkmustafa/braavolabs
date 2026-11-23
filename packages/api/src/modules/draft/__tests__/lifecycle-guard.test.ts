@@ -13,6 +13,7 @@ const usageMeterFindUnique = vi.hoisted(() => vi.fn());
 const tenantTxMock = vi.hoisted(() => vi.fn());
 const activityLogCreate = vi.hoisted(() => vi.fn());
 const sendEmail = vi.hoisted(() => vi.fn());
+const suppressionFindFirst = vi.hoisted(() => vi.fn());
 
 vi.mock("../../../lib/db", () => ({
   prisma: {
@@ -27,6 +28,7 @@ vi.mock("../../../lib/db", () => ({
     entitlementEvent: { findMany: (...args: unknown[]) => entitlementFindMany(...args) },
     usageMeter: { findUnique: (...args: unknown[]) => usageMeterFindUnique(...args) },
     activityLog: { create: (...args: unknown[]) => activityLogCreate(...args) },
+    emailSuppression: { findFirst: (...args: unknown[]) => suppressionFindFirst(...args) },
   },
   tenantTx: (...args: unknown[]) => tenantTxMock(...args),
 }));
@@ -37,6 +39,10 @@ vi.mock("../../../services/push", () => ({ notifyTenantUsers: vi.fn() }));
 vi.mock("../../../lib/logger", () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn(), debug: vi.fn() },
 }));
+vi.mock("../../../config/env", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../../../config/env")>();
+  return { env: { ...actual.env, API_PUBLIC_URL: "https://api.example.test" } };
+});
 vi.mock("../../../integrations/email", () => ({
   sendEmail: (...args: unknown[]) => sendEmail(...args),
 }));
@@ -88,6 +94,10 @@ beforeEach(() => {
   // Existing delivery behavior is asserted with the B-06 gate explicitly
   // enabled; the disabled default has its own suite at the end of this file.
   vi.stubEnv("OUTBOUND_EMAIL_ENABLED", "true");
+  // Legal config (founder-approved text in production; synthetic here).
+  vi.stubEnv("OUTBOUND_LEGAL_SENDER_ADDRESS", "Test Street 1, Test City");
+  vi.stubEnv("OUTBOUND_LEGAL_UNSUBSCRIBE_TEXT", "To unsubscribe use {url}");
+  suppressionFindFirst.mockResolvedValue(null);
   draftUpdate.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: "draft-1", ...data }));
   draftUpdateMany.mockResolvedValue({ count: 1 });
   activityLogCreate.mockResolvedValue({});
@@ -219,7 +229,9 @@ describe("draft decisions respect company lifecycle", () => {
     expect(contactFindFirst).toHaveBeenCalled();
     expect(tenantTxMock).toHaveBeenCalledOnce();
     expect(sendEmail).toHaveBeenCalledWith({
-      to: "recipient@example.com", subject: "Subject", body: "Body",
+      to: "recipient@example.com", subject: "Subject",
+      body: expect.stringMatching(/^Body<hr>.*unsubscribe.*Test Street 1/s),
+      outbound: { tenantId: "tenant-1" },
     });
     expect(draftUpdate).toHaveBeenCalledWith({
       where: { id: "draft-1" },
@@ -340,7 +352,9 @@ describe("draft decisions respect company lifecycle", () => {
     const edit = await invoke("patch", { content: { body: "changed after claim" } });
     expect(edit.error).toMatchObject({ statusCode: 409 });
     expect(sendEmail).toHaveBeenCalledWith({
-      to: "recipient@example.com", subject: "Subject", body: "Body",
+      to: "recipient@example.com", subject: "Subject",
+      body: expect.stringMatching(/^Body<hr>.*unsubscribe.*Test Street 1/s),
+      outbound: { tenantId: "tenant-1" },
     });
 
     finishSend();
@@ -673,5 +687,41 @@ describe("BRA-P1-02-N1: draft approval binds to one send of the approved content
     expect((await invoke("post", { send: true })).error).toBeUndefined();
     expect((await invoke("post", { send: true })).error).toMatchObject({ statusCode: 400 });
     expect(sendEmail).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("outbound legal guards on draft send", () => {
+  it("a suppressed address is refused with 403 before the claim, quota or provider", async () => {
+    draftFindUnique.mockResolvedValue(pendingDraft("ACTIVE"));
+    suppressionFindFirst.mockResolvedValue({ id: "sup-1" });
+    const { error } = await invoke("post", { send: true });
+    expect(error).toMatchObject({ statusCode: 403 });
+    expect(suppressionFindFirst).toHaveBeenCalledWith({
+      where: { tenantId: "tenant-1", email: "recipient@example.com" },
+      select: { id: true },
+    });
+    expect(draftUpdateMany).not.toHaveBeenCalled();
+    expect(sendEmail).not.toHaveBeenCalled();
+  });
+
+  it.each(["OUTBOUND_LEGAL_SENDER_ADDRESS", "OUTBOUND_LEGAL_UNSUBSCRIBE_TEXT"])(
+    "flag true but %s missing: 422 LEGAL_CONFIG_MISSING, no claim, quota or send",
+    async (name) => {
+      draftFindUnique.mockResolvedValue(pendingDraft("ACTIVE"));
+      vi.stubEnv(name, "");
+      const { error } = await invoke("post", { send: true });
+      expect(error).toMatchObject({ statusCode: 422, code: "LEGAL_CONFIG_MISSING" });
+      expect(draftUpdateMany).not.toHaveBeenCalled();
+      expect(tenantTxMock).not.toHaveBeenCalled();
+      expect(sendEmail).not.toHaveBeenCalled();
+    },
+  );
+
+  it("approve without send needs no legal config", async () => {
+    draftFindUnique.mockResolvedValue(pendingDraft("ACTIVE"));
+    vi.stubEnv("OUTBOUND_LEGAL_SENDER_ADDRESS", "");
+    const { error } = await invoke("post", {});
+    expect(error).toBeUndefined();
+    expect(sendEmail).not.toHaveBeenCalled();
   });
 });

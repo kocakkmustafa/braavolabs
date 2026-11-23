@@ -239,6 +239,14 @@ const envShape = z.object({
   OUTBOUND_EMAIL_ENABLED: z.string().optional(),
   OUTREACH_SEQUENCES_ENABLED: z.string().optional(),
   VOICE_AGENT_ENABLED: z.string().optional(),
+  // Legal config for outbound contact (see getOutboundLegalConfig in
+  // lib/outbound-gates.ts, read at call time). Empty/unset = missing; with a
+  // flag on and a value missing the send / call is refused (LEGAL_CONFIG_MISSING).
+  // Wording and values are founder-approved; nothing is hard-coded.
+  OUTBOUND_LEGAL_SENDER_ADDRESS: z.string().optional(),
+  OUTBOUND_LEGAL_UNSUBSCRIBE_TEXT: z.string().optional(),
+  VOICE_AI_DISCLOSURE_TEXT: z.string().optional(),
+  VOICE_CALL_WINDOW: z.string().optional(),
   // BRA-P1-03c: deploy / merge agent tools. OFF unless "true" (founder approval required).
   DEPLOY_MERGE_TOOLS_ENABLED: z.string().optional(),
   // Vapi voice webhook HMAC secret — used to verify inbound Vapi callbacks.
