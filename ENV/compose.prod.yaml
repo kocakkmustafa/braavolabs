@@ -179,6 +179,15 @@ services:
       # is applied to the production database and the Google readback is
       # accepted; the host .env can then enable it explicitly.
       GOOGLE_PURCHASE_LINEAGE_ENABLED: ${GOOGLE_PURCHASE_LINEAGE_ENABLED:-false}
+      # Outbound legal configuration (founder-approved 2026-11-23; non-secret).
+      # Literal values on purpose: the unsubscribe text carries the {url}
+      # placeholder, which a ${VAR:-default} form would cut at the first "}".
+      # These do NOT enable anything: OUTBOUND_EMAIL_ENABLED,
+      # OUTREACH_SEQUENCES_ENABLED and VOICE_AGENT_ENABLED stay unset (off).
+      OUTBOUND_LEGAL_SENDER_ADDRESS: "Braavolabs by Yula Lab, yula@yulalab.com"
+      OUTBOUND_LEGAL_UNSUBSCRIBE_TEXT: "You are receiving this email because a Braavolabs user sent it on their own behalf. To stop receiving emails from this sender, unsubscribe here: {url}"
+      VOICE_AI_DISCLOSURE_TEXT: "Hello, this is an automated AI assistant calling on behalf of a Braavolabs user."
+      VOICE_CALL_WINDOW: "09:00-20:00 Europe/Istanbul"
       REVENUECAT_WEBHOOK_SECRET: ${REVENUECAT_WEBHOOK_SECRET:-}
       # Email
       SENDGRID_API_KEY: ${SENDGRID_API_KEY:-}
